@@ -54,9 +54,9 @@
 ;;   ;; Re-registering with the same name replaces the existing type
 ;;   (beads-agent-type-register (my-review-type))
 ;;
-;; For custom prompt logic, override `beads-agent-type-build-prompt':
+;; For custom prompt logic, override `beads-agent-type-build-user-prompt':
 ;;
-;;   (cl-defmethod beads-agent-type-build-prompt ((type my-debug-type) issue)
+;;   (cl-defmethod beads-agent-type-build-user-prompt ((type my-debug-type) issue)
 ;;     (format "Debug issue %s: %s" (oref issue id) (oref issue title)))
 ;;
 ;; Letter uniqueness is enforced - each type must use a unique letter.
@@ -92,9 +92,19 @@ Shown in completion annotations to help users choose types.")
    (prompt-template
     :initarg :prompt-template
     :initform nil
-    :documentation "Template string for building prompts, or nil.
-When non-nil, this is combined with issue context to build the agent prompt.
-When nil, the type must override `beads-agent-type-build-prompt'."))
+    :documentation "Template string for the user prompt, or nil.
+When non-nil, this is combined with issue context to build the agent
+user prompt.  When nil, the type must override
+`beads-agent-type-build-user-prompt'.")
+   (system-prompt
+    :initarg :system-prompt
+    :initform nil
+    :documentation "Role/identity template for the system prompt, or nil.
+A string used directly, or a symbol dereferenced with `symbol-value'
+\(like `prompt-template').  Runs the same `<ISSUE-...>' substitution
+via `beads-agent-type-system-prompt'.  nil means this type has no
+distinct system prompt (builder types such as Custom, and the
+default in Phase 1a-i where all slots are still nil)."))
   :abstract t
   :documentation "Abstract base class for AI agent types.
 Subclasses define specific agent behaviors and can override generic methods.
@@ -102,8 +112,8 @@ Types must be registered with `beads-agent-type-register' to be available.")
 
 ;;; Generic Functions
 
-(cl-defgeneric beads-agent-type-build-prompt (type issue)
-  "Build the prompt string for TYPE working on ISSUE.
+(cl-defgeneric beads-agent-type-build-user-prompt (type issue)
+  "Build the user prompt string for TYPE working on ISSUE.
 TYPE is a `beads-agent-type' object.
 ISSUE is a `beads-issue' EIEIO object with slots id, title, description, etc.
 
@@ -113,8 +123,8 @@ mechanisms (e.g., Plan type uses --plan flag instead of prompt).
 Default implementation uses `prompt-template' slot combined with issue context.
 Subclasses may override for custom prompt building.")
 
-(cl-defmethod beads-agent-type-build-prompt ((type beads-agent-type) issue)
-  "Build prompt for TYPE using the prompt-template slot combined with ISSUE.
+(cl-defmethod beads-agent-type-build-user-prompt ((type beads-agent-type) issue)
+  "Build user prompt for TYPE from the prompt-template slot and ISSUE.
 ISSUE is a beads-issue EIEIO object.
 
 The template can contain placeholders that are replaced with issue data:
@@ -135,6 +145,37 @@ The prompt-template slot can be:
             (issue-title (or (oref issue title) ""))
             (issue-desc (or (oref issue description) "")))
         ;; Replace placeholders in template
+        (thread-last template
+          (string-replace "<ISSUE-ID>" issue-id)
+          (string-replace "<ISSUE-TITLE>" issue-title)
+          (string-replace "<ISSUE-DESCRIPTION>" issue-desc))))))
+
+(cl-defgeneric beads-agent-type-system-prompt (type issue)
+  "Build the system (role/identity) prompt for TYPE working on ISSUE.
+TYPE is a `beads-agent-type' object.
+ISSUE is a `beads-issue' EIEIO object, or nil.
+
+Returns the role string with `<ISSUE-...>' placeholders substituted,
+or nil when the type has no distinct system prompt (builder types
+such as Custom, and every type in Phase 1a-i where the slot is still
+nil).  Delivered via the backend's system-prompt channel.")
+
+(cl-defmethod beads-agent-type-system-prompt ((type beads-agent-type) issue)
+  "Build system prompt for TYPE from the `system-prompt' slot and ISSUE.
+The slot may be a string (used directly), a symbol (dereferenced
+with `symbol-value'), or nil (returns nil).  When ISSUE is non-nil,
+the same `<ISSUE-...>' substitution as the user prompt is applied so
+a role template may reference the issue.  Returns nil when the slot
+is nil, so builder types and the Phase 1a-i frozen defaults yield
+nil for every type."
+  (let ((tmpl-or-sym (oref type system-prompt)))
+    (when tmpl-or-sym
+      (let ((template (if (symbolp tmpl-or-sym)
+                          (symbol-value tmpl-or-sym)
+                        tmpl-or-sym))
+            (issue-id (or (and issue (oref issue id)) ""))
+            (issue-title (or (and issue (oref issue title)) ""))
+            (issue-desc (or (and issue (oref issue description)) "")))
         (thread-last template
           (string-replace "<ISSUE-ID>" issue-id)
           (string-replace "<ISSUE-TITLE>" issue-title)

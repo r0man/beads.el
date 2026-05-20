@@ -685,8 +685,9 @@ so that `beads-agent-start' gets a valid project root."
                  ;; through immediately.  Tests can't interact with the
                  ;; buffer; this preserves the pre-toggle-removal behavior.
                  ((symbol-function 'beads-agent-prompt-edit-show)
-                  (lambda (_issue-id prompt _agent-type-name callback)
-                    (funcall callback prompt))))
+                  (lambda (_issue-id _sys prompt _agent-type-name callback)
+                    ;; 5-arg show; 2-arg callback (SYSTEM USER), nil sys.
+                    (funcall callback nil prompt))))
          (unwind-protect
              (progn ,@body)
            (beads-live-test--cleanup-agent-sessions)

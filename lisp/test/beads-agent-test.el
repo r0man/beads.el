@@ -52,7 +52,8 @@ Does not create real buffers - use production mock for that.")
   t)
 
 (cl-defmethod beads-agent-backend-start
-    ((backend beads-agent-backend-test-mock) _issue _prompt)
+    ((backend beads-agent-backend-test-mock) _issue
+     _system-prompt _user-prompt)
   "Mock starting a session."
   (oset backend start-called t)
   ;; Return a mock session handle
@@ -96,6 +97,12 @@ Calls sync stop immediately for testing purposes."
 (defvar beads-agent-test--saved-hook-handlers nil
   "Saved hook handlers to restore after tests.")
 
+(defvar beads-agent-test--saved-backends nil
+  "Saved global backend registry to restore after tests.
+The teardown previously nilled `beads-agent--backends', which
+destroyed the load-time registrations (e.g. the `claude'
+terminal backend) for every test file that ran afterwards.")
+
 (defun beads-agent-test--mock-sesman-sessions (_system)
   "Mock implementation of `sesman-sessions' for tests."
   beads-agent-test--sesman-sessions)
@@ -121,7 +128,9 @@ SESSION is the beads-agent-session object."
   "Setup test fixtures."
   ;; Clear mock sesman storage
   (setq beads-agent-test--sesman-sessions nil)
-  ;; Clear backends
+  ;; Save and clear backends (restored in teardown so the load-time
+  ;; registrations survive for subsequent test files)
+  (setq beads-agent-test--saved-backends beads-agent--backends)
   (setq beads-agent--backends nil)
   ;; Save and replace hook handlers
   (setq beads-agent-test--saved-hook-handlers beads-agent-state-change-hook)
@@ -135,8 +144,10 @@ SESSION is the beads-agent-session object."
   "Teardown test fixtures."
   ;; Clear mock sesman storage
   (setq beads-agent-test--sesman-sessions nil)
-  ;; Clear backends
-  (setq beads-agent--backends nil)
+  ;; Restore the global backend registry (do NOT leave it nil — that
+  ;; would strip the load-time `claude' registration for later files)
+  (setq beads-agent--backends beads-agent-test--saved-backends)
+  (setq beads-agent-test--saved-backends nil)
   ;; Restore original hook handlers
   (setq beads-agent-state-change-hook beads-agent-test--saved-hook-handlers)
   (setq beads-agent-test--saved-hook-handlers nil)
@@ -470,7 +481,7 @@ should have indicators displayed."
   (beads-agent-test--setup)
   (unwind-protect
       (let ((issue (beads-issue :id "bd-123" :title "Test")))
-        (beads-agent-backend-start beads-agent-test--mock-backend issue "prompt")
+        (beads-agent-backend-start beads-agent-test--mock-backend issue nil "prompt")
         (should (oref beads-agent-test--mock-backend start-called)))
     (beads-agent-test--teardown)))
 
@@ -2407,7 +2418,7 @@ Settings changes should allow continued configuration."
       (let* ((mock-backend (beads-agent-mock-get-instance))
              (issue (beads-issue :id "bd-mockbuf" :title "Test")))
         ;; backend-start now returns (backend-session . buffer)
-        (let* ((start-result (beads-agent-backend-start mock-backend issue "test prompt"))
+        (let* ((start-result (beads-agent-backend-start mock-backend issue nil "test prompt"))
                (handle (car start-result))
                (buffer (cdr start-result)))
           (should handle)
@@ -2432,7 +2443,7 @@ Settings changes should allow continued configuration."
         (let* ((mock-backend (beads-agent-mock-get-instance))
                (issue (beads-issue :id "bd-getbuf" :title "Test"))
                ;; backend-start now returns (backend-session . buffer)
-               (start-result (beads-agent-backend-start mock-backend issue "test prompt"))
+               (start-result (beads-agent-backend-start mock-backend issue nil "test prompt"))
                (handle (car start-result))
                (buffer (cdr start-result))
                (session (beads-agent--create-session
@@ -2466,7 +2477,7 @@ Settings changes should allow continued configuration."
         (let* ((mock-backend (beads-agent-mock-get-instance))
                (issue (beads-issue :id "bd-stopbuf" :title "Test"))
                ;; backend-start now returns (backend-session . buffer)
-               (start-result (beads-agent-backend-start mock-backend issue "test prompt"))
+               (start-result (beads-agent-backend-start mock-backend issue nil "test prompt"))
                (handle (car start-result))
                (buffer (cdr start-result))
                (session (beads-agent--create-session
@@ -2490,7 +2501,7 @@ Settings changes should allow continued configuration."
         (dotimes (_ 3)
           (let* ((issue (beads-issue :id "bd-reset" :title "Test"))
                  ;; backend-start now returns (backend-session . buffer)
-                 (start-result (beads-agent-backend-start mock-backend issue "test"))
+                 (start-result (beads-agent-backend-start mock-backend issue nil "test"))
                  (buffer (cdr start-result)))
             (push buffer buffers)))
         ;; All buffers should exist
@@ -2515,7 +2526,7 @@ Buffer names use project name, type, and include issue context."
         (let* ((mock-backend (beads-agent-mock-get-instance))
                (issue (beads-issue :id "bd-rename" :title "Test"))
                ;; backend-start now returns (backend-session . buffer)
-               (start-result (beads-agent-backend-start mock-backend issue "test prompt"))
+               (start-result (beads-agent-backend-start mock-backend issue nil "test prompt"))
                (handle (car start-result))
                (original-buffer (cdr start-result))
                ;; Use /home/user/myproject as project-dir for clearer test
@@ -2550,7 +2561,7 @@ Buffer names use project name, type, and include issue context."
           (dotimes (_i 3)
             (let* ((issue (beads-issue :id "bd-inc" :title "Test"))
                    ;; backend-start now returns (backend-session . buffer)
-                   (start-result (beads-agent-backend-start mock-backend issue "test"))
+                   (start-result (beads-agent-backend-start mock-backend issue nil "test"))
                    (handle (car start-result))
                    (buffer (cdr start-result))
                    (session (beads-agent--create-session
@@ -2587,7 +2598,7 @@ Each type maintains its own instance counter per project."
           (dolist (type-name types)
             (let* ((issue (beads-issue :id "bd-types" :title "Test"))
                    ;; backend-start now returns (backend-session . buffer)
-                   (start-result (beads-agent-backend-start mock-backend issue "test"))
+                   (start-result (beads-agent-backend-start mock-backend issue nil "test"))
                    (handle (car start-result))
                    (buffer (cdr start-result))
                    ;; Use /home/user/myproject for clearer test
@@ -4163,12 +4174,13 @@ subtly different UX that surprises users familiar with Magit."
                (lambda (_name)
                  ;; Return a concrete subclass, not abstract base
                  (beads-agent-type-task)))
-              ((symbol-function 'beads-agent-type-build-prompt)
+              ((symbol-function 'beads-agent-type-build-user-prompt)
                (lambda (_type _issue) "Test prompt"))
               ;; Bypass the prompt-edit buffer: pass prompt straight through.
               ((symbol-function 'beads-agent-prompt-edit-show)
-               (lambda (_issue-id prompt _type callback)
-                 (funcall callback prompt)))
+               (lambda (_issue-id _sys prompt _type callback)
+                 ;; 5-arg show; 2-arg callback (SYSTEM USER), nil sys.
+                 (funcall callback nil prompt)))
               ((symbol-function 'beads-agent--continue-start)
                (lambda (&rest args)
                  (setq continue-called args))))
@@ -4184,8 +4196,9 @@ subtly different UX that surprises users familiar with Magit."
   (let ((backend-started nil)
         (session-created nil))
     (cl-letf (((symbol-function 'beads-agent-backend-start)
-               (lambda (backend issue prompt)
-                 (setq backend-started (list backend issue prompt))
+               (lambda (backend issue system-prompt user-prompt)
+                 (setq backend-started
+                       (list backend issue system-prompt user-prompt))
                  (cons "backend-session-id" (generate-new-buffer " *test*"))))
               ((symbol-function 'beads-agent--create-session)
                (lambda (&rest args)

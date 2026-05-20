@@ -614,13 +614,19 @@ From the browser, you can:
 
 ### Supported Backends
 
-Currently implemented:
+Wrapper backends (drive an external Emacs agent package):
 - **claude-code-ide**: Integration with Claude Code via claude-code-ide.el
+- **claude-code**, **claudemacs**, **eca**, **agent-shell**
 
-Placeholder backends (not yet implemented):
-- efrit
-- claudemacs
-- claude-code.el
+Terminal-spawned backend (opt-in, collision-free by construction):
+- **claude**: spawns the `claude` CLI directly into a terminal
+  (vterm/ghostel/eat/ansi-term/term via `beads-terminal`), owning the
+  buffer name from spawn. Opt in with
+  `(setq beads-agent-task-backend "claude")`. The system prompt is
+  delivered via `--append-system-prompt`. See `NEWS.md` for the
+  per-backend system-prompt seam status and the opt-in caveat.
+
+The `efrit` backend has been removed.
 
 To use AI agents, you need:
 1. Install claude-code-ide.el package

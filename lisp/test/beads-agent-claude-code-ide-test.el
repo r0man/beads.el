@@ -286,7 +286,7 @@
   (let ((backend (beads-agent-backend-claude-code-ide)))
     (cl-letf (((symbol-function 'featurep) (lambda (_) nil))
               ((symbol-function 'require) (lambda (&rest _) nil)))
-      (should-error (beads-agent-backend-start backend nil "Test prompt")
+      (should-error (beads-agent-backend-start backend nil nil "Test prompt")
                     :type 'error))))
 
 (ert-deftest beads-agent-claude-code-ide-test-start-error-no-package ()
@@ -296,7 +296,7 @@
                (lambda (f) (eq f 'web-server)))
               ((symbol-function 'require)
                (lambda (f &rest _) (eq f 'web-server))))
-      (should-error (beads-agent-backend-start backend nil "Test prompt")
+      (should-error (beads-agent-backend-start backend nil nil "Test prompt")
                     :type 'error))))
 
 (ert-deftest beads-agent-claude-code-ide-test-start-error-no-claude ()
@@ -305,7 +305,7 @@
     (cl-letf (((symbol-function 'featurep) (lambda (_) t))
               ((symbol-function 'require) (lambda (&rest _) t))
               ((symbol-function 'executable-find) (lambda (_) nil)))
-      (should-error (beads-agent-backend-start backend nil "Test prompt")
+      (should-error (beads-agent-backend-start backend nil nil "Test prompt")
                     :type 'error))))
 
 ;;; Session Active Tests

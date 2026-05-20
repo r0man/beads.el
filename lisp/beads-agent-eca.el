@@ -157,9 +157,12 @@ Verifies the eca-emacs package is loaded and key functions exist."
            (fboundp 'eca-install-server))))
 
 (cl-defmethod beads-agent-backend-start
-    ((_backend beads-agent-backend-eca) _issue prompt)
-  "Start ECA session with PROMPT.
+    ((_backend beads-agent-backend-eca) _issue system-prompt user-prompt)
+  "Start ECA session with SYSTEM-PROMPT and USER-PROMPT.
 ISSUE is unused as ECA works per-workspace via `default-directory'.
+SYSTEM-PROMPT and USER-PROMPT are combined via
+`beads-agent-backend--combine-prompt' (Phase 2 wires the dedicated
+system-prompt seam).
 Returns cons cell (BACKEND-SESSION . BUFFER)."
   ;; Pre-flight checks with helpful error messages
   (unless (or (featurep 'eca) (require 'eca nil t))
@@ -173,7 +176,9 @@ Returns cons cell (BACKEND-SESSION . BUFFER)."
   (require 'eca-process)
   ;; default-directory is set by beads-agent-start to the project/worktree
   ;; ECA's session lookup uses this for workspace matching
-  (let (eca-session
+  (let ((prompt (beads-agent-backend--combine-prompt
+                 system-prompt user-prompt))
+        eca-session
         buffer)
     (condition-case err
         (progn

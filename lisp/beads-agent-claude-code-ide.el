@@ -89,9 +89,13 @@ Verifies the package is loaded, web-server is available, and claude exists."
 (defvar vterm-environment)
 
 (cl-defmethod beads-agent-backend-start
-    ((_backend beads-agent-backend-claude-code-ide) _issue prompt)
-  "Start claude-code-ide session with PROMPT.
+    ((_backend beads-agent-backend-claude-code-ide) _issue
+     system-prompt user-prompt)
+  "Start claude-code-ide session with SYSTEM-PROMPT and USER-PROMPT.
 ISSUE is ignored as claude-code-ide works per-project.
+SYSTEM-PROMPT and USER-PROMPT are combined via
+`beads-agent-backend--combine-prompt' (Phase 2 wires the dedicated
+system-prompt seam).
 The working directory is determined by the caller (may be a worktree).
 Returns cons cell (BACKEND-SESSION . BUFFER)."
   ;; Pre-flight checks with helpful error messages
@@ -109,7 +113,9 @@ Returns cons cell (BACKEND-SESSION . BUFFER)."
     (claude-code-ide-emacs-tools-setup))
   ;; default-directory is set by beads-agent-start (may be worktree)
   ;; Pass initial prompt as positional CLI argument via extra-flags
-  (let* ((working-dir default-directory)
+  (let* ((prompt (beads-agent-backend--combine-prompt
+                  system-prompt user-prompt))
+         (working-dir default-directory)
          ;; Append initial prompt to user's extra flags (preserve user settings)
          (claude-code-ide-cli-extra-flags
           (string-trim

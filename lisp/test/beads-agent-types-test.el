@@ -98,19 +98,21 @@
 
 
 (ert-deftest beads-agent-types-test-task-prompt-content ()
-  "Test Task agent builds correct prompt."
+  "Test Task agent splits role (system) from issue envelope (user)."
   (beads-agent-types-test--setup)
   (unwind-protect
       (let* ((type (beads-agent-type-get "task"))
-             (prompt (beads-agent-type-build-prompt
-                      type (beads-agent-types-test--make-sample-issue))))
-        (should (stringp prompt))
-        ;; Check for embedded prompt content
-        (should (string-match "task-completion agent" prompt))
-        (should (string-match "Claim the Task" prompt))
-        ;; Check for issue context
-        (should (string-match "test-123" prompt))
-        (should (string-match "Test Issue Title" prompt)))
+             (issue (beads-agent-types-test--make-sample-issue))
+             (sys (beads-agent-type-system-prompt type issue))
+             (user (beads-agent-type-build-user-prompt type issue)))
+        (should (stringp sys))
+        (should (stringp user))
+        ;; Role text lives in the SYSTEM prompt.
+        (should (string-match "task-completion agent" sys))
+        (should (string-match "Claim the Task" sys))
+        ;; Issue context lives in the USER prompt.
+        (should (string-match "test-123" user))
+        (should (string-match "Test Issue Title" user)))
     (beads-agent-types-test--teardown)))
 
 ;;; Tests for Review Agent
@@ -128,29 +130,29 @@
   (beads-agent-types-test--setup)
   (unwind-protect
       (let* ((type (beads-agent-type-get "review"))
-             (prompt (beads-agent-type-build-prompt
-                      type (beads-agent-types-test--make-sample-issue))))
-        (should (stringp prompt))
-        ;; Check for default prompt content
-        (should (string-match "code review" prompt))
-        (should (string-match "Code quality" prompt))
-        (should (string-match "Security" prompt))
-        ;; Check for issue context
-        (should (string-match "test-123" prompt)))
+             (issue (beads-agent-types-test--make-sample-issue))
+             (sys (beads-agent-type-system-prompt type issue))
+             (user (beads-agent-type-build-user-prompt type issue)))
+        ;; Role focus in SYSTEM; issue context in USER.
+        (should (string-match "code review" sys))
+        (should (string-match "Code quality" sys))
+        (should (string-match "Security" sys))
+        (should (string-match "test-123" user)))
     (beads-agent-types-test--teardown)))
 
 (ert-deftest beads-agent-types-test-review-custom-prompt ()
   "Test Review agent uses customized prompt with placeholders."
   (beads-agent-types-test--setup)
   (unwind-protect
+      ;; Customising the role defcustom now feeds the SYSTEM prompt.
       (let ((beads-agent-review-prompt
              "Custom review instructions for <ISSUE-ID>: <ISSUE-TITLE>")
             (type (beads-agent-type-get "review")))
-        (let ((prompt (beads-agent-type-build-prompt
-                       type (beads-agent-types-test--make-sample-issue))))
-          (should (string-match "Custom review instructions" prompt))
-          (should (string-match "test-123" prompt))
-          (should (string-match "Test Issue Title" prompt))))
+        (let ((sys (beads-agent-type-system-prompt
+                    type (beads-agent-types-test--make-sample-issue))))
+          (should (string-match "Custom review instructions" sys))
+          (should (string-match "test-123" sys))
+          (should (string-match "Test Issue Title" sys))))
     (beads-agent-types-test--teardown)))
 
 
@@ -169,15 +171,14 @@
   (beads-agent-types-test--setup)
   (unwind-protect
       (let* ((type (beads-agent-type-get "plan"))
-             (prompt (beads-agent-type-build-prompt
-                      type (beads-agent-types-test--make-sample-issue))))
-        (should (stringp prompt))
-        ;; Check for plan prompt content
-        (should (string-match "planning agent" prompt))
-        (should (string-match "DO NOT modify" prompt))
-        ;; Check for issue context
-        (should (string-match "test-123" prompt))
-        (should (string-match "Test Issue Title" prompt)))
+             (issue (beads-agent-types-test--make-sample-issue))
+             (sys (beads-agent-type-system-prompt type issue))
+             (user (beads-agent-type-build-user-prompt type issue)))
+        ;; Role text in SYSTEM; issue context in USER.
+        (should (string-match "planning agent" sys))
+        (should (string-match "DO NOT modify" sys))
+        (should (string-match "test-123" user))
+        (should (string-match "Test Issue Title" user)))
     (beads-agent-types-test--teardown)))
 
 ;;; Tests for QA Agent
@@ -195,29 +196,29 @@
   (beads-agent-types-test--setup)
   (unwind-protect
       (let* ((type (beads-agent-type-get "qa"))
-             (prompt (beads-agent-type-build-prompt
-                      type (beads-agent-types-test--make-sample-issue))))
-        (should (stringp prompt))
-        ;; Check for default prompt content
-        (should (string-match "QA agent" prompt))
-        (should (string-match "tests" prompt))
-        (should (string-match "edge cases" prompt))
-        ;; Check for issue context
-        (should (string-match "test-123" prompt)))
+             (issue (beads-agent-types-test--make-sample-issue))
+             (sys (beads-agent-type-system-prompt type issue))
+             (user (beads-agent-type-build-user-prompt type issue)))
+        ;; Role workflow in SYSTEM; issue context in USER.
+        (should (string-match "QA agent" sys))
+        (should (string-match "tests" sys))
+        (should (string-match "edge cases" sys))
+        (should (string-match "test-123" user)))
     (beads-agent-types-test--teardown)))
 
 (ert-deftest beads-agent-types-test-qa-custom-prompt ()
   "Test QA agent uses customized prompt with placeholders."
   (beads-agent-types-test--setup)
   (unwind-protect
+      ;; Customising the role defcustom now feeds the SYSTEM prompt.
       (let ((beads-agent-qa-prompt
              "Custom QA instructions for <ISSUE-ID>: <ISSUE-TITLE>")
             (type (beads-agent-type-get "qa")))
-        (let ((prompt (beads-agent-type-build-prompt
-                       type (beads-agent-types-test--make-sample-issue))))
-          (should (string-match "Custom QA instructions" prompt))
-          (should (string-match "test-123" prompt))
-          (should (string-match "Test Issue Title" prompt))))
+        (let ((sys (beads-agent-type-system-prompt
+                    type (beads-agent-types-test--make-sample-issue))))
+          (should (string-match "Custom QA instructions" sys))
+          (should (string-match "test-123" sys))
+          (should (string-match "Test Issue Title" sys))))
     (beads-agent-types-test--teardown)))
 
 
@@ -235,7 +236,7 @@
 (ert-deftest beads-agent-types-test-custom-returns-issue-prompt ()
   "Test Custom agent returns issue-based prompt without minibuffer input.
 The user authors their custom instructions in the prompt-edit buffer
-that is shown after `beads-agent-type-build-prompt' returns, so this
+that is shown after `beads-agent-type-build-user-prompt' returns, so this
 method must never prompt via `read-string'."
   (beads-agent-types-test--setup)
   (unwind-protect
@@ -243,7 +244,7 @@ method must never prompt via `read-string'."
                  (lambda (&rest _args)
                    (error "Custom type must not call read-string"))))
         (let* ((type (beads-agent-type-get "custom"))
-               (prompt (beads-agent-type-build-prompt
+               (prompt (beads-agent-type-build-user-prompt
                         type (beads-agent-types-test--make-sample-issue))))
           (should (stringp prompt))
           (should (string-match "test-123" prompt))
@@ -274,7 +275,7 @@ method must never prompt via `read-string'."
   (unwind-protect
       (dolist (type-name '("task" "review" "qa"))
         (let* ((type (beads-agent-type-get type-name))
-               (prompt (beads-agent-type-build-prompt
+               (prompt (beads-agent-type-build-user-prompt
                         type (beads-agent-types-test--make-sample-issue))))
           (should (string-match "Test Issue Title" prompt))))
     (beads-agent-types-test--teardown)))
@@ -284,12 +285,14 @@ method must never prompt via `read-string'."
   (beads-agent-types-test--setup)
   (unwind-protect
       ;; Test with a custom prompt that uses the description placeholder
+      ;; Customised role defcustom feeds SYSTEM; <ISSUE-DESCRIPTION>
+      ;; still substitutes there.
       (let ((beads-agent-review-prompt
              "Review <ISSUE-ID>: <ISSUE-TITLE>\n\nDescription: <ISSUE-DESCRIPTION>")
             (type (beads-agent-type-get "review")))
-        (let ((prompt (beads-agent-type-build-prompt
-                       type (beads-agent-types-test--make-sample-issue))))
-          (should (string-match "Test issue description" prompt))))
+        (let ((sys (beads-agent-type-system-prompt
+                    type (beads-agent-types-test--make-sample-issue))))
+          (should (string-match "Test issue description" sys))))
     (beads-agent-types-test--teardown)))
 
 (ert-deftest beads-agent-types-test-prompts-handle-empty-description ()
@@ -299,7 +302,7 @@ method must never prompt via `read-string'."
       (let ((issue (beads-issue :id "test-456" :title "No Description")))
         (dolist (type-name '("task" "review" "qa"))
           (let* ((type (beads-agent-type-get type-name))
-                 (prompt (beads-agent-type-build-prompt type issue)))
+                 (prompt (beads-agent-type-build-user-prompt type issue)))
             (should (stringp prompt))
             (should (string-match "test-456" prompt)))))
     (beads-agent-types-test--teardown)))

@@ -282,10 +282,17 @@ For backward compatibility.  New code should use
   "Return non-nil if BACKEND is available for use.
 This should check if the required package is loaded and functional.")
 
-(cl-defgeneric beads-agent-backend-start (backend issue prompt)
-  "Start BACKEND working on ISSUE with PROMPT.
-ISSUE is a beads-issue object.
-PROMPT is a string to send to the agent.
+(cl-defgeneric beads-agent-backend-start
+    (backend issue system-prompt user-prompt)
+  "Start BACKEND working on ISSUE with SYSTEM-PROMPT and USER-PROMPT.
+ISSUE is a beads-issue object, or nil for a project-level agent.
+SYSTEM-PROMPT is the agent role/identity string, or nil to use the
+backend's built-in identity.
+USER-PROMPT is the task string to send to the agent.
+
+Backends without a dedicated system-prompt channel combine the two
+via `beads-agent-backend--combine-prompt' (Phase 2 wires the
+per-backend system-prompt seams).
 
 Returns a cons cell (BACKEND-SESSION . BUFFER) where:
 - BACKEND-SESSION is a backend-specific session handle (can be nil)
@@ -299,6 +306,31 @@ If BUFFER is nil, the caller will not be able to find the agent's
 buffer.  Most backends should return the buffer they create.
 
 Signals an error on failure.")
+
+(cl-defmethod beads-agent-backend-start
+    ((b beads-agent-backend) _issue _system-prompt _user-prompt)
+  "Signal that backend B has not migrated to the 4-arity signature.
+This catch-all on the abstract base fires when an out-of-tree
+subclass still defines a 3-arity `beads-agent-backend-start'.  B is
+the offending backend object.  See NEWS."
+  (error "Backend %s must implement 4-arity beads-agent-backend-start \
+(backend issue system-prompt user-prompt).  See NEWS"
+         (eieio-object-class b)))
+
+(defun beads-agent-backend--combine-prompt (system-prompt user-prompt)
+  "Combine SYSTEM-PROMPT and USER-PROMPT into a single prompt string.
+Used by backends that lack a dedicated system-prompt delivery
+channel.  SYSTEM-PROMPT is prepended (separated by a blank line)
+only when it is a non-empty string; the same
+`(and s (not (string-empty-p s)))' predicate governs the argv flag
+path in `beads-agent-backend-terminal-build-argv', so an empty
+SYSTEM-PROMPT is treated as absent everywhere (no stray blank
+line).  Returns USER-PROMPT unchanged when SYSTEM-PROMPT is absent."
+  (if (and system-prompt (not (string-empty-p system-prompt)))
+      (if (and user-prompt (not (string-empty-p user-prompt)))
+          (concat system-prompt "\n\n" user-prompt)
+        system-prompt)
+    user-prompt))
 
 (cl-defgeneric beads-agent-backend-stop (backend session)
   "Stop SESSION running on BACKEND.

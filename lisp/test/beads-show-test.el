@@ -2259,7 +2259,7 @@ Note: Notes cannot be set at creation time, only via update."
    (let ((mock-session (beads-agent-session
                         :id "session-456"
                         :issue-id "bd-42"
-                        :backend-name "efrit"
+                        :backend-name "claude-code"
                         :project-dir "/home/user/project"
                         :started-at "2025-01-14T08:00:00")))
      ;; Mock the functions - session is not active
