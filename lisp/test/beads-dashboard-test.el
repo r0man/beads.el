@@ -363,11 +363,12 @@ trigger the registry-pollution failure mode."
       ;; Point is on the propertized region.
       (should (equal (beads-section-issue-id-at-point) "bd-dash-1"))
       (should (equal (beads-agent--detect-issue-id) "bd-dash-1"))
-      ;; Off the propertized region (newline) → nil for both.
-      (goto-char (point-max))
-      (forward-line -1)
+      ;; Off the propertized region → nil for both.  After
+      ;; `goto-char point-min', `end-of-line' lands on the bare
+      ;; unpropertized newline that terminates the issue line; the
+      ;; extra `forward-char' steps one past it for good measure.
       (end-of-line)
-      (forward-char 1)  ; onto the bare newline
+      (forward-char 1)
       (should-not (beads-section-issue-id-at-point))
       (should-not (beads-agent--detect-issue-id)))))
 

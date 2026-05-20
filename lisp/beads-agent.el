@@ -390,7 +390,16 @@ Looks in this order:
    (when (derived-mode-p 'beads-show-mode)
      beads-show--issue-id)
    ;; `fboundp' guard: `beads-agent' does not require `beads-section',
-   ;; so the section clause is only active when a caller has loaded it.
+   ;; so this clause is only active when a caller has loaded it.
+   ;;
+   ;; NOTE: this branch is intentionally unguarded by `derived-mode-p'
+   ;; — it fires in *any* buffer once `beads-section' is loaded, so a
+   ;; non-dashboard/non-section buffer that happens to render a beads
+   ;; issue line via `beads-section--propertize' becomes an agent-launch
+   ;; surface for free.  Safety against stray text properties from
+   ;; unrelated uses comes from `beads-section-issue-id-at-point' itself,
+   ;; which does an `object-of-class-p 'beads-issue-section' check on
+   ;; the value before returning an id.
    (when (fboundp 'beads-section-issue-id-at-point)
      (beads-section-issue-id-at-point))
    (when-let ((parsed (beads-buffer-parse-show (buffer-name))))
