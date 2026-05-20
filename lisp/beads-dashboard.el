@@ -24,6 +24,7 @@
 (require 'beads-command-dep)
 (require 'beads-dashboard-sections)
 (require 'beads-status)
+(require 'beads-agent-keys)
 
 (declare-function beads-actions-claim "beads-actions")
 (declare-function beads-show "beads-command-show")
@@ -119,7 +120,7 @@ Restored on buffer init so collapse state survives close-and-reopen.")
 (defun beads-dashboard--footer-vnode ()
   "Return the dashboard footer vnode (key hints)."
   (vui-text
-   "KEYS: n/p item · M-n/M-p section · TAB toggle · M-1..M-4 depth · g refresh · c claim · b blocker · RET visit · q quit"
+   "KEYS: n/p item · M-n/M-p section · TAB toggle · M-1..M-4 depth · g refresh · c claim · b blocker · a agent · RET visit · q quit"
    :face 'shadow))
 
 ;;; Section Builder
@@ -499,6 +500,11 @@ found, nil when point did not move."
   "M-2" #'beads-dashboard-depth-2
   "M-3" #'beads-dashboard-depth-3
   "M-4" #'beads-dashboard-depth-4
+  ;; Agent prefix — same `a' family that `beads-list-mode' uses:
+  ;; `a a' start, `a t/r/p/q/c' typed starts, `a x' stop, `a j' jump.
+  ;; All resolve the issue at point through the section text-property
+  ;; contract via `beads-agent--detect-issue-id'.
+  "a"   beads-agent-prefix-map
   "q"   #'quit-window)
 
 (defun beads-dashboard-refresh-dispatch (&optional arg)

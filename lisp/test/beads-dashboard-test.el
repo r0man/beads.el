@@ -21,6 +21,8 @@
 (require 'beads-command)
 (require 'beads-dashboard)
 (require 'beads-dashboard-sections)
+(require 'beads-section)
+(require 'beads-agent)
 
 ;;; Render-state Tests
 
@@ -330,6 +332,44 @@ Default-collapsed sections must not fetch their data until expanded."
            (children (and (vui-vnode-p vnode)
                           (vui-vnode-vstack-children vnode))))
       (should (= 3 (length children))))))
+
+;;; Agent issue-id detection from dashboard-style buffers
+
+(ert-deftest beads-dashboard-test-agent-detect-issue-id-from-section ()
+  "`beads-agent--detect-issue-id' resolves an issue stamped on the
+line at point via the `beads-section' text-property contract that the
+dashboard (and any other `beads-section-mode'-derived view) uses to
+mark issue lines.  Regression: previously the detector only knew
+`beads-list-mode' and `beads-show-mode', so `beads-agent-start-at-point'
+and friends were no-ops in the dashboard.
+
+Pure unit test — does not touch `beads-agent--backends', so it cannot
+trigger the registry-pollution failure mode."
+  :tags '(:unit)
+  (let ((issue (beads-issue :id "bd-dash-1"
+                            :title "Detector probe"
+                            :status "open"
+                            :priority 2
+                            :issue-type "task")))
+    (with-temp-buffer
+      ;; Mimic what the dashboard's issue-line renderer stamps onto
+      ;; each issue line.  No vui mount needed — the detector only
+      ;; reads the text property at point.
+      (insert (beads-section--propertize
+               "  bd-dash-1 P2 task open Detector probe"
+               (beads-issue-section :issue issue)))
+      (insert "\n")
+      (goto-char (point-min))
+      ;; Point is on the propertized region.
+      (should (equal (beads-section-issue-id-at-point) "bd-dash-1"))
+      (should (equal (beads-agent--detect-issue-id) "bd-dash-1"))
+      ;; Off the propertized region (newline) → nil for both.
+      (goto-char (point-max))
+      (forward-line -1)
+      (end-of-line)
+      (forward-char 1)  ; onto the bare newline
+      (should-not (beads-section-issue-id-at-point))
+      (should-not (beads-agent--detect-issue-id)))))
 
 (provide 'beads-dashboard-test)
 ;;; beads-dashboard-test.el ends here
