@@ -337,7 +337,7 @@ rows do not wrap to a continuation line in narrow / side-by-side splits."
   (let ((beads-dashboard-section-limit 5)
         (items '(a b c)))
     (let* ((vnode (beads-dashboard--limited-vstack
-                   items #'ignore
+                   items #'ignore nil nil
                    (lambda (visible)
                      (mapcar (lambda (x) (vui-text (format "G:%s" x)))
                              visible))))
@@ -383,6 +383,249 @@ trigger the registry-pollution failure mode."
       (forward-char 1)
       (should-not (beads-section-issue-id-at-point))
       (should-not (beads-agent--detect-issue-id)))))
+
+;;; Per-Section Load More
+
+(ert-deftest beads-dashboard-test-extra-cache-default-nil ()
+  "Loading extra-rows for an unknown root returns nil, not an error."
+  :tags '(:unit)
+  (let ((beads-dashboard--extra-cache nil))
+    (should-not (beads-dashboard--load-extra "/tmp/no/such/root/"))))
+
+(ert-deftest beads-dashboard-test-extra-cache-roundtrip ()
+  "Saving then loading extra-rows for a project root returns stored alist."
+  :tags '(:unit)
+  (let ((beads-dashboard--extra-cache nil)
+        (root "/tmp/proj-extra/")
+        (state '((ready . 20) (blocked . all))))
+    (beads-dashboard--save-extra root state)
+    (should (equal (beads-dashboard--load-extra root) state))))
+
+(ert-deftest beads-dashboard-test-extra-cache-nil-clears-entry ()
+  "Saving nil for a root removes its entry rather than storing (root . nil)."
+  :tags '(:unit)
+  (let ((beads-dashboard--extra-cache nil)
+        (root "/tmp/proj-extra/"))
+    (beads-dashboard--save-extra root '((ready . 20)))
+    (beads-dashboard--save-extra root nil)
+    (should-not (beads-dashboard--load-extra root))
+    (should-not (assoc root beads-dashboard--extra-cache))))
+
+(ert-deftest beads-dashboard-test-effective-display-limit-base ()
+  "Nil extra → effective display limit equals the section base."
+  :tags '(:unit)
+  (let ((beads-dashboard-section-limit 10))
+    (should (= 10 (beads-dashboard--effective-display-limit nil)))))
+
+(ert-deftest beads-dashboard-test-effective-display-limit-with-extra ()
+  "Base 10 + extra 5 → effective display limit 15."
+  :tags '(:unit)
+  (let ((beads-dashboard-section-limit 10))
+    (should (= 15 (beads-dashboard--effective-display-limit 5)))))
+
+(ert-deftest beads-dashboard-test-effective-display-limit-all ()
+  "`all' sentinel → nil (unlimited)."
+  :tags '(:unit)
+  (let ((beads-dashboard-section-limit 10))
+    (should-not (beads-dashboard--effective-display-limit 'all))))
+
+(ert-deftest beads-dashboard-test-effective-display-limit-base-nil ()
+  "Nil section base → nil (unlimited), regardless of extra."
+  :tags '(:unit)
+  (let ((beads-dashboard-section-limit nil))
+    (should-not (beads-dashboard--effective-display-limit nil))
+    (should-not (beads-dashboard--effective-display-limit 5))))
+
+(ert-deftest beads-dashboard-test-effective-fetch-limit-nil ()
+  "Nil extra → nil (no --limit passed, CLI default applies).
+This preserves the headline (N) count and keeps the `… and N more'
+affordance live when the user has not bumped the section."
+  :tags '(:unit)
+  (let ((beads-dashboard-section-limit 10))
+    (should-not (beads-dashboard--effective-fetch-limit nil))))
+
+(ert-deftest beads-dashboard-test-effective-fetch-limit-all ()
+  "`all' → 0 (CLI unlimited semantics for bd ready/stale/list)."
+  :tags '(:unit)
+  (let ((beads-dashboard-section-limit 10))
+    (should (= 0 (beads-dashboard--effective-fetch-limit 'all)))))
+
+(ert-deftest beads-dashboard-test-effective-fetch-limit-int ()
+  "Integer extra → display-limit + extra + batch (one-batch lookahead).
+The lookahead keeps the `… and N more' affordance visible after `+'
+until the section is truly exhausted."
+  :tags '(:unit)
+  (let ((beads-dashboard-section-limit 10)
+        (beads-dashboard-section-batch 10))
+    (should (= 35 (beads-dashboard--effective-fetch-limit 15)))))
+
+(ert-deftest beads-dashboard-test-more-line-clickable ()
+  "`beads-dashboard--more-line' returns a clickable button vnode with
+the hidden count visible in its label."
+  :tags '(:unit)
+  (let ((vnode (beads-dashboard--more-line 'ready 7)))
+    (should (vui-vnode-button-p vnode))
+    (should (string-match-p "7" (vui-vnode-button-label vnode)))
+    (should (functionp (vui-vnode-button-on-click vnode)))))
+
+(ert-deftest beads-dashboard-test-more-line-hidden-zero-returns-nil ()
+  "No more-line is emitted when nothing is hidden."
+  :tags '(:unit)
+  (should-not (beads-dashboard--more-line 'ready 0))
+  (should-not (beads-dashboard--more-line 'ready nil)))
+
+(ert-deftest beads-dashboard-test-more-line-carries-section-key ()
+  "The more-line label carries `beads-dashboard-section-key' so a click
+on it can route the load-more action to the correct section."
+  :tags '(:unit)
+  (let* ((vnode (beads-dashboard--more-line 'ready 3))
+         (label (vui-vnode-button-label vnode)))
+    (should (eq 'ready
+                (get-text-property 0 'beads-dashboard-section-key label)))))
+
+(ert-deftest beads-dashboard-test-limited-vstack-honours-extra ()
+  "Extra rows raise the effective display limit and shrink the more-line."
+  :tags '(:unit)
+  (let ((beads-dashboard-section-limit 2)
+        (items '(a b c d e)))
+    ;; Without extra: 2 visible + 1 more-line button = 3 children.
+    (let* ((vnode (beads-dashboard--limited-vstack
+                   items (lambda (x _) (vui-text (format "%s" x)))
+                   nil 'ready))
+           (kids (vui-vnode-vstack-children vnode)))
+      (should (= 3 (length kids))))
+    ;; With extra 2: 4 visible + 1 more-line button = 5 children.
+    (let* ((vnode (beads-dashboard--limited-vstack
+                   items (lambda (x _) (vui-text (format "%s" x)))
+                   2 'ready))
+           (kids (vui-vnode-vstack-children vnode)))
+      (should (= 5 (length kids))))
+    ;; With `all': 5 visible, no more-line.
+    (let* ((vnode (beads-dashboard--limited-vstack
+                   items (lambda (x _) (vui-text (format "%s" x)))
+                   'all 'ready))
+           (kids (vui-vnode-vstack-children vnode)))
+      (should (= 5 (length kids))))))
+
+(ert-deftest beads-dashboard-test-render-issue-list-stamps-section-key ()
+  "Each rendered issue row carries the supplied `beads-dashboard-section-key'."
+  :tags '(:unit)
+  (let* ((issues (list (beads-issue :id "bd-1" :title "A"
+                                    :status "open" :priority 2
+                                    :issue-type "task")
+                       (beads-issue :id "bd-2" :title "B"
+                                    :status "open" :priority 2
+                                    :issue-type "task")))
+         (beads-dashboard-section-limit 10)
+         (vnode (beads-dashboard--render-issue-list issues 'ready))
+         (kids (vui-vnode-vstack-children vnode))
+         (first (car kids)))
+    (should (vui-vnode-button-p first))
+    (let ((label (vui-vnode-button-label first)))
+      (should (eq 'ready
+                  (get-text-property 0 'beads-dashboard-section-key label))))))
+
+(ert-deftest beads-dashboard-test-section-async-key-includes-extra ()
+  "Bumping the per-section `:extra-rows' prop must change the vnode's
+async-key — otherwise `vui-use-async' would return the cached smaller
+payload and `+' would visibly do nothing."
+  :tags '(:unit)
+  (let* ((collapsed '((ready . nil)))
+         (vnode-a (beads-dashboard--section
+                   'ready "Ready"
+                   (lambda (_r _j) nil) #'identity collapsed 0
+                   (current-buffer) :extra-rows nil))
+         (vnode-b (beads-dashboard--section
+                   'ready "Ready"
+                   (lambda (_r _j) nil) #'identity collapsed 0
+                   (current-buffer) :extra-rows 10))
+         (key-a (plist-get (vui-vnode-component-props vnode-a) :async-key))
+         (key-b (plist-get (vui-vnode-component-props vnode-b) :async-key)))
+    (should-not (equal key-a key-b))))
+
+(ert-deftest beads-dashboard-test-load-keys-bound ()
+  "+/-/* bind to the load-more / load-less / load-all commands."
+  :tags '(:unit)
+  (should (eq (lookup-key beads-dashboard-mode-map (kbd "+"))
+              #'beads-dashboard-load-more))
+  (should (eq (lookup-key beads-dashboard-mode-map (kbd "-"))
+              #'beads-dashboard-load-less))
+  (should (eq (lookup-key beads-dashboard-mode-map (kbd "*"))
+              #'beads-dashboard-load-all)))
+
+(ert-deftest beads-dashboard-test-bump-extra-adds-entry-and-persists ()
+  "`beads-dashboard--bump-extra' adds a section entry and writes the cache."
+  :tags '(:unit)
+  (let ((tmp (generate-new-buffer " *beads-dash-bump-test*"))
+        (beads-dashboard--extra-cache nil))
+    (unwind-protect
+        (with-current-buffer tmp
+          (beads-dashboard-mode)
+          ;; Stub the project root and the root-state plumbing so the
+          ;; bump runs without a full vui mount.
+          (cl-letf* ((root "/tmp/bump-proj/")
+                     ((symbol-function 'beads-dashboard--project-root)
+                      (lambda () root))
+                     (state '())
+                     ((symbol-function 'beads-dashboard--root-state)
+                      (lambda (k) (when (eq k :extra) state)))
+                     ((symbol-function 'beads-dashboard--bump)
+                      (lambda (_k v) (setq state v))))
+            (beads-dashboard--bump-extra 'ready 10)
+            (should (equal '((ready . 10)) state))
+            (should (equal '((ready . 10))
+                           (beads-dashboard--load-extra root)))))
+      (let ((kill-buffer-query-functions nil)) (kill-buffer tmp)))))
+
+(ert-deftest beads-dashboard-test-bump-extra-floors-at-zero ()
+  "A negative delta that would go below zero clears the entry."
+  :tags '(:unit)
+  (let ((tmp (generate-new-buffer " *beads-dash-floor-test*"))
+        (beads-dashboard--extra-cache nil))
+    (unwind-protect
+        (with-current-buffer tmp
+          (beads-dashboard-mode)
+          (cl-letf* ((root "/tmp/floor-proj/")
+                     ((symbol-function 'beads-dashboard--project-root)
+                      (lambda () root))
+                     (state '((ready . 5)))
+                     ((symbol-function 'beads-dashboard--root-state)
+                      (lambda (k) (when (eq k :extra) state)))
+                     ((symbol-function 'beads-dashboard--bump)
+                      (lambda (_k v) (setq state v))))
+            (beads-dashboard--bump-extra 'ready -10)
+            (should (null state))
+            (should-not (assq 'ready state))))
+      (let ((kill-buffer-query-functions nil)) (kill-buffer tmp)))))
+
+(ert-deftest beads-dashboard-test-bump-extra-all-then-int ()
+  "Going from `all' to an integer delta starts fresh from zero."
+  :tags '(:unit)
+  (let ((tmp (generate-new-buffer " *beads-dash-all-test*"))
+        (beads-dashboard--extra-cache nil))
+    (unwind-protect
+        (with-current-buffer tmp
+          (beads-dashboard-mode)
+          (cl-letf* ((root "/tmp/all-proj/")
+                     ((symbol-function 'beads-dashboard--project-root)
+                      (lambda () root))
+                     (state '((ready . all)))
+                     ((symbol-function 'beads-dashboard--root-state)
+                      (lambda (k) (when (eq k :extra) state)))
+                     ((symbol-function 'beads-dashboard--bump)
+                      (lambda (_k v) (setq state v))))
+            (beads-dashboard--bump-extra 'ready 5)
+            (should (equal '((ready . 5)) state))))
+      (let ((kill-buffer-query-functions nil)) (kill-buffer tmp)))))
+
+(ert-deftest beads-dashboard-test-section-at-point-uses-text-property ()
+  "`beads-dashboard--section-at-point' resolves the section via the
+`beads-dashboard-section-key' text property at point."
+  :tags '(:unit)
+  (with-temp-buffer
+    (insert (propertize "row" 'beads-dashboard-section-key 'ready))
+    (goto-char (point-min))
+    (should (eq 'ready (beads-dashboard--section-at-point)))))
 
 (provide 'beads-dashboard-test)
 ;;; beads-dashboard-test.el ends here

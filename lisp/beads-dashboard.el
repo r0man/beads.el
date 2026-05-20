@@ -54,6 +54,13 @@ Sections collapsed by default do not fetch their data until expanded."
   "Session-scoped alist mapping project root -> collapsed alist.
 Restored on buffer init so collapse state survives close-and-reopen.")
 
+(defvar beads-dashboard--extra-cache nil
+  "Session-scoped alist mapping project root -> extra-rows alist.
+Each project's entry maps SECTION-KEY -> non-negative integer or the
+symbol `all'.  Restored on buffer init so per-section `+'/`-'/`*'
+overrides persist across `g' (soft refresh) and across
+close-and-reopen.  `C-u g' (hard refresh) clears the project's entry.")
+
 ;;; Project Identity
 
 (defun beads-dashboard--project-root ()
@@ -78,6 +85,21 @@ Restored on buffer init so collapse state survives close-and-reopen.")
   (when root
     (setf (alist-get root beads-dashboard--visibility-cache nil nil #'equal)
           collapsed)))
+
+(defun beads-dashboard--load-extra (root)
+  "Return cached extra-rows alist for ROOT, or nil for a fresh session."
+  (cdr (assoc root beads-dashboard--extra-cache)))
+
+(defun beads-dashboard--save-extra (root extra)
+  "Persist EXTRA alist for project ROOT in the session cache.
+Passing nil for EXTRA clears the entry — used by `C-u g' to reset
+per-section load-more state."
+  (when root
+    (if extra
+        (setf (alist-get root beads-dashboard--extra-cache nil nil #'equal)
+              extra)
+      (setf beads-dashboard--extra-cache
+            (assoc-delete-all root beads-dashboard--extra-cache)))))
 
 ;;; Header / Modeline
 
@@ -120,7 +142,7 @@ Restored on buffer init so collapse state survives close-and-reopen.")
 (defun beads-dashboard--footer-vnode ()
   "Return the dashboard footer vnode (key hints)."
   (vui-text
-   "KEYS: n/p item · M-n/M-p section · TAB toggle · M-1..M-4 depth · g refresh · c claim · b blocker · a agent · RET visit · q quit"
+   "KEYS: n/p item · M-n/M-p section · TAB toggle · M-1..M-4 depth · +/-/* rows · g refresh · c claim · b blocker · a agent · RET visit · q quit"
    :face 'shadow))
 
 ;;; Section Builder
@@ -138,8 +160,11 @@ of `(resolve reject)'.  RENDER-READY is called with the parsed data.
 COLLAPSED-ALIST is the root component's collapse state.  BUFFER is
 the dashboard buffer captured for the toggle callback.  PLIST
 forwards `:icon', `:render-empty', `:render-error', `:force-render',
-and `:hide-count'."
-  (let ((collapsed (cdr (assq key collapsed-alist))))
+`:hide-count', and `:extra-rows' (the latter is mixed into the
+:async-key so pressing `+'/`-'/`*' invalidates the cached payload and
+re-runs the loader with the new fetch limit)."
+  (let ((collapsed (cdr (assq key collapsed-alist)))
+        (extra-rows (plist-get plist :extra-rows)))
     (vui-component 'beads-dashboard--section
       :key key
       :title title
@@ -148,8 +173,10 @@ and `:hide-count'."
       ;; Including `collapsed' in the async-key forces `vui-use-async'
       ;; to re-run the loader on the first expand — otherwise the
       ;; collapsed section's no-op result (nil) would be cached and
-      ;; survive expansion.
-      :async-key (list key generation collapsed)
+      ;; survive expansion.  EXTRA-ROWS is included so a `+' press
+      ;; (which raises the CLI fetch limit) invalidates the cache and
+      ;; pulls the additional rows from bd.
+      :async-key (list key generation collapsed extra-rows)
       :load (if collapsed (lambda (resolve _reject) (funcall resolve nil)) loader)
       :render-ready render-ready
       :render-empty (plist-get plist :render-empty)
@@ -183,6 +210,7 @@ header does not stat the filesystem on every reconcile.
 Sections receive collapse state as a prop because per-component
 `:state' does not survive `vui-mount' reliably."
   :state ((collapsed (beads-dashboard--load-visibility project-root))
+          (extra     (beads-dashboard--load-extra project-root))
           (auto-refresh nil)
           (last-refresh (float-time))
           (generation 0))
@@ -210,51 +238,71 @@ Sections receive collapse state as a prop because per-component
        :force-render t
        ;; Stats data is an alist, not a list of issues — `length' is meaningless.
        :hide-count t)
-      (beads-dashboard--section
-       'stale "Stale in-progress"
-       (beads-dashboard--stale-loader)
-       (lambda (data) (beads-dashboard--render-issue-list (or data '())))
-       collapsed generation buffer
-       :icon "💤")
-      (beads-dashboard--section
-       'orphans "Orphaned dependencies"
-       (beads-dashboard--orphans-loader)
-       (lambda (data) (beads-dashboard--render-issue-list (or data '())))
-       collapsed generation buffer
-       :icon "🩹")
-      (beads-dashboard--section
-       'in-flight "In progress"
-       (beads-dashboard--in-flight-loader)
-       #'beads-dashboard-render-in-flight
-       collapsed generation buffer
-       :icon "🚧"
-       :render-empty (lambda () (beads-dashboard--empty-line "No work claimed.")))
-      (beads-dashboard--section
-       'ready "Ready"
-       (beads-dashboard--ready-loader)
-       #'beads-dashboard-render-ready
-       collapsed generation buffer
-       :icon "✅"
-       :render-empty (lambda () (beads-dashboard--empty-line "Nothing ready.")))
-      (beads-dashboard--section
-       'blocked "Blocked"
-       (beads-dashboard--blocked-loader)
-       #'beads-dashboard-render-blocked
-       collapsed generation buffer
-       :icon "🔒")
-      (beads-dashboard--section
-       'epics "Epic Progress"
-       (beads-dashboard--epic-loader)
-       #'beads-dashboard-render-epic
-       collapsed generation buffer
-       :icon "🎯")
-      (beads-dashboard--section
-       'closed "Recently Closed"
-       (beads-dashboard--closed-loader)
-       #'beads-dashboard-render-closed
-       collapsed generation buffer
-       :icon "📦"
-       :render-empty (lambda () (beads-dashboard--empty-line "Nothing closed yet.")))
+      (let ((rx (cdr (assq 'stale extra))))
+        (beads-dashboard--section
+         'stale "Stale in-progress"
+         (beads-dashboard--stale-loader
+          (beads-dashboard--effective-fetch-limit rx))
+         (lambda (data)
+           (beads-dashboard--render-issue-list (or data '()) 'stale rx))
+         collapsed generation buffer
+         :icon "💤"
+         :extra-rows rx))
+      (let ((rx (cdr (assq 'orphans extra))))
+        (beads-dashboard--section
+         'orphans "Orphaned dependencies"
+         (beads-dashboard--orphans-loader)
+         (lambda (data)
+           (beads-dashboard--render-issue-list (or data '()) 'orphans rx))
+         collapsed generation buffer
+         :icon "🩹"
+         :extra-rows rx))
+      (let ((rx (cdr (assq 'in-flight extra))))
+        (beads-dashboard--section
+         'in-flight "In progress"
+         (beads-dashboard--in-flight-loader
+          (beads-dashboard--effective-fetch-limit rx))
+         (lambda (data) (beads-dashboard-render-in-flight data 'in-flight rx))
+         collapsed generation buffer
+         :icon "🚧"
+         :extra-rows rx
+         :render-empty (lambda () (beads-dashboard--empty-line "No work claimed."))))
+      (let ((rx (cdr (assq 'ready extra))))
+        (beads-dashboard--section
+         'ready "Ready"
+         (beads-dashboard--ready-loader
+          (beads-dashboard--effective-fetch-limit rx))
+         (lambda (data) (beads-dashboard-render-ready data 'ready rx))
+         collapsed generation buffer
+         :icon "✅"
+         :extra-rows rx
+         :render-empty (lambda () (beads-dashboard--empty-line "Nothing ready."))))
+      (let ((rx (cdr (assq 'blocked extra))))
+        (beads-dashboard--section
+         'blocked "Blocked"
+         (beads-dashboard--blocked-loader)
+         (lambda (data) (beads-dashboard-render-blocked data 'blocked rx))
+         collapsed generation buffer
+         :icon "🔒"
+         :extra-rows rx))
+      (let ((rx (cdr (assq 'epics extra))))
+        (beads-dashboard--section
+         'epics "Epic Progress"
+         (beads-dashboard--epic-loader)
+         (lambda (data) (beads-dashboard-render-epic data 'epics rx))
+         collapsed generation buffer
+         :icon "🎯"
+         :extra-rows rx))
+      (let ((rx (cdr (assq 'closed extra))))
+        (beads-dashboard--section
+         'closed "Recently Closed"
+         (beads-dashboard--closed-loader
+          (beads-dashboard--effective-fetch-limit rx))
+         (lambda (data) (beads-dashboard-render-closed data 'closed rx))
+         collapsed generation buffer
+         :icon "📦"
+         :extra-rows rx
+         :render-empty (lambda () (beads-dashboard--empty-line "Nothing closed yet."))))
       (when (eq (plist-get beads-command--policy :backend) 'server)
         (beads-dashboard--section
          'federation "Federation"
@@ -292,9 +340,16 @@ no-op writes from idle ticks and back-to-back refreshes."
     (message "Beads-Dashboard refreshed.")))
 
 (defun beads-dashboard-hard-refresh ()
-  "Hard refresh: invalidate cache, re-probe policy, re-fetch."
+  "Hard refresh: invalidate cache, re-probe policy, reset extras, re-fetch.
+Resetting the per-section `+'/`-'/`*' overrides matches the semantics
+of `C-u g' as a \"fresh dashboard\" gesture; soft `g'
+\(`beads-dashboard-refresh') leaves them untouched."
   (interactive)
   (clrhash beads-command--single-flight)
+  (when (eq major-mode 'beads-dashboard-mode)
+    (let ((root (beads-dashboard--project-root)))
+      (beads-dashboard--save-extra root nil)
+      (beads-dashboard--bump :extra nil)))
   (beads-command--policy-probe
    (lambda (_p)
      (beads-dashboard-refresh))))
@@ -451,6 +506,82 @@ found, nil when point did not move."
        #'beads-dashboard--header-line-p -1)
       (user-error "No previous section")))
 
+;;; Per-Section Load More
+
+(defun beads-dashboard--section-at-point ()
+  "Return the symbolic section key for the section enclosing point.
+First consults the `beads-dashboard-section-key' text property at
+point (stamped on every issue/epic row and on the `… and N more'
+button).  Falls back to walking back to the section header and reading
+the text property from there — needed when point sits on a blank line
+between header and rows, or on the loading skeleton."
+  (or (get-text-property (point) 'beads-dashboard-section-key)
+      (save-excursion
+        (beads-dashboard--find-section-header)
+        (or (get-text-property (point) 'beads-dashboard-section-key)
+            ;; Header itself is not stamped today (the title is built
+            ;; inside the section component); search the line for any
+            ;; row-level property as a last resort.
+            (let ((eol (line-end-position)))
+              (text-property-any (point) eol
+                                 'beads-dashboard-section-key t))))
+      (user-error "Not inside a beads-dashboard section")))
+
+(defun beads-dashboard--bump-extra (key delta-or-symbol)
+  "Adjust the extra-rows entry for KEY and rerender.
+DELTA-OR-SYMBOL is either an integer delta (positive or negative;
+applied to the current count, floored at zero, which removes the
+entry), the symbol `all' (set to the unlimited sentinel), or the
+symbol `reset' (remove the entry entirely)."
+  (let* ((extra (or (beads-dashboard--root-state :extra) '()))
+         (cur   (cdr (assq key extra)))
+         (next-val
+          (pcase delta-or-symbol
+            ('all 'all)
+            ('reset nil)
+            ((pred integerp)
+             (let* ((base (cond ((eq cur 'all) 0)  ; `*' then `-' starts fresh
+                                ((integerp cur) cur)
+                                (t 0)))
+                    (sum (+ base delta-or-symbol)))
+               (if (<= sum 0) nil sum)))
+            (_ (error "Beads-dashboard--bump-extra: unsupported %S"
+                      delta-or-symbol))))
+         (stripped (assq-delete-all key extra))
+         (next (if next-val
+                   (cons (cons key next-val) stripped)
+                 stripped)))
+    (beads-dashboard--bump :extra next)
+    (beads-dashboard--save-extra
+     (beads-dashboard--project-root) next)))
+
+(defun beads-dashboard-load-more ()
+  "Show `beads-dashboard-section-batch' more rows for the section at point.
+Section is resolved via the `beads-dashboard-section-key' text
+property at point (with a header-walk fallback).  Persists across `g'
+refresh; reset by `C-u g'."
+  (interactive)
+  (beads-dashboard--bump-extra
+   (beads-dashboard--section-at-point)
+   beads-dashboard-section-batch))
+
+(defun beads-dashboard-load-less ()
+  "Hide `beads-dashboard-section-batch' rows for the section at point.
+Floors at the default limit (clears the section's entry)."
+  (interactive)
+  (beads-dashboard--bump-extra
+   (beads-dashboard--section-at-point)
+   (- beads-dashboard-section-batch)))
+
+(defun beads-dashboard-load-all ()
+  "Show every available row for the section at point.
+Bumps the underlying CLI fetch limit to 0 (unlimited per `bd' CLI
+semantics) so the section header shows the true count rather than the
+CLI's default cap."
+  (interactive)
+  (beads-dashboard--bump-extra
+   (beads-dashboard--section-at-point) 'all))
+
 (defun beads-dashboard--set-depth (n)
   "Show only N levels deep, expanding the first N section groups."
   (let* ((order '(stats stale orphans in-flight ready blocked epics closed federation))
@@ -500,6 +631,12 @@ found, nil when point did not move."
   "M-2" #'beads-dashboard-depth-2
   "M-3" #'beads-dashboard-depth-3
   "M-4" #'beads-dashboard-depth-4
+  ;; Per-section row-count overrides.  `-' shadows the parent map's
+  ;; `negative-argument' inside dashboard mode only — no dashboard
+  ;; command takes a numeric prefix, so the binding is unambiguous.
+  "+"   #'beads-dashboard-load-more
+  "-"   #'beads-dashboard-load-less
+  "*"   #'beads-dashboard-load-all
   ;; Share the `a' prefix with list/show modes; the issue at point is
   ;; resolved via the section text-property branch of
   ;; `beads-agent--detect-issue-id'.
@@ -522,7 +659,7 @@ text-property contract is preserved (RET to visit, eldoc, etc.).
 
 Long issue titles are truncated rather than wrapped so each issue
 stays on a single row when the buffer is shown in a narrow window
-(e.g. a side-by-side `C-x 3' split).  Toggle per-buffer with
+\(e.g. a side-by-side `C-x 3' split).  Toggle per-buffer with
 \\[toggle-truncate-lines]; eldoc-on-hover still shows full titles.
 
 \\{beads-dashboard-mode-map}"
