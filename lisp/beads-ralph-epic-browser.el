@@ -41,8 +41,14 @@
 ;; Forward declarations
 (declare-function beads-show "beads-command-show")
 (declare-function beads-execute "beads-command")
-(declare-function beads-ralph-launcher "beads-ralph-launcher")
 (declare-function beads-agent-ralph-launch "beads-agent-ralph-confirm")
+;; `beads-ralph-launcher' is the Phase 1 launcher panel introduced by
+;; bde-deqx.5.  The contract this module assumes is the one specified
+;; in that bead's design: `(beads-ralph-launcher ROOT-ID &key kind)'.
+;; The fallback below uses the existing `beads-agent-ralph-launch'
+;; with the same root-id and kind so behaviour is consistent before
+;; and after deqx.5 lands.
+(declare-function beads-ralph-launcher "beads-ralph-launcher" (root-id &rest args))
 
 ;;; Customization
 
@@ -142,13 +148,13 @@ row layout."
     (if (integerp p) (format "P%d" p) "P?")))
 
 (defun beads-ralph-epic-browser--row-status (epic-status)
-  "Return the abbreviated status string for EPIC-STATUS."
-  (pcase (oref (oref epic-status epic) status)
-    ("open" "open")
-    ("in_progress" "in_prog")
-    ("blocked" "blocked")
-    ("closed" "closed")
-    (other (or other ""))))
+  "Return the abbreviated status string for EPIC-STATUS.
+`in_progress' is shortened to `in_prog' to fit a compact status
+column; all other statuses pass through unchanged."
+  (let ((s (oref (oref epic-status epic) status)))
+    (cond ((null s) "")
+          ((string= s "in_progress") "in_prog")
+          (t s))))
 
 (defun beads-ralph-epic-browser--row-progress (epic-status)
   "Return the progress fraction (\"closed/total\") for EPIC-STATUS."
@@ -287,12 +293,15 @@ mid-flight cancels any pending re-render timer."
 ;; the epic id; the action-bar legend at the bottom does not match.
 
 (defun beads-ralph-epic-browser--epic-id-at-point ()
-  "Return the epic-id on the current line, or nil if point is not on a row."
+  "Return the epic-id on the current line, or nil if point is not on a row.
+A row starts with the literal two-space indent emitted by
+`--row-vnode'.  The match is then cross-checked against the
+buffer-local epic list so the action-bar legend, header, and
+separator lines never resolve to an id."
   (save-excursion
     (beginning-of-line)
-    (when (looking-at "^[ >]\\{1,2\\}\\([a-z0-9-]+\\)\\s-")
+    (when (looking-at "^  \\([a-z0-9.-]+\\)\\s-")
       (let ((id (match-string-no-properties 1)))
-        ;; Confirm it actually matches a rendered epic.
         (when (cl-find id beads-ralph-epic-browser--epics
                        :test (lambda (i es)
                                (string= i (beads-ralph-epic-browser--row-id es))))
@@ -425,6 +434,11 @@ the singleton buffer `*beads-epics*'."
     (with-current-buffer buf
       (setq default-directory caller-dir))
     (beads-ralph-epic-browser--render buf epics)
+    ;; `vui-mount' calls `switch-to-buffer' inside `--render', which
+    ;; takes over the current window.  Re-invoke `pop-to-buffer' so
+    ;; the user lands in a side window (matching the rest of the
+    ;; beads.el porcelain) rather than displacing what they were
+    ;; looking at.
     (pop-to-buffer buf)
     buf))
 
