@@ -78,11 +78,18 @@ Includes stall detection and lying-agent detection."
 (defvar beads-agent-ralph--mode-line-sticky nil
   "List of plists describing controllers the mode-line should render.
 Each entry is (:controller CONTROLLER :sticky-until TIME-OR-NIL).
-A nil `:sticky-until' means \"display while CONTROLLER is in
-`beads-agent-ralph-controllers'\"; a non-nil one is a deadline
-swept out by `beads-agent-ralph--mode-line-sweep-expired'.  This
-list is purely the mode-line's display intent — the source-of-truth
-list of live controllers lives in `beads-agent-ralph--controllers'.")
+A nil `:sticky-until' means display indefinitely until an explicit
+`beads-agent-ralph--mode-line-hide' or `--mode-line-reset' call;
+a non-nil one is a deadline swept out by
+`beads-agent-ralph--mode-line-sweep-expired'.  Ordered
+most-recently-touched first; the head is what the indicator shows.
+
+Purely the mode-line's display intent — independent of the
+public source-of-truth list at `beads-agent-ralph--controllers'.
+A controller can appear in either list without appearing in the
+other (e.g. a test that fakes a state change without calling
+`beads-agent-ralph-start' shows in the mode-line but not in the
+public registry).")
 
 (defvar beads-agent-ralph--mode-line-sticky-timer nil
   "Timer that sweeps expired sticky entries from the display list.
@@ -109,16 +116,17 @@ deadline)."
            :key (lambda (entry) (plist-get entry :controller))))
 
 (defun beads-agent-ralph--mode-line-show (controller)
-  "Push CONTROLLER to the head of the mode-line display list, non-sticky.
-Touches only this module's display state — the public controller
-registry is populated once, at start, by `beads-agent-ralph-start'
-calling `beads-agent-ralph--register-controller', and must not be
-mutated here.  If it were, the cockpit's most-recently-started
-ordering would shuffle on every status transition.
+  "Push CONTROLLER to the head of the mode-line display list, no deadline.
+Touches only this module's display state.  The public controller
+registry (`beads-agent-ralph--controllers') is owned by
+`beads-agent-ralph-start' and must not be mutated here — re-running
+this on every status transition would otherwise re-prepend
+CONTROLLER and shuffle the registry's most-recently-started
+ordering on every state change.
 
 Calling this on a controller that is already shown moves it back
-to the head and clears any sticky tail (e.g. resume after auto-
-pause drops the deadline)."
+to the head and clears any sticky deadline (e.g. resume after
+auto-pause drops the expiry)."
   (setq beads-agent-ralph--mode-line-sticky
         (cl-remove controller beads-agent-ralph--mode-line-sticky
                    :key (lambda (entry) (plist-get entry :controller))))
