@@ -104,7 +104,14 @@ A string used directly, or a symbol dereferenced with `symbol-value'
 \(like `prompt-template').  Runs the same `<ISSUE-...>' substitution
 via `beads-agent-type-system-prompt'.  nil means this type has no
 distinct system prompt (builder types such as Custom, and the
-default in Phase 1a-i where all slots are still nil)."))
+default in Phase 1a-i where all slots are still nil).")
+   (icon
+    :initarg :icon
+    :initform nil
+    :documentation "Display icon string for this agent type, or nil.
+A short string (typically a single emoji, two display columns wide) used
+as the visual identifier across all UIs.  When nil, the letter slot is
+used as fallback.  Users may override via `beads-agent-type-icons'."))
   :abstract t
   :documentation "Abstract base class for AI agent types.
 Subclasses define specific agent behaviors and can override generic methods.
