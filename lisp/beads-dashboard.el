@@ -227,7 +227,7 @@ Sections receive collapse state as a prop because per-component
        (beads-dashboard--in-flight-loader)
        #'beads-dashboard-render-in-flight
        collapsed generation buffer
-       :icon "🛠"
+       :icon "🚧"
        :render-empty (lambda () (beads-dashboard--empty-line "No work claimed.")))
       (beads-dashboard--section
        'ready "Ready"
