@@ -375,15 +375,33 @@ ISSUE is a beads-issue instance."
 
 (defun beads-agent--detect-issue-id ()
   "Detect issue ID from current context.
-Returns issue ID string or nil if not found."
+Returns issue ID string or nil if not found.
+
+Looks in this order:
+  1. `beads-list-mode' — issue id at the tabulated-list point;
+  2. `beads-show-mode' — the buffer's local `beads-show--issue-id';
+  3. Any buffer honouring the `beads-section' text-property contract
+     (dashboard and other `beads-section-mode'-derived views) — the
+     id stamped on the line at point via `beads-section-issue-id-at-point';
+  4. The buffer name, parsed as a `*beads-show[PROJECT]/ID*' buffer."
   (or
-   ;; From beads-list buffer
    (when (derived-mode-p 'beads-list-mode)
      (beads-list--current-issue-id))
-   ;; From beads-show buffer
    (when (derived-mode-p 'beads-show-mode)
      beads-show--issue-id)
-   ;; From buffer name (*beads-show[PROJECT]/ISSUE-ID*)
+   ;; `fboundp' guard: `beads-agent' does not require `beads-section',
+   ;; so this clause is only active when a caller has loaded it.
+   ;;
+   ;; NOTE: this branch is intentionally unguarded by `derived-mode-p'
+   ;; — it fires in *any* buffer once `beads-section' is loaded, so a
+   ;; non-dashboard/non-section buffer that happens to render a beads
+   ;; issue line via `beads-section--propertize' becomes an agent-launch
+   ;; surface for free.  Safety against stray text properties from
+   ;; unrelated uses comes from `beads-section-issue-id-at-point' itself,
+   ;; which does an `object-of-class-p 'beads-issue-section' check on
+   ;; the value before returning an id.
+   (when (fboundp 'beads-section-issue-id-at-point)
+     (beads-section-issue-id-at-point))
    (when-let ((parsed (beads-buffer-parse-show (buffer-name))))
      (plist-get parsed :issue-id))))
 

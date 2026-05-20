@@ -13,6 +13,7 @@
 (require 'ert)
 (require 'beads-command-list)
 (require 'beads-command-show)
+(require 'beads-dashboard)
 
 ;;; Agent prefix map tests
 
@@ -92,6 +93,53 @@
 (ert-deftest beads-agent-keys-test-show-mode-a-j ()
   "Test that `a j' in show-mode jumps to agent."
   (should (eq (lookup-key beads-show-mode-map (kbd "a j"))
+              #'beads-agent-jump-at-point)))
+
+;;; Dashboard-mode "a" prefix tests
+
+(ert-deftest beads-agent-keys-test-dashboard-mode-a-prefix ()
+  "`a' in dashboard-mode opens the agent prefix map (matches list/show)."
+  (should (eq (lookup-key beads-dashboard-mode-map (kbd "a"))
+              beads-agent-prefix-map)))
+
+(ert-deftest beads-agent-keys-test-dashboard-mode-a-a ()
+  "`a a' in dashboard-mode starts the default Task agent at point."
+  (should (eq (lookup-key beads-dashboard-mode-map (kbd "a a"))
+              #'beads-agent-start-at-point)))
+
+(ert-deftest beads-agent-keys-test-dashboard-mode-a-t ()
+  "`a t' in dashboard-mode starts the typed Task agent."
+  (should (eq (lookup-key beads-dashboard-mode-map (kbd "a t"))
+              #'beads-agent-start-task)))
+
+(ert-deftest beads-agent-keys-test-dashboard-mode-a-r ()
+  "`a r' in dashboard-mode starts the Review agent."
+  (should (eq (lookup-key beads-dashboard-mode-map (kbd "a r"))
+              #'beads-agent-start-review)))
+
+(ert-deftest beads-agent-keys-test-dashboard-mode-a-p ()
+  "`a p' in dashboard-mode starts the Plan agent."
+  (should (eq (lookup-key beads-dashboard-mode-map (kbd "a p"))
+              #'beads-agent-start-plan)))
+
+(ert-deftest beads-agent-keys-test-dashboard-mode-a-q ()
+  "`a q' in dashboard-mode starts the QA agent."
+  (should (eq (lookup-key beads-dashboard-mode-map (kbd "a q"))
+              #'beads-agent-start-qa)))
+
+(ert-deftest beads-agent-keys-test-dashboard-mode-a-c ()
+  "`a c' in dashboard-mode starts the Custom agent."
+  (should (eq (lookup-key beads-dashboard-mode-map (kbd "a c"))
+              #'beads-agent-start-custom)))
+
+(ert-deftest beads-agent-keys-test-dashboard-mode-a-x ()
+  "`a x' in dashboard-mode stops the agent for the issue at point."
+  (should (eq (lookup-key beads-dashboard-mode-map (kbd "a x"))
+              #'beads-agent-stop-at-point)))
+
+(ert-deftest beads-agent-keys-test-dashboard-mode-a-j ()
+  "`a j' in dashboard-mode jumps to the agent for the issue at point."
+  (should (eq (lookup-key beads-dashboard-mode-map (kbd "a j"))
               #'beads-agent-jump-at-point)))
 
 ;;; Old single-letter bindings removed
