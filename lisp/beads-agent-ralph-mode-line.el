@@ -64,52 +64,64 @@ Includes stall detection and lying-agent detection."
   "Face for the indicator after a terminal failure."
   :group 'beads-agent-ralph-mode-line)
 
-;;; Controller Registry
+;;; Mode-line display state
 ;;
-;; We track active controllers in a simple list so the mode-line
-;; indicator can know whether to render itself.  The list is kept
-;; ordered newest-first; the most recently started controller is
-;; surfaced when many are active.  Sticky entries (terminal controllers
-;; lingering for the user to notice) live alongside live ones, tagged
-;; with a `:sticky-until' timestamp; a single timer sweeps them out.
+;; The list of live controllers is owned by `beads-agent-ralph.el'
+;; (see `beads-agent-ralph--controllers' and the public accessors
+;; `beads-agent-ralph-controllers' /
+;; `beads-agent-ralph-controller-for-root').  This module keeps a
+;; separate display-state list that records which controllers the
+;; mode-line wants to render and, for terminal ones, until when.  The
+;; indicator picks the most-recently-started controller from the
+;; public registry that also has a (non-expired) display entry here.
 
-(defvar beads-agent-ralph--mode-line-registry nil
-  "List of plists describing controllers visible in the mode-line.
+(defvar beads-agent-ralph--mode-line-sticky nil
+  "List of plists describing controllers the mode-line should render.
 Each entry is (:controller CONTROLLER :sticky-until TIME-OR-NIL).
-A non-nil `:sticky-until' marks a terminated controller whose
-indicator should remain visible until that time.  The list is
-ordered newest-first; the head is the controller the indicator
-displays.")
+A nil `:sticky-until' means \"display while CONTROLLER is in
+`beads-agent-ralph-controllers'\"; a non-nil one is a deadline
+swept out by `beads-agent-ralph--mode-line-sweep-expired'.  This
+list is purely the mode-line's display intent — the source-of-truth
+list of live controllers lives in `beads-agent-ralph--controllers'.")
 
 (defvar beads-agent-ralph--mode-line-sticky-timer nil
-  "Timer that sweeps expired sticky entries from the registry.
+  "Timer that sweeps expired sticky entries from the display list.
 Re-armed by `beads-agent-ralph--mode-line-mark-sticky'.")
 
 (defun beads-agent-ralph--mode-line-registry-clear ()
-  "Reset the registry and cancel any pending sticky timer.
-Intended for tests; the production path never resets unconditionally."
-  (setq beads-agent-ralph--mode-line-registry nil)
+  "Reset the mode-line display state and cancel any pending sweeper.
+Intended for tests; the production path never resets unconditionally.
+Also clears the public controller registry so both the mode-line
+overlay and the underlying registry start from a clean slate."
+  (setq beads-agent-ralph--mode-line-sticky nil)
+  (setq beads-agent-ralph--controllers nil)
   (when (timerp beads-agent-ralph--mode-line-sticky-timer)
     (cancel-timer beads-agent-ralph--mode-line-sticky-timer))
   (setq beads-agent-ralph--mode-line-sticky-timer nil))
 
 (defun beads-agent-ralph--mode-line-find (controller)
-  "Return the registry entry for CONTROLLER, or nil."
-  (cl-find controller beads-agent-ralph--mode-line-registry
+  "Return the display-state entry for CONTROLLER, or nil.
+The returned plist is shared storage; callers may mutate it (this
+is how `beads-agent-ralph--mode-line-mark-sticky' updates the
+deadline)."
+  (cl-find controller beads-agent-ralph--mode-line-sticky
            :key (lambda (entry) (plist-get entry :controller))))
 
 (defun beads-agent-ralph--mode-line-register (controller)
-  "Ensure CONTROLLER appears at the head of the registry, non-sticky.
+  "Ensure CONTROLLER is displayed by the mode-line, non-sticky.
+Also registers CONTROLLER in the public controller registry so
+state-change observers stay aligned with start-driven registration.
 A re-register (e.g. resume after auto-pause) clears any sticky tail."
-  (setq beads-agent-ralph--mode-line-registry
-        (cl-remove controller beads-agent-ralph--mode-line-registry
+  (beads-agent-ralph--register-controller controller)
+  (setq beads-agent-ralph--mode-line-sticky
+        (cl-remove controller beads-agent-ralph--mode-line-sticky
                    :key (lambda (entry) (plist-get entry :controller))))
   (push (list :controller controller :sticky-until nil)
-        beads-agent-ralph--mode-line-registry)
+        beads-agent-ralph--mode-line-sticky)
   (beads-agent-ralph--mode-line-enable))
 
 (defun beads-agent-ralph--mode-line-mark-sticky (controller)
-  "Mark CONTROLLER's registry entry sticky and schedule a sweep.
+  "Mark CONTROLLER's display entry sticky and schedule a sweep.
 The entry is removed when `current-time' exceeds `:sticky-until'."
   (when-let ((entry (beads-agent-ralph--mode-line-find controller)))
     (let ((seconds beads-agent-ralph-mode-line-sticky-seconds))
@@ -120,11 +132,15 @@ The entry is removed when `current-time' exceeds `:sticky-until'."
         (beads-agent-ralph--mode-line-arm-sweeper seconds)))))
 
 (defun beads-agent-ralph--mode-line-deregister (controller)
-  "Remove CONTROLLER from the registry, disabling the mode-line if empty."
-  (setq beads-agent-ralph--mode-line-registry
-        (cl-remove controller beads-agent-ralph--mode-line-registry
+  "Stop displaying CONTROLLER in the mode-line.
+Removes the display entry only; the controller remains in the
+public registry (terminal controllers are retained for inspection
+by the dashboard and downstream UIs).  Disables the minor mode
+when no display entries are left."
+  (setq beads-agent-ralph--mode-line-sticky
+        (cl-remove controller beads-agent-ralph--mode-line-sticky
                    :key (lambda (entry) (plist-get entry :controller))))
-  (unless beads-agent-ralph--mode-line-registry
+  (unless beads-agent-ralph--mode-line-sticky
     (when (timerp beads-agent-ralph--mode-line-sticky-timer)
       (cancel-timer beads-agent-ralph--mode-line-sticky-timer))
     (setq beads-agent-ralph--mode-line-sticky-timer nil)
@@ -133,12 +149,12 @@ The entry is removed when `current-time' exceeds `:sticky-until'."
 (defun beads-agent-ralph--mode-line-sweep-expired ()
   "Drop sticky entries whose `:sticky-until' is in the past."
   (let ((now (current-time)))
-    (setq beads-agent-ralph--mode-line-registry
+    (setq beads-agent-ralph--mode-line-sticky
           (cl-remove-if (lambda (entry)
                           (let ((sticky (plist-get entry :sticky-until)))
                             (and sticky (time-less-p sticky now))))
-                        beads-agent-ralph--mode-line-registry)))
-  (unless beads-agent-ralph--mode-line-registry
+                        beads-agent-ralph--mode-line-sticky)))
+  (unless beads-agent-ralph--mode-line-sticky
     (when (timerp beads-agent-ralph--mode-line-sticky-timer)
       (cancel-timer beads-agent-ralph--mode-line-sticky-timer))
     (setq beads-agent-ralph--mode-line-sticky-timer nil)
@@ -154,9 +170,14 @@ The entry is removed when `current-time' exceeds `:sticky-until'."
                      #'beads-agent-ralph--mode-line-sweep-expired)))
 
 (defun beads-agent-ralph--mode-line-active-controller ()
-  "Return the controller the indicator should display, or nil."
-  (when-let ((entry (car beads-agent-ralph--mode-line-registry)))
-    (plist-get entry :controller)))
+  "Return the controller the indicator should display, or nil.
+Walks the public controller registry in most-recently-started order
+and returns the first controller that also carries a display entry
+in `beads-agent-ralph--mode-line-sticky'."
+  (cl-some (lambda (controller)
+             (when (beads-agent-ralph--mode-line-find controller)
+               controller))
+           (beads-agent-ralph-controllers)))
 
 ;;; Cost formatter
 
