@@ -790,13 +790,15 @@ the notification module to react to terminal transitions.")
 ;; inspect post-run state.
 
 (defvar beads-agent-ralph--controllers nil
-  "List of all live `beads-agent-ralph--controller' instances.
-A controller is added by `beads-agent-ralph--register-controller'
-when `beads-agent-ralph-start' returns and removed by
-`beads-agent-ralph--unregister-controller'.  Terminal-state
-controllers are retained until an explicit unregister so the
-dashboard and downstream UIs (cockpit, epic-browser) can still
-introspect them post-run.  Ordered most-recently-started first.")
+  "List of `beads-agent-ralph--controller' instances known to the registry.
+Added during `beads-agent-ralph-start' via
+`beads-agent-ralph--register-controller' (after the dashboard mounts,
+before the first iteration is scheduled) and removed by
+`beads-agent-ralph--unregister-controller' (dashboard kill-buffer
+hook today, cockpit GC tomorrow).  Terminal-state controllers are
+retained until explicit unregister so the dashboard and downstream
+UIs (cockpit, epic browser) can still introspect them post-run.
+Ordered most-recently-started first; do not reorder elsewhere.")
 
 (defun beads-agent-ralph-controllers ()
   "Return the list of live controllers, most-recently-started first.
