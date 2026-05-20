@@ -67,8 +67,13 @@ re-render."
 ;;; Faces
 
 (defface beads-ralph-epic-browser-header-face
-  '((t :inherit header-line))
+  '((t :weight bold))
   "Face for the browser's top header line."
+  :group 'beads-ralph-epic-browser)
+
+(defface beads-ralph-epic-browser-separator-face
+  '((t :inherit shadow))
+  "Face for the horizontal separator under the header."
   :group 'beads-ralph-epic-browser)
 
 (defface beads-ralph-epic-browser-id-face
@@ -179,20 +184,41 @@ bound to the epic's id."
 ;;; Row + composition
 
 (defun beads-ralph-epic-browser--row-vnode (epic-status)
-  "Return a vui vnode for one EPIC-STATUS row."
+  "Return a vui vnode for one EPIC-STATUS row.
+Each column is propertized with its own face so the row reads at
+a glance even at a distance — id in constant-face, title in
+default, priority in builtin-face, status in shadow, progress in
+success, and the Ralph badge in warning-bold."
   (let* ((id (beads-ralph-epic-browser--row-id epic-status))
-         (title (beads-ralph-epic-browser--row-title epic-status))
+         (title (truncate-string-to-width
+                 (beads-ralph-epic-browser--row-title epic-status)
+                 40 nil ?\s "…"))
          (priority (beads-ralph-epic-browser--row-priority epic-status))
          (status (beads-ralph-epic-browser--row-status epic-status))
          (progress (beads-ralph-epic-browser--row-progress epic-status))
          (badge (beads-ralph-epic-browser--row-ralph-badge epic-status))
-         (line (format "  %-10s %-40s %-3s %-8s %s%s"
-                       id
-                       (truncate-string-to-width title 40 nil ?\s "…")
-                       priority
-                       status
-                       progress
-                       (if badge (concat "  " badge) ""))))
+         (line (concat
+                "  "
+                (propertize (format "%-10s" id)
+                            'face 'beads-ralph-epic-browser-id-face)
+                " "
+                (propertize (format "%-40s" title)
+                            'face 'beads-ralph-epic-browser-title-face)
+                " "
+                (propertize (format "%-3s" priority)
+                            'face 'beads-ralph-epic-browser-priority-face)
+                " "
+                (propertize (format "%-8s" status)
+                            'face 'beads-ralph-epic-browser-status-face)
+                " "
+                (propertize progress
+                            'face 'beads-ralph-epic-browser-progress-face)
+                (when badge
+                  (concat "  "
+                          (propertize
+                           badge
+                           'face
+                           'beads-ralph-epic-browser-ralph-badge-face))))))
     (vui-text line)))
 
 (defun beads-ralph-epic-browser--action-bar ()
@@ -201,6 +227,11 @@ The legend must mirror the bindings in
 `beads-ralph-epic-browser-mode-map'."
   (vui-text "[R]un · [d]etails · [g]refresh · [q]uit"
             :face 'shadow))
+
+(defun beads-ralph-epic-browser--separator ()
+  "Return the horizontal separator vnode displayed under the header."
+  (vui-text (make-string 64 ?─)
+            :face 'beads-ralph-epic-browser-separator-face))
 
 (vui-defcomponent beads-ralph-epic-browser--root (epics)
   "Top-level epic-browser composition.
@@ -220,7 +251,7 @@ EPICS is a list of `beads-epic-status' instances to render."
     (vui-vstack
       (vui-text (beads-ralph-epic-browser--header-line epics)
                 :face 'beads-ralph-epic-browser-header-face)
-      (vui-text "")
+      (beads-ralph-epic-browser--separator)
       (if (null epics)
           (vui-text "  (no epics)" :face 'shadow)
         (apply #'vui-vstack
