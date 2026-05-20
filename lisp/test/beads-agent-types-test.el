@@ -332,51 +332,57 @@ method must never prompt via `read-string'."
 ;;; Tests for Icon Slot
 
 (ert-deftest beads-agent-types-test-task-icon ()
-  "Test Task agent has the construction-worker icon (U+1F477)."
+  "Test Task agent has the beaver icon (U+1F9AB).
+The beaver is the Gastown-themed Victorian-naturalist working animal
+for the Task role: industrious dam-builder, Canada's national animal."
   (beads-agent-types-test--setup)
   (unwind-protect
       (let ((type (beads-agent-type-get "task")))
-        (should (equal (oref type icon) "👷"))
-        (should (equal (oref type icon) (string #x1F477))))
+        (should (equal (oref type icon) "🦫"))
+        (should (equal (oref type icon) (string #x1F9AB))))
     (beads-agent-types-test--teardown)))
 
 (ert-deftest beads-agent-types-test-review-icon ()
-  "Test Review agent has the detective icon (U+1F575 + U+FE0F).
-The U+FE0F variation selector is required for emoji-style rendering on
-Apple Color Emoji and Noto Color Emoji."
+  "Test Review agent has the owl icon (U+1F989).
+Single-codepoint owl — no VS16, no ZWJ — for the scholarly night-watch
+Review role."
   (beads-agent-types-test--setup)
   (unwind-protect
       (let ((type (beads-agent-type-get "review")))
-        (should (equal (oref type icon) "🕵️"))
-        ;; Must be exactly two codepoints: U+1F575 then U+FE0F.
-        (should (equal (oref type icon) (string #x1F575 #xFE0F))))
+        (should (equal (oref type icon) "🦉"))
+        (should (equal (oref type icon) (string #x1F989))))
     (beads-agent-types-test--teardown)))
 
 (ert-deftest beads-agent-types-test-plan-icon ()
-  "Test Plan agent has the compass icon (U+1F9ED)."
+  "Test Plan agent has the octopus icon (U+1F419).
+Jules-Verne brass cephalopod — many tentacles for the many concerns
+held at once by the Plan role."
   (beads-agent-types-test--setup)
   (unwind-protect
       (let ((type (beads-agent-type-get "plan")))
-        (should (equal (oref type icon) "🧭"))
-        (should (equal (oref type icon) (string #x1F9ED))))
+        (should (equal (oref type icon) "🐙"))
+        (should (equal (oref type icon) (string #x1F419))))
     (beads-agent-types-test--teardown)))
 
 (ert-deftest beads-agent-types-test-qa-icon ()
-  "Test QA agent has the test-tube icon (U+1F9EA)."
+  "Test QA agent has the dog (hound) icon (U+1F415).
+The Baskervilles bloodhound — sniffs out bugs and regressions for the
+QA role."
   (beads-agent-types-test--setup)
   (unwind-protect
       (let ((type (beads-agent-type-get "qa")))
-        (should (equal (oref type icon) "🧪"))
-        (should (equal (oref type icon) (string #x1F9EA))))
+        (should (equal (oref type icon) "🐕"))
+        (should (equal (oref type icon) (string #x1F415))))
     (beads-agent-types-test--teardown)))
 
 (ert-deftest beads-agent-types-test-custom-icon ()
-  "Test Custom agent has the magic-wand icon (U+1FA84)."
+  "Test Custom agent has the butterfly icon (U+1F98B).
+Victorian collector's-cabinet specimen — every Custom agent is unique."
   (beads-agent-types-test--setup)
   (unwind-protect
       (let ((type (beads-agent-type-get "custom")))
-        (should (equal (oref type icon) "🪄"))
-        (should (equal (oref type icon) (string #x1FA84))))
+        (should (equal (oref type icon) "🦋"))
+        (should (equal (oref type icon) (string #x1F98B))))
     (beads-agent-types-test--teardown)))
 
 (ert-deftest beads-agent-types-test-each-has-icon ()

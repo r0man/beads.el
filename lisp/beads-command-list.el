@@ -826,7 +826,7 @@ the value of `beads-list-date-format'."
 
 Renders one role glyph per focused session on the issue, joined by a
 faint space separator.  Under GUI Emacs the glyph is the role icon
-\(👷 🕵️ 🧭 🧪 🪄), under TTY it is the type's single letter (T/R/P/Q/C).
+\(🦫 🦉 🐙 🐕 🦋), under TTY it is the type's single letter (T/R/P/Q/C).
 Finished and failed outcomes prefix the glyph with `✓' or `✗' so the
 status stays shape-distinguishable in TTY too.
 

@@ -20,10 +20,10 @@
 ;;
 ;;   State     GUI render   TTY render   Face
 ;;   --------  -----------  -----------  ----------------------------
-;;   running   👷           T            beads-list-agent-working
-;;   touched   dim 👷       dim T        shadow
-;;   finished  ✓👷          ✓T           beads-list-agent-finished
-;;   failed    ✗👷          ✗T           beads-list-agent-failed
+;;   running   🦫           T            beads-list-agent-working
+;;   touched   dim 🦫       dim T        shadow
+;;   finished  ✓🦫          ✓T           beads-list-agent-finished
+;;   failed    ✗🦫          ✗T           beads-list-agent-failed
 ;;
 ;; The outcome marks `✓' (U+2713) and `✗' (U+2717) are single-cell
 ;; ASCII-adjacent glyphs that render in TTY too, so the
@@ -148,7 +148,7 @@ The returned string carries two text properties:
   "Format an identifier from TYPE-NAME alone, without a live session.
 TYPE-NAME is a string naming the agent type (e.g. \"Task\") or nil.
 OUTCOME is the state symbol — typically `finished' or `failed' — used
-for outcome rendering (`✓👷'/`✗👷' in GUI, `✓T'/`✗T' in TTY).  Returns
+for outcome rendering (`✓🦫'/`✗🦫' in GUI, `✓T'/`✗T' in TTY).  Returns
 the same shape of propertized string as `beads-agent-display-format-session'.
 
 This entry point exists for surfaces that have a type identifier
