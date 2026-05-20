@@ -628,5 +628,237 @@ payload and `+' would visibly do nothing."
     (goto-char (point-min))
     (should (eq 'ready (beads-dashboard--section-at-point)))))
 
+(ert-deftest beads-dashboard-test-section-at-point-scans-line ()
+  "Section detection finds the key anywhere on the current line, not
+just exactly at point — covers landing in a gap between the chevron
+glyph and the stamped title text."
+  :tags '(:unit)
+  (with-temp-buffer
+    ;; First two chars unstamped (simulates the chevron + space),
+    ;; the rest carries the section-key like a header label would.
+    (insert "▼ "
+            (propertize "Ready (10)" 'beads-dashboard-section-key 'ready))
+    ;; Land point on the unstamped prefix.
+    (goto-char (point-min))
+    (should (eq 'ready (beads-dashboard--section-at-point)))))
+
+(ert-deftest beads-dashboard-test-section-at-point-walks-back-to-header ()
+  "When point sits on a blank line below a section's content, section
+detection walks back to the header chevron line and reads the key
+from there."
+  :tags '(:unit)
+  (with-temp-buffer
+    (insert "▼ "
+            (propertize "Stale (3)" 'beads-dashboard-section-key 'stale)
+            "\n"
+            "  bde-1   P0   task   open   row\n"
+            "\n")
+    ;; Trailing blank line.
+    (goto-char (point-max))
+    (forward-line -1)
+    (should (eq 'stale (beads-dashboard--section-at-point)))))
+
+(ert-deftest beads-dashboard-test-section-at-point-on-header-line ()
+  "Section detection works when point is *on* the header line itself —
+the bare chevron at column 0 must still resolve to the section."
+  :tags '(:unit)
+  (with-temp-buffer
+    (insert "▼ "
+            (propertize "Stale (3)" 'beads-dashboard-section-key 'stale)
+            "\n"
+            "  bde-1   P0   task   open   row\n")
+    (goto-char (point-min)) ; on the chevron
+    (should (eq 'stale (beads-dashboard--section-at-point)))
+    ;; Also at end-of-header-line.
+    (end-of-line)
+    (should (eq 'stale (beads-dashboard--section-at-point)))))
+
+(ert-deftest beads-dashboard-test-section-at-point-on-empty-state ()
+  "Section detection works on an empty-state line that carries only the
+section-key (no per-row `beads-section' issue object) — covers the
+`Nothing to show.' / `No work claimed.' placeholders."
+  :tags '(:unit)
+  (with-temp-buffer
+    (insert "▼ "
+            (propertize "Orphans (0)" 'beads-dashboard-section-key 'orphans)
+            "\n"
+            (propertize "  Nothing to show."
+                        'beads-dashboard-section-key 'orphans)
+            "\n")
+    (forward-line -1)
+    (forward-char 4) ; "  No|thing to show."
+    (should (eq 'orphans (beads-dashboard--section-at-point)))))
+
+(ert-deftest beads-dashboard-test-section-header-stamps-key ()
+  "`beads-dashboard--section-header' propertises its label with
+`beads-dashboard-section-key' when given one — verified by walking
+the rendered vnode's button label."
+  :tags '(:unit)
+  (let* ((vnode (beads-dashboard--section-header
+                 "Ready" "✅" nil 5 (lambda () (ignore)) 'ready))
+         (label (vui-vnode-button-label vnode)))
+    (should (stringp label))
+    ;; Anywhere on the label suffices — the property starts after the
+    ;; chevron glyph.  Look at the last char to be safe.
+    (should (eq 'ready
+                (get-text-property (1- (length label))
+                                   'beads-dashboard-section-key label)))))
+
+(ert-deftest beads-dashboard-test-empty-line-stamps-key ()
+  "`beads-dashboard--empty-line' stamps SECTION-KEY when supplied."
+  :tags '(:unit)
+  (let* ((vnode (beads-dashboard--empty-line "Nothing." 'in-flight))
+         (text  (vui-vnode-text-content vnode)))
+    (should (eq 'in-flight
+                (get-text-property 0 'beads-dashboard-section-key text)))))
+
+(ert-deftest beads-dashboard-test-loading-line-stamps-key ()
+  "`beads-dashboard--loading-line' stamps SECTION-KEY when supplied."
+  :tags '(:unit)
+  (let* ((vnode (beads-dashboard--loading-line 'closed))
+         (text  (vui-vnode-text-content vnode)))
+    (should (eq 'closed
+                (get-text-property 0 'beads-dashboard-section-key text)))))
+
+(ert-deftest beads-dashboard-test-issue-id-at-line-finds-stamped-id ()
+  "`beads-dashboard--issue-id-at-line' returns the id of a beads-issue
+stamped on the current line via the `beads-section' property contract."
+  :tags '(:unit)
+  (let* ((issue (beads-issue :id "bd-42" :title "x" :status "open"
+                             :priority 0 :issue-type "task"))
+         (section (beads-issue-section :issue issue))
+         (stamped (propertize "  bd-42 row text" 'beads-section section)))
+    (with-temp-buffer
+      (insert stamped)
+      (goto-char (point-min))
+      (should (equal "bd-42" (beads-dashboard--issue-id-at-line)))
+      ;; Anywhere on the line works.
+      (forward-char 8)
+      (should (equal "bd-42" (beads-dashboard--issue-id-at-line))))))
+
+(ert-deftest beads-dashboard-test-goto-issue-line-finds-and-leaves-point ()
+  "`beads-dashboard--goto-issue-line' moves point to the stamped row."
+  :tags '(:unit)
+  (let* ((issue (beads-issue :id "bd-7" :title "x" :status "open"
+                             :priority 0 :issue-type "task"))
+         (section (beads-issue-section :issue issue)))
+    (with-temp-buffer
+      (insert "▼ header\n"
+              (propertize "  bd-7  row text\n" 'beads-section section)
+              "▼ next header\n")
+      (goto-char (point-max))
+      (should (beads-dashboard--goto-issue-line "bd-7"))
+      (should (looking-at "bd-7"))
+      ;; Missing id returns nil and leaves point alone.
+      (let ((before (point)))
+        (should-not (beads-dashboard--goto-issue-line "bd-MISSING"))
+        (should (= before (point)))))))
+
+(ert-deftest beads-dashboard-test-goto-section-header-jumps-to-header ()
+  "`beads-dashboard--goto-section-header' lands point past the chevron
+on the header line for the given key."
+  :tags '(:unit)
+  (with-temp-buffer
+    (insert "▼ "
+            (propertize "Ready (5)" 'beads-dashboard-section-key 'ready)
+            "\n"
+            "  row\n"
+            "▼ "
+            (propertize "Stale (3)" 'beads-dashboard-section-key 'stale)
+            "\n"
+            "  another row\n")
+    (goto-char (point-max))
+    (should (beads-dashboard--goto-section-header 'ready))
+    (should (looking-at "Ready"))
+    (should (beads-dashboard--goto-section-header 'stale))
+    (should (looking-at "Stale"))
+    ;; Unknown key returns nil.
+    (let ((before (point)))
+      (should-not (beads-dashboard--goto-section-header 'no-such))
+      (should (= before (point))))))
+
+(ert-deftest beads-dashboard-test-restore-point-prefers-issue ()
+  "`beads-dashboard--restore-point' goes to the stamped issue when it
+exists in the buffer."
+  :tags '(:unit)
+  (let* ((issue (beads-issue :id "bd-9" :title "x" :status "open"
+                             :priority 0 :issue-type "task"))
+         (section (beads-issue-section :issue issue)))
+    (with-temp-buffer
+      (insert "▼ "
+              (propertize "Ready (1)" 'beads-dashboard-section-key 'ready)
+              "\n"
+              (propertize "  bd-9 row\n" 'beads-section section)
+              "▼ "
+              (propertize "Stale (0)" 'beads-dashboard-section-key 'stale)
+              "\n")
+      (goto-char (point-min))
+      (beads-dashboard--restore-point 'ready "bd-9" nil)
+      (should (looking-at "bd-9")))))
+
+(ert-deftest beads-dashboard-test-restore-point-falls-back-to-header ()
+  "`beads-dashboard--restore-point' falls back to the section header
+when the issue is no longer in the buffer."
+  :tags '(:unit)
+  (with-temp-buffer
+    (insert "▼ "
+            (propertize "Ready (0)" 'beads-dashboard-section-key 'ready)
+            "\n")
+    (goto-char (point-min))
+    (beads-dashboard--restore-point 'ready "bd-vanished" nil)
+    (should (looking-at "Ready"))))
+
+(ert-deftest beads-dashboard-test-on-more-line-detects-more-line ()
+  "`beads-dashboard--on-more-line-p' is t on a `… and N more (+)' row."
+  :tags '(:unit)
+  (with-temp-buffer
+    (insert "▼ "
+            (propertize "Ready (15)" 'beads-dashboard-section-key 'ready)
+            "\n"
+            (propertize "  … and 5 more (+)" 'beads-dashboard-section-key 'ready)
+            "\n")
+    (forward-line -1)
+    (forward-char 4)
+    (should (beads-dashboard--on-more-line-p))
+    ;; Header is NOT a more-line.
+    (goto-char (point-min))
+    (should-not (beads-dashboard--on-more-line-p))))
+
+(ert-deftest beads-dashboard-test-goto-more-line-finds-stamped-row ()
+  "`beads-dashboard--goto-more-line' jumps to the more-line for the key."
+  :tags '(:unit)
+  (with-temp-buffer
+    (insert "▼ "
+            (propertize "Ready (15)" 'beads-dashboard-section-key 'ready)
+            "\n"
+            (propertize "  … and 5 more (+)"
+                        'beads-dashboard-section-key 'ready)
+            "\n"
+            "▼ "
+            (propertize "Stale (3)" 'beads-dashboard-section-key 'stale)
+            "\n")
+    (goto-char (point-max))
+    (should (beads-dashboard--goto-more-line 'ready))
+    (should (looking-at "…"))
+    ;; No more-line for stale → returns nil, leaves point.
+    (let ((before (point)))
+      (should-not (beads-dashboard--goto-more-line 'stale))
+      (should (= before (point))))))
+
+(ert-deftest beads-dashboard-test-restore-point-prefers-more-line ()
+  "When the user was on a more-line, restore picks the new more-line
+in the same section over the section header fallback."
+  :tags '(:unit)
+  (with-temp-buffer
+    (insert "▼ "
+            (propertize "Ready (20)" 'beads-dashboard-section-key 'ready)
+            "\n"
+            (propertize "  … and 10 more (+)"
+                        'beads-dashboard-section-key 'ready)
+            "\n")
+    (goto-char (point-min))
+    (beads-dashboard--restore-point 'ready nil t)
+    (should (looking-at "…"))))
+
 (provide 'beads-dashboard-test)
 ;;; beads-dashboard-test.el ends here

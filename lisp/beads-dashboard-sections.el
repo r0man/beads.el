@@ -104,40 +104,67 @@ Returns:
       beads-section-glyph-collapsed
     beads-section-glyph-expanded))
 
-(defun beads-dashboard--section-header (title icon collapsed count on-toggle)
+(defun beads-dashboard--section-header (title icon collapsed count on-toggle
+                                              &optional section-key)
   "Return a vui vnode for a section header.
 TITLE is the section name.  ICON is an optional decorative prefix.
 COLLAPSED governs the chevron glyph.  COUNT, when non-nil, is shown
-as a parenthesized count.  ON-TOGGLE is invoked on click."
+as a parenthesized count.  ON-TOGGLE is invoked on click.
+
+SECTION-KEY, when non-nil, is stamped onto the rendered header label as
+a `beads-dashboard-section-key' text property so the +/-/* commands and
+the section-at-point walk can resolve the enclosing section even when
+point is on the header itself, on a blank line inside the section, or
+on the empty-state placeholder (none of which carry per-row keys)."
   (let* ((glyph (beads-dashboard--toggle-glyph collapsed))
          (head  (concat glyph
                         (if icon (concat " " icon) "")
                         " " title
-                        (if count (format " (%d)" count) ""))))
+                        (if count (format " (%d)" count) "")))
+         (head  (if section-key
+                    (propertize head 'beads-dashboard-section-key section-key)
+                  head)))
     (vui-button head
       :no-decoration t
       :face 'bold
       :help-echo nil
       :on-click (or on-toggle (lambda () (ignore))))))
 
-(defun beads-dashboard--error-line (err)
-  "Return a vnode rendering ERR as a single dimmed error line."
-  (vui-text (format "  Error: %s"
-                    (cond
-                     ((stringp err) err)
-                     ((and (listp err) (stringp (car err))) (car err))
-                     (t (format "%S" err))))
+(defun beads-dashboard--maybe-stamp (str section-key)
+  "Return STR with `beads-dashboard-section-key' SECTION-KEY when non-nil.
+Used by placeholder lines (loading / empty / error) so that +/-/* can
+resolve their enclosing section even before any issue rows render."
+  (if section-key
+      (propertize str 'beads-dashboard-section-key section-key)
+    str))
+
+(defun beads-dashboard--error-line (err &optional section-key)
+  "Return a vnode rendering ERR as a single dimmed error line.
+SECTION-KEY, when non-nil, is stamped onto the line."
+  (vui-text (beads-dashboard--maybe-stamp
+             (format "  Error: %s"
+                     (cond
+                      ((stringp err) err)
+                      ((and (listp err) (stringp (car err))) (car err))
+                      (t (format "%S" err))))
+             section-key)
             :face 'error))
 
-(defun beads-dashboard--loading-line ()
+(defun beads-dashboard--loading-line (&optional section-key)
   "Return a vnode for the loading skeleton.
 Renders a single dimmed line so the section reserves space and the
-buffer does not reflow when data arrives."
-  (vui-text "  Loading…" :face 'shadow))
+buffer does not reflow when data arrives.  SECTION-KEY, when non-nil,
+is stamped onto the line."
+  (vui-text (beads-dashboard--maybe-stamp "  Loading…" section-key)
+            :face 'shadow))
 
-(defun beads-dashboard--empty-line (&optional message)
-  "Return a vnode for an empty state with optional MESSAGE."
-  (vui-text (concat "  " (or message "Nothing to show."))
+(defun beads-dashboard--empty-line (&optional message section-key)
+  "Return a vnode for an empty state with optional MESSAGE.
+SECTION-KEY, when non-nil, is stamped onto the line so +/-/* can find
+the enclosing section even when no issue rows have been rendered."
+  (vui-text (beads-dashboard--maybe-stamp
+             (concat "  " (or message "Nothing to show."))
+             section-key)
             :face 'shadow))
 
 (defun beads-dashboard--data-empty-p (data)
@@ -164,7 +191,10 @@ PROPS:
                 re-using a stale smaller payload.
   :load         Loader (lambda (resolve reject) ...) for `vui-use-async'.
   :render-ready (lambda (data)) returning a vnode for the populated state.
-  :render-empty (lambda ()) returning a vnode when data is empty.
+  :render-empty (lambda (section-key)) returning a vnode when data is empty.
+                The section-key is passed so the empty-state line can
+                stamp `beads-dashboard-section-key' on itself, letting
+                +/-/* find this section even with no rows.
   :render-error (lambda (err))  returning a vnode for the error state.
   :collapsed    Non-nil to render only the header.
   :on-toggle    Click callback for the header chevron.
@@ -185,10 +215,12 @@ failure in one section never blanks the dashboard."
    :fallback
    (lambda (err)
      (vui-vstack
-       (beads-dashboard--section-header title icon collapsed nil on-toggle)
+       (beads-dashboard--section-header
+        title icon collapsed nil on-toggle section-key)
        (unless collapsed
          (beads-dashboard--error-line
-          (if (consp err) (cadr err) (format "%S" err))))))
+          (if (consp err) (cadr err) (format "%S" err))
+          section-key))))
    :children
    (list
     (let* ((async (vui-use-async async-key load))
@@ -206,24 +238,28 @@ failure in one section never blanks the dashboard."
                            (t nil)))
                     (t nil))))
       (vui-vstack
-        (beads-dashboard--section-header title icon collapsed count on-toggle)
+        (beads-dashboard--section-header
+         title icon collapsed count on-toggle section-key)
         (unless collapsed
           (pcase status
-            ('pending (beads-dashboard--loading-line))
+            ('pending (beads-dashboard--loading-line section-key))
             ('error
              (if render-error
                  (funcall render-error err)
-               (beads-dashboard--error-line err)))
+               (beads-dashboard--error-line err section-key)))
             ('ready
              (cond
               ((and (not force-render)
                     (beads-dashboard--data-empty-p data))
                (if render-empty
-                   (funcall render-empty)
-                 (beads-dashboard--empty-line)))
+                   (funcall render-empty section-key)
+                 (beads-dashboard--empty-line nil section-key)))
               (t (if render-ready
                      (funcall render-ready data)
-                   (vui-text (format "  %S" data) :face 'shadow))))))))))))
+                   (vui-text
+                    (beads-dashboard--maybe-stamp
+                     (format "  %S" data) section-key)
+                    :face 'shadow))))))))))))
 
 ;;; Section Spec Helpers
 
@@ -442,7 +478,8 @@ DATA is a list of `beads-epic-status' instances; each carries an
 is stamped on rows so load-more commands work here too; EXTRA-ROWS
 controls the visible count."
   (cond
-   ((null data) (beads-dashboard--empty-line "No epics open."))
+   ((null data)
+    (beads-dashboard--empty-line "No epics open." section-key))
    ((listp data)
     (beads-dashboard--limited-vstack
      data
@@ -491,7 +528,8 @@ commands can resolve the enclosing section."
 (defun beads-dashboard-render-federation (data)
   "Render the Federation section from DATA."
   (cond
-   ((null data) (beads-dashboard--empty-line "No federation peers."))
+   ((null data)
+    (beads-dashboard--empty-line "No federation peers." 'federation))
    ((listp data)
     (apply #'vui-vstack
            (mapcar
