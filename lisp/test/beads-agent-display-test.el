@@ -396,6 +396,67 @@ Required because tests run with the icon \"👷\" and letter \"T\"."
         (should (eq (get-text-property 0 'face nil-out)
                     'beads-list-agent-working))))))
 
+;;;; beads-agent-display-format-type-name — outcome-path helper
+
+(ert-deftest beads-agent-display-test-format-type-name-finished-icon ()
+  "Type-name façade renders ✓ + role icon in icons mode."
+  (beads-agent-display-test--ensure-task-registered)
+  (let ((beads-agent-display-use-icons t)
+        (beads-agent-type-icons nil))
+    (let ((result (beads-agent-display-format-type-name "Task" 'finished)))
+      (should (equal (substring-no-properties result) "✓👷"))
+      (should (eq (get-text-property 0 'face result)
+                  'beads-list-agent-finished)))))
+
+(ert-deftest beads-agent-display-test-format-type-name-failed-letter ()
+  "Type-name façade renders ✗T in letter mode."
+  (beads-agent-display-test--ensure-task-registered)
+  (let ((beads-agent-display-use-icons nil)
+        (beads-agent-type-icons nil))
+    (let ((result (beads-agent-display-format-type-name "Task" 'failed)))
+      (should (equal (substring-no-properties result) "✗T"))
+      (should (eq (get-text-property 0 'face result)
+                  'beads-list-agent-failed)))))
+
+(ert-deftest beads-agent-display-test-format-type-name-nil-type ()
+  "Type-name façade falls back to the `●' glyph when TYPE-NAME is nil."
+  (let ((beads-agent-display-use-icons nil)
+        (beads-agent-type-icons nil))
+    (let ((result (beads-agent-display-format-type-name nil 'finished)))
+      (should (equal (substring-no-properties result) "✓●")))))
+
+;;;; Latent collision regression — custom :letter must win
+
+(defclass beads-agent-display-test--collision (beads-agent-type)
+  ((name :initform "Test")
+   (letter :initform "X")
+   (description :initform "Type whose name starts with `T' but letter is `X'."))
+  :documentation
+  "Regression coverage for the historical bug where renderers ignored
+the registered `:letter' slot and used `(substring NAME 0 1)' — so a
+type named \"Test\" with letter \"X\" rendered as \"T\", colliding
+with the built-in Task type.")
+
+(ert-deftest beads-agent-display-test-letter-collision-bug-fixed ()
+  "A registered type with name \"Test\" and :letter \"X\" must render as X.
+This is the latent collision bug called out in the bde-npte epic: the
+old `(substring type-name 0 1)' callsites would have rendered this
+type as \"T\", colliding with Task."
+  (require 'beads-agent-types)
+  (let ((beads-agent-display-use-icons nil)
+        (beads-agent-type-icons nil)
+        (collision (beads-agent-display-test--collision)))
+    (unwind-protect
+        (progn
+          (beads-agent-type-register collision)
+          ;; Direct accessor returns the registered letter, NOT "T".
+          (should (equal (beads-agent-type-icon-or-letter collision) "X"))
+          ;; The display helper used by every UI surface also returns "X".
+          (beads-agent-display-test--with-session "Test" 1
+            (let ((result (beads-agent-display-format-session session nil t)))
+              (should (equal (substring-no-properties result) "X")))))
+      (beads-agent-type--unregister "Test"))))
+
 (provide 'beads-agent-display-test)
 
 ;;; beads-agent-display-test.el ends here

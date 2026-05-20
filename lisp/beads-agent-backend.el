@@ -433,15 +433,13 @@ Use this to refresh UI elements like `beads-list' buffers.")
 (defun beads-agent--run-state-change-hook (action session)
   "Run `beads-agent-state-change-hook' with ACTION and SESSION.
 Also records the outcome in `beads-agent--issue-outcomes' for UI display.
-Outcomes are stored as (letter . outcome) cons cells where letter is the
-first character of the agent type name (T/R/P/Q/C) and outcome is `finished'
-or `failed'.  For backward compatibility, outcome may be just the symbol."
+Outcomes are stored as (TYPE-NAME . OUTCOME) cons cells where TYPE-NAME is
+the full agent type name (e.g. \"Task\") and OUTCOME is `finished' or
+`failed'.  For backward compatibility, the stored value may also be just
+the outcome symbol."
   ;; Record outcome for UI display
   (when-let ((issue-id (and session (oref session issue-id))))
-    (let* ((type-name (oref session agent-type-name))
-           (letter (if type-name
-                       (substring type-name 0 1)
-                     "●")))
+    (let ((type-name (or (oref session agent-type-name) "")))
       (pcase action
         ('started
          ;; Clear previous outcome when starting fresh
@@ -450,7 +448,7 @@ or `failed'.  For backward compatibility, outcome may be just the symbol."
          ;; Clear outcome when stopped - indicators only show for active agents
          (remhash issue-id beads-agent--issue-outcomes))
         ('failed
-         (puthash issue-id (cons letter 'failed) beads-agent--issue-outcomes)))))
+         (puthash issue-id (cons type-name 'failed) beads-agent--issue-outcomes)))))
   (run-hook-with-args 'beads-agent-state-change-hook action session))
 
 ;;; Backend Registry Functions

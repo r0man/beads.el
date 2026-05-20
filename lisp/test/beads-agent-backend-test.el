@@ -658,17 +658,21 @@ The function returns legacy keys (:project-name, :type-name, etc.)."
       (should (eq hook-session session)))))
 
 (ert-deftest beads-agent-backend-test-run-state-change-hook-records-outcome ()
-  "Test beads-agent--run-state-change-hook records outcomes."
+  "Test beads-agent--run-state-change-hook records outcomes.
+Outcomes are stored as (TYPE-NAME . OUTCOME-SYMBOL) so downstream
+renderers can look up the registered `beads-agent-type' and honor
+its `:letter' / `:icon' slots, avoiding the historical letter
+collision bug."
   (let ((beads-agent--issue-outcomes (make-hash-table :test #'equal))
         (beads-agent-state-change-hook nil))
     (let ((session (beads-agent-backend-test--make-session
                     :issue-id "bd-42"
                     :agent-type-name "Task")))
-      ;; Failed action should record outcome
+      ;; Failed action should record outcome with full type name.
       (beads-agent--run-state-change-hook 'failed session)
       (let ((outcome (beads-agent--get-issue-outcome "bd-42")))
         (should (consp outcome))
-        (should (equal (car outcome) "T"))  ; First letter of Task
+        (should (equal (car outcome) "Task"))
         (should (eq (cdr outcome) 'failed))))))
 
 (ert-deftest beads-agent-backend-test-run-state-change-hook-clears-on-start ()

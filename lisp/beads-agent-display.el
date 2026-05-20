@@ -92,6 +92,31 @@ when TYPE-NAME is nil or empty."
       (substring type-name 0 1))
      (t "●"))))
 
+(defun beads-agent-display--format (type-name instance-n outcome brief)
+  "Build the propertized identifier string from raw type info.
+TYPE-NAME is the agent type name (e.g. \"Task\") or nil.
+INSTANCE-N is the session instance number or nil.
+OUTCOME is the state symbol (`running'/`touched'/`finished'/`failed').
+BRIEF when non-nil forces the `#N' suffix off."
+  (let* ((state (or outcome 'running))
+         (glyph (beads-agent-display--glyph type-name))
+         (prefix (beads-agent-display--state-prefix state))
+         (face (beads-agent-display--state-face state))
+         (show-instance (and (not brief)
+                             beads-agent-display-show-instance
+                             (integerp instance-n)))
+         (suffix (if show-instance (format "#%d" instance-n) ""))
+         (body (concat prefix glyph suffix))
+         (state-words (beads-agent-display--state-words state))
+         (echo-instance (and (memq state '(running touched))
+                             (integerp instance-n)
+                             (format " #%d" instance-n)))
+         (help-echo (format "%s agent%s: %s"
+                            (or type-name "Unknown")
+                            (or echo-instance "")
+                            state-words)))
+    (propertize body 'face face 'help-echo help-echo)))
+
 ;;;###autoload
 (defun beads-agent-display-format-session (session &optional outcome brief)
   "Format SESSION's identifier as icon (or letter) with optional outcome mark.
@@ -112,26 +137,24 @@ non-nil AND SESSION has an integer `instance-number'.
 The returned string carries two text properties:
   `face'      — the state's face (see the matrix in commentary)
   `help-echo' — \"<Type> agent[ #N]: <state-in-words>\""
-  (let* ((type-name (beads-agent-session-type-name session))
-         (instance-n (beads-agent-session-instance-number session))
-         (state (or outcome 'running))
-         (glyph (beads-agent-display--glyph type-name))
-         (prefix (beads-agent-display--state-prefix state))
-         (face (beads-agent-display--state-face state))
-         (show-instance (and (not brief)
-                             beads-agent-display-show-instance
-                             (integerp instance-n)))
-         (suffix (if show-instance (format "#%d" instance-n) ""))
-         (body (concat prefix glyph suffix))
-         (state-words (beads-agent-display--state-words state))
-         (echo-instance (and (memq state '(running touched))
-                             (integerp instance-n)
-                             (format " #%d" instance-n)))
-         (help-echo (format "%s agent%s: %s"
-                            (or type-name "Unknown")
-                            (or echo-instance "")
-                            state-words)))
-    (propertize body 'face face 'help-echo help-echo)))
+  (beads-agent-display--format
+   (beads-agent-session-type-name session)
+   (beads-agent-session-instance-number session)
+   outcome
+   brief))
+
+;;;###autoload
+(defun beads-agent-display-format-type-name (type-name &optional outcome)
+  "Format an identifier from TYPE-NAME alone, without a live session.
+TYPE-NAME is a string naming the agent type (e.g. \"Task\") or nil.
+OUTCOME is the state symbol — typically `finished' or `failed' — used
+for outcome rendering (`✓👷'/`✗👷' in GUI, `✓T'/`✗T' in TTY).  Returns
+the same shape of propertized string as `beads-agent-display-format-session'.
+
+This entry point exists for surfaces that have a type identifier
+but no live session (e.g. the per-issue outcome cell in the issue
+list, where the session has already terminated)."
+  (beads-agent-display--format type-name nil outcome t))
 
 (provide 'beads-agent-display)
 

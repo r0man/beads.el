@@ -36,6 +36,7 @@
 
 (require 'beads)
 (require 'beads-actions)
+(require 'beads-agent-display)
 (require 'beads-agent-keys)
 (require 'beads-buffer)
 (require 'beads-command)
@@ -560,10 +561,13 @@ Transient levels control which options are visible (cycle with C-x l):
   :type 'integer
   :group 'beads-list)
 
-(defcustom beads-list-agent-width 15
+(defcustom beads-list-agent-width 11
   "Width of Agents column in issue lists.
-Shows agent type and number for each active session (e.g., T#1 R#2).
-Default width accommodates ~3 agents (5 chars each with spaces)."
+Shows the role icon (or single letter under TTY) for each focused
+session on an issue, plus the outcome glyph (✓/✗) when an agent
+has finished or failed.  Default width accommodates two outcomed
+agents plus one running agent (with separators), or three running
+agents."
   :type 'integer
   :group 'beads-list)
 
@@ -817,136 +821,71 @@ the value of `beads-list-date-format'."
         (_
          (format-time-string "%Y-%m-%d %H:%M" time))))))
 
-(defun beads-list--format-agent-indicator (type-name instance-n face
-                                                       &optional brief)
-  "Format a single agent indicator.
-TYPE-NAME is the agent type (e.g., \"Task\").
-INSTANCE-N is the session instance number.
-FACE is the face to apply.
-If BRIEF is non-nil, show just the letter without instance number.
-Returns a propertized string like \"T#1\" or \"T\" if BRIEF."
-  (let* ((letter (if type-name (substring type-name 0 1) "●"))
-         (indicator (if (or brief (not instance-n))
-                        letter
-                      (format "%s#%d" letter instance-n))))
-    (propertize indicator 'face face)))
-
 (defun beads-list--format-agent (issue-id)
-  "Format agent status indicator for ISSUE-ID.
-Uses directory-bound session model:
-  - Shows focused sessions (current-issue = this issue) in yellow
-  - Shows touched sessions (issue in touched-issues) in dim
-  - Falls back to legacy issue-bound lookup for backward compatibility
+  "Format the Agents column for ISSUE-ID.
 
-Format: FOCUSED[/TOUCHED]
-  - T#1 = Task agent #1 focused on this issue
-  - ~P = Plan agent has touched this issue
+Renders one role glyph per focused session on the issue, joined by a
+faint space separator.  Under GUI Emacs the glyph is the role icon
+\(👷 🕵️ 🧭 🧪 🪄), under TTY it is the type's single letter (T/R/P/Q/C).
+Finished and failed outcomes prefix the glyph with `✓' or `✗' so the
+status stays shape-distinguishable in TTY too.
 
-Colors indicate status:
-  - Yellow: agent currently focused on this issue
-  - Dim: agent has touched this issue (not currently focused)
-  - Green: agent finished successfully (legacy)
-  - Red: agent failed (legacy)
+Touched-only sessions (focused elsewhere) are not rendered in the
+column; their count surfaces in the cell help-echo only.
 
-Letters are: T=Task, R=Review, P=Plan, Q=QA, C=Custom."
+The latent collision bug from earlier versions — where any registered
+type whose name starts with the same letter would render identically —
+is fixed by routing all glyph resolution through
+`beads-agent-type-icon-or-letter', which honors the registered
+`:letter' slot."
   (let* ((focused (and (fboundp 'beads-agent--get-sessions-focused-on-issue)
                        (beads-agent--get-sessions-focused-on-issue issue-id)))
          (touched (and (fboundp 'beads-agent--get-sessions-touching-issue)
                        (beads-agent--get-sessions-touching-issue issue-id)))
-         ;; Remove focused from touched for clean display
          (touched-only (cl-set-difference touched focused))
-         ;; Legacy fallback
          (legacy-sessions (and (not focused) (not touched)
                                (fboundp 'beads-agent--get-sessions-for-issue)
                                (beads-agent--get-sessions-for-issue issue-id)))
          (outcome (and (fboundp 'beads-agent--get-issue-outcome)
-                       (beads-agent--get-issue-outcome issue-id))))
+                       (beads-agent--get-issue-outcome issue-id)))
+         (separator (propertize " " 'face 'shadow)))
     (cond
-     ;; Focused or touched sessions - directory-bound model
-     ((or focused touched-only)
-      (let* ((separator (propertize "/" 'face 'shadow))
-             ;; Format focused sessions (active work on this issue)
-             (focused-indicators
-              (mapcar
-               (lambda (session)
-                 (let* ((type-name (and (fboundp 'beads-agent-session-type-name)
-                                        (beads-agent-session-type-name session)))
-                        (instance-n (and (fboundp 'beads-agent-session-instance-number)
-                                         (beads-agent-session-instance-number session)))
-                        (letter (if type-name (substring type-name 0 1) "●"))
-                        (indicator (if instance-n
-                                       (format "%s#%d" letter instance-n)
-                                     letter)))
-                   (propertize indicator
-                               'face 'beads-list-agent-working
-                               'help-echo (format "Agent focused: %s"
-                                                  (or type-name "unknown")))))
-               focused))
-             ;; Format touched sessions (past work in same agent session)
-             (touched-indicators
-              (mapcar
-               (lambda (session)
-                 (let* ((type-name (and (fboundp 'beads-agent-session-type-name)
-                                        (beads-agent-session-type-name session)))
-                        (letter (if type-name (substring type-name 0 1) "●"))
-                        (indicator (format "~%s" letter)))
-                   (propertize indicator
-                               'face 'shadow
-                               'help-echo (format "Agent touched: %s"
-                                                  (or type-name "unknown")))))
-               touched-only))
-             (all-indicators (append focused-indicators touched-indicators)))
-        (propertize (mapconcat #'identity all-indicators separator)
+     ;; Focused sessions — directory-bound model.  Touched-only sessions
+     ;; do not render in the column; they appear in help-echo only.
+     (focused
+      (let* ((indicators
+              (mapcar (lambda (session)
+                        (beads-agent-display-format-session session nil t))
+                      focused))
+             (body (mapconcat #'identity indicators separator)))
+        (propertize body
                     'help-echo (format "Focused: %d, Touched: %d"
                                        (length focused)
                                        (length touched-only)))))
-     ;; Legacy issue-bound sessions (backward compatibility)
+     ;; Legacy issue-bound sessions (backward compatibility).
      (legacy-sessions
-      (let* ((separator (propertize "/" 'face 'shadow))
-             (type-counts
-              (let ((counts (make-hash-table :test 'equal)))
-                (dolist (session legacy-sessions)
-                  (let ((type-name (and (fboundp 'beads-agent-session-type-name)
-                                        (beads-agent-session-type-name session))))
-                    (puthash type-name (1+ (gethash type-name counts 0)) counts)))
-                counts))
-             (type-instance-nums (make-hash-table :test 'equal))
-             (indicators
-              (mapcar
-               (lambda (session)
-                 (let* ((type-name (and (fboundp 'beads-agent-session-type-name)
-                                        (beads-agent-session-type-name session)))
-                        (current-num (1+ (gethash type-name type-instance-nums 0)))
-                        (_ (puthash type-name current-num type-instance-nums))
-                        (brief (= 1 (gethash type-name type-counts 1))))
-                   (beads-list--format-agent-indicator
-                    type-name current-num 'beads-list-agent-working brief)))
-               legacy-sessions)))
-        (propertize (if (= (length indicators) 1)
-                        (car indicators)
-                      (mapconcat #'identity indicators separator))
+      (let* ((indicators
+              (mapcar (lambda (session)
+                        (beads-agent-display-format-session session nil t))
+                      legacy-sessions))
+             (body (mapconcat #'identity indicators separator)))
+        (propertize body
                     'help-echo (format "%d agent%s working"
                                        (length legacy-sessions)
                                        (if (= (length legacy-sessions) 1) "" "s")))))
-     ;; Finished - show last indicator in green
+     ;; Finished outcome — render the role glyph prefixed with ✓.
      ((and (consp outcome) (eq (cdr outcome) 'finished))
-      (propertize (car outcome)
-                  'face 'beads-list-agent-finished
-                  'help-echo "Agent finished successfully"))
+      (beads-agent-display-format-type-name (car outcome) 'finished))
      ((eq outcome 'finished)
-      (propertize "●"
-                  'face 'beads-list-agent-finished
-                  'help-echo "Agent finished successfully"))
-     ;; Failed - show last indicator in red
+      (beads-agent-display-format-type-name nil 'finished))
+     ;; Failed outcome — render the role glyph prefixed with ✗.
      ((and (consp outcome) (eq (cdr outcome) 'failed))
-      (propertize (car outcome)
-                  'face 'beads-list-agent-failed
-                  'help-echo "Agent failed"))
+      (beads-agent-display-format-type-name (car outcome) 'failed))
      ((eq outcome 'failed)
-      (propertize "●"
-                  'face 'beads-list-agent-failed
-                  'help-echo "Agent failed"))
-     ;; No agent activity
+      (beads-agent-display-format-type-name nil 'failed))
+     ;; No focused agent activity.  Touched-only sessions don't render in
+     ;; the column at all; their presence surfaces only when they coexist
+     ;; with a focused agent (via the help-echo built above).
      (t ""))))
 
 (defun beads-list--issue-to-entry (issue)
