@@ -663,14 +663,24 @@ renders cleanly; only the cap-bearing placeholders show numbers."
 
 (ert-deftest beads-agent-ralph-test-review-prompt-defcustom-default-contract ()
   "The default review prompt embeds the exact directives the plan demands.
-Bug-fixed (--append-notes vs --notes, bd epic close-eligible vs bd
-close ROOT), and explicitly forbids editing the epic description.
-Pin the strings here so a sloppy template edit fails the suite."
+Bug-fixed per the c95u peer-review pass: `bd epic close-eligible'
+(NOT plain `bd close <ROOT-ID>', which fails on any open child) is
+the documented completion command, and the template explicitly
+WARNS the agent away from `bd close <ROOT-ID>' rather than silently
+allowing it.  The template also forbids editing the epic
+description (the c95u.6 immutability guard catches mutations but
+the prompt is the first line of defence).  Pin the strings here so
+a sloppy template edit fails the suite."
   (let ((tmpl beads-agent-ralph-review-prompt))
     (should (string-match-p "bd create --parent <ROOT-ID>" tmpl))
     (should (string-match-p "<MAX-FOLLOWUPS>" tmpl))
     (should (string-match-p "bd epic close-eligible" tmpl))
-    (should-not (string-match-p "bd close <ROOT-ID>'\\s-*$" tmpl))
+    ;; The bad form `bd close <ROOT-ID>' must appear ONLY inside a
+    ;; "Do NOT" warning, never as a positive instruction.  Assert the
+    ;; warning is present rather than asserting absence of the literal
+    ;; string (which would be a false positive against the warning itself).
+    (should (string-match-p
+             "Do NOT run `bd close <ROOT-ID>'" tmpl))
     (should (string-match-p "DO NOT edit the epic's description" tmpl))
     (should (string-match-p "review-overproduced" tmpl))
     (should (string-match-p "<CLOSED-CHILDREN-SUMMARY>" tmpl))
