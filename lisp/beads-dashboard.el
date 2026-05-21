@@ -159,7 +159,7 @@ strip short on the common path."
 (defun beads-dashboard--footer-vnode ()
   "Return the dashboard footer vnode (key hints)."
   (vui-text
-   "KEYS: n/p item · M-n/M-p section · TAB toggle · M-1..M-4 depth · +/-/* rows · g refresh · c claim · b blocker · a agent · RET visit · q quit"
+   "KEYS: n/p item · M-n/M-p section · TAB toggle · M-0..M-4 depth · +/-/* rows · g refresh · c claim · b blocker · a agent · RET visit · q quit"
    :face 'shadow))
 
 (defun beads-dashboard--no-project-vnode ()
@@ -852,6 +852,18 @@ CLI's default cap.  Point is re-anchored after the rerender."
   "Show top four levels of sections."
   (interactive) (beads-dashboard--set-depth 4))
 
+(defun beads-dashboard-depth-all ()
+  "Expand every section.
+The natural inverse of \\[beads-dashboard-depth-1] (`M-1' shows only
+the first); since the dashboard has more sections (9) than depth
+keys (M-1..M-4 only cover the first 4), this gives the user a
+one-shot way to expand everything without TAB-ing each section."
+  (interactive)
+  ;; `most-positive-fixnum' is well above any plausible section count
+  ;; and avoids hard-coding the order length here.  `seq-take' clamps
+  ;; gracefully when N exceeds the list length.
+  (beads-dashboard--set-depth most-positive-fixnum))
+
 ;;; Mode
 
 (defvar-keymap beads-dashboard-mode-map
@@ -873,6 +885,7 @@ CLI's default cap.  Point is re-anchored after the rerender."
   "M-2" #'beads-dashboard-depth-2
   "M-3" #'beads-dashboard-depth-3
   "M-4" #'beads-dashboard-depth-4
+  "M-0" #'beads-dashboard-depth-all
   ;; Per-section row-count overrides.  `-' shadows the parent map's
   ;; `negative-argument' inside dashboard mode only — no dashboard
   ;; command takes a numeric prefix, so the binding is unambiguous.

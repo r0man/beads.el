@@ -289,6 +289,23 @@ should sit right under Stats as the user-facing pulse."
       (beads-dashboard--set-depth 2)
       (should-not (cdr (assq 'closed captured))))))
 
+(ert-deftest beads-dashboard-test-depth-all-expands-every-section ()
+  "M-0 expands every section, the natural inverse of M-1."
+  :tags '(:unit)
+  (let ((captured nil))
+    (cl-letf* ((beads-dashboard--visibility-cache nil)
+               ((symbol-function 'beads-dashboard--save-visibility)
+                (lambda (_root collapsed) (setq captured collapsed)))
+               ((symbol-function 'beads-dashboard--project-root)
+                (lambda () "/tmp/proj/"))
+               ((symbol-function 'beads-dashboard--bump)
+                (lambda (_key _value) nil)))
+      (beads-dashboard-depth-all)
+      ;; Every entry's cdr must be nil (expanded).
+      (should (cl-every (lambda (pair) (null (cdr pair))) captured))
+      ;; And the list still covers every section.
+      (should (= 9 (length captured))))))
+
 ;;; Section Construction (`:key' stability)
 
 (ert-deftest beads-dashboard-test-section-key-is-set ()
