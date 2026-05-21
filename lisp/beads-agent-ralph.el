@@ -2391,8 +2391,10 @@ need only read this record to render its row."
      ;; finish path increments `consecutive-empty-reviews' AFTER this
      ;; record is built, so the about-to-be cycle number is
      ;; `(1+ current value)' — matches the prompt placeholder formula.
+     ;; Both counter slots are `:type integer' so no `(or … 0)' guard
+     ;; is needed; the gated site at `--fire-gate' reads them raw too.
      :review-number (and (eq (oref controller current-iter-kind) 'review)
-                         (1+ (or (oref controller consecutive-empty-reviews) 0)))
+                         (1+ (oref controller consecutive-empty-reviews)))
      :max-reviews (and (eq (oref controller current-iter-kind) 'review)
                        (oref controller max-consecutive-empty-reviews)))))
 
