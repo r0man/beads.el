@@ -32,18 +32,24 @@
   "Mock sessions for testing.")
 
 (defun beads-agent-list-test--make-session (id issue-id backend-name
-                                               &optional worktree-dir)
+                                               &optional worktree-dir
+                                               agent-type-name
+                                               instance-number)
   "Create a mock beads-agent-session for testing.
 ID is the session ID.
 ISSUE-ID is the associated issue.
 BACKEND-NAME is the backend name.
-WORKTREE-DIR is optional worktree directory."
+WORKTREE-DIR is optional worktree directory.
+AGENT-TYPE-NAME is the agent type name (e.g. \"Task\").
+INSTANCE-NUMBER is the session instance number (defaults to 1)."
   (beads-agent-session
    :id id
    :issue-id issue-id
    :backend-name backend-name
    :project-dir "/home/test/project"
    :worktree-dir worktree-dir
+   :agent-type-name agent-type-name
+   :instance-number (or instance-number 1)
    :started-at (format-time-string "%Y-%m-%dT%H:%M:%S%z"
                                    (time-subtract (current-time)
                                                   (seconds-to-time 3700)))
@@ -144,11 +150,49 @@ WORKTREE-DIR is optional worktree directory."
         ;; Entry is (id [columns...])
         (should (equal "sess-1" (car entry)))
         (should (vectorp (cadr entry)))
-        ;; Check columns
+        ;; Check columns: Issue, Type, Title, Backend, ...
         (let ((vec (cadr entry)))
+          (should (= 7 (length vec)))
           (should (equal "beads.el-42" (aref vec 0)))  ; Issue ID
-          (should (equal "Test Issue" (aref vec 1)))   ; Title
-          (should (equal "claude-code-ide" (aref vec 2))))))))  ; Backend
+          (should (stringp (aref vec 1)))              ; Type cell
+          (should (equal "Test Issue" (aref vec 2)))   ; Title
+          (should (equal "claude-code-ide" (aref vec 3))))))))  ; Backend
+
+(ert-deftest beads-agent-list-test-type-column-rendering ()
+  "Type column renders the agent's identifier with #N suffix.
+Regression test for bde-npte.6: the dedicated agent-list buffer
+shows the role icon (or single-letter fallback under TTY) and the
+instance number even when narrower surfaces hide it."
+  (let ((session (beads-agent-list-test--make-session
+                  "sess-1" "beads.el-42" "claude-code-ide"
+                  nil "Task" 2))
+        (beads-agent-display-use-icons nil)
+        (beads-agent-display-show-instance nil))
+    (cl-letf (((symbol-function 'beads-agent--session-active-p)
+               (lambda (_s) t))
+              ((symbol-function 'beads-agent--get-issue-outcome)
+               (lambda (_id) nil)))
+      (let ((cell (beads-agent-list--format-type session)))
+        (should (stringp cell))
+        ;; #N is forced on in the Type column even when the global
+        ;; show-instance default is nil.
+        (should (string-match-p "#2" cell))
+        ;; Single-letter fallback honors `beads-agent-display-use-icons' nil.
+        (should (string-match-p "T" cell))))))
+
+(ert-deftest beads-agent-list-test-mode-includes-type-column ()
+  "`beads-agent-list-mode' adds a sortable Type column after Issue."
+  (with-temp-buffer
+    (beads-agent-list-mode)
+    (let ((cols (mapcar #'car (append tabulated-list-format nil))))
+      (should (member "Type" cols))
+      ;; Type sits between Issue and Title.
+      (should (equal '("Issue" "Type" "Title") (seq-take cols 3))))
+    ;; Sortable flag (3rd element of the spec).
+    (let ((type-spec (seq-find (lambda (s) (equal (car s) "Type"))
+                               (append tabulated-list-format nil))))
+      (should type-spec)
+      (should (nth 2 type-spec)))))
 
 ;;; Buffer Creation Tests
 
@@ -158,7 +202,7 @@ WORKTREE-DIR is optional worktree directory."
     (beads-agent-list-mode)
     (should (eq major-mode 'beads-agent-list-mode))
     (should tabulated-list-format)
-    (should (= 6 (length tabulated-list-format)))))  ; 6 columns
+    (should (= 7 (length tabulated-list-format)))))  ; 7 columns
 
 (ert-deftest beads-agent-list-test-keymap ()
   "Test that keymap has expected bindings."
@@ -363,6 +407,7 @@ WORKTREE-DIR is optional worktree directory."
 (ert-deftest beads-agent-list-test-customizations-exist ()
   "Test that all customization variables exist."
   (should (boundp 'beads-agent-list-issue-width))
+  (should (boundp 'beads-agent-list-type-width))
   (should (boundp 'beads-agent-list-title-width))
   (should (boundp 'beads-agent-list-backend-width))
   (should (boundp 'beads-agent-list-status-width))

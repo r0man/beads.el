@@ -19,6 +19,7 @@
 (require 'ert)
 (require 'cl-lib)
 (require 'beads-agent-prompt-edit)
+(require 'beads-agent-types)
 (require 'beads-git)
 
 ;;; Test Helpers
@@ -213,6 +214,52 @@ bde-d3eg)."
     (let ((h (beads-agent-prompt-edit--header-line)))
       (should (string-match "C-c C-c" h))
       (should (string-match "C-c C-k" h)))))
+
+(ert-deftest beads-agent-prompt-edit-test-header-line-prefixes-icon-in-gui ()
+  "Header line prefixes the type name with the role icon under GUI."
+  (with-temp-buffer
+    (beads-agent-prompt-edit-mode)
+    (setq beads-agent-prompt-edit--agent-type "Task")
+    (setq beads-agent-prompt-edit--issue-id "test-123")
+    (let ((beads-agent-display-use-icons t)
+          (beads-agent-display-type-icons nil))
+      (let* ((type (beads-agent-type-get "Task"))
+             (icon (and type (slot-boundp type 'icon) (oref type icon))))
+        (skip-unless icon)
+        (let ((h (beads-agent-prompt-edit--header-line)))
+          (should (string-match-p (regexp-quote icon) h))
+          ;; Icon precedes the type name in the header.
+          (should (< (string-match-p (regexp-quote icon) h)
+                     (string-match-p "Task" h))))))))
+
+(ert-deftest beads-agent-prompt-edit-test-header-line-letter-fallback-in-tty ()
+  "Header line omits the icon (no prefix) when icons are disabled."
+  (with-temp-buffer
+    (beads-agent-prompt-edit-mode)
+    (setq beads-agent-prompt-edit--agent-type "Task")
+    (setq beads-agent-prompt-edit--issue-id "test-123")
+    (let ((beads-agent-display-use-icons nil)
+          (beads-agent-display-type-icons nil))
+      (let* ((type (beads-agent-type-get "Task"))
+             (icon (and type (slot-boundp type 'icon) (oref type icon)))
+             (letter (and type (oref type letter)))
+             (h (beads-agent-prompt-edit--header-line)))
+        (skip-unless icon)
+        ;; No emoji icon when use-icons is nil.
+        (should-not (string-match-p (regexp-quote icon) h))
+        ;; Letter prefix appears before the type name ("T Task ...").
+        (should (string-match-p
+                 (concat (regexp-quote letter) " Task prompt") h))))))
+
+(ert-deftest beads-agent-prompt-edit-test-header-line-unregistered-type ()
+  "Header line works for unregistered type names without crashing."
+  (with-temp-buffer
+    (beads-agent-prompt-edit-mode)
+    (setq beads-agent-prompt-edit--agent-type "NoSuchType")
+    (setq beads-agent-prompt-edit--issue-id "test-123")
+    (let ((h (beads-agent-prompt-edit--header-line)))
+      (should (stringp h))
+      (should (string-match-p "NoSuchType" h)))))
 
 (provide 'beads-agent-prompt-edit-test)
 ;;; beads-agent-prompt-edit-test.el ends here

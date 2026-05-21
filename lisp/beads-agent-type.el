@@ -104,7 +104,14 @@ A string used directly, or a symbol dereferenced with `symbol-value'
 \(like `prompt-template').  Runs the same `<ISSUE-...>' substitution
 via `beads-agent-type-system-prompt'.  nil means this type has no
 distinct system prompt (builder types such as Custom, and the
-default in Phase 1a-i where all slots are still nil)."))
+default in Phase 1a-i where all slots are still nil).")
+   (icon
+    :initarg :icon
+    :initform nil
+    :documentation "Display icon string for this agent type, or nil.
+A short string (typically a single emoji, two display columns wide) used
+as the visual identifier across all UIs.  When nil, the letter slot is
+used as fallback.  Users may override via `beads-agent-display-type-icons'."))
   :abstract t
   :documentation "Abstract base class for AI agent types.
 Subclasses define specific agent behaviors and can override generic methods.
@@ -205,6 +212,13 @@ Returns a string suitable for display in list columns.")
 (cl-defmethod beads-agent-type-letter-display ((type beads-agent-type))
   "Return the single-letter display string for TYPE from the letter slot."
   (oref type letter))
+
+;; `beads-agent-type-icon', `beads-agent-icons-supported-p' and
+;; `beads-agent-type-icon-or-letter' are display-layer helpers; they
+;; live in `beads-agent-display.el'.  Keeping them there lets this
+;; module load without pulling in the display-layer defcustom
+;; `beads-agent-display-type-icons' that the override-aware resolver
+;; consults.
 
 (cl-defgeneric beads-agent-type-name-display (type)
   "Return the display name for TYPE.
@@ -322,7 +336,12 @@ This function is intended for testing purposes only."
 
 (defun beads-agent-type--unregister (name)
   "Unregister the type with NAME from all registries.
-NAME is case-insensitive.  Does nothing if type is not registered."
+NAME is case-insensitive.  Does nothing if type is not registered.
+
+This function is intended for testing purposes only — production
+code should leave registrations in place for the life of the
+session.  Test files reach into this internal entry point
+deliberately to undo per-test registrations in teardown."
   (beads-agent-type--ensure-registry)
   (let ((lower-name (downcase name)))
     (when-let ((type (gethash lower-name beads-agent-type--registry)))

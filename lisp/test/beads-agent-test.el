@@ -1879,6 +1879,104 @@ behavior is to always prompt unless a default is configured."
             (should (functionp (caddr suffix))))))
     (beads-agent-test--teardown)))
 
+(ert-deftest beads-agent-test-issue-make-jump-suffix-icon-prefix ()
+  "Jump suffix description is prefixed with the role icon under GUI."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (let* ((session (beads-agent--create-session
+                         "bd-jump" "mock" "/tmp" 'handle
+                         nil "Task"))
+               (type (beads-agent-type-get "Task"))
+               (icon (and type (slot-boundp type 'icon) (oref type icon))))
+          (skip-unless icon)
+          (let ((beads-agent-display-use-icons t)
+                (beads-agent-display-type-icons nil))
+            (let* ((suffix (beads-agent-issue--make-jump-suffix session 1))
+                   (desc (cadr suffix)))
+              (should (string-match-p (regexp-quote icon) desc))
+              ;; Description still includes the existing "Task#" display name.
+              (should (string-match-p "Task#" desc))))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-issue-make-jump-suffix-letter-fallback ()
+  "Jump suffix description uses the type letter when icons are disabled."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (let* ((session (beads-agent--create-session
+                         "bd-jump" "mock" "/tmp" 'handle
+                         nil "Task"))
+               (type (beads-agent-type-get "Task"))
+               (icon (and type (slot-boundp type 'icon) (oref type icon)))
+               (letter (and type (oref type letter))))
+          (skip-unless icon)
+          (let ((beads-agent-display-use-icons nil)
+                (beads-agent-display-type-icons nil))
+            (let* ((suffix (beads-agent-issue--make-jump-suffix session 1))
+                   (desc (cadr suffix)))
+              (should-not (string-match-p (regexp-quote icon) desc))
+              ;; Description begins with the single-letter glyph then type name.
+              (should (string-match-p
+                       (concat "\\`" (regexp-quote letter) " Task#") desc))))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-issue-format-header-icon-prefix ()
+  "Issue transient header prefixes the title with role icon(s) under GUI."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let* ((session (beads-agent-session
+                       :id "task#1" :issue-id "bd-icon"
+                       :backend-name "mock"
+                       :project-dir "/tmp"
+                       :started-at "2026-01-01T00:00:00Z"
+                       :agent-type-name "Task"))
+             (type (beads-agent-type-get "Task"))
+             (icon (and type (slot-boundp type 'icon) (oref type icon)))
+             (beads-agent-issue--current-issue-id "bd-icon"))
+        (skip-unless icon)
+        (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+                   (lambda (_) (list session))))
+          (let ((beads-agent-display-use-icons t)
+                (beads-agent-display-type-icons nil))
+            (let ((header (beads-agent-issue--format-header)))
+              (should (string-match-p (regexp-quote icon) header))
+              ;; Icon precedes the "Agents for" body.
+              (should (< (string-match-p (regexp-quote icon) header)
+                         (string-match-p "Agents for" header)))
+              (should (string-match-p "bd-icon" header))
+              (should (string-match-p "1 active" header))))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-issue-format-header-letter-fallback ()
+  "Issue transient header uses letter fallback when icons are disabled."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let* ((session (beads-agent-session
+                       :id "task#1" :issue-id "bd-tty"
+                       :backend-name "mock"
+                       :project-dir "/tmp"
+                       :started-at "2026-01-01T00:00:00Z"
+                       :agent-type-name "Task"))
+             (type (beads-agent-type-get "Task"))
+             (icon (and type (slot-boundp type 'icon) (oref type icon)))
+             (letter (and type (oref type letter)))
+             (beads-agent-issue--current-issue-id "bd-tty"))
+        (skip-unless icon)
+        (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+                   (lambda (_) (list session))))
+          (let ((beads-agent-display-use-icons nil)
+                (beads-agent-display-type-icons nil))
+            (let ((header (beads-agent-issue--format-header)))
+              (should-not (string-match-p (regexp-quote icon) header))
+              ;; Header starts with the letter glyph then space then "Agents".
+              (should (string-match-p
+                       (concat "\\`" (regexp-quote letter) " Agents")
+                       header))))))
+    (beads-agent-test--teardown)))
+
 ;;; =========================================================================
 ;;; Context-Sensitive Start Tests (beads-agent-start-at-point)
 ;;; =========================================================================
@@ -3299,6 +3397,193 @@ When worktrees are disabled, uses beads-agent-start directly."
           (should (string-match-p "beads.el" result))
           (should (string-match-p "feature" result))
           (should (string-match-p "\\[worktree\\]" result))))
+    (beads-agent-test--teardown)))
+
+;;; Mode-line icon integration (bde-npte.7) — one assertion per format
+;;; per mode (icons enabled vs disabled) per the acceptance criteria.
+;;; The Task agent type from `beads-agent-types.el' has letter "T" and
+;;; icon "🦅" — these tests use that as the running agent type and
+;;; assume the load-time registration is in effect.
+
+(ert-deftest beads-agent-test-mode-line-format-default-icons-enabled ()
+  "Default format swaps type-name for icon and keeps the `#' separator."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let* ((beads-agent-mode-line-faces nil)
+             (beads-agent-display-use-icons t)
+             (beads-agent-display-type-icons nil)
+             (mock-session (beads-agent-session
+                            :id "beads.el#1"
+                            :project-dir "/home/user/beads.el"
+                            :backend-name "mock"
+                            :agent-type-name "Task"
+                            :instance-number 1
+                            :started-at (format-time-string "%Y-%m-%dT%H:%M:%S")))
+             (ctx (list :project-name "beads.el"
+                        :branch "main"
+                        :in-worktree nil
+                        :agent-session mock-session
+                        :agent-type "Task"
+                        :agent-instance 1)))
+        (let ((result (beads-agent--mode-line-format-default ctx)))
+          (should (string= result "[beads.el:🦅#1@main]"))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-mode-line-format-default-icons-disabled ()
+  "Default format preserves original type-name+`#N' when icons disabled."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let* ((beads-agent-mode-line-faces nil)
+             (beads-agent-display-use-icons nil)
+             (beads-agent-display-type-icons nil)
+             (mock-session (beads-agent-session
+                            :id "beads.el#1"
+                            :project-dir "/home/user/beads.el"
+                            :backend-name "mock"
+                            :agent-type-name "Task"
+                            :instance-number 1
+                            :started-at (format-time-string "%Y-%m-%dT%H:%M:%S")))
+             (ctx (list :project-name "beads.el"
+                        :branch "main"
+                        :in-worktree nil
+                        :agent-session mock-session
+                        :agent-type "Task"
+                        :agent-instance 1)))
+        (let ((result (beads-agent--mode-line-format-default ctx)))
+          (should (string= result "[beads.el:Task#1@main]"))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-mode-line-format-compact-icons-enabled ()
+  "Compact format swaps single-letter for icon and keeps the `#' separator."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let* ((beads-agent-display-use-icons t)
+             (beads-agent-display-type-icons nil)
+             (ctx (list :project-name "beads.el"
+                        :branch "main"
+                        :in-worktree nil
+                        :agent-session nil
+                        :agent-type "Task"
+                        :agent-instance 1)))
+        (let ((result (beads-agent--mode-line-format-compact ctx)))
+          (should (string= result "[b:🦅#1]"))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-mode-line-format-compact-icons-disabled ()
+  "Compact format preserves original letter+`#N' when icons disabled."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let* ((beads-agent-display-use-icons nil)
+             (beads-agent-display-type-icons nil)
+             (ctx (list :project-name "beads.el"
+                        :branch "main"
+                        :in-worktree nil
+                        :agent-session nil
+                        :agent-type "Task"
+                        :agent-instance 1)))
+        (let ((result (beads-agent--mode-line-format-compact ctx)))
+          (should (string= result "[b:T#1]"))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-mode-line-format-full-icons-enabled ()
+  "Full format prefixes the existing `Task#1' string with the icon."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let* ((beads-agent-mode-line-faces nil)
+             (beads-agent-display-use-icons t)
+             (beads-agent-display-type-icons nil)
+             (mock-session (beads-agent-session
+                            :id "beads.el#1"
+                            :project-dir "/home/user/beads.el"
+                            :backend-name "mock"
+                            :agent-type-name "Task"
+                            :instance-number 1
+                            :current-issue "bd-42"
+                            :started-at (format-time-string "%Y-%m-%dT%H:%M:%S")))
+             (ctx (list :project-name "beads.el"
+                        :branch "main"
+                        :in-worktree nil
+                        :agent-session mock-session
+                        :agent-type "Task"
+                        :agent-instance 1)))
+        (let ((result (beads-agent--mode-line-format-full ctx)))
+          (should (stringp result))
+          ;; Icon prefixes the existing type+instance string
+          (should (string-match-p "🦅 Task#1" result))
+          (should (string-match-p "bd-42" result))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-mode-line-format-full-icons-disabled ()
+  "Full format preserves original `Task#1' string when icons disabled."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let* ((beads-agent-mode-line-faces nil)
+             (beads-agent-display-use-icons nil)
+             (beads-agent-display-type-icons nil)
+             (mock-session (beads-agent-session
+                            :id "beads.el#1"
+                            :project-dir "/home/user/beads.el"
+                            :backend-name "mock"
+                            :agent-type-name "Task"
+                            :instance-number 1
+                            :current-issue "bd-42"
+                            :started-at (format-time-string "%Y-%m-%dT%H:%M:%S")))
+             (ctx (list :project-name "beads.el"
+                        :branch "main"
+                        :in-worktree nil
+                        :agent-session mock-session
+                        :agent-type "Task"
+                        :agent-instance 1)))
+        (let ((result (beads-agent--mode-line-format-full ctx)))
+          (should (stringp result))
+          (should (string-match-p "Task#1" result))
+          ;; No icon prefix when icons disabled
+          (should-not (string-match-p "🦅" result))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-mode-line-format-default-icons-auto-tty ()
+  "`auto' under a TTY frame falls back to letter behavior (original)."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let* ((beads-agent-mode-line-faces nil)
+             (beads-agent-display-use-icons 'auto)
+             (beads-agent-display-type-icons nil)
+             (mock-session (beads-agent-session
+                            :id "beads.el#1"
+                            :project-dir "/home/user/beads.el"
+                            :backend-name "mock"
+                            :agent-type-name "Task"
+                            :instance-number 1
+                            :started-at (format-time-string "%Y-%m-%dT%H:%M:%S")))
+             (ctx (list :project-name "beads.el"
+                        :branch "main"
+                        :in-worktree nil
+                        :agent-session mock-session
+                        :agent-type "Task"
+                        :agent-instance 1)))
+        (cl-letf (((symbol-function 'display-graphic-p) (lambda (&rest _) nil)))
+          (let ((result (beads-agent--mode-line-format-default ctx)))
+            (should (string= result "[beads.el:Task#1@main]")))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-mode-line-format-unregistered-type-icons-enabled ()
+  "Unregistered agent type with icons enabled keeps original type-name behavior.
+The fallback is by design — there's no icon to use, and using the
+raw first character would collide between types that share a first
+letter (the latent bug `bde-npte' fixes elsewhere)."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let* ((beads-agent-mode-line-faces nil)
+             (beads-agent-display-use-icons t)
+             (beads-agent-display-type-icons nil)
+             (ctx (list :project-name "beads.el"
+                        :branch "main"
+                        :in-worktree nil
+                        :agent-session nil
+                        :agent-type "UnknownXYZ"
+                        :agent-instance 1)))
+        (let ((result (beads-agent--mode-line-format-default ctx)))
+          (should (string= result "[beads.el:UnknownXYZ#1@main]"))))
     (beads-agent-test--teardown)))
 
 (ert-deftest beads-agent-test-mode-line-indicator-nil-when-no-project ()
