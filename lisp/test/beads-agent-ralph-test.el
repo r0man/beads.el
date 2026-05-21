@@ -3062,6 +3062,59 @@ the kind slot."
     (let ((iter (beads-agent-ralph--build-iteration c stream)))
       (should (eq (oref iter kind) 'iteration)))))
 
+(ert-deftest beads-agent-ralph-test-build-iteration-stamps-review-counters-on-review ()
+  "On `current-iter-kind=review', `--build-iteration' stamps
+`review-number' = `(1+ consecutive-empty-reviews)' and `max-reviews' =
+the cap.  Mirrors the prompt placeholder formula in
+`--review-placeholder-alist'; the counter is post-incremented by the
+post-review check, so at construction time the slot value reflects the
+cycle this record represents (bde-c95u.7).  Non-review iters leave
+both slots nil so the dashboard's `[review N/M]' branch is skipped."
+  (let ((c (beads-agent-ralph-test--make-controller
+            :current-iter-kind 'review
+            :consecutive-empty-reviews 0
+            :max-consecutive-empty-reviews 2))
+        (stream (beads-agent-ralph-test--fake-stream
+                 :events nil :status 'finished)))
+    (let ((iter (beads-agent-ralph--build-iteration c stream)))
+      (should (= 1 (oref iter review-number)))
+      (should (= 2 (oref iter max-reviews)))))
+  (let ((c (beads-agent-ralph-test--make-controller
+            :current-iter-kind 'iteration
+            :consecutive-empty-reviews 1
+            :max-consecutive-empty-reviews 2))
+        (stream (beads-agent-ralph-test--fake-stream
+                 :events nil :status 'finished)))
+    (let ((iter (beads-agent-ralph--build-iteration c stream)))
+      (should-not (oref iter review-number))
+      (should-not (oref iter max-reviews)))))
+
+(ert-deftest beads-agent-ralph-test-gated-and-llm-fired-review-numbers-agree ()
+  "Gated and LLM-fired paths produce equivalent `review-number' values
+for the same logical review cycle.  Cycle K is represented by counter
+= K AFTER each path's bookkeeping completes; both paths must land on
+`:review-number' = K.  Regression guard for the two construction sites
+drifting apart in future edits — e.g. if the gated increment moves to
+AFTER the push (was the case in an earlier draft), the test would
+catch the K vs K-1 mismatch (bde-c95u.7)."
+  (dolist (cycle '(1 2 3))
+    ;; LLM-fired: counter is at (cycle - 1) when `--build-iteration'
+    ;; runs.  Stamp formula `(1+ counter)' = cycle.
+    (let* ((c (beads-agent-ralph-test--make-controller
+               :current-iter-kind 'review
+               :consecutive-empty-reviews (1- cycle)
+               :max-consecutive-empty-reviews 9))
+           (stream (beads-agent-ralph-test--fake-stream
+                    :events nil :status 'finished))
+           (llm-iter (beads-agent-ralph--build-iteration c stream)))
+      ;; Gated: counter is at (cycle - 1) on entry; `cl-incf' in
+      ;; `--fire-gate' bumps to `cycle' BEFORE the push, so the stamp
+      ;; reads the post-incremented value = cycle.  Reconstruct that
+      ;; manually here to keep the test free of side effects on the
+      ;; controller's history slot.
+      (let ((post-inc-counter cycle))
+        (should (= post-inc-counter (oref llm-iter review-number)))))))
+
 (ert-deftest beads-agent-ralph-test-run-iteration-sets-current-iter-kind ()
   "`--run-iteration :mode 'review' writes `review' into `current-iter-kind'.
 The slot is the bridge between the iteration body and

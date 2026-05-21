@@ -439,6 +439,47 @@ the review-cycle index (bde-c95u.7)."
     (should-not (string-match-p "\\[gated\\]" text))
     (should (string-match-p "did things" text))))
 
+(ert-deftest beads-agent-ralph-dashboard-test-iter-row-review-prefix-survives-long-summary ()
+  "A summary that exceeds the 60-char cell still renders with the
+`[review N/M]' marker — the marker is at the head of the concatenated
+string, so the trailing-side truncation never elides it (bde-c95u.7).
+Regression guard for a refactor that swapped the concat order so the
+marker landed at the tail and got eaten by the ellipsis."
+  (let* ((long (make-string 80 ?x))
+         (iter (beads-agent-ralph--iteration
+                :issue-id "bde-long-rev"
+                :status 'finished
+                :summary long
+                :kind 'review
+                :review-number 1
+                :max-reviews 3))
+         (row (beads-agent-ralph-dashboard--iter-row iter 1))
+         (text (mapconcat #'vui-vnode-text-content
+                          (vui-vnode-hstack-children row) " ")))
+    (should (string-match-p "\\[review 1/3\\]" text))
+    ;; Tail truncated with an ellipsis, not the head.
+    (should (string-match-p "…" text))))
+
+(ert-deftest beads-agent-ralph-dashboard-test-iter-row-gated-summary-appears-after-prefix ()
+  "When a gated review iter carries a non-empty summary, the summary
+text appears AFTER both markers, not in place of them.  Regression
+guard for a refactor that accidentally overwrote `summary' with the
+prefix-only string (bde-c95u.7)."
+  (let* ((iter (beads-agent-ralph--iteration
+                :issue-id "bde-gated-sum"
+                :status 'finished
+                :summary "no work since last review"
+                :kind 'review
+                :gated t
+                :review-number 2
+                :max-reviews 2))
+         (row (beads-agent-ralph-dashboard--iter-row iter 5))
+         (text (mapconcat #'vui-vnode-text-content
+                          (vui-vnode-hstack-children row) " ")))
+    (should (string-match-p
+             "\\[gated\\][^[]*\\[review 2/2\\][^a-z]*no work since last review"
+             text))))
+
 (ert-deftest beads-agent-ralph-dashboard-test-live-stream-terminal-panel ()
   "Terminal controllers show a `Loop terminated' panel, not the
 `waiting for first event' placeholder."
