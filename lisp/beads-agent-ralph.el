@@ -1893,7 +1893,7 @@ Placeholders supported (literal, single-pass substitution):
 
 The review-mode tokens <CLOSED-CHILDREN-SUMMARY>, <REVIEW-NUMBER>,
 <MAX-REVIEWS>, <DIFF-SINCE-LAST-REVIEW> are reserved by the renderer
-(see `beads-agent-ralph--placeholder-regexp') and collapse to the
+\(see `beads-agent-ralph--placeholder-regexp') and collapse to the
 empty string in normal iterations.
 
 Returns the rendered prompt as a single string."
