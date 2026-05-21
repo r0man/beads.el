@@ -53,6 +53,13 @@
 (require 'beads-agent-ralph-dashboard)
 (require 'beads-agent-prompt-edit)
 
+;; Promoted public helpers from `beads-agent' — autoloaded, so a
+;; runtime `require' here would force-load the whole agent module
+;; just for two functions.  Declared at the top so the byte
+;; compiler is satisfied for every call site below.
+(declare-function beads-read-issue-id "beads-agent")
+(declare-function beads-issue-read "beads-command-list" (issue-id))
+
 ;;; Customization
 
 (defgroup beads-ralph-launcher nil
@@ -822,9 +829,16 @@ Re-opening with a DIFFERENT ROOT-ID re-seeds buffer-local state
 \(params, prompt-override, shell-expanded toggle) from the new root's
 saved template / defaults.  Re-opening with the SAME ROOT-ID preserves
 in-flight edits and only refreshes the optional `:issue' / `:children'
-metadata.  An empty or non-string ROOT-ID raises `user-error'."
+metadata.  An empty or non-string ROOT-ID raises `user-error'.
+
+When called interactively, the root id is resolved via
+`beads-read-issue-id', which prefers buffer context (list mode,
+show mode, Ralph epic browser, beads-section, the `*beads-show…*'
+buffer-name) and only prompts with completion as a fallback —
+matching `beads-ralph-launch-at-point' so both entry points behave
+identically when invoked from a beads buffer."
   (interactive
-   (list (read-string "Ralph root id: ")))
+   (list (beads-read-issue-id)))
   (unless (and (stringp root-id) (not (string-empty-p root-id)))
     (user-error "beads-ralph-launcher: ROOT-ID must be a non-empty string"))
   (let* ((buf (get-buffer-create beads-ralph-launcher-buffer-name))
@@ -858,9 +872,6 @@ metadata.  An empty or non-string ROOT-ID raises `user-error'."
     buf))
 
 ;;; Context-sensitive launch entry point
-
-(declare-function beads-read-issue-id "beads-agent")
-(declare-function beads-issue-read "beads-command-list" (issue-id))
 
 ;;;###autoload
 (defun beads-ralph-launch-at-point ()

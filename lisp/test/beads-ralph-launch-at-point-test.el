@@ -222,6 +222,32 @@ clause cleanly instead of raising `void-function'."
 
 ;;; Transient suffix wiring
 
+(defun beads-ralph-launch-at-point-test--column-for-key (prefix key)
+  "Return the `:description' of the column in PREFIX containing KEY.
+Walks the transient layout vector and returns nil when not found.
+Layout shape: outer `[count nil (groups …)]'; each group is a
+vector `[CLASS plist children]', where children is a list — for
+`transient-columns' a list of column vectors, for
+`transient-column' a list of suffix LISTS of shape
+`(CLASS :key K :description … :command …)'."
+  (let ((layout (get prefix 'transient--layout)))
+    (catch 'found
+      (cl-labels
+          ((walk (node)
+             (when (vectorp node)
+               (pcase (aref node 0)
+                 ('transient-column
+                  (let ((desc (plist-get (aref node 1) :description)))
+                    (dolist (s (aref node 2))
+                      (when (and (consp s)
+                                 (equal key (plist-get (cdr s) :key)))
+                        (throw 'found desc)))))
+                 (_
+                  (when (> (length node) 2)
+                    (mapc #'walk (aref node 2))))))))
+        (mapc #'walk (aref layout 2))
+        nil))))
+
 (ert-deftest beads-ralph-launch-at-point-test-transient-has-cockpit ()
   "The top-level `beads' transient binds `R' to `beads-ralph-cockpit'."
   ;; `beads.el' wires the suffix via `with-eval-after-load 'transient',
@@ -242,6 +268,22 @@ clause cleanly instead of raising `void-function'."
     (should suffix)
     (should (eq 'beads-ralph-epic-browser
                 (plist-get (cdr suffix) :command)))))
+
+(ert-deftest beads-ralph-launch-at-point-test-transient-cockpit-in-views ()
+  "`R' (Ralph cockpit) lands in the Views column, not some other group.
+The key-anchor insert is robust against re-ordering Views, but a
+broader refactor that moves `E' (the anchor) into another column
+would silently relocate the new suffix.  Pin column membership."
+  (should (equal "Views"
+                 (beads-ralph-launch-at-point-test--column-for-key
+                  'beads "R"))))
+
+(ert-deftest beads-ralph-launch-at-point-test-transient-epic-browser-in-views ()
+  "`M-e' (Ralph epics) lands in the Views column for the same reason
+as the cockpit pin above."
+  (should (equal "Views"
+                 (beads-ralph-launch-at-point-test--column-for-key
+                  'beads "M-e"))))
 
 ;;; Buffer-local L bindings
 
