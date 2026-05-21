@@ -2079,7 +2079,9 @@ A second fetch finding a description different from the cached
 `epic-description-snapshot' routes through `--then''s `:on-error' as
 `spec-mutated' and terminates the controller with `done-reason' =
 `spec-mutated' (mapped by `--terminate' to status `failed' — the run
-is treated as drift, not as a clean exit).  No spawn happens."
+is treated as drift, not as a clean exit).  No spawn happens and the
+warning banner names the root id so the user can correlate the
+abort with the issue they (or another agent) edited."
   (let* ((c (beads-agent-ralph-test--make-controller
              :status 'running :root-kind 'issue :root-id "bde-root"
              :prompt-template "X"
@@ -2103,7 +2105,13 @@ is treated as drift, not as a clean exit).  No spawn happens."
     (should (eq (oref c status) 'failed))
     (should (eq (oref c done-reason) 'spec-mutated))
     (should (equal (oref c epic-description-snapshot) "ORIGINAL GOAL"))
-    (should-not spawned)))
+    (should-not spawned)
+    (should (cl-some (lambda (b)
+                       (and (string-match-p "bde-root"
+                                            (plist-get b :text))
+                            (string-match-p "spec-mutated"
+                                            (plist-get b :text))))
+                     (oref c banner-log)))))
 
 (ert-deftest beads-agent-ralph-test-run-iteration-step-0b-spec-deletion-aborts ()
   "A nil/empty root description against a non-empty snapshot is spec mutation.

@@ -3533,7 +3533,7 @@ scheduling a review iteration."
          (beads-agent-ralph--push-banner
           controller 'warning
           (format
-           "Epic %s description changed mid-loop; aborting (spec-mutated)"
+           "Root %s description changed mid-loop; aborting (spec-mutated)"
            (oref controller root-id)))
          (beads-agent-ralph--terminate controller 'spec-mutated))
         ((eq err 'cancelled) nil)
