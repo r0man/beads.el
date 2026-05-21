@@ -396,22 +396,31 @@ the blocked list (e.g., \"hooked\" / \"in_progress\")."
 (defun beads-dashboard-render-stats (data)
   "Render the stats strip from DATA, the parsed `bd stats' JSON.
 DATA is an alist with a `summary' subobject; we surface the most
-informative counters as a single horizontal line of buttons."
+informative counters as a single horizontal line of buttons.
+Deferred is only shown when non-zero — most projects do not defer
+work, and a permanent `Deferred 0' would just clutter the strip."
   (let* ((summary (cond
                    ((listp data) (alist-get 'summary data))
                    (t nil)))
-         (open    (or (alist-get 'open_issues summary) 0))
-         (ready   (or (alist-get 'ready_issues summary) 0))
-         (inprog  (or (alist-get 'in_progress_issues summary) 0))
-         (blocked (or (alist-get 'blocked_issues summary) 0))
-         (closed  (or (alist-get 'closed_issues summary) 0)))
-    (vui-hstack
-      :spacing 2
-      (vui-text (format "Open %d" open) :face 'font-lock-keyword-face)
-      (vui-text (format "Ready %d" ready) :face 'success)
-      (vui-text (format "In-progress %d" inprog) :face 'font-lock-function-name-face)
-      (vui-text (format "Blocked %d" blocked) :face 'warning)
-      (vui-text (format "Closed %d" closed) :face 'shadow))))
+         (open     (or (alist-get 'open_issues summary) 0))
+         (ready    (or (alist-get 'ready_issues summary) 0))
+         (inprog   (or (alist-get 'in_progress_issues summary) 0))
+         (blocked  (or (alist-get 'blocked_issues summary) 0))
+         (deferred (or (alist-get 'deferred_issues summary) 0))
+         (closed   (or (alist-get 'closed_issues summary) 0)))
+    (apply
+     #'vui-hstack
+     :spacing 2
+     (delq
+      nil
+      (list
+       (vui-text (format "Open %d" open) :face 'font-lock-keyword-face)
+       (vui-text (format "Ready %d" ready) :face 'success)
+       (vui-text (format "In-progress %d" inprog) :face 'font-lock-function-name-face)
+       (vui-text (format "Blocked %d" blocked) :face 'warning)
+       (when (> deferred 0)
+         (vui-text (format "Deferred %d" deferred) :face 'font-lock-comment-face))
+       (vui-text (format "Closed %d" closed) :face 'shadow))))))
 
 ;;; Attention: Stale and Orphans
 

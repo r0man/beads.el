@@ -124,8 +124,13 @@ per-section load-more state."
        ((< delta 3600) (format "%dm ago" (/ delta 60)))
        (t (format "%dh ago" (/ delta 3600)))))))
 
-(defun beads-dashboard--update-mode-line (buffer last-refresh policy)
-  "Refresh the modeline for BUFFER from LAST-REFRESH and POLICY."
+(defun beads-dashboard--update-mode-line (buffer last-refresh policy
+                                                 &optional auto-refresh)
+  "Refresh the modeline for BUFFER from LAST-REFRESH and POLICY.
+AUTO-REFRESH is the current auto-refresh state — when non-nil the
+strip ends with `· auto:on' so the user has a visible cue that the
+idle timer is armed.  Omitted when auto-refresh is off to keep the
+strip short on the common path."
   (when (buffer-live-p buffer)
     (with-current-buffer buffer
       (let* ((rel (or (beads-dashboard--format-relative-time last-refresh)
@@ -134,8 +139,9 @@ per-section load-more state."
              (mc (or (plist-get policy :max-concurrent)
                      (beads-command--policy-max-concurrent))))
         (setq mode-line-misc-info
-              (list (format " · refreshed %s · dolt:%s · cap:%s"
-                            rel backend mc))))
+              (list (format " · refreshed %s · dolt:%s · cap:%s%s"
+                            rel backend mc
+                            (if auto-refresh " · auto:on" "")))))
       (force-mode-line-update))))
 
 (defun beads-dashboard--header-vnode (root db)
@@ -155,6 +161,19 @@ per-section load-more state."
   (vui-text
    "KEYS: n/p item · M-n/M-p section · TAB toggle · M-1..M-4 depth · +/-/* rows · g refresh · c claim · b blocker · a agent · RET visit · q quit"
    :face 'shadow))
+
+(defun beads-dashboard--no-project-vnode ()
+  "Return a one-line vnode shown when no beads project is discoverable.
+The dashboard's per-section loaders all run `bd' from
+`default-directory'; without a project root every loader fails with
+the same `No such file or directory' message, so we short-circuit
+and render this hint instead (see bde-w9xa)."
+  (vui-vstack
+    :spacing 1
+    (vui-text "  No beads project found here." :face 'warning)
+    (vui-text
+     "  Run `M-x beads-init' in this directory, or visit a project that has a .beads/ folder."
+     :face 'shadow)))
 
 ;;; Section Builder
 
@@ -233,10 +252,20 @@ Sections receive collapse state as a prop because per-component
                       beads-dashboard-auto-refresh-interval t
                       #'beads-dashboard--idle-refresh buffer)))
           (lambda () (when (timerp timer) (cancel-timer timer))))))
-    (vui-use-effect (last-refresh)
+    (vui-use-effect (last-refresh auto-refresh)
       (beads-dashboard--update-mode-line
-       buffer last-refresh beads-command--policy)
+       buffer last-refresh beads-command--policy auto-refresh)
       nil)
+    (if (null project-root)
+        ;; Short-circuit when invoked outside a beads project: render
+        ;; one helpful message instead of fanning out N section loaders
+        ;; that all fail with the same `No such file or directory'.
+        ;; See bde-w9xa.
+        (vui-vstack
+          :spacing 1
+          (beads-dashboard--header-vnode project-root db-path)
+          (beads-dashboard--no-project-vnode)
+          (beads-dashboard--footer-vnode))
     (vui-vstack
       :spacing 1
       (beads-dashboard--header-vnode project-root db-path)
@@ -329,7 +358,7 @@ Sections receive collapse state as a prop because per-component
          #'beads-dashboard-render-federation
          collapsed generation buffer
          :icon "🌐"))
-      (beads-dashboard--footer-vnode))))
+      (beads-dashboard--footer-vnode)))))
 
 ;;; Refresh / Idle
 

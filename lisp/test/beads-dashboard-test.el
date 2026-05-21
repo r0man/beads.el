@@ -178,6 +178,64 @@ section without the user having to press `g'."
       (kill-buffer dash-buf)
       (kill-buffer other-buf))))
 
+;;; Stats Strip
+
+(ert-deftest beads-dashboard-test-stats-shows-deferred-when-nonzero ()
+  "Deferred N appears in the stats strip only when the count is > 0."
+  :tags '(:unit)
+  ;; With a non-zero deferred count the label must be present.
+  (let* ((data '((summary . ((open_issues . 5)
+                             (ready_issues . 5)
+                             (in_progress_issues . 0)
+                             (blocked_issues . 0)
+                             (deferred_issues . 1)
+                             (closed_issues . 1)))))
+         (vnode (beads-dashboard-render-stats data))
+         (rendered (format "%S" vnode)))
+    (should (string-match-p "Deferred 1" rendered)))
+  ;; Zero deferred → label suppressed to keep the strip short.
+  (let* ((data '((summary . ((open_issues . 5)
+                             (ready_issues . 5)
+                             (in_progress_issues . 0)
+                             (blocked_issues . 0)
+                             (deferred_issues . 0)
+                             (closed_issues . 1)))))
+         (vnode (beads-dashboard-render-stats data))
+         (rendered (format "%S" vnode)))
+    (should-not (string-match-p "Deferred" rendered))))
+
+;;; Mode-line
+
+(ert-deftest beads-dashboard-test-mode-line-shows-auto-refresh ()
+  "Auto-refresh state must be visible in the mode-line.
+We assert directly on `mode-line-misc-info' (a list of segments) —
+`format-mode-line' on the segment list alone returns the empty
+string because mode-line constructs need the full template."
+  :tags '(:unit)
+  (with-temp-buffer
+    (beads-dashboard-mode)
+    (beads-dashboard--update-mode-line (current-buffer) (float-time)
+                                       '(:backend embedded :max-concurrent 1)
+                                       t)
+    (should (cl-some (lambda (seg)
+                       (and (stringp seg) (string-match-p "auto:on" seg)))
+                     mode-line-misc-info))
+    (beads-dashboard--update-mode-line (current-buffer) (float-time)
+                                       '(:backend embedded :max-concurrent 1)
+                                       nil)
+    (should-not (cl-some (lambda (seg)
+                           (and (stringp seg) (string-match-p "auto" seg)))
+                         mode-line-misc-info))))
+
+;;; No-project Guard
+
+(ert-deftest beads-dashboard-test-no-project-vnode-renders ()
+  "The no-project hint vnode contains the instructional text."
+  :tags '(:unit)
+  (let ((rendered (format "%S" (beads-dashboard--no-project-vnode))))
+    (should (string-match-p "No beads project found" rendered))
+    (should (string-match-p "beads-init" rendered))))
+
 ;;; Stale-While-Revalidate
 
 (ert-deftest beads-dashboard-test-mode-inits-last-good-data-cache ()
