@@ -80,8 +80,13 @@ Populated by the launcher's `[S]ave-as-template' action via
 `customize-save-variable' so templates survive Emacs restarts.
 Lookup on launcher open: if a template exists for ROOT-ID it seeds the
 parameter rows; otherwise the rows fall back to
-`beads-ralph-launcher-default-params' + per-key defcustoms."
-  :type '(alist :key-type string :value-type sexp)
+`beads-ralph-launcher-default-params' + per-key defcustoms.
+
+The value-type is the same plist shape as
+`beads-ralph-launcher-default-params'; unrecognised keys are
+preserved across save/load but ignored by the launcher."
+  :type '(alist :key-type string
+                :value-type (plist :key-type symbol :value-type sexp))
   :group 'beads-ralph-launcher)
 
 ;;; Faces
@@ -122,16 +127,18 @@ parameter rows; otherwise the rows fall back to
   "Root id (a bd id string) the launcher is targeting.")
 
 (defvar-local beads-ralph-launcher--kind nil
-  "Either `issue' or `epic' — controls header rendering and the
-:kind threaded into `beads-agent-ralph-start'.")
+  "Either `issue' or `epic'.
+Controls header rendering and the `:kind' threaded into
+`beads-agent-ralph-start'.")
 
 (defvar-local beads-ralph-launcher--issue nil
-  "Optional `beads-issue' object whose title / priority / status
-populates the header line.")
+  "Optional `beads-issue' object.
+Used to populate the header subtitle line with the issue's title,
+priority, and status.")
 
 (defvar-local beads-ralph-launcher--children nil
-  "Optional list of `beads-issue' children (epic case) shown
-read-only in the ready-children block.")
+  "Optional list of `beads-issue' children (epic case).
+Shown read-only in the ready-children block.")
 
 (defvar-local beads-ralph-launcher--params nil
   "Plist of the launcher's current editable params.
@@ -141,18 +148,19 @@ Keys: `:max-iterations', `:max-budget-usd-per-iter',
 the component as a prop.")
 
 (defvar-local beads-ralph-launcher--baseline-params nil
-  "Snapshot of `--params' at open time (or last `[S]ave-as-template').
-Used for dirty-state detection on quit.")
+  "Snapshot of `--params' at open time or last `[S]ave-as-template'.
+Used for dirty-state detection on quit and for the `*' header marker.")
 
 (defvar-local beads-ralph-launcher--prompt-override nil
-  "Optional override string for the iter-1 prompt.  When non-nil it is
-passed through `:prompt' to `beads-agent-ralph-start' AND displayed in
-the prompt preview pane in place of the rendered template.  Populated
-by the `[E]dit prompt' callback.")
+  "Optional override string for the iter-1 prompt.
+When non-nil it is passed through `:prompt' to
+`beads-agent-ralph-start' AND displayed in the prompt preview pane in
+place of the rendered template.  Populated by the `[E]dit prompt'
+callback.")
 
 (defvar-local beads-ralph-launcher--shell-expanded nil
-  "Whether the spawn argv preview pane is expanded.  Collapsed by
-default; the prompt preview is the headline pane.")
+  "Whether the spawn argv preview pane is expanded.
+Collapsed by default; the prompt preview is the headline pane.")
 
 ;;; Pure helpers
 
@@ -661,17 +669,25 @@ concurrent-loops cap is reached."
      nil
      current
      "Ralph"
-     (lambda (_sys user)
-       ;; Treat empty / whitespace-only USER as "clear the override"
-       ;; (revert to the template-rendered prompt) so the user can
-       ;; back out of an override by deleting the region content.
+     ;; Callback dispatch (the prompt-edit contract):
+     ;;   - Cancel:  SYS=nil AND USER=nil — leave override untouched.
+     ;;   - Confirm with non-blank USER: set override.
+     ;;   - Confirm with blank USER: clear override (revert to
+     ;;     template).  USER is `""' here, not nil — confirm always
+     ;;     passes a string for USER even when the region is empty.
+     (lambda (sys user)
        (when (buffer-live-p launcher-buf)
          (with-current-buffer launcher-buf
-           (setq-local beads-ralph-launcher--prompt-override
-                       (when (and user (not (string-empty-p
-                                             (string-trim user))))
-                         user))
-           (beads-ralph-launcher--render launcher-buf)))))))
+           (cond
+            ((and (null sys) (null user))
+             nil)
+            ((and (stringp user)
+                  (not (string-empty-p (string-trim user))))
+             (setq-local beads-ralph-launcher--prompt-override user)
+             (beads-ralph-launcher--render launcher-buf))
+            ((stringp user)
+             (setq-local beads-ralph-launcher--prompt-override nil)
+             (beads-ralph-launcher--render launcher-buf))))))) ))
 
 (defun beads-ralph-launcher-save-template ()
   "Save the current params as the per-root template; reset baseline."
@@ -790,26 +806,42 @@ ARGS is a plist; recognised keys:
   :children      List of child `beads-issue' objects (epic case)
                  shown read-only in the ready-children block.
 
-The launcher buffer is the singleton `beads-ralph-launcher-buffer-name';
-re-opening with a different ROOT-ID re-seeds the buffer-local state and
-re-renders.  An empty or non-string ROOT-ID raises `user-error'."
+The launcher buffer is the singleton `beads-ralph-launcher-buffer-name'.
+Re-opening with a DIFFERENT ROOT-ID re-seeds buffer-local state
+\(params, prompt-override, shell-expanded toggle) from the new root's
+saved template / defaults.  Re-opening with the SAME ROOT-ID preserves
+in-flight edits and only refreshes the optional `:issue' / `:children'
+metadata.  An empty or non-string ROOT-ID raises `user-error'."
   (interactive
    (list (read-string "Ralph root id: ")))
   (unless (and (stringp root-id) (not (string-empty-p root-id)))
     (user-error "beads-ralph-launcher: ROOT-ID must be a non-empty string"))
-  (let ((buf (get-buffer-create beads-ralph-launcher-buffer-name)))
+  (let* ((buf (get-buffer-create beads-ralph-launcher-buffer-name))
+         (same-root-p
+          (and (buffer-live-p buf)
+               (with-current-buffer buf
+                 (and (eq major-mode 'beads-ralph-launcher-mode)
+                      (equal root-id
+                             beads-ralph-launcher--root-id))))))
     (with-current-buffer buf
-      (beads-ralph-launcher-mode)
-      (setq-local beads-ralph-launcher--root-id root-id)
-      (setq-local beads-ralph-launcher--kind (or (plist-get args :kind) 'issue))
+      (unless (eq major-mode 'beads-ralph-launcher-mode)
+        (beads-ralph-launcher-mode))
+      ;; Re-opening on the same root-id preserves any in-flight
+      ;; param edits / prompt-override / shell-expanded toggle.  Only
+      ;; the optional :issue / :children metadata is refreshed
+      ;; (caller may have a more up-to-date issue object now).
       (setq-local beads-ralph-launcher--issue (plist-get args :issue))
       (setq-local beads-ralph-launcher--children (plist-get args :children))
-      (let ((params (beads-ralph-launcher--params-for root-id)))
-        (setq-local beads-ralph-launcher--params (copy-sequence params))
-        (setq-local beads-ralph-launcher--baseline-params
-                    (copy-sequence params)))
-      (setq-local beads-ralph-launcher--prompt-override nil)
-      (setq-local beads-ralph-launcher--shell-expanded nil)
+      (unless same-root-p
+        (setq-local beads-ralph-launcher--root-id root-id)
+        (setq-local beads-ralph-launcher--kind
+                    (or (plist-get args :kind) 'issue))
+        (let ((params (beads-ralph-launcher--params-for root-id)))
+          (setq-local beads-ralph-launcher--params (copy-sequence params))
+          (setq-local beads-ralph-launcher--baseline-params
+                      (copy-sequence params)))
+        (setq-local beads-ralph-launcher--prompt-override nil)
+        (setq-local beads-ralph-launcher--shell-expanded nil))
       (beads-ralph-launcher--render buf))
     (pop-to-buffer buf)
     buf))

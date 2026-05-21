@@ -452,6 +452,174 @@ expected token list (permission-mode + add-dir + budget honored)."
     (should-error (beads-ralph-launcher-switch-to-incumbent) :type 'user-error)
     (should-error (beads-ralph-launcher-force-relaunch) :type 'user-error)))
 
+;;; Quit confirms on dirty (acceptance criterion)
+
+(ert-deftest beads-ralph-launcher-test-quit-clean-no-confirm ()
+  "`q' on a clean launcher does not prompt; it just quits."
+  (beads-ralph-launcher-test--with-clean-registry
+    (beads-ralph-launcher-test--with-clean-templates
+      (beads-ralph-launcher-test--with-launcher-buffer buf "bde-clean"
+        (with-current-buffer buf
+          (let (yes-or-no-called)
+            (cl-letf (((symbol-function 'yes-or-no-p)
+                       (lambda (&rest _)
+                         (setq yes-or-no-called t)
+                         t))
+                      ((symbol-function 'quit-window)
+                       (lambda (&rest _) nil)))
+              (beads-ralph-launcher-quit)
+              (should-not yes-or-no-called))))))))
+
+(ert-deftest beads-ralph-launcher-test-quit-dirty-confirms ()
+  "`q' with edited params prompts; `no' answer keeps the buffer."
+  (beads-ralph-launcher-test--with-clean-registry
+    (beads-ralph-launcher-test--with-clean-templates
+      (beads-ralph-launcher-test--with-launcher-buffer buf "bde-dirty-q"
+        (with-current-buffer buf
+          (setq-local beads-ralph-launcher--params
+                      (plist-put (copy-sequence beads-ralph-launcher--params)
+                                 :max-iterations 999))
+          (let ((yes-or-no-asked nil)
+                (quit-called nil))
+            (cl-letf (((symbol-function 'yes-or-no-p)
+                       (lambda (&rest _)
+                         (setq yes-or-no-asked t)
+                         nil))
+                      ((symbol-function 'quit-window)
+                       (lambda (&rest _) (setq quit-called t))))
+              (beads-ralph-launcher-quit)
+              (should yes-or-no-asked)
+              (should-not quit-called))))))))
+
+(ert-deftest beads-ralph-launcher-test-quit-dirty-yes-quits ()
+  "`q' with edited params and `yes' answer quits."
+  (beads-ralph-launcher-test--with-clean-registry
+    (beads-ralph-launcher-test--with-clean-templates
+      (beads-ralph-launcher-test--with-launcher-buffer buf "bde-dirty-yes"
+        (with-current-buffer buf
+          (setq-local beads-ralph-launcher--params
+                      (plist-put (copy-sequence beads-ralph-launcher--params)
+                                 :max-iterations 999))
+          (let ((quit-called nil))
+            (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) t))
+                      ((symbol-function 'quit-window)
+                       (lambda (&rest _) (setq quit-called t))))
+              (beads-ralph-launcher-quit)
+              (should quit-called))))))))
+
+;;; Template persistence across restart (acceptance criterion)
+
+(ert-deftest beads-ralph-launcher-test-template-persists-across-restart ()
+  "The in-memory alist `beads-agent-ralph-launch-templates' round-trips
+through a `custom-set-variables' form in a let-bound `custom-file'.
+`customize-save-variable' itself is a no-op under `--batch' (Emacs
+refuses to overwrite the user's customizations from a non-interactive
+session), so the test writes the equivalent form by hand and verifies
+that `load' restores the same alist a fresh Emacs would have read.
+
+The test cannot use `--with-clean-templates' because that macro
+let-binds the variable; `custom-set-variables' uses `set-default'
+which writes the global, and a let-binding would shadow the result.
+The test therefore manages cleanup by saving and restoring the
+global value manually."
+  (let ((saved beads-agent-ralph-launch-templates)
+        (temp-file
+         (make-temp-file "beads-ralph-launcher-custom" nil ".el")))
+    (unwind-protect
+        (let ((custom-file temp-file))
+          (setq beads-agent-ralph-launch-templates nil)
+          ;; Stub the disk write so the in-memory side advances.
+          (cl-letf (((symbol-function 'customize-save-variable)
+                     (lambda (sym val) (set sym val))))
+            (beads-ralph-launcher--save-template
+             "bde-persist"
+             '(:max-iterations 42 :permission-mode "plan")))
+          ;; Hand-write the equivalent of what interactive Emacs would
+          ;; have committed.  Quote the value expression: `%S' produces
+          ;; a bare list literal; `custom-set-variables' would evaluate
+          ;; it (treating "bde-persist" as a function name) without the
+          ;; surrounding `quote'.
+          (with-temp-file temp-file
+            (insert ";;; -*- lexical-binding: t; -*-\n")
+            (insert "(custom-set-variables\n")
+            (insert (format " '(beads-agent-ralph-launch-templates '%S))\n"
+                            beads-agent-ralph-launch-templates)))
+          ;; Reset and reload as Emacs would on startup.
+          (setq beads-agent-ralph-launch-templates nil)
+          (load temp-file nil t t)
+          (should
+           (equal '(:max-iterations 42 :permission-mode "plan")
+                  (cdr (assoc "bde-persist"
+                              beads-agent-ralph-launch-templates)))))
+      (setq beads-agent-ralph-launch-templates saved)
+      (when (file-exists-p temp-file) (delete-file temp-file)))))
+
+;;; Per-loop budget / turns flow through to the controller
+
+(ert-deftest beads-ralph-launcher-test-start-args-include-budget-and-turns ()
+  "`--params-to-start-args' propagates per-iter / total budget and turns."
+  (let ((args (beads-ralph-launcher--params-to-start-args
+               "bde-x" 'issue
+               '(:max-iterations 5
+                 :max-budget-usd-per-iter 0.5
+                 :max-budget-usd 5.0
+                 :max-turns 10)
+               nil)))
+    (should (equal 0.5 (plist-get args :max-budget-usd-per-iter)))
+    (should (equal 5.0 (plist-get args :max-budget-usd)))
+    (should (equal 10 (plist-get args :max-turns)))))
+
+;;; Prompt-edit callback respects cancel sentinel
+
+(ert-deftest beads-ralph-launcher-test-edit-prompt-cancel-preserves-override ()
+  "Cancel sentinel (nil nil) leaves `--prompt-override' untouched."
+  (beads-ralph-launcher-test--with-clean-registry
+    (beads-ralph-launcher-test--with-clean-templates
+      (beads-ralph-launcher-test--with-launcher-buffer buf "bde-cancel"
+        (with-current-buffer buf
+          (setq-local beads-ralph-launcher--prompt-override "EXISTING_OVERRIDE")
+          (let (captured-callback)
+            (cl-letf (((symbol-function 'beads-agent-prompt-edit-show)
+                       (lambda (_id _sys _user _name cb)
+                         (setq captured-callback cb))))
+              (beads-ralph-launcher-edit-prompt)
+              ;; Simulate cancel.
+              (funcall captured-callback nil nil)
+              (should
+               (equal "EXISTING_OVERRIDE"
+                      beads-ralph-launcher--prompt-override)))))))))
+
+(ert-deftest beads-ralph-launcher-test-edit-prompt-confirm-sets-override ()
+  "A non-blank USER from confirm sets `--prompt-override'."
+  (beads-ralph-launcher-test--with-clean-registry
+    (beads-ralph-launcher-test--with-clean-templates
+      (beads-ralph-launcher-test--with-launcher-buffer buf "bde-confirm"
+        (with-current-buffer buf
+          (let (captured-callback)
+            (cl-letf (((symbol-function 'beads-agent-prompt-edit-show)
+                       (lambda (_id _sys _user _name cb)
+                         (setq captured-callback cb))))
+              (beads-ralph-launcher-edit-prompt)
+              (funcall captured-callback nil "MY_OVERRIDE")
+              (should
+               (equal "MY_OVERRIDE"
+                      beads-ralph-launcher--prompt-override)))))))))
+
+(ert-deftest beads-ralph-launcher-test-edit-prompt-confirm-blank-clears-override ()
+  "Confirm with an empty USER clears `--prompt-override' (revert to template)."
+  (beads-ralph-launcher-test--with-clean-registry
+    (beads-ralph-launcher-test--with-clean-templates
+      (beads-ralph-launcher-test--with-launcher-buffer buf "bde-clear"
+        (with-current-buffer buf
+          (setq-local beads-ralph-launcher--prompt-override "STALE")
+          (let (captured-callback)
+            (cl-letf (((symbol-function 'beads-agent-prompt-edit-show)
+                       (lambda (_id _sys _user _name cb)
+                         (setq captured-callback cb))))
+              (beads-ralph-launcher-edit-prompt)
+              (funcall captured-callback nil "")
+              (should-not beads-ralph-launcher--prompt-override))))))))
+
 ;;; Header indicators (dirty / template-loaded)
 
 (ert-deftest beads-ralph-launcher-test-header-shows-dirty-star ()

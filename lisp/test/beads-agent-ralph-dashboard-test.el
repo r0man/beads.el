@@ -228,8 +228,15 @@ Regression for a bug where both branches returned the same number of lines, so t
     (kill-buffer buf)
     (should-not (buffer-live-p buf))))
 
-(ert-deftest beads-agent-ralph-dashboard-test-kill-detaches-running-stream ()
-  "Killing the buffer mid-run detaches the stream's IO."
+(ert-deftest beads-agent-ralph-dashboard-test-kill-keeps-running-stream ()
+  "Killing the buffer mid-run leaves the running stream alone (bde-deqx.3).
+
+The pre-deqx.3 behaviour was to detach the stream + drive the
+controller to `stopped' from `kill-buffer'.  That orphaned a
+money-spending claude process whenever the user merely wanted to
+reclaim screen real estate.  The new contract: kill-buffer on a
+live controller leaves the loop alive (headless continuation);
+stopping is done through `[s]' on the dashboard."
   (let* ((c (beads-agent-ralph-dashboard-test--make-controller
              :root-id "bde-run"))
          (stream (beads-agent-ralph--stream
@@ -245,15 +252,15 @@ Regression for a bug where both branches returned the same number of lines, so t
                (lambda (_s label)
                  (when (eq label 'controller) (setq subscriber-removed t)))))
       (kill-buffer buf))
-    (should subscriber-removed)
-    (should (eq (oref stream status) 'stopped))))
+    (should-not subscriber-removed)
+    (should (eq (oref stream status) 'running))))
 
-(ert-deftest beads-agent-ralph-dashboard-test-kill-drives-controller-terminal ()
-  "Killing the buffer mid-run drives the controller to terminal `stopped' (bde-mfrl).
+(ert-deftest beads-agent-ralph-dashboard-test-kill-live-leaves-controller-alive ()
+  "Killing the buffer mid-run does NOT drive the controller terminal (bde-deqx.3).
 
-`--detach-stream' neutralises the stream sentinel, so without an explicit
-`--terminate' call in the kill hook the controller would remain `status='running'
-forever, blocking mode-line cleanup and any later stop/resume."
+Inverts the bde-mfrl behaviour.  See sibling
+`-kill-keeps-running-stream' for the rationale (orphaned $-spending
+process is worse than a registry-resident headless loop)."
   (let* ((c (beads-agent-ralph-dashboard-test--make-controller
              :root-id "bde-zomb"))
          (stream (beads-agent-ralph--stream
@@ -263,9 +270,9 @@ forever, blocking mode-line cleanup and any later stop/resume."
     (oset c status 'running)
     (oset c current-stream stream)
     (kill-buffer buf)
-    (should (eq (oref c status) 'stopped))
-    (should (eq (oref c done-reason) 'stop))
-    (should (null (oref c current-stream)))))
+    (should (eq (oref c status) 'running))
+    (should (null (oref c done-reason)))
+    (should (eq (oref c current-stream) stream))))
 
 (ert-deftest beads-agent-ralph-dashboard-test-kill-cancels-pending-rerender ()
   "Buffer kill cancels any debounced re-render timer for the controller."
@@ -278,12 +285,11 @@ forever, blocking mode-line cleanup and any later stop/resume."
     (kill-buffer buf)
     (should-not (assq c beads-agent-ralph-dashboard--pending-rerender))))
 
-(ert-deftest beads-agent-ralph-dashboard-test-kill-unregisters-controller ()
-  "Killing the dashboard drops the controller from the public registry (bde-deqx.2).
-The user closing the dashboard is the natural signal that they are
-done with this loop; without an unregister here the registry would
-grow without bound and downstream UIs (cockpit, epic browser) would
-list controllers with no live surface."
+(ert-deftest beads-agent-ralph-dashboard-test-kill-terminal-unregisters ()
+  "Killing the dashboard of a terminal-state controller unregisters
+it immediately (bde-deqx.3).  The eviction timer scheduled by
+`--terminate' becomes the worst-case fallback; the user closing the
+dashboard is the natural eviction signal."
   (let* ((beads-agent-ralph--controllers nil)
          (c (beads-agent-ralph-dashboard-test--make-controller
              :root-id "bde-unreg"))
@@ -296,11 +302,12 @@ list controllers with no live surface."
     (should (null (beads-agent-ralph-controller-for-root "bde-unreg")))
     (should (null (beads-agent-ralph-controllers)))))
 
-(ert-deftest beads-agent-ralph-dashboard-test-kill-in-flight-unregisters ()
-  "Killing the dashboard mid-run unregisters AFTER driving to terminal.
-Combines the bde-mfrl `--terminate' wiring with the bde-deqx.2 public-
-registry cleanup: both must fire so the controller becomes both
-terminal AND unreachable from the registry."
+(ert-deftest beads-agent-ralph-dashboard-test-kill-in-flight-keeps-registered ()
+  "Killing the dashboard of a live (running) controller leaves it in
+the public registry (bde-deqx.3).  A headless loop continues; the
+user can re-mount via the cockpit.  This is the inverse of the
+pre-deqx.3 behaviour where kill-buffer drove the loop terminal and
+unregistered it."
   (let* ((beads-agent-ralph--controllers nil)
          (c (beads-agent-ralph-dashboard-test--make-controller
              :root-id "bde-inflight"))
@@ -312,8 +319,8 @@ terminal AND unreachable from the registry."
     (oset c current-stream stream)
     (beads-agent-ralph--register-controller c)
     (kill-buffer buf)
-    (should (eq (oref c status) 'stopped))
-    (should (null (beads-agent-ralph-controller-for-root "bde-inflight")))))
+    (should (eq (oref c status) 'running))
+    (should (eq c (beads-agent-ralph-controller-for-root "bde-inflight")))))
 
 (ert-deftest beads-agent-ralph-dashboard-test-help-echoes-question-mark-key ()
   "`beads-agent-ralph-dashboard-help' must advertise its own `?' binding.
