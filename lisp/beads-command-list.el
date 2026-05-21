@@ -570,7 +570,7 @@ display columns; under TTY each letter occupies one.  Outcome glyphs
 
 Default width accommodates either:
   - two outcomed agents plus one running agent under GUI
-    (e.g. `✓🦫 ✗🦉 🐙' = 3+1+3+1+2 = 10 cols), or
+    (e.g. `✓🦅 ✗🦌 🦝' = 3+1+3+1+2 = 10 cols), or
   - three running agents (= 2+1+2+1+2 = 8 cols), or
   - five letter-only agents under TTY.
 

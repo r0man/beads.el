@@ -193,7 +193,7 @@
 ;; `declare-function' for the byte-compiler.
 ;;
 ;; The Task agent type registered in `beads-agent-types.el' has letter
-;; "T" and icon "🦫"; tests assume that registration is in effect.
+;; "T" and icon "🦅"; tests assume that registration is in effect.
 
 (defmacro beads-agent-display-test--with-session (type-name instance-n &rest body)
   "Stub session accessors to return TYPE-NAME and INSTANCE-N, then run BODY.
@@ -209,7 +209,7 @@ The mock session itself is a symbol, since the accessors are mocked."
 
 (defun beads-agent-display-test--ensure-task-registered ()
   "Ensure the built-in Task agent type is registered.
-Required because tests run with the icon \"🦫\" and letter \"T\"."
+Required because tests run with the icon \"🦅\" and letter \"T\"."
   (require 'beads-agent-types)
   (unless (beads-agent-type-get "task")
     (beads-agent-type-register (beads-agent-type-task))))
@@ -224,7 +224,7 @@ Required because tests run with the icon \"🦫\" and letter \"T\"."
         (beads-agent-display-show-instance nil))
     (beads-agent-display-test--with-session "Task" 1
       (let ((result (beads-agent-display-format-session session)))
-        (should (equal (substring-no-properties result) "🦫"))
+        (should (equal (substring-no-properties result) "🦅"))
         (should (eq (get-text-property 0 'face result)
                     'beads-list-agent-working))
         (should (string-match-p "Task agent #1: focused"
@@ -252,7 +252,7 @@ Required because tests run with the icon \"🦫\" and letter \"T\"."
         (beads-agent-display-show-instance nil))
     (beads-agent-display-test--with-session "Task" 2
       (let ((result (beads-agent-display-format-session session 'touched)))
-        (should (equal (substring-no-properties result) "🦫"))
+        (should (equal (substring-no-properties result) "🦅"))
         (should-not (string-match-p "~" result))
         (should (eq (get-text-property 0 'face result) 'shadow))
         (should (string-match-p "touched but focused elsewhere"
@@ -282,13 +282,15 @@ Required because tests run with the icon \"🦫\" and letter \"T\"."
         (beads-agent-display-show-instance nil))
     (beads-agent-display-test--with-session "Task" 1
       (let ((result (beads-agent-display-format-session session 'finished)))
-        (should (equal (substring-no-properties result) "✓🦫"))
+        (should (equal (substring-no-properties result) "✓🦅"))
         (should (eq (get-text-property 0 'face result)
                     'beads-list-agent-finished))
         ;; Face covers the entire string, including the role glyph.
         (should (eq (get-text-property (1- (length result)) 'face result)
                     'beads-list-agent-finished))
-        (should (string-match-p "Task agent: finished"
+        ;; Terminal states now carry the #N suffix in help-echo so two
+        ;; sequential Task agents are disambiguated after they finish.
+        (should (string-match-p "Task agent #1: finished"
                                 (get-text-property 0 'help-echo result)))))))
 
 (ert-deftest beads-agent-display-test-format-finished-letter ()
@@ -313,12 +315,13 @@ Required because tests run with the icon \"🦫\" and letter \"T\"."
         (beads-agent-display-show-instance nil))
     (beads-agent-display-test--with-session "Task" 1
       (let ((result (beads-agent-display-format-session session 'failed)))
-        (should (equal (substring-no-properties result) "✗🦫"))
+        (should (equal (substring-no-properties result) "✗🦅"))
         (should (eq (get-text-property 0 'face result)
                     'beads-list-agent-failed))
         (should (eq (get-text-property (1- (length result)) 'face result)
                     'beads-list-agent-failed))
-        (should (string-match-p "Task agent: failed"
+        ;; Terminal states now carry the #N suffix in help-echo.
+        (should (string-match-p "Task agent #1: failed"
                                 (get-text-property 0 'help-echo result)))))))
 
 (ert-deftest beads-agent-display-test-format-failed-letter ()
@@ -332,6 +335,35 @@ Required because tests run with the icon \"🦫\" and letter \"T\"."
         (should (equal (substring-no-properties result) "✗T"))
         (should (eq (get-text-property 0 'face result)
                     'beads-list-agent-failed))))))
+
+;;;; Stopped state — session terminated without a recorded outcome
+
+(ert-deftest beads-agent-display-test-format-stopped-icon ()
+  "Stopped state renders the icon with shadow face, no outcome prefix.
+Distinguishes \"stopped\" from \"touched\" in help-echo wording."
+  (beads-agent-display-test--ensure-task-registered)
+  (let ((beads-agent-display-use-icons t)
+        (beads-agent-display-type-icons nil)
+        (beads-agent-display-show-instance nil))
+    (beads-agent-display-test--with-session "Task" 4
+      (let ((result (beads-agent-display-format-session session 'stopped)))
+        (should (equal (substring-no-properties result) "🦅"))
+        (should (eq (get-text-property 0 'face result) 'shadow))
+        (let ((help (get-text-property 0 'help-echo result)))
+          (should (string-match-p "Task agent #4: stopped" help))
+          ;; Must NOT leak the touched wording into stopped.
+          (should-not (string-match-p "touched" help)))))))
+
+(ert-deftest beads-agent-display-test-format-stopped-letter ()
+  "Stopped state in letter mode renders the letter with shadow face."
+  (beads-agent-display-test--ensure-task-registered)
+  (let ((beads-agent-display-use-icons nil)
+        (beads-agent-display-type-icons nil)
+        (beads-agent-display-show-instance nil))
+    (beads-agent-display-test--with-session "Task" 1
+      (let ((result (beads-agent-display-format-session session 'stopped)))
+        (should (equal (substring-no-properties result) "T"))
+        (should (eq (get-text-property 0 'face result) 'shadow))))))
 
 ;;;; Outcome marks always present regardless of icon mode
 
@@ -404,7 +436,7 @@ Required because tests run with the icon \"🦫\" and letter \"T\"."
   (let ((beads-agent-display-use-icons t)
         (beads-agent-display-type-icons nil))
     (let ((result (beads-agent-display-format-type-name "Task" 'finished)))
-      (should (equal (substring-no-properties result) "✓🦫"))
+      (should (equal (substring-no-properties result) "✓🦅"))
       (should (eq (get-text-property 0 'face result)
                   'beads-list-agent-finished)))))
 

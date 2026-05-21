@@ -400,7 +400,6 @@ rows do not wrap to a continuation line in narrow / side-by-side splits."
   (require 'beads-agent-types)
   (unless (beads-agent-type-get "task")
     (beads-agent-type-register (beads-agent-type-task)))
-  (require 'beads-agent-types)
   (unless (beads-agent-type-get "review")
     (beads-agent-type-register (beads-agent-type-review)))
   (let* ((beads-agent-display-use-icons nil)

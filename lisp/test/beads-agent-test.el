@@ -3402,7 +3402,7 @@ When worktrees are disabled, uses beads-agent-start directly."
 ;;; Mode-line icon integration (bde-npte.7) — one assertion per format
 ;;; per mode (icons enabled vs disabled) per the acceptance criteria.
 ;;; The Task agent type from `beads-agent-types.el' has letter "T" and
-;;; icon "🦫" — these tests use that as the running agent type and
+;;; icon "🦅" — these tests use that as the running agent type and
 ;;; assume the load-time registration is in effect.
 
 (ert-deftest beads-agent-test-mode-line-format-default-icons-enabled ()
@@ -3426,7 +3426,7 @@ When worktrees are disabled, uses beads-agent-start directly."
                         :agent-type "Task"
                         :agent-instance 1)))
         (let ((result (beads-agent--mode-line-format-default ctx)))
-          (should (string= result "[beads.el:🦫#1@main]"))))
+          (should (string= result "[beads.el:🦅#1@main]"))))
     (beads-agent-test--teardown)))
 
 (ert-deftest beads-agent-test-mode-line-format-default-icons-disabled ()
@@ -3466,7 +3466,7 @@ When worktrees are disabled, uses beads-agent-start directly."
                         :agent-type "Task"
                         :agent-instance 1)))
         (let ((result (beads-agent--mode-line-format-compact ctx)))
-          (should (string= result "[b:🦫#1]"))))
+          (should (string= result "[b:🦅#1]"))))
     (beads-agent-test--teardown)))
 
 (ert-deftest beads-agent-test-mode-line-format-compact-icons-disabled ()
@@ -3509,7 +3509,7 @@ When worktrees are disabled, uses beads-agent-start directly."
         (let ((result (beads-agent--mode-line-format-full ctx)))
           (should (stringp result))
           ;; Icon prefixes the existing type+instance string
-          (should (string-match-p "🦫 Task#1" result))
+          (should (string-match-p "🦅 Task#1" result))
           (should (string-match-p "bd-42" result))))
     (beads-agent-test--teardown)))
 
@@ -3538,7 +3538,7 @@ When worktrees are disabled, uses beads-agent-start directly."
           (should (stringp result))
           (should (string-match-p "Task#1" result))
           ;; No icon prefix when icons disabled
-          (should-not (string-match-p "🦫" result))))
+          (should-not (string-match-p "🦅" result))))
     (beads-agent-test--teardown)))
 
 (ert-deftest beads-agent-test-mode-line-format-default-icons-auto-tty ()

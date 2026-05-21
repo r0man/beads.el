@@ -12,18 +12,24 @@ dashboard, `*beads-agents*` list, show buffer Agent Sessions, mode-line,
 per-issue transient header, prompt-edit header line) — is as designed
 below.
 
-**The built-in icon set was later swapped under [bde-e9nt] from the
-human/tool metaphor in this doc to a Gastown-themed animal set.** The
-rest of the design (slot mechanics, accessor contract, fallback rules,
-outcome glyphs, override surface) is unchanged.
+**The built-in icon set was swapped under [bde-e9nt] from the
+human/tool metaphor in this doc to an animal set.** A second swap
+under PR #63 review (see [bde-f573]) aligned the shipped icons with
+the PR description's eagle/deer/raccoon/chipmunk/fox set. The rest of
+the design (slot mechanics, accessor contract, fallback rules, outcome
+glyphs, override surface) is unchanged.
 
-| Type   | Letter | Original design | **As shipped** | Codepoint |
-|--------|--------|-----------------|----------------|-----------|
-| Task   | `T`    | 👷              | 🦫 (beaver)    | U+1F9AB   |
-| Review | `R`    | 🕵️              | 🦉 (owl)       | U+1F989   |
-| Plan   | `P`    | 🧭              | 🐙 (octopus)   | U+1F419   |
-| QA     | `Q`    | 🧪              | 🐕 (hound)     | U+1F415   |
-| Custom | `C`    | 🪄              | 🦋 (butterfly) | U+1F98B   |
+| Type   | Letter | Original design | **As shipped**   | Codepoint        |
+|--------|--------|-----------------|------------------|------------------|
+| Task   | `T`    | 👷              | 🦅 (eagle)       | U+1F985          |
+| Review | `R`    | 🕵️              | 🦌 (deer)        | U+1F98C          |
+| Plan   | `P`    | 🧭              | 🦝 (raccoon)     | U+1F99D          |
+| QA     | `Q`    | 🧪              | 🐿️ (chipmunk)    | U+1F43F U+FE0F   |
+| Custom | `C`    | 🪄              | 🦊 (fox)         | U+1F98A          |
+
+Note: the QA chipmunk uses VS16 (U+FE0F) to force emoji presentation;
+without it, U+1F43F renders as a text-style black-and-white glyph on
+several common emoji fonts.
 
 Source of truth for the live values: `lisp/beads-agent-types.el`
 (`:icon` initforms on each `beads-agent-type-<x>` subclass). User

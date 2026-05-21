@@ -805,18 +805,25 @@ Section header is uppercase without underline, matching DEPENDS ON style."
       ;; Make issue references clickable
       (beads-show--buttonize-references start (point)))))
 
-(defun beads-show--agent-session-state (_session active issue-outcome)
-  "Return the display state symbol for the agent session.
-_SESSION is currently unused; resolution depends only on the active
-flag and the issue-level outcome.  The parameter is retained so
-callers can pass the session object for forward compatibility.
+(defun beads-show--agent-session-state (active issue-outcome &rest _session)
+  "Return the display state symbol for an agent session.
 ACTIVE is the result of `beads-agent--session-active-p'.
 ISSUE-OUTCOME is the value from `beads-agent--get-issue-outcome' for
 the issue; it may be a bare symbol (`finished'/`failed') or a
-`(TYPE-NAME . OUTCOME-SYM)' cons cell.  Returns nil for active
-sessions (mapped to `running' by the display helper), `finished',
-`failed', or `touched' for inactive sessions with no recorded
-outcome."
+`(TYPE-NAME . OUTCOME-SYM)' cons cell.
+
+Returns one of:
+  - nil          for active sessions (mapped to `running' by the
+                 display helper),
+  - `finished'   when the issue carries a `finished' outcome,
+  - `failed'     when the issue carries a `failed' outcome,
+  - `stopped'    for inactive sessions with no recorded outcome.
+
+_SESSION is reserved for forward compatibility (e.g. resolving
+state from per-session metadata once the backend stores it); current
+resolution depends only on ACTIVE and ISSUE-OUTCOME.  It is accepted
+as `&rest' so the parameter order reflects what the function
+actually consumes."
   (let ((outcome-sym (cond
                       ((symbolp issue-outcome) issue-outcome)
                       ((consp issue-outcome) (cdr issue-outcome)))))
@@ -824,7 +831,26 @@ outcome."
      (active nil)
      ((eq outcome-sym 'finished) 'finished)
      ((eq outcome-sym 'failed) 'failed)
-     (t 'touched))))
+     (t 'stopped))))
+
+(defun beads-show--insert-agent-session-line (session issue-outcome)
+  "Insert one Agent Sessions row for SESSION.
+ISSUE-OUTCOME is the issue-level outcome value (see
+`beads-show--agent-session-state')."
+  (let* ((backend (or (beads-agent-session-backend-name session)
+                      "unknown"))
+         (started (beads-agent-session-started-at session))
+         (active (beads-agent--session-active-p session))
+         (state (beads-show--agent-session-state active issue-outcome session))
+         (icon (beads-agent-display-format-session session state t))
+         (status-str (if active
+                         (propertize "active" 'face 'success)
+                       (propertize "stopped" 'face 'shadow))))
+    (insert (format "  %s %s: %s [%s]\n"
+                    icon
+                    (propertize backend 'face 'font-lock-constant-face)
+                    (beads-show--format-date started)
+                    status-str))))
 
 (defun beads-show--insert-agent-section (issue-id)
   "Insert agent sessions section for ISSUE-ID if sessions exist."
@@ -840,21 +866,7 @@ outcome."
           (insert (propertize (make-string 14 ?─) 'face 'beads-show-header-face))
           (insert "\n\n")
           (dolist (session sessions)
-            (let* ((backend (or (beads-agent-session-backend-name session)
-                                "unknown"))
-                   (started (beads-agent-session-started-at session))
-                   (active (beads-agent--session-active-p session))
-                   (state (beads-show--agent-session-state
-                           session active issue-outcome))
-                   (icon (beads-agent-display-format-session session state t))
-                   (status-str (if active
-                                   (propertize "active" 'face 'success)
-                                 (propertize "stopped" 'face 'shadow))))
-              (insert (format "  %s %s: %s [%s]\n"
-                              icon
-                              (propertize backend 'face 'font-lock-constant-face)
-                              (beads-show--format-date started)
-                              status-str))))
+            (beads-show--insert-agent-session-line session issue-outcome))
           (insert "\n"))))))
 
 (defun beads-show--get-sub-issues (epic-id)
