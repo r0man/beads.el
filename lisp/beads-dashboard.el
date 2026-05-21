@@ -44,9 +44,12 @@ Auto-refresh is OFF by default and toggled with `r' in the dashboard."
   :group 'beads)
 
 (defcustom beads-dashboard-default-collapsed
-  '((blocked . t) (epics . t) (closed . t) (federation . t))
+  '((federation . t))
   "Alist mapping section keys to t when they should default-collapsed.
-Sections collapsed by default do not fetch their data until expanded."
+Sections collapsed by default do not fetch their data until expanded.
+Defaults expand every actionable section so the project pulse is
+visible at a glance; only Federation (server-mode only) starts
+collapsed because most projects do not use it."
   :type '(alist :key-type symbol :value-type boolean)
   :group 'beads)
 
@@ -60,6 +63,14 @@ Each project's entry maps SECTION-KEY -> non-negative integer or the
 symbol `all'.  Restored on buffer init so per-section `+'/`-'/`*'
 overrides persist across `g' (soft refresh) and across
 close-and-reopen.  `C-u g' (hard refresh) clears the project's entry.")
+
+(defvar-local beads-dashboard--last-good-data nil
+  "Buffer-local hash table mapping SECTION-KEY -> last good payload.
+Powers stale-while-revalidate rendering: during a soft refresh the
+section keeps the previously-fetched payload on screen until the new
+fetch lands, avoiding a full `Loading…' flicker on agent state
+changes.  Cleared by `beads-dashboard-hard-refresh' so the user can
+force the loading skeleton back on demand.")
 
 ;;; Project Identity
 
@@ -238,25 +249,22 @@ Sections receive collapse state as a prop because per-component
        :force-render t
        ;; Stats data is an alist, not a list of issues — `length' is meaningless.
        :hide-count t)
-      (let ((rx (cdr (assq 'stale extra))))
+      ;; Recently Closed sits right under Stats so the first thing the
+      ;; user sees is the project's most recent forward motion — a
+      ;; daily feedback signal.  In-progress / Ready / Blocked /
+      ;; Epic Progress follow as actionable work; hygiene buckets
+      ;; (Stale, Orphans, Federation) sink to the bottom.
+      (let ((rx (cdr (assq 'closed extra))))
         (beads-dashboard--section
-         'stale "Stale in-progress"
-         (beads-dashboard--stale-loader
+         'closed "Recently Closed"
+         (beads-dashboard--closed-loader
           (beads-dashboard--effective-fetch-limit rx))
-         (lambda (data)
-           (beads-dashboard--render-issue-list (or data '()) 'stale rx))
+         (lambda (data) (beads-dashboard-render-closed data 'closed rx))
          collapsed generation buffer
-         :icon "💤"
-         :extra-rows rx))
-      (let ((rx (cdr (assq 'orphans extra))))
-        (beads-dashboard--section
-         'orphans "Orphaned dependencies"
-         (beads-dashboard--orphans-loader)
-         (lambda (data)
-           (beads-dashboard--render-issue-list (or data '()) 'orphans rx))
-         collapsed generation buffer
-         :icon "🩹"
-         :extra-rows rx))
+         :icon "📦"
+         :extra-rows rx
+         :render-empty
+         (lambda (sk) (beads-dashboard--empty-line "Nothing closed yet." sk))))
       (let ((rx (cdr (assq 'in-flight extra))))
         (beads-dashboard--section
          'in-flight "In progress"
@@ -295,17 +303,25 @@ Sections receive collapse state as a prop because per-component
          collapsed generation buffer
          :icon "🎯"
          :extra-rows rx))
-      (let ((rx (cdr (assq 'closed extra))))
+      (let ((rx (cdr (assq 'stale extra))))
         (beads-dashboard--section
-         'closed "Recently Closed"
-         (beads-dashboard--closed-loader
+         'stale "Stale in-progress"
+         (beads-dashboard--stale-loader
           (beads-dashboard--effective-fetch-limit rx))
-         (lambda (data) (beads-dashboard-render-closed data 'closed rx))
+         (lambda (data)
+           (beads-dashboard--render-issue-list (or data '()) 'stale rx))
          collapsed generation buffer
-         :icon "📦"
-         :extra-rows rx
-         :render-empty
-         (lambda (sk) (beads-dashboard--empty-line "Nothing closed yet." sk))))
+         :icon "💤"
+         :extra-rows rx))
+      (let ((rx (cdr (assq 'orphans extra))))
+        (beads-dashboard--section
+         'orphans "Orphaned dependencies"
+         (beads-dashboard--orphans-loader)
+         (lambda (data)
+           (beads-dashboard--render-issue-list (or data '()) 'orphans rx))
+         collapsed generation buffer
+         :icon "🩹"
+         :extra-rows rx))
       (when (eq (plist-get beads-command--policy :backend) 'server)
         (beads-dashboard--section
          'federation "Federation"
@@ -357,7 +373,12 @@ re-probes the policy without raising on the missing root state."
   (when (derived-mode-p 'beads-dashboard-mode)
     (let ((root (beads-dashboard--project-root)))
       (beads-dashboard--save-extra root nil)
-      (beads-dashboard--bump :extra nil)))
+      (beads-dashboard--bump :extra nil))
+    ;; Hard refresh = drop the stale-while-revalidate cache too so the
+    ;; user sees the `Loading…' skeleton on demand.  Soft `g' keeps
+    ;; the cache populated.
+    (when (hash-table-p beads-dashboard--last-good-data)
+      (clrhash beads-dashboard--last-good-data)))
   (beads-command--policy-probe
    (lambda (_p)
      (beads-dashboard-refresh))))
@@ -776,7 +797,7 @@ CLI's default cap.  Point is re-anchored after the rerender."
 
 (defun beads-dashboard--set-depth (n)
   "Show only N levels deep, expanding the first N section groups."
-  (let* ((order '(stats stale orphans in-flight ready blocked epics closed federation))
+  (let* ((order '(stats closed in-flight ready blocked epics stale orphans federation))
          (visible (seq-take order n))
          (next (mapcar
                 (lambda (k)
@@ -858,7 +879,9 @@ stays on a single row when the buffer is shown in a narrow window
   :interactive nil
   (setq-local truncate-lines t)
   (setq-local revert-buffer-function #'beads-dashboard--revert)
-  (setq-local mode-line-misc-info nil))
+  (setq-local mode-line-misc-info nil)
+  (setq-local beads-dashboard--last-good-data
+              (make-hash-table :test 'equal)))
 
 (defun beads-dashboard--revert (_ignore _noconfirm)
   "Revert the dashboard buffer (no-prompt revert hook)."
@@ -943,6 +966,30 @@ does something sensible."
    ((widget-at (point))
     (widget-apply (widget-at (point)) :action))
    (t (user-error "No issue or button at point"))))
+
+;;; Agent State Hook Integration
+
+;; Defined in `beads-agent-backend.el'.  Forward-declared so the
+;; dashboard byte-compiles without pulling in the agent subsystem.
+(defvar beads-agent-state-change-hook)
+
+(defun beads-dashboard--on-agent-state-change (_action _session)
+  "Refresh every live dashboard buffer after an agent state change.
+ACTION and SESSION are provided by `beads-agent-state-change-hook'.
+Called when an agent is started, stopped, finished, or failed so the
+In-progress section (and any agent-badge group on issue rows) reflects
+the new state without the user having to press \\[beads-dashboard-refresh]."
+  (dolist (buffer (buffer-list))
+    (when (and (buffer-live-p buffer)
+               (with-current-buffer buffer
+                 (derived-mode-p 'beads-dashboard-mode)))
+      (with-current-buffer buffer
+        (condition-case nil
+            (beads-dashboard-refresh)
+          (error nil))))))
+
+(add-hook 'beads-agent-state-change-hook
+          #'beads-dashboard--on-agent-state-change t)
 
 ;;; Entry Point
 
