@@ -163,29 +163,46 @@ Single-cell, ASCII-adjacent — renders in TTY too.")
   "Outcome prefix for failed agent sessions (U+2717).
 Single-cell, ASCII-adjacent — renders in TTY too.")
 
+(defun beads-agent-display--unknown-state (state context)
+  "Warn once about an unknown STATE in CONTEXT and return the working fallback.
+STATE is the unrecognised symbol, CONTEXT names the helper for the
+diagnostic message.  Used as the catch-all fallback in the state
+pcase helpers so a future state symbol is logged loudly rather
+than silently treated as `running'."
+  (message "beads-agent-display: unknown state %S in %s, treating as running"
+           state context)
+  nil)
+
 (defun beads-agent-display--state-face (state)
   "Return the face symbol to apply for STATE."
   (pcase state
+    ('running 'beads-list-agent-working)
     ((or 'touched 'stopped) 'shadow)
     ('finished 'beads-list-agent-finished)
     ('failed 'beads-list-agent-failed)
-    (_ 'beads-list-agent-working)))
+    (_ (beads-agent-display--unknown-state state 'state-face)
+       'beads-list-agent-working)))
 
 (defun beads-agent-display--state-prefix (state)
   "Return the outcome prefix string for STATE, or empty when none."
   (pcase state
+    ('running "")
+    ((or 'touched 'stopped) "")
     ('finished beads-agent-display--outcome-mark-finished)
     ('failed beads-agent-display--outcome-mark-failed)
-    (_ "")))
+    (_ (beads-agent-display--unknown-state state 'state-prefix)
+       "")))
 
 (defun beads-agent-display--state-words (state)
   "Return the human-readable description for STATE."
   (pcase state
+    ('running "focused")
     ('touched "touched but focused elsewhere")
     ('stopped "stopped")
     ('finished "finished")
     ('failed "failed")
-    (_ "focused")))
+    (_ (beads-agent-display--unknown-state state 'state-words)
+       "focused")))
 
 (defun beads-agent-display--glyph (type-name)
   "Return the visible identifier glyph for the agent type named TYPE-NAME.
@@ -271,7 +288,6 @@ callers can skip outcome rendering entirely."
     (and (memq state '(finished failed))
          (cons type-name state))))
 
-;;;###autoload
 (defun beads-agent-display-format-issue-agents (issue-id)
   "Return the agent-badge string for ISSUE-ID, or empty string.
 
@@ -280,6 +296,13 @@ faint space separator.  Under GUI Emacs the glyph is the role icon,
 under TTY it is the type's single letter.  Finished and failed
 outcomes prefix the glyph with `✓' or `✗' so the status stays
 shape-distinguishable in TTY too.
+
+The per-glyph `help-echo' set by `beads-agent-display-format-session'
+is replaced by an aggregate summary (\"N focused agent(s), M touched\")
+so the tooltip is reachable from any column position — mouse hover
+on a single emoji inside a tabulated-list cell is unreliable.
+Surfaces that need per-glyph tooltips call
+`beads-agent-display-format-session' directly without this wrapper.
 
 Behaviour note: touched-only sessions (sessions that touched ISSUE-ID
 but are focused elsewhere) are intentionally omitted from the visible
@@ -310,17 +333,8 @@ backend has not been required."
          (separator (propertize " " 'face 'shadow)))
     (cond
      (focused
-      ;; NOTE: `propertize' below applies one `help-echo' across the whole
-      ;; joined badge string, intentionally OVERWRITING the per-session
-      ;; tooltips that `beads-agent-display-format-session' set on each
-      ;; glyph.  The trade-off is deliberate: in a column-sized cell the
-      ;; user cannot reliably hover a single glyph (mouse positioning is
-      ;; ambiguous with adjacent emoji), so a single aggregate summary
-      ;; ("N focused agent(s), M touched") is more useful than per-glyph
-      ;; tooltips that are effectively unreachable.  Surfaces that need
-      ;; per-glyph tooltips (agent list, show buffer) call
-      ;; `beads-agent-display-format-session' directly without this
-      ;; wrapper.
+      ;; Aggregate help-echo overwrites per-glyph tooltips by design;
+      ;; see docstring for the trade-off rationale.
       (let* ((indicators
               (mapcar (lambda (session)
                         (beads-agent-display-format-session session nil t))
@@ -332,8 +346,6 @@ backend has not been required."
                                        (if (= (length focused) 1) "" "s")
                                        (length touched-only)))))
      (legacy-sessions
-      ;; Same per-glyph vs aggregate help-echo trade-off as the focused
-      ;; branch above.
       (let* ((indicators
               (mapcar (lambda (session)
                         (beads-agent-display-format-session session nil t))
@@ -348,7 +360,6 @@ backend has not been required."
                                             (cdr outcome-parts)))
      (t ""))))
 
-;;;###autoload
 (defun beads-agent-display-format-type-name (type-name &optional outcome)
   "Format an identifier from TYPE-NAME alone, without a live session.
 TYPE-NAME is a string naming the agent type (e.g. \"Task\") or nil.
@@ -359,6 +370,9 @@ the same shape of propertized string as `beads-agent-display-format-session'.
 This entry point exists for surfaces that have a type identifier
 but no live session (e.g. the per-issue outcome cell in the issue
 list, where the session has already terminated)."
+  ;; INSTANCE-N is nil because there is no live session to draw a
+  ;; number from; BRIEF is t because surfaces calling this are
+  ;; narrow (issue-list outcome cell) and never want the `#N' suffix.
   (beads-agent-display--format type-name nil outcome t))
 
 (provide 'beads-agent-display)

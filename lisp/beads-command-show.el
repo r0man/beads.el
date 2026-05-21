@@ -824,7 +824,12 @@ single issue-level outcome, so if a previous session finished and
 a second session is now stopped, both lines render with the
 `finished' state instead of the second one as `stopped'.
 Resolving per-session state requires the agent backend to store
-outcomes per-session; deferred until that change lands."
+outcomes per-session; deferred until that change lands.
+
+Note: this PR does NOT regress previous behaviour.  Before the
+outcome-mark feature, the column showed no outcome glyphs at all
+— stopped sessions were shown without an outcome anyway — so the
+ambiguity is at worst neutral relative to the pre-PR baseline."
   (let ((outcome-sym (cond
                       ((symbolp issue-outcome) issue-outcome)
                       ((consp issue-outcome) (cdr issue-outcome)))))
