@@ -180,6 +180,38 @@ ARGS keys: :root-id :kind :status :iter :max-iter :cost :started-at
     (should (string-match-p "1 paused" line))
     (should (string-match-p "0 done" line))))
 
+(ert-deftest beads-ralph-cockpit-test-header-line-empty ()
+  "Empty registry omits the zero-breakdown clutter."
+  (let ((line (beads-ralph-cockpit--header-line nil)))
+    (should (string= "Ralph Cockpit — 0 loops" line))))
+
+(ert-deftest beads-ralph-cockpit-test-mount-empty-shows-launch-hint ()
+  "An empty registry surfaces the first-time-user hint pointing at N."
+  (beads-ralph-cockpit-test--with-clean-registry
+    (beads-ralph-cockpit-test--with-buffer buf
+      (beads-ralph-cockpit--render buf)
+      (should (string-match-p "press N to launch" (buffer-string))))))
+
+(ert-deftest beads-ralph-cockpit-test-mount-no-match-shows-chip-hint ()
+  "A non-empty registry filtered down to zero hints at toggling chips."
+  (beads-ralph-cockpit-test--with-clean-registry
+    (beads-ralph-cockpit-test--with-buffer buf
+      (let ((c (beads-ralph-cockpit-test--make-controller :status 'running)))
+        (beads-agent-ralph--register-controller c)
+        (setq-local beads-ralph-cockpit--filters '(failed))
+        (beads-ralph-cockpit--render buf)
+        (should (string-match-p "toggle a chip" (buffer-string)))))))
+
+(ert-deftest beads-ralph-cockpit-test-help-mentions-keys ()
+  "`?' help echoes a one-line digest covering the main keys."
+  (let ((captured nil))
+    (cl-letf (((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq captured (apply #'format fmt args)))))
+      (beads-ralph-cockpit-help))
+    (should (string-match-p "\\[SPC/RET\\]switch" (or captured "")))
+    (should (string-match-p "\\[N\\]ew" (or captured "")))))
+
 ;;; Contested-claim detection
 
 (ert-deftest beads-ralph-cockpit-test-contested-detects-banner ()
@@ -262,13 +294,13 @@ severity; anything else is a different event."
         (should (string-match-p "\\[q\\]uit" text))))))
 
 (ert-deftest beads-ralph-cockpit-test-mount-empty-registry ()
-  "An empty registry renders cleanly with the \"no matching loops\" hint."
+  "An empty registry renders cleanly with the first-time-user hint."
   (beads-ralph-cockpit-test--with-clean-registry
     (beads-ralph-cockpit-test--with-buffer buf
       (beads-ralph-cockpit--render buf)
       (let ((text (buffer-string)))
         (should (string-match-p "0 loops" text))
-        (should (string-match-p "(no matching loops)" text))))))
+        (should (string-match-p "no loops yet" text))))))
 
 (ert-deftest beads-ralph-cockpit-test-mount-shows-contested-marker ()
   "A contested-claim controller surfaces the inline marker on its row."

@@ -275,14 +275,19 @@ header line shows zeros for empty groups instead of dropping them."
 ;;; Render: header
 
 (defun beads-ralph-cockpit--header-line (controllers)
-  "Return the cockpit header string for CONTROLLERS."
-  (let* ((total (length controllers))
-         (counts (beads-ralph-cockpit--badge-counts controllers))
-         (parts (mapconcat
-                 (lambda (cell)
-                   (format "%d %s" (cdr cell) (car cell)))
-                 counts " · ")))
-    (format "Ralph Cockpit — %d loops (%s)" total parts)))
+  "Return the cockpit header string for CONTROLLERS.
+Includes the per-group breakdown only when at least one loop is
+present; an empty registry renders \"Ralph Cockpit — 0 loops\" so
+the parens of zeros do not clutter the first-time view."
+  (let ((total (length controllers)))
+    (if (zerop total)
+        "Ralph Cockpit — 0 loops"
+      (format "Ralph Cockpit — %d loops (%s)"
+              total
+              (mapconcat
+               (lambda (cell) (format "%d %s" (cdr cell) (car cell)))
+               (beads-ralph-cockpit--badge-counts controllers)
+               " · ")))))
 
 ;;; Render: filter bar
 
@@ -374,22 +379,35 @@ inline."
 (defun beads-ralph-cockpit--action-bar ()
   "Return the action-bar legend vnode.
 The legend must mirror the bindings in
-`beads-ralph-cockpit-mode-map'; `n' / `M-p' navigate rows
-\(`p' is taken by pause)."
+`beads-ralph-cockpit-mode-map' and the message in
+`beads-ralph-cockpit-help'; `n' / `M-p' navigate rows (`p' is taken
+by pause).  Anyone who presses `?' should see the same set of keys
+advertised here at the foot of the buffer."
   (vui-text
    (concat
     "[SPC]switch · [s]top · [p]ause · [r]esume · [k]ill · "
-    "[n]/[M-p]move · [N]ew · [G]c-done · [f]ilter · [g]refresh · [q]uit")
+    "[n]/[M-p]move · [N]ew · [G]c-done · [f]ilter · "
+    "[g]refresh · [?]help · [q]uit")
    :face 'shadow))
 
 (defun beads-ralph-cockpit--rows-region (controllers filters)
   "Return the vnode for the body of the loop table.
-Renders either the filtered rows or a `(no matching loops)' hint."
+CONTROLLERS is the full registry view; FILTERS is the active
+badge-group subset.  Renders either the filtered rows or a short
+hint when nothing matches: an entirely-empty registry gets a
+first-time-user nudge pointing at `N' for the launcher; a
+non-empty registry with all filters off gets a chip-toggling
+hint instead."
   (let ((visible (beads-ralph-cockpit--filtered controllers filters)))
-    (if (null visible)
-        (vui-text "  (no matching loops)" :face 'shadow)
+    (cond
+     (visible
       (apply #'vui-vstack
-             (mapcar #'beads-ralph-cockpit--row-vnode visible)))))
+             (mapcar #'beads-ralph-cockpit--row-vnode visible)))
+     ((null controllers)
+      (vui-text "  (no loops yet — press N to launch one)" :face 'shadow))
+     (t
+      (vui-text "  (no matching loops — toggle a chip with f)"
+                :face 'shadow)))))
 
 (vui-defcomponent beads-ralph-cockpit--root (controllers filters)
   "Top-level cockpit composition.
@@ -605,12 +623,12 @@ terminal controllers to avoid confusing the user."
   (if (fboundp 'beads-ralph-epic-browser)
       (call-interactively 'beads-ralph-epic-browser)
     (user-error
-     "`beads-ralph-epic-browser' not available; require it first")))
+     "Epic browser not loaded.  Try `(require 'beads-ralph-epic-browser)'")))
 
 (defun beads-ralph-cockpit-gc-done ()
   "Remove terminal (done / stopped / failed) controllers from the registry.
 Cancels each evicted controller's pending eviction timer first
-(set by `--terminate' on the way into the terminal state) so a
+\(set by `--terminate' on the way into the terminal state) so a
 late tick cannot fire against an already-unregistered controller."
   (interactive)
   (let ((removed 0))
@@ -619,19 +637,24 @@ late tick cannot fire against an already-unregistered controller."
         (beads-agent-ralph--cancel-eviction-timer c)
         (beads-agent-ralph--unregister-controller c)
         (cl-incf removed)))
-    (message "Cockpit GC: dropped %d terminal controller(s)" removed)
+    (message
+     (pcase removed
+       (0 "Cockpit GC: nothing terminal in the registry")
+       (1 "Cockpit GC: dropped 1 terminal controller")
+       (n (format "Cockpit GC: dropped %d terminal controllers" n))))
     (beads-ralph-cockpit-refresh)))
 
 (defun beads-ralph-cockpit-toggle-filter ()
-  "Toggle the filter chip at point, or cycle the next chip if no chip."
+  "Toggle the filter chip at point.
+Errors with a hint when point is not inside a chip; move point
+onto a chip in the filter bar (line 3) and press again."
   (interactive)
   (let ((group (beads-ralph-cockpit--filter-group-at-point)))
     (unless group
-      (user-error "Point not on a filter chip"))
-    (if (memq group beads-ralph-cockpit--filters)
-        (setq-local beads-ralph-cockpit--filters
-                    (remq group beads-ralph-cockpit--filters))
-      (setq-local beads-ralph-cockpit--filters
+      (user-error "Point not on a filter chip; move onto one in the Filter bar"))
+    (setq-local beads-ralph-cockpit--filters
+                (if (memq group beads-ralph-cockpit--filters)
+                    (remq group beads-ralph-cockpit--filters)
                   (cons group beads-ralph-cockpit--filters)))
     (beads-ralph-cockpit-refresh)))
 
@@ -644,6 +667,15 @@ late tick cannot fire against an already-unregistered controller."
   "Move point to the previous row."
   (interactive)
   (forward-line -1))
+
+(defun beads-ralph-cockpit-help ()
+  "Echo the full keymap legend.
+Mirrors the action-bar legend so `?' and the buffer footer agree."
+  (interactive)
+  (message
+   (concat
+    "Cockpit keys: [SPC/RET]switch [s]top [p]ause [r]esume [k]ill "
+    "[n]/[M-p]move [N]ew [G]c-done [f]ilter [g]refresh [?]help [q]uit")))
 
 ;;; State-change subscription + debounce
 
@@ -691,7 +723,10 @@ the registry's internal representation."
            (beads-agent-ralph-controllers)))
 
 (defun beads-ralph-cockpit--reconcile-refresh-timer (buffer)
-  "Start or stop the 1s refresh timer based on registry activity."
+  "Start or stop BUFFER's 1s refresh timer based on registry activity.
+Arms the buffer-local timer when at least one controller is in
+`running' or `cooling-down'; cancels it otherwise so an idle Emacs
+with the cockpit open does not tick."
   (with-current-buffer buffer
     (cond
      ((and (beads-ralph-cockpit--any-active-p)
@@ -709,7 +744,7 @@ the registry's internal representation."
 (defun beads-ralph-cockpit--refresh-tick (buffer)
   "Timer callback: re-render BUFFER unless dead.
 On a dead buffer cancels every timer pointing at this function so a
-late tick after a kill-buffer that bypassed `kill-buffer-hook'
+late tick after a `kill-buffer' that bypassed `kill-buffer-hook'
 \(e.g. `kill-emacs') cannot keep firing."
   (if (not (buffer-live-p buffer))
       (cancel-function-timers #'beads-ralph-cockpit--refresh-tick)
@@ -743,6 +778,7 @@ late tick after a kill-buffer that bypassed `kill-buffer-hook'
     (define-key map (kbd "g") #'beads-ralph-cockpit-refresh)
     (define-key map (kbd "n") #'beads-ralph-cockpit-next-row)
     (define-key map (kbd "M-p") #'beads-ralph-cockpit-previous-row)
+    (define-key map (kbd "?") #'beads-ralph-cockpit-help)
     (define-key map (kbd "q") #'quit-window)
     map)
   "Keymap for `beads-ralph-cockpit-mode'.
