@@ -481,6 +481,73 @@ do not survive `vui-mount')."
         (beginning-of-line)
         (should-error (beads-ralph-cockpit-resume) :type 'user-error)))))
 
+;;; Point preservation across remount
+
+(ert-deftest beads-ralph-cockpit-test-render-preserves-chip-point ()
+  "Re-rendering keeps point on the same filter chip.
+`vui-mount' resets point to `point-min'; without the capture/restore
+dance in `--render' the chip would slide out from under the cursor
+each time `f' toggles it, breaking iterative chip flips."
+  (beads-ralph-cockpit-test--with-clean-registry
+    (beads-ralph-cockpit-test--with-buffer buf
+      (beads-ralph-cockpit--render buf)
+      (goto-char (point-min))
+      (re-search-forward "\\[done " nil t)
+      (goto-char (1+ (match-beginning 0)))
+      (should (eq 'done (beads-ralph-cockpit--filter-group-at-point)))
+      (beads-ralph-cockpit--render buf)
+      (should (eq 'done (beads-ralph-cockpit--filter-group-at-point))))))
+
+(ert-deftest beads-ralph-cockpit-test-render-preserves-row-point ()
+  "Re-rendering keeps point on the same row."
+  (beads-ralph-cockpit-test--with-clean-registry
+    (beads-ralph-cockpit-test--with-buffer buf
+      (let ((a (beads-ralph-cockpit-test--make-controller
+                :root-id "bde-rp1" :status 'running))
+            (b (beads-ralph-cockpit-test--make-controller
+                :root-id "bde-rp2" :status 'running)))
+        (beads-agent-ralph--register-controller a)
+        (beads-agent-ralph--register-controller b)
+        (beads-ralph-cockpit--render buf)
+        (goto-char (point-min))
+        (re-search-forward "bde-rp1" nil t)
+        (beginning-of-line)
+        (should (equal "bde-rp1"
+                       (beads-ralph-cockpit--root-id-at-point)))
+        (beads-ralph-cockpit--render buf)
+        (should (equal "bde-rp1"
+                       (beads-ralph-cockpit--root-id-at-point)))))))
+
+(ert-deftest beads-ralph-cockpit-test-render-restore-handles-vanished-row ()
+  "Restoration is a no-op when the captured row no longer exists."
+  (beads-ralph-cockpit-test--with-clean-registry
+    (beads-ralph-cockpit-test--with-buffer buf
+      (let ((c (beads-ralph-cockpit-test--make-controller
+                :root-id "bde-vp1" :status 'running)))
+        (beads-agent-ralph--register-controller c)
+        (beads-ralph-cockpit--render buf)
+        (goto-char (point-min))
+        (re-search-forward "bde-vp1")
+        (beginning-of-line)
+        ;; Vanish the row and re-render.
+        (beads-agent-ralph--unregister-controller c)
+        (beads-ralph-cockpit--render buf)
+        ;; Should not error; row gone.
+        (should (null (beads-ralph-cockpit--root-id-at-point)))))))
+
+;;; Refresh-from-wrong-buffer guard
+
+(ert-deftest beads-ralph-cockpit-test-refresh-rejects-foreign-buffer ()
+  "Calling `--refresh' interactively in a non-cockpit buffer errors out."
+  (let ((buf (generate-new-buffer "*not-a-cockpit*")))
+    (unwind-protect
+        (with-current-buffer buf
+          ;; Default fundamental-mode; refresh must refuse rather than
+          ;; auto-convert this buffer to cockpit mode.
+          (should-error (beads-ralph-cockpit-refresh) :type 'user-error)
+          (should-not (eq major-mode 'beads-ralph-cockpit-mode)))
+      (kill-buffer buf))))
+
 ;;; GC
 
 (ert-deftest beads-ralph-cockpit-test-gc-drops-terminal-controllers ()

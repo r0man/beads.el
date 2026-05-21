@@ -417,21 +417,59 @@ is the active badge-group subset."
 
 ;;; Render driver
 
+(defun beads-ralph-cockpit--capture-point ()
+  "Return a token describing where point sits, for restoration after remount.
+The token is one of:
+  (:row ROOT-ID)    point was on a controller row;
+  (:chip GROUP)     point was on a filter chip;
+  nil               point was elsewhere.
+`vui-mount' resets point to `point-min', so without restoration the
+cursor would jump to the header after every render — making `f' on a
+chip useless because the chip moves out from under point on the
+re-render that the toggle itself triggers."
+  (let ((row-id (beads-ralph-cockpit--root-id-at-point))
+        (chip (beads-ralph-cockpit--filter-group-at-point)))
+    (cond
+     (row-id (list :row row-id))
+     (chip (list :chip chip))
+     (t nil))))
+
+(defun beads-ralph-cockpit--restore-point (token)
+  "Move point to the location described by TOKEN, if possible.
+A no-op when TOKEN is nil or the target has disappeared (e.g. the
+controller was GC'd between renders)."
+  (pcase token
+    (`(:row ,id)
+     (goto-char (point-min))
+     (when (re-search-forward (format "^  %s\\s-" (regexp-quote id)) nil t)
+       (beginning-of-line)))
+    (`(:chip ,group)
+     (goto-char (point-min))
+     (when (re-search-forward
+            (format "\\[%s [✓✗]\\]" (regexp-quote (symbol-name group)))
+            nil t)
+       (goto-char (1+ (match-beginning 0)))))))
+
 (defun beads-ralph-cockpit--render (buffer)
-  "Mount the cockpit component into BUFFER from the current registry."
+  "Mount the cockpit component into BUFFER from the current registry.
+Preserves point across `vui-mount' (which would otherwise reset it
+to `point-min') so a `g' refresh or filter toggle keeps the cursor
+on the row or chip the user was looking at."
   (with-current-buffer buffer
     (unless (eq major-mode 'beads-ralph-cockpit-mode)
       (beads-ralph-cockpit-mode))
     (add-hook 'kill-buffer-hook
               #'beads-ralph-cockpit--kill-buffer-cleanup
               nil t)
-    (let ((controllers (beads-agent-ralph-controllers))
+    (let ((token (beads-ralph-cockpit--capture-point))
+          (controllers (beads-agent-ralph-controllers))
           (filters beads-ralph-cockpit--filters))
       (vui-mount
        (vui-component 'beads-ralph-cockpit--root
                       :controllers controllers
                       :filters filters)
        (buffer-name buffer))
+      (beads-ralph-cockpit--restore-point token)
       ;; The refresh timer state depends on whether any loop is
       ;; currently in running/cooling-down; reconcile on every render
       ;; so a controller transitioning into running re-arms the timer.
@@ -486,8 +524,13 @@ and returns the GROUP whose column range covers point."
 ;;; Interactive commands
 
 (defun beads-ralph-cockpit-refresh ()
-  "Force a re-render of the cockpit buffer."
+  "Force a re-render of the cockpit buffer.
+Refuses when called outside a cockpit buffer; `--render' would
+otherwise auto-enable `beads-ralph-cockpit-mode' on the buffer that
+happened to be current, clobbering whatever the user was looking at."
   (interactive)
+  (unless (eq major-mode 'beads-ralph-cockpit-mode)
+    (user-error "Not in a Ralph cockpit buffer"))
   (beads-ralph-cockpit--render (current-buffer)))
 
 (defun beads-ralph-cockpit-switch ()
