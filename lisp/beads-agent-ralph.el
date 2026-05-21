@@ -2217,8 +2217,21 @@ HEAD SHA and diff are computed synchronously via
 `--current-git-head' / `--git-diff-since' in the controller's working
 directory.  The first review (when `last-review-git-ref' is nil)
 treats the diff as empty -- the gate decision then turns solely on
-the closed-count delta."
+the closed-count delta.
+
+Defensive guards:
+ - If the controller has already left the running family of states
+   (stop, terminate, auto-pause) between the initial call and the
+   bd-list-async callback, the callback is a no-op so a queued
+   thunk cannot resurrect a stopped loop.
+ - If bd-list-async fails, the prior `last-review-closed-count'
+   snapshot is preserved (treated as \"no new info\"), and the gate
+   still fires when the diff is also empty.  This keeps the loop
+   progressing toward `epic-complete' rather than hanging on a
+   transient bd outage."
   (cond
+   ((memq (oref controller status) '(stopped done failed auto-paused))
+    nil)
    ((>= (oref controller consecutive-empty-reviews)
         (oref controller max-consecutive-empty-reviews))
     (beads-agent-ralph--terminate controller 'epic-complete))
@@ -2226,53 +2239,74 @@ the closed-count delta."
     (beads-agent-ralph--bd-list-children-async
      (oref controller root-id)
      (lambda (ok result)
-       (let* ((issues (and ok result))
-              (closed-count
-               (beads-agent-ralph--count-closed-children issues))
-              (delta (- closed-count
-                        (oref controller last-review-closed-count)))
-              (work-dir (beads-agent-ralph--controller-work-dir controller))
-              (head (beads-agent-ralph--current-git-head work-dir))
-              (prior-ref (oref controller last-review-git-ref))
-              (diff (and prior-ref
-                         (beads-agent-ralph--git-diff-since
-                          work-dir prior-ref)))
-              (empty-diff (or (null prior-ref)
-                              (null diff)
-                              (string-empty-p diff)))
-              (no-new-work (and (<= delta 0) empty-diff)))
-         (cond
-          (no-new-work
-           (cl-incf (oref controller consecutive-empty-reviews))
-           (when head
-             (oset controller last-review-git-ref head))
-           (oset controller last-review-closed-count closed-count)
-           (push (beads-agent-ralph--iteration
-                  :issue-id (oref controller root-id)
-                  :status 'finished
-                  :iter-number (oref controller iteration)
-                  :kind 'review
-                  :gated t)
-                 (oref controller history))
-           (beads-agent-ralph--push-banner
-            controller 'notice
-            (format "Review %d/%d gated: no work since last review"
-                    (oref controller consecutive-empty-reviews)
-                    (oref controller max-consecutive-empty-reviews)))
-           (beads-agent-ralph--dashboard-rerender controller)
-           ;; Break the stack across the recursion so a deep cap
-           ;; cannot blow the call stack and `--terminate' state
-           ;; transitions interleave with the dashboard render.
-           (run-at-time 0 nil
-                        #'beads-agent-ralph--maybe-enter-review controller))
-          (t
-           (beads-agent-ralph--set-status controller 'cooling-down)
-           (beads-agent-ralph--schedule-next-iteration
-            controller
-            (lambda ()
-              (beads-agent-ralph--set-status controller 'running)
-              (beads-agent-ralph--run-iteration
-               controller :mode 'review)))))))))))
+       (beads-agent-ralph--maybe-enter-review-decide
+        controller ok result))))))
+
+(defun beads-agent-ralph--maybe-enter-review-decide (controller ok result)
+  "Apply the pre-LLM gate decision for CONTROLLER using bd-list RESULT.
+OK is the success flag from `--bd-list-children-async'; RESULT is its
+issue list (or error payload).  Split out from `--maybe-enter-review'
+so the gate's branching logic stays readable and so unit tests can
+exercise it without a stubbed async dispatcher.
+
+On bd-list failure, `closed-count' falls back to the existing
+`last-review-closed-count' snapshot so the delta is zero and the
+gate's decision turns on the diff alone.  A notice banner records
+the fallback for the user."
+  (unless (memq (oref controller status) '(stopped done failed auto-paused))
+    (let* ((prev-closed (oref controller last-review-closed-count))
+           (closed-count
+            (if ok
+                (beads-agent-ralph--count-closed-children result)
+              prev-closed))
+           (delta (- closed-count prev-closed))
+           (work-dir (beads-agent-ralph--controller-work-dir controller))
+           (head (beads-agent-ralph--current-git-head work-dir))
+           (prior-ref (oref controller last-review-git-ref))
+           (diff (and prior-ref
+                      (beads-agent-ralph--git-diff-since
+                       work-dir prior-ref)))
+           (empty-diff (or (null prior-ref)
+                           (null diff)
+                           (string-empty-p diff)))
+           (no-new-work (and (<= delta 0) empty-diff)))
+      (unless ok
+        (beads-agent-ralph--push-banner
+         controller 'notice
+         "bd list failed during review gate; using cached snapshot"))
+      (cond
+       (no-new-work
+        (cl-incf (oref controller consecutive-empty-reviews))
+        (when head
+          (oset controller last-review-git-ref head))
+        (when ok
+          (oset controller last-review-closed-count closed-count))
+        (push (beads-agent-ralph--iteration
+               :issue-id (oref controller root-id)
+               :status 'finished
+               :iter-number (oref controller iteration)
+               :kind 'review
+               :gated t)
+              (oref controller history))
+        (beads-agent-ralph--push-banner
+         controller 'notice
+         (format "Review %d/%d gated: no work since last review"
+                 (oref controller consecutive-empty-reviews)
+                 (oref controller max-consecutive-empty-reviews)))
+        (beads-agent-ralph--dashboard-rerender controller)
+        ;; Break the stack across the recursion so a deep cap cannot
+        ;; blow the call stack and `--terminate' state transitions
+        ;; interleave with the dashboard render.
+        (run-at-time 0 nil
+                     #'beads-agent-ralph--maybe-enter-review controller))
+       (t
+        (beads-agent-ralph--set-status controller 'cooling-down)
+        (beads-agent-ralph--schedule-next-iteration
+         controller
+         (lambda ()
+           (beads-agent-ralph--set-status controller 'running)
+           (beads-agent-ralph--run-iteration
+            controller :mode 'review))))))))
 
 (defun beads-agent-ralph--continue-after-iteration (controller)
   "Schedule the next iteration body on CONTROLLER unless terminating.

@@ -1449,6 +1449,46 @@ review iteration rather than firing the gate."
     (should (eq (oref c status) 'done))
     (should (eq (oref c done-reason) 'epic-complete))))
 
+(ert-deftest beads-agent-ralph-test-maybe-enter-review-noop-when-terminal ()
+  "`--maybe-enter-review' is a no-op when CONTROLLER is already terminal.
+Guards against a queued recursion (via `run-at-time' 0) firing after
+the user has stopped or `--terminate' has run for another reason."
+  (let ((c (beads-agent-ralph-test--make-controller
+            :status 'stopped :done-reason 'stop :root-kind 'epic
+            :consecutive-empty-reviews 0 :max-consecutive-empty-reviews 2
+            :history nil))
+        (called nil))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-list-children-async)
+               (lambda (_id _k) (setq called t))))
+      (beads-agent-ralph--maybe-enter-review c))
+    (should-not called)
+    (should (eq (oref c status) 'stopped))
+    (should (null (oref c history)))))
+
+(ert-deftest beads-agent-ralph-test-maybe-enter-review-bd-list-failure-falls-back ()
+  "On bd-list failure the closed-count snapshot is preserved.
+With prior snapshot 4 and a failed bd-list, delta is treated as 0;
+when the diff is also empty the gate fires and the snapshot stays 4."
+  (let ((c (beads-agent-ralph-test--make-controller
+            :status 'running :root-kind 'epic
+            :consecutive-empty-reviews 0 :max-consecutive-empty-reviews 2
+            :last-review-git-ref nil :last-review-closed-count 4
+            :history nil)))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-list-children-async)
+               (lambda (_id k) (funcall k nil "bd unavailable")))
+              ((symbol-function 'beads-agent-ralph--current-git-head)
+               (lambda (_dir) "headsha"))
+              ((symbol-function 'beads-agent-ralph--git-diff-since)
+               (lambda (_dir _ref) ""))
+              ((symbol-function 'run-at-time)
+               (lambda (_d _r _fn &rest _a) 'stubbed)))
+      (beads-agent-ralph--maybe-enter-review c))
+    (should (= (oref c consecutive-empty-reviews) 1))
+    (should (= (oref c last-review-closed-count) 4))
+    (let ((rec (car (oref c history))))
+      (should rec)
+      (should (eq (oref rec gated) t)))))
+
 (ert-deftest beads-agent-ralph-test-run-iteration-issue-mode-uses-root-id ()
   "Issue mode sets `current-issue-id' to the root and spawns a stream."
   (let* ((c (beads-agent-ralph-test--make-controller
