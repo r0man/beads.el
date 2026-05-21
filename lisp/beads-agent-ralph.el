@@ -1457,7 +1457,7 @@ bd's `--ready' already excludes blocked issues."
        (funcall callback nil err)))))
 
 (defun beads-agent-ralph--bd-list-closed-children-async (parent-id callback)
-  "List closed children of PARENT-ID via `bd list --parent ... --status closed --json'.
+  "List closed children of PARENT-ID via `bd list --status closed --json'.
 CALLBACK receives (success ISSUES-OR-ERROR).  ISSUES is a list of
 `beads-issue' objects, possibly empty.  Sibling of
 `beads-agent-ralph--bd-ready-children-async'; used by review
