@@ -827,8 +827,13 @@ which shows daemon status and database statistics."
 (autoload 'beads-agent-ralph-show-history "beads-agent-ralph"
   "Pop to a Ralph controller's dashboard buffer." t)
 
-;; Ralph Wiggum UX (bde-deqx) — cockpit, epic browser, and the
-;; context-sensitive launch-at-point command.  Loaded on demand.
+;;; Ralph Wiggum UX wiring (bde-deqx)
+;;
+;; Cockpit, epic browser, and the context-sensitive launch-at-point
+;; command — loaded on demand.  The two issue-id helpers are
+;; autoloaded so the buffer-local `L' binding works in any beads
+;; mode without requiring `beads-agent' eagerly.
+
 ;;;###autoload
 (autoload 'beads-ralph-cockpit "beads-ralph-cockpit"
   "Open the singleton Ralph cockpit buffer." t)
@@ -845,22 +850,19 @@ which shows daemon status and database statistics."
 (autoload 'beads-detect-issue-id "beads-agent"
   "Detect a beads issue ID from the current buffer context.")
 
-;; Wire the new Ralph entry points into the existing top-level
-;; `beads' transient via `transient-append-suffix' (NOT
-;; `beads-menu' — the prefix really is named `beads', see the
-;; `transient-define-prefix' form above).  The decision to keep
-;; `E' on `beads-epic-menu' and place the new epic browser on
-;; `M-e' (with `R' for the cockpit) is documented on bead
-;; bde-deqx.7: `E' is the existing muscle-memory key for the epic
-;; transient, so we leave it alone and add a meta-prefixed
-;; sibling.  Both entries live in the `Views' column, anchored
-;; after the existing `E' suffix so the layout is robust against
-;; future shuffles of the surrounding groups.
+;; Append two suffixes to the top-level `beads' prefix (note: the
+;; prefix is named `beads', not `beads-menu' — see the
+;; `transient-define-prefix' form above).  `E' stays on the
+;; existing epic transient (muscle memory); the new epic browser
+;; takes `M-e' as its meta-prefixed sibling, and `R' takes the
+;; cockpit.  Both anchor inside the `Views' column so they remain
+;; co-located with the other read-only views even if the
+;; surrounding groups are reshuffled later.
 (with-eval-after-load 'transient
   (transient-append-suffix 'beads "E"
     '("R" "Ralph cockpit" beads-ralph-cockpit))
   (transient-append-suffix 'beads "R"
-    '("M-e" "Epics (Ralph)" beads-ralph-epic-browser)))
+    '("M-e" "Ralph epics" beads-ralph-epic-browser)))
 
 ;;; Footer
 

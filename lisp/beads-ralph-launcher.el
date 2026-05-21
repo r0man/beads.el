@@ -875,8 +875,8 @@ Resolution order:
   2. If no context, prompt with completion.
   3. Fetch the issue via `bd show --json' to read its
      `issue_type'.  When the type is the literal string \"epic\",
-     the launcher opens with kind \\='epic; otherwise with
-     kind \\='issue.
+     the launcher opens with kind set to `epic'; otherwise to
+     `issue'.
 
 The resolved `beads-issue' object is forwarded to the launcher so
 its header populates without a second round trip to bd."
