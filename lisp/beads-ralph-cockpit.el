@@ -193,13 +193,18 @@ Used to distinguish the collapsed sub-states inside a badge group:
       (symbol-name group))))
 
 (defun beads-ralph-cockpit--badge-face (status)
-  "Return the face symbol for STATUS's badge group."
+  "Return the face symbol for STATUS's badge group.
+The trailing `_' arm mirrors `--badge-group's `active' fallback so
+an unknown status renders in the active face rather than as
+unfaced text (which would happen if the pcase fell through to nil
+and `propertize :face nil' silently dropped the property)."
   (pcase (beads-ralph-cockpit--badge-group status)
     ('active 'beads-ralph-cockpit-badge-active-face)
     ('paused 'beads-ralph-cockpit-badge-paused-face)
     ('done 'beads-ralph-cockpit-badge-done-face)
     ('stopped 'beads-ralph-cockpit-badge-stopped-face)
-    ('failed 'beads-ralph-cockpit-badge-failed-face)))
+    ('failed 'beads-ralph-cockpit-badge-failed-face)
+    (_ 'beads-ralph-cockpit-badge-active-face)))
 
 (defun beads-ralph-cockpit--format-elapsed (started-at)
   "Return a human-readable elapsed-time string since STARTED-AT.
@@ -472,13 +477,15 @@ controller was GC'd between renders)."
   "Mount the cockpit component into BUFFER from the current registry.
 Preserves point across `vui-mount' (which would otherwise reset it
 to `point-min') so a `g' refresh or filter toggle keeps the cursor
-on the row or chip the user was looking at."
+on the row or chip the user was looking at.
+
+The `kill-buffer-hook' subscriber is installed in
+`beads-ralph-cockpit-mode' (a one-shot in the mode body) rather
+than on every render call — `add-hook' is idempotent but enabling
+the mode once is the Emacs convention."
   (with-current-buffer buffer
     (unless (eq major-mode 'beads-ralph-cockpit-mode)
       (beads-ralph-cockpit-mode))
-    (add-hook 'kill-buffer-hook
-              #'beads-ralph-cockpit--kill-buffer-cleanup
-              nil t)
     (let ((token (beads-ralph-cockpit--capture-point))
           (controllers (beads-agent-ralph-controllers))
           (filters beads-ralph-cockpit--filters))
@@ -497,10 +504,14 @@ on the row or chip the user was looking at."
 
 (defun beads-ralph-cockpit--root-id-at-point ()
   "Return the root-id on the current line, or nil.
-Cockpit rows start with a two-space indent then the id."
+Cockpit rows start with a two-space indent then the id, then
+whitespace (the row formatter pads the id column with `%-12s '
+which always trails with a space).  The character-class is
+`[^[:space:]]+' rather than `[A-Za-z0-9.-]+' so an unusual id
+containing e.g. an underscore still resolves."
   (save-excursion
     (beginning-of-line)
-    (when (looking-at "^  \\([A-Za-z0-9.-]+\\)\\s-")
+    (when (looking-at "^  \\([^[:space:]]+\\)\\s-")
       (let ((id (match-string-no-properties 1)))
         (when (beads-agent-ralph-controller-for-root id)
           id)))))
@@ -586,15 +597,21 @@ Refuses on terminal controllers — pausing `done' / `stopped' /
   "Resume the loop at point from `auto-paused' or `stopped'.
 Mirrors the dashboard's resume contract (`auto-paused' and the
 user-initiated `stopped' are the only resumable states; the
-controller never enters a separate `paused' status)."
+controller never enters a separate `paused' status).
+
+NOTE on AC #7: `beads-agent-ralph.el' does not (yet) expose a
+public `beads-agent-ralph-resume', so this body is a deliberate
+duplicate of `beads-agent-ralph-dashboard-resume' — the same
+crumb-clearing, `--set-status', `--schedule-next-iteration'
+sequence, with the eviction timer also cancelled for the
+resumed-from-stopped case.  Consolidation is tracked as a
+follow-up bd issue; both call sites must stay in lock-step
+until then."
   (interactive)
   (let ((ctrl (beads-ralph-cockpit--controller-at-point)))
     (unless (memq (oref ctrl status) '(auto-paused stopped))
       (user-error "%s is %s; only auto-paused or stopped can be resumed"
                   (oref ctrl root-id) (oref ctrl status)))
-    ;; A resumed-from-stopped controller has an eviction timer armed
-    ;; by `--terminate'; cancel it so the resumed loop is not silently
-    ;; unregistered partway through.
     (beads-agent-ralph--cancel-eviction-timer ctrl)
     (oset ctrl done-reason nil)
     (beads-agent-ralph--set-status ctrl 'cooling-down)
@@ -709,6 +726,13 @@ Mirrors the action-bar legend so `?' and the buffer footer agree."
     (when buf
       (beads-ralph-cockpit--schedule-rerender buf))))
 
+;; Subscribe once at file-load time.  This is the same pattern as
+;; `beads-ralph-epic-browser' and the mode-line subscriber: the hook
+;; entry persists for the Emacs session and is harmless when the
+;; singleton buffer is not live (`--on-state-change' bails via
+;; `get-buffer').  We deliberately do not remove the hook on
+;; `kill-buffer' — re-loading the file via `eval-buffer' would then
+;; orphan the buffer from future state changes.
 (add-hook 'beads-agent-ralph-state-change-functions
           #'beads-ralph-cockpit--on-state-change)
 
@@ -726,28 +750,38 @@ the registry's internal representation."
   "Start or stop BUFFER's 1s refresh timer based on registry activity.
 Arms the buffer-local timer when at least one controller is in
 `running' or `cooling-down'; cancels it otherwise so an idle Emacs
-with the cockpit open does not tick."
+with the cockpit open does not tick.
+
+The arming branch builds a closure that captures the timer it is
+about to create (forward-declared as `timer-self') so
+`--refresh-tick' can cancel exactly that timer if it fires
+against a dead buffer — `cancel-function-timers' would over-cancel
+across multiple cockpit buffers (test fixtures spawn several)."
   (with-current-buffer buffer
     (cond
      ((and (beads-ralph-cockpit--any-active-p)
            (not beads-ralph-cockpit--refresh-timer))
-      (setq-local beads-ralph-cockpit--refresh-timer
-                  (run-at-time beads-ralph-cockpit-refresh-interval
-                               beads-ralph-cockpit-refresh-interval
-                               #'beads-ralph-cockpit--refresh-tick
-                               buffer)))
+      (let (timer-self)
+        (setq timer-self
+              (run-at-time beads-ralph-cockpit-refresh-interval
+                           beads-ralph-cockpit-refresh-interval
+                           (lambda ()
+                             (beads-ralph-cockpit--refresh-tick
+                              buffer timer-self))))
+        (setq-local beads-ralph-cockpit--refresh-timer timer-self)))
      ((and (not (beads-ralph-cockpit--any-active-p))
            beads-ralph-cockpit--refresh-timer)
       (cancel-timer beads-ralph-cockpit--refresh-timer)
       (setq-local beads-ralph-cockpit--refresh-timer nil)))))
 
-(defun beads-ralph-cockpit--refresh-tick (buffer)
+(defun beads-ralph-cockpit--refresh-tick (buffer self-timer)
   "Timer callback: re-render BUFFER unless dead.
-On a dead buffer cancels every timer pointing at this function so a
-late tick after a `kill-buffer' that bypassed `kill-buffer-hook'
-\(e.g. `kill-emacs') cannot keep firing."
+Cancels exactly SELF-TIMER (the closed-over reference to the
+timer that fired) when BUFFER is gone, so a late tick after a
+`kill-buffer' that bypassed `kill-buffer-hook' (e.g. `kill-emacs')
+stops firing without affecting other cockpit buffers' timers."
   (if (not (buffer-live-p buffer))
-      (cancel-function-timers #'beads-ralph-cockpit--refresh-tick)
+      (when (timerp self-timer) (cancel-timer self-timer))
     (with-current-buffer buffer
       (when (eq major-mode 'beads-ralph-cockpit-mode)
         (condition-case err
@@ -790,7 +824,10 @@ Note: `p' is bound to pause (matching the per-loop dashboard); use
   "Major mode for the Ralph multi-loop cockpit.
 
 \\{beads-ralph-cockpit-mode-map}"
-  (setq truncate-lines t))
+  (setq truncate-lines t)
+  (add-hook 'kill-buffer-hook
+            #'beads-ralph-cockpit--kill-buffer-cleanup
+            nil t))
 
 ;;; Entry point
 
