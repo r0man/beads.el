@@ -461,6 +461,354 @@ the fetch-root step."
     (oset c root-notes-snapshot "hello")
     (should (equal (oref c root-notes-snapshot) "hello"))))
 
+;;; bde-c95u.5: review iteration body
+
+(ert-deftest beads-agent-ralph-test-placeholder-regexp-covers-max-followups ()
+  "The placeholder regexp recognises <MAX-FOLLOWUPS> alongside the other
+review-mode tokens added in bde-c95u.1.  Required so the review
+prompt's cap directive substitutes correctly rather than collapsing
+to the empty string."
+  (should (string-match-p beads-agent-ralph--placeholder-regexp
+                          "<MAX-FOLLOWUPS>")))
+
+(ert-deftest beads-agent-ralph-test-bd-list-closed-children-async-shape ()
+  "`--bd-list-closed-children-async' issues `bd list --parent ... --status closed --json'.
+Captures the `beads-command-list' instance passed to
+`beads-command-execute-async' and asserts its `parent', `status', and
+`json' slots match the documented contract.  No bd subprocess runs:
+the async dispatcher is stubbed.  Sibling-shape check for
+`--bd-ready-children-async' lives elsewhere in this file."
+  (let ((captured-cmd nil)
+        (callback-result nil))
+    (cl-letf (((symbol-function 'beads-command-execute-async)
+               (lambda (cmd ok-cb _err-cb)
+                 (setq captured-cmd cmd)
+                 (funcall ok-cb nil))))
+      (beads-agent-ralph--bd-list-closed-children-async
+       "bde-root"
+       (lambda (ok result)
+         (setq callback-result (list ok result)))))
+    (should captured-cmd)
+    (should (equal (oref captured-cmd parent) "bde-root"))
+    (should (equal (oref captured-cmd status) beads-status-closed))
+    (should (eq (oref captured-cmd json) t))
+    (should (equal callback-result (list t nil)))))
+
+(ert-deftest beads-agent-ralph-test-bd-list-closed-children-async-error ()
+  "`--bd-list-closed-children-async' propagates bd errors as (nil ERR)."
+  (let (result)
+    (cl-letf (((symbol-function 'beads-command-execute-async)
+               (lambda (_cmd _ok-cb err-cb) (funcall err-cb 'boom))))
+      (beads-agent-ralph--bd-list-closed-children-async
+       "bde-root"
+       (lambda (ok err) (setq result (list ok err)))))
+    (should (equal result (list nil 'boom)))))
+
+(ert-deftest beads-agent-ralph-test-render-closed-children-summary-empty ()
+  "Empty input collapses to the empty string -- the placeholder vanishes."
+  (should (equal (beads-agent-ralph--render-closed-children-summary nil)
+                 ""))
+  (should (equal (beads-agent-ralph--render-closed-children-summary '())
+                 "")))
+
+(ert-deftest beads-agent-ralph-test-render-closed-children-summary-formats ()
+  "Three closed issues render as `[ID] TITLE' lines, newline-joined.
+The renderer reads `id' and `title' off `beads-issue' objects and
+emits one line per issue in receive-order."
+  (let* ((a (beads-agent-ralph-test--make-issue :id "bde-aaa" :title "Implement foo"))
+         (b (beads-agent-ralph-test--make-issue :id "bde-bbb" :title "Wire bar"))
+         (c (beads-agent-ralph-test--make-issue :id "bde-ccc" :title "Document baz"))
+         (out (beads-agent-ralph--render-closed-children-summary (list a b c))))
+    (should (equal out
+                   "[bde-aaa] Implement foo\n[bde-bbb] Wire bar\n[bde-ccc] Document baz"))))
+
+(ert-deftest beads-agent-ralph-test-render-closed-children-summary-caps ()
+  "Lists longer than the cap truncate to the first CAP entries with a marker.
+Bd returns newest-first, so the kept slice is the most recently closed
+work which is the most likely source of regressions worth filing
+follow-ups against.  The truncation marker tells the agent how many
+older entries were dropped."
+  (let* ((issues (cl-loop for i from 1 to 7
+                          collect (beads-agent-ralph-test--make-issue
+                                   :id (format "bde-%03d" i)
+                                   :title (format "t%d" i))))
+         (out (beads-agent-ralph--render-closed-children-summary issues 3)))
+    (should (string-match-p "\\`\\[bde-001\\] t1\n" out))
+    (should (string-match-p "\\[bde-003\\] t3\n" out))
+    (should-not (string-match-p "\\[bde-004\\]" out))
+    (should (string-match-p
+             "\\.\\.\\. (4 older closed children truncated)\\'" out))))
+
+(ert-deftest beads-agent-ralph-test-render-closed-children-summary-under-cap ()
+  "Under the cap, no truncation marker is appended -- the body alone."
+  (let* ((issues (list (beads-agent-ralph-test--make-issue
+                        :id "bde-aaa" :title "only")))
+         (out (beads-agent-ralph--render-closed-children-summary issues 3)))
+    (should (equal out "[bde-aaa] only"))
+    (should-not (string-match-p "truncated" out))))
+
+(ert-deftest beads-agent-ralph-test-git-diff-since-ref-nil-ref ()
+  "`--git-diff-since-ref' returns the marker string when REF is nil.
+First-review case: there is no prior reference, so the placeholder
+falls back to a marker the agent can read instead of an empty section.
+The underlying `--git-diff-since' is NOT called -- nil REF
+short-circuits."
+  (let ((called nil))
+    (cl-letf (((symbol-function 'beads-agent-ralph--git-diff-since)
+               (lambda (_dir _ref) (setq called t) "irrelevant")))
+      (should (equal (beads-agent-ralph--git-diff-since-ref "/tmp" nil)
+                     "(no prior review reference)"))
+      (should-not called))))
+
+(ert-deftest beads-agent-ralph-test-git-diff-since-ref-git-failure ()
+  "`--git-diff-since-ref' returns the empty string when the underlying helper fails.
+A nil return from `--git-diff-since' (DIR missing, git missing, or
+non-zero exit) renders as an empty placeholder -- the agent does not
+see a confusing failure marker."
+  (cl-letf (((symbol-function 'beads-agent-ralph--git-diff-since)
+             (lambda (_dir _ref) nil)))
+    (should (equal (beads-agent-ralph--git-diff-since-ref "/tmp" "abc123")
+                   ""))))
+
+(ert-deftest beads-agent-ralph-test-git-diff-since-ref-passthrough ()
+  "`--git-diff-since-ref' returns the underlying stat string verbatim."
+  (let ((stat " foo | 3 +++\n bar | 1 +"))
+    (cl-letf (((symbol-function 'beads-agent-ralph--git-diff-since)
+               (lambda (_dir _ref) stat)))
+      (should (equal (beads-agent-ralph--git-diff-since-ref "/tmp" "abc123")
+                     stat)))))
+
+(ert-deftest beads-agent-ralph-test-git-diff-since-ref-empty-passthrough ()
+  "`--git-diff-since-ref' preserves the empty string from REF==HEAD case.
+`--git-diff-since' returns \"\" (not nil) when REF resolves to HEAD;
+the renderer must NOT collapse that to the failure marker because
+\"no changes since last review\" is a valid signal."
+  (cl-letf (((symbol-function 'beads-agent-ralph--git-diff-since)
+             (lambda (_dir _ref) "")))
+    (should (equal (beads-agent-ralph--git-diff-since-ref "/tmp" "abc123")
+                   ""))))
+
+(ert-deftest beads-agent-ralph-test-render-review-prompt-all-placeholders ()
+  "Review prompt substitutes every documented placeholder.
+Pinning the template to a known shape lets us assert each token in
+isolation; the production template lives in
+`beads-agent-ralph-review-prompt' and is exercised by the
+defcustom-default test below."
+  (let* ((closed-a (beads-agent-ralph-test--make-issue
+                    :id "bde-x1" :title "Implemented X"))
+         (closed-b (beads-agent-ralph-test--make-issue
+                    :id "bde-x2" :title "Implemented Y"))
+         (verify (list :exit 0 :stdout "ok" :stderr ""))
+         (c (beads-agent-ralph-test--make-controller
+             :root-id "bde-epic"
+             :consecutive-empty-reviews 0
+             :max-consecutive-empty-reviews 2
+             :max-followups-per-review 3
+             :epic-description-snapshot "Ship review-iteration mode."
+             :root-notes-snapshot "Note: timing matters."
+             :last-verify verify))
+         (beads-agent-ralph-review-prompt
+          "ROOT:<ROOT-ID> N:<REVIEW-NUMBER>/<MAX-REVIEWS> F:<MAX-FOLLOWUPS>
+GOAL:<EPIC-DESCRIPTION>
+NOTES:<ROOT-NOTES>
+CLOSED:
+<CLOSED-CHILDREN-SUMMARY>
+VERIFY:<VERIFY-TAIL>
+DIFF:<DIFF-SINCE-LAST-REVIEW>")
+         (out (beads-agent-ralph--render-review-prompt
+               c (list closed-a closed-b) "stat-stub")))
+    (should (string-match-p "ROOT:bde-epic" out))
+    (should (string-match-p "N:1/2" out))
+    (should (string-match-p "F:3" out))
+    (should (string-match-p "GOAL:Ship review-iteration mode." out))
+    (should (string-match-p "NOTES:Note: timing matters." out))
+    (should (string-match-p "\\[bde-x1\\] Implemented X" out))
+    (should (string-match-p "\\[bde-x2\\] Implemented Y" out))
+    (should (string-match-p "exit: 0" out))
+    (should (string-match-p "DIFF:stat-stub" out))))
+
+(ert-deftest beads-agent-ralph-test-render-review-prompt-review-number-offset ()
+  "<REVIEW-NUMBER> = `consecutive-empty-reviews' + 1.
+After one empty review, the displayed `#2 of N' is what the agent is
+about to do -- symmetric with how the gate increments the counter
+AFTER the review record is pushed."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :consecutive-empty-reviews 1
+             :max-consecutive-empty-reviews 2
+             :max-followups-per-review 3))
+         (beads-agent-ralph-review-prompt "N:<REVIEW-NUMBER>/<MAX-REVIEWS>")
+         (out (beads-agent-ralph--render-review-prompt c nil "")))
+    (should (equal out "N:2/2"))))
+
+(ert-deftest beads-agent-ralph-test-render-review-prompt-max-followups-from-controller ()
+  "<MAX-FOLLOWUPS> substitutes the controller's cap, not the defcustom default."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :max-followups-per-review 5
+             :max-consecutive-empty-reviews 2))
+         (beads-agent-ralph-review-prompt "F:<MAX-FOLLOWUPS>")
+         (out (beads-agent-ralph--render-review-prompt c nil "")))
+    (should (equal out "F:5"))))
+
+(ert-deftest beads-agent-ralph-test-render-review-prompt-nil-snapshots-collapse ()
+  "Nil controller snapshots collapse their placeholders to empty without error.
+A controller that has never fired a review (no prior snapshots) still
+renders cleanly; only the cap-bearing placeholders show numbers."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :epic-description-snapshot nil
+             :root-notes-snapshot nil
+             :last-verify nil))
+         (beads-agent-ralph-review-prompt "[<EPIC-DESCRIPTION>][<ROOT-NOTES>][<VERIFY-TAIL>]")
+         (out (beads-agent-ralph--render-review-prompt c nil "")))
+    (should (equal out "[][][]"))))
+
+(ert-deftest beads-agent-ralph-test-review-prompt-defcustom-default-contract ()
+  "The default review prompt embeds the exact directives the plan demands.
+Bug-fixed (--append-notes vs --notes, bd epic close-eligible vs bd
+close ROOT), and explicitly forbids editing the epic description.
+Pin the strings here so a sloppy template edit fails the suite."
+  (let ((tmpl beads-agent-ralph-review-prompt))
+    (should (string-match-p "bd create --parent <ROOT-ID>" tmpl))
+    (should (string-match-p "<MAX-FOLLOWUPS>" tmpl))
+    (should (string-match-p "bd epic close-eligible" tmpl))
+    (should-not (string-match-p "bd close <ROOT-ID>'\\s-*$" tmpl))
+    (should (string-match-p "DO NOT edit the epic's description" tmpl))
+    (should (string-match-p "review-overproduced" tmpl))
+    (should (string-match-p "<CLOSED-CHILDREN-SUMMARY>" tmpl))
+    (should (string-match-p "<DIFF-SINCE-LAST-REVIEW>" tmpl))
+    (should (string-match-p "<REVIEW-NUMBER>" tmpl))
+    (should (string-match-p "<MAX-REVIEWS>" tmpl))))
+
+(ert-deftest beads-agent-ralph-test-review-iteration-steps-length ()
+  "`--review-iteration-steps' yields exactly six entries.
+Matches the documented composer order: ensure-worktree, maybe-bd-reset,
+fetch-root, fetch-closed-children-summary, render-review-prompt,
+spawn-stream.  A length drift here likely means a normal-iteration step
+crept into the review composer."
+  (let ((c (beads-agent-ralph-test--make-controller)))
+    (should (= (length (beads-agent-ralph--review-iteration-steps c)) 6))))
+
+(ert-deftest beads-agent-ralph-test-review-iteration-steps-omits-normal-only-helpers ()
+  "Review composer never invokes resolve-target, claim, fetch-issue, snapshot, or plan-view.
+Pump the steps through `--then' with all bd-touching async helpers
+stubbed; assert the four normal-only step functions are never called.
+This is the structural guard: the omissions are the whole point of
+having a review composer."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :root-kind 'epic :root-id "bde-epic"
+             :consecutive-empty-reviews 0
+             :max-consecutive-empty-reviews 2
+             :max-followups-per-review 3))
+         (resolve-called nil) (claim-called nil)
+         (fetch-issue-called nil) (snapshot-called nil)
+         (plan-view-called nil)
+         (spawn-called-with nil))
+    (cl-letf (((symbol-function 'beads-agent-ralph--maybe-resolve-worktree-async)
+               (lambda (_c k) (funcall k)))
+              ((symbol-function 'beads-agent-ralph--maybe-bd-reset-async)
+               (lambda (_c k) (funcall k)))
+              ((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (_id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue))))
+              ((symbol-function 'beads-agent-ralph--bd-list-closed-children-async)
+               (lambda (_id k) (funcall k t nil)))
+              ((symbol-function 'beads-agent-ralph--git-diff-since-ref)
+               (lambda (_dir _ref) ""))
+              ((symbol-function 'beads-agent-ralph--step-resolve-target)
+               (lambda (&rest _) (setq resolve-called t)))
+              ((symbol-function 'beads-agent-ralph--step-claim)
+               (lambda (&rest _) (setq claim-called t)))
+              ((symbol-function 'beads-agent-ralph--step-fetch-issue)
+               (lambda (&rest _) (setq fetch-issue-called t)))
+              ((symbol-function 'beads-agent-ralph--step-snapshot-acceptance)
+               (lambda (&rest _) (setq snapshot-called t)))
+              ((symbol-function 'beads-agent-ralph--step-fetch-plan-view)
+               (lambda (&rest _) (setq plan-view-called t)))
+              ((symbol-function 'beads-agent-ralph--spawn-stream-for)
+               (lambda (_c id prompt)
+                 (setq spawn-called-with (list id prompt)))))
+      (beads-agent-ralph--then
+       :steps (beads-agent-ralph--review-iteration-steps c)
+       :on-error (lambda (_err _idx) nil)))
+    (should-not resolve-called)
+    (should-not claim-called)
+    (should-not fetch-issue-called)
+    (should-not snapshot-called)
+    (should-not plan-view-called)
+    (should spawn-called-with)))
+
+(ert-deftest beads-agent-ralph-test-review-iteration-steps-spawn-targets-root ()
+  "Review iteration's spawn step receives `root-id' (not a child id).
+Review iterations are about the epic; `--step-render-review-prompt'
+threads `:issue-id' = root-id so the existing `--step-spawn-stream'
+runs unchanged.  The rendered prompt is the review template, not the
+normal one."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :root-kind 'epic :root-id "bde-epic"
+             :epic-description-snapshot "GOAL"
+             :consecutive-empty-reviews 0
+             :max-consecutive-empty-reviews 2
+             :max-followups-per-review 3))
+         (closed-issue (beads-agent-ralph-test--make-issue
+                        :id "bde-c1" :title "delivered work"))
+         (spawn-args nil))
+    (cl-letf (((symbol-function 'beads-agent-ralph--maybe-resolve-worktree-async)
+               (lambda (_c k) (funcall k)))
+              ((symbol-function 'beads-agent-ralph--maybe-bd-reset-async)
+               (lambda (_c k) (funcall k)))
+              ((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (_id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue
+                               :id "bde-epic"
+                               :description "GOAL"
+                               :acceptance-criteria ""))))
+              ((symbol-function 'beads-agent-ralph--bd-list-closed-children-async)
+               (lambda (_id k) (funcall k t (list closed-issue))))
+              ((symbol-function 'beads-agent-ralph--git-diff-since-ref)
+               (lambda (_dir _ref) "stat-stub"))
+              ((symbol-function 'beads-agent-ralph--spawn-stream-for)
+               (lambda (_c id prompt)
+                 (setq spawn-args (list id prompt)))))
+      (beads-agent-ralph--then
+       :steps (beads-agent-ralph--review-iteration-steps c)
+       :on-error (lambda (_err _idx) nil)))
+    (should spawn-args)
+    (should (equal (car spawn-args) "bde-epic"))
+    (let ((prompt (cadr spawn-args)))
+      (should (string-match-p "REVIEW ITERATION" prompt))
+      (should (string-match-p "\\[bde-c1\\] delivered work" prompt))
+      (should (string-match-p "stat-stub" prompt))
+      (should (string-match-p "bd epic close-eligible" prompt)))))
+
+(ert-deftest beads-agent-ralph-test-review-iteration-steps-tolerates-bd-failure ()
+  "A bd-list failure on closed-children renders an empty summary, not an abort.
+Best-effort: review still proceeds with no closed list, the agent
+reads only the epic goal + verify + diff.  Mirrors the
+fetch-plan-view tolerance pattern in normal iterations."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :root-kind 'epic :root-id "bde-epic"
+             :consecutive-empty-reviews 0
+             :max-consecutive-empty-reviews 2
+             :max-followups-per-review 3))
+         (spawn-prompt nil))
+    (cl-letf (((symbol-function 'beads-agent-ralph--maybe-resolve-worktree-async)
+               (lambda (_c k) (funcall k)))
+              ((symbol-function 'beads-agent-ralph--maybe-bd-reset-async)
+               (lambda (_c k) (funcall k)))
+              ((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (_id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue))))
+              ((symbol-function 'beads-agent-ralph--bd-list-closed-children-async)
+               (lambda (_id k) (funcall k nil 'bd-broke)))
+              ((symbol-function 'beads-agent-ralph--git-diff-since-ref)
+               (lambda (_dir _ref) ""))
+              ((symbol-function 'beads-agent-ralph--spawn-stream-for)
+               (lambda (_c _id prompt) (setq spawn-prompt prompt))))
+      (beads-agent-ralph--then
+       :steps (beads-agent-ralph--review-iteration-steps c)
+       :on-error (lambda (_err _idx) nil)))
+    (should spawn-prompt)
+    (should (string-match-p "REVIEW ITERATION" spawn-prompt))))
+
 ;;; Controller state-machine tests (bde-t9is)
 ;;
 ;; The tests below cover the detectors, banner ring, derived-iteration

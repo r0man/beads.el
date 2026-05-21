@@ -941,6 +941,72 @@ checked-in `.beads/scratch/ralph/<id>.prompt.md'."
   :type '(choice (const :tag "Use defcustom only" nil) file)
   :group 'beads-agent-ralph)
 
+(defcustom beads-agent-ralph-review-prompt
+  "REVIEW ITERATION -- epic <ROOT-ID> has no ready children.
+This is review #<REVIEW-NUMBER> of <MAX-REVIEWS>.
+
+EPIC GOAL
+<EPIC-DESCRIPTION>
+
+DELIVERED WORK (closed children of <ROOT-ID>)
+<CLOSED-CHILDREN-SUMMARY>
+
+EPIC NOTES
+<ROOT-NOTES>
+
+LATEST VERIFY
+<VERIFY-TAIL>
+
+GIT DIFF (since last review)
+<DIFF-SINCE-LAST-REVIEW>
+
+YOUR TASK
+
+1. Compare the delivered work to the epic goal.  For each concrete
+   gap (acceptance criterion not satisfied, missing tests, perf
+   regression in verify output, refactor implied by the diff, doc
+   gap), file a child via:
+
+       bd create --parent <ROOT-ID> --type <type> --title <t> --description <d>
+
+   You MAY file at most <MAX-FOLLOWUPS> new children.  Each child's
+   description MUST cite either a closed child id or a specific
+   verify-output line as evidence.  Filing more than the cap
+   terminates the loop with `review-overproduced'.
+
+2. If the epic is genuinely complete, run:
+
+       bd epic close-eligible
+
+   This closes the epic only if all children are already closed.
+   Do NOT run `bd close <ROOT-ID>' directly -- it fails when any
+   child is still open.
+
+3. DO NOT invent work to justify iteration.  An empty review is a
+   valid outcome -- if the gap list above is empty, file nothing and
+   exit.  The loop will terminate after <MAX-REVIEWS> empty reviews.
+
+4. DO NOT edit the epic's description with
+   `bd update <ROOT-ID> --description ...'.  The controller
+   snapshotted it at startup and will abort the run with
+   `spec-mutated' if the spec changes mid-loop.  Use `--append-notes'
+   for cross-iteration insights instead."
+  "Prompt template used by review iterations (epic mode, no ready children).
+Substituted via `beads-agent-ralph--render-review-prompt' the iteration
+after `bd ready --parent <ROOT-ID>' returns empty.  The placeholder set
+overlaps with `beads-agent-ralph-prompt' but adds the review-only
+tokens `<REVIEW-NUMBER>', `<MAX-REVIEWS>', `<MAX-FOLLOWUPS>',
+`<CLOSED-CHILDREN-SUMMARY>', and `<DIFF-SINCE-LAST-REVIEW>'.
+
+The template explicitly instructs `bd epic close-eligible' (not plain
+`bd close <ROOT-ID>', which fails on open children) and forbids the
+agent from editing the epic description (the controller snapshots it
+at start and aborts with `spec-mutated' on mismatch).  Both rules
+exist to bound agent drift -- the review iteration puts the planner
+inside the loop, so the loop body has to constrain it structurally."
+  :type 'string
+  :group 'beads-agent-ralph)
+
 (defcustom beads-agent-ralph-mode-line-sticky-seconds 10
   "Seconds the mode-line indicator stays visible after a controller terminates.
 The user has just dropped focus on an overnight run; a brief
@@ -1390,6 +1456,23 @@ bd's `--ready' already excludes blocked issues."
      (lambda (err)
        (funcall callback nil err)))))
 
+(defun beads-agent-ralph--bd-list-closed-children-async (parent-id callback)
+  "List closed children of PARENT-ID via `bd list --parent ... --status closed --json'.
+CALLBACK receives (success ISSUES-OR-ERROR).  ISSUES is a list of
+`beads-issue' objects, possibly empty.  Sibling of
+`beads-agent-ralph--bd-ready-children-async'; used by review
+iterations (bde-c95u.5) to render `<CLOSED-CHILDREN-SUMMARY>' so the
+agent can compare delivered work against the epic goal."
+  (beads-agent-ralph--in-host
+    (beads-command-execute-async
+     (beads-command-list :parent parent-id
+                         :status beads-status-closed
+                         :json t)
+     (lambda (result)
+       (funcall callback t (if (listp result) result (list result))))
+     (lambda (err)
+       (funcall callback nil err)))))
+
 (defun beads-agent-ralph--bd-reopen-clear-async (issue-id callback)
   "Reopen ISSUE-ID and clear its assignee asynchronously.
 Runs `bd update --status=open --assignee=\"\"' so the issue moves
@@ -1625,6 +1708,28 @@ the gate next time rather than firing a wasted LLM call)."
        (beads-agent-ralph--call-git dir "diff" "--stat"
                                     (concat ref "..HEAD"))))
 
+(defun beads-agent-ralph--git-diff-since-ref (dir ref)
+  "Return a renderable diff-since-REF string under DIR for the review prompt.
+Distinct from `beads-agent-ralph--git-diff-since' (the gate-side
+helper that returns nil on missing input or git failure): this one
+always returns a string suitable for embedding in the
+`<DIFF-SINCE-LAST-REVIEW>' placeholder, so the agent never sees a
+bare `nil' rendered as `nil' or an empty section it cannot interpret.
+
+Branches:
+ - REF is nil (no prior review yet) -> the marker string
+   \"(no prior review reference)\".  Avoids dumping the full epic diff
+   into the first review's prompt, which would crowd out the closed-
+   children summary the agent actually needs.
+ - Underlying `--git-diff-since' returns nil (DIR missing, git missing,
+   non-zero exit) -> the empty string.  The placeholder collapses
+   cleanly so the agent does not see a confusing failure marker.
+ - Underlying returns a string (including the empty string when REF
+   resolves to HEAD) -> that string verbatim."
+  (cond
+   ((null ref) "(no prior review reference)")
+   (t (or (beads-agent-ralph--git-diff-since dir ref) ""))))
+
 (defun beads-agent-ralph--maybe-banner-dirty-state (controller)
   "Push a notice banner when CONTROLLER's worktree has uncommitted change.
 Lower severity than `protected-paths' — dirty state is informational
@@ -1698,17 +1803,18 @@ ROOT-ID\\|ITERATION\\|MAX-ITERATIONS\\|SENTINEL\\|\
 PLAN-VIEW\\|PRIOR-FALSE-CLAIMS\\|PRIOR-STALL-COUNT\\|\
 VERIFY-TAIL\\|GIT-DIFF-STAT\\|\
 EPIC-DESCRIPTION\\|ROOT-NOTES\\|CLOSED-CHILDREN-SUMMARY\\|\
-REVIEW-NUMBER\\|MAX-REVIEWS\\|DIFF-SINCE-LAST-REVIEW\\)>"
+REVIEW-NUMBER\\|MAX-REVIEWS\\|MAX-FOLLOWUPS\\|\
+DIFF-SINCE-LAST-REVIEW\\)>"
   "Regexp matching the placeholder set understood by the prompt renderer.
 Tokens outside this set survive verbatim, so issue descriptions that
 happen to contain HTML-looking tags are not mangled.
 
 The review-mode tokens (`CLOSED-CHILDREN-SUMMARY', `REVIEW-NUMBER',
-`MAX-REVIEWS', `DIFF-SINCE-LAST-REVIEW') are recognised here so the
-review-iteration body (bde-c95u.5/.6) can populate them; until then
-they have no substitution alist entry and collapse to the empty string
-during rendering — which is the desired \"no review iteration yet\"
-state.")
+`MAX-REVIEWS', `MAX-FOLLOWUPS', `DIFF-SINCE-LAST-REVIEW') are
+populated by `beads-agent-ralph--render-review-prompt' (bde-c95u.5)
+when the review iteration body runs; in a normal iteration they have
+no substitution alist entry and collapse to the empty string -- the
+desired \"no review context in a working iteration\" state.")
 
 (defun beads-agent-ralph--effective-template (controller)
   "Return the prompt template CONTROLLER should render this iteration.
@@ -1878,6 +1984,52 @@ so the agent still sees a deterministic block."
      plan-issues
      "\n"))))
 
+(defconst beads-agent-ralph--closed-children-summary-cap 50
+  "Maximum number of closed children rendered into <CLOSED-CHILDREN-SUMMARY>.
+The review iteration prompt embeds one line per closed child; without
+a cap a long-running epic with hundreds of closed children would push
+the prompt past useful context.  When the cap fires the OLDEST entries
+are truncated -- bd's default sort returns newest-first per the rest
+of the code path, so the agent sees the most recently completed work
+which is the most likely source of regressions worth filing follow-ups
+against.")
+
+(defun beads-agent-ralph--render-closed-children-summary
+    (closed-children &optional cap)
+  "Render CLOSED-CHILDREN as `[ID] TITLE' lines for the review prompt.
+CLOSED-CHILDREN is a list of `beads-issue' objects (the shape returned
+by `--bd-list-closed-children-async').  CAP is the maximum number of
+entries to render -- defaults to
+`beads-agent-ralph--closed-children-summary-cap' (50).  When the list
+is longer than CAP the OLDEST entries are dropped and a truncation
+marker is appended; bd returns newest-first, so the kept slice is the
+most recent work.
+
+Returns the empty string when CLOSED-CHILDREN is nil or empty -- the
+placeholder then collapses cleanly in the rendered prompt rather than
+showing a stray header with no rows."
+  (cond
+   ((null closed-children) "")
+   (t
+    (let* ((effective-cap (or cap beads-agent-ralph--closed-children-summary-cap))
+           (count (length closed-children))
+           (truncated (> count effective-cap))
+           (kept (if truncated
+                     (cl-subseq closed-children 0 effective-cap)
+                   closed-children))
+           (lines (mapcar
+                   (lambda (issue)
+                     (format "[%s] %s"
+                             (or (oref issue id) "?")
+                             (or (oref issue title) "")))
+                   kept))
+           (body (mapconcat #'identity lines "\n")))
+      (if truncated
+          (concat body
+                  (format "\n... (%d older closed children truncated)"
+                          (- count effective-cap)))
+        body)))))
+
 (defun beads-agent-ralph--prompt-substitutions
     (controller issue plan-issues)
   "Build the placeholder->replacement alist for the renderer.
@@ -1952,15 +2104,81 @@ Placeholders supported (literal, single-pass substitution):
   <EPIC-DESCRIPTION>, <ROOT-NOTES>
 
 The review-mode tokens <CLOSED-CHILDREN-SUMMARY>, <REVIEW-NUMBER>,
-<MAX-REVIEWS>, <DIFF-SINCE-LAST-REVIEW> are reserved by the renderer
-\(see `beads-agent-ralph--placeholder-regexp') and collapse to the
-empty string in normal iterations.
+<MAX-REVIEWS>, <MAX-FOLLOWUPS>, <DIFF-SINCE-LAST-REVIEW> are
+reserved by the renderer (see
+`beads-agent-ralph--placeholder-regexp') and collapse to the empty
+string in normal iterations -- `beads-agent-ralph--render-review-prompt'
+is what populates them when the review-iteration body runs.
 
 Returns the rendered prompt as a single string."
   (let ((template (beads-agent-ralph--effective-template controller))
         (subs (beads-agent-ralph--prompt-substitutions
                controller issue plan-issues)))
     (beads-agent-ralph--apply-substitutions template subs)))
+
+(defun beads-agent-ralph--review-prompt-substitutions
+    (controller closed-children diff-string)
+  "Build the placeholder->replacement alist for the review prompt.
+CONTROLLER provides root-id, the snapshots, and the review counters.
+CLOSED-CHILDREN is the list returned by
+`beads-agent-ralph--bd-list-closed-children-async' (possibly nil).
+DIFF-STRING is the rendered git diff (already a string -- see
+`beads-agent-ralph--git-diff-since-ref').
+
+REVIEW-NUMBER is computed as `consecutive-empty-reviews' + 1: a
+controller about to fire its first review has the counter at zero, so
+the displayed `#1 of N' reflects what the agent is about to do, not
+what it has already done.  Symmetric with how the gate increments the
+counter AFTER the review record is pushed.
+
+Values are plain strings; literal substitution applies (no further
+expansion is performed on the right-hand side, so closed-children
+titles that contain `<TAG>' lookalikes are safe)."
+  (let* ((root-id (or (oref controller root-id) ""))
+         (review-number (1+ (or (oref controller consecutive-empty-reviews) 0)))
+         (max-reviews (or (oref controller max-consecutive-empty-reviews) 0))
+         (max-followups (or (oref controller max-followups-per-review) 0)))
+    (list
+     (cons "ROOT-ID"            root-id)
+     (cons "REVIEW-NUMBER"      (number-to-string review-number))
+     (cons "MAX-REVIEWS"        (number-to-string max-reviews))
+     (cons "MAX-FOLLOWUPS"      (number-to-string max-followups))
+     (cons "EPIC-DESCRIPTION"
+           (or (oref controller epic-description-snapshot) ""))
+     (cons "ROOT-NOTES"
+           (or (oref controller root-notes-snapshot) ""))
+     (cons "CLOSED-CHILDREN-SUMMARY"
+           (beads-agent-ralph--render-closed-children-summary
+            closed-children))
+     (cons "VERIFY-TAIL"
+           (beads-agent-ralph--render-verify-tail
+            (oref controller last-verify)))
+     (cons "DIFF-SINCE-LAST-REVIEW"
+           (or diff-string "")))))
+
+(defun beads-agent-ralph--render-review-prompt
+    (controller closed-children diff-string)
+  "Render CONTROLLER's review prompt for CLOSED-CHILDREN and DIFF-STRING.
+
+The template is `beads-agent-ralph-review-prompt' (no per-controller
+override yet -- review iterations always render the defcustom value;
+see `--effective-template' for the future hook).  Placeholders are
+substituted via the shared single-pass renderer so review-token
+right-hand-sides are never re-expanded if they contain literal `<TAG>'
+substrings.
+
+Placeholders populated:
+
+  <ROOT-ID>
+  <REVIEW-NUMBER>, <MAX-REVIEWS>, <MAX-FOLLOWUPS>
+  <EPIC-DESCRIPTION>, <ROOT-NOTES>
+  <CLOSED-CHILDREN-SUMMARY>, <VERIFY-TAIL>, <DIFF-SINCE-LAST-REVIEW>
+
+Returns the rendered prompt as a single string."
+  (beads-agent-ralph--apply-substitutions
+   beads-agent-ralph-review-prompt
+   (beads-agent-ralph--review-prompt-substitutions
+    controller closed-children diff-string)))
 
 ;;; Stub dashboard
 
@@ -2931,10 +3149,11 @@ Each entry is a `(lambda (acc k) ...)' suitable as a `--then'
 `:steps' member; the lambda closes over CONTROLLER and forwards to
 the matching `beads-agent-ralph--step-*' helper.
 
-This composer is the seam the upcoming review-iteration mode
-\(bde-c95u.5) extends: review iterations will build their own
-ordered list from the same building blocks plus review-specific
-steps, without ever branching on mode inside a step body."
+This composer is the seam the review-iteration mode
+\(`beads-agent-ralph--review-iteration-steps') extends: review
+iterations build their own ordered list from the same building
+blocks plus review-specific steps, without ever branching on mode
+inside a step body."
   (list
    (lambda (acc k) (beads-agent-ralph--step-ensure-worktree controller acc k))
    (lambda (acc k) (beads-agent-ralph--step-maybe-bd-reset controller acc k))
@@ -2948,23 +3167,111 @@ steps, without ever branching on mode inside a step body."
    (lambda (acc k) (beads-agent-ralph--step-render-prompt controller acc k))
    (lambda (acc k) (beads-agent-ralph--step-spawn-stream controller acc k))))
 
+(defun beads-agent-ralph--step-fetch-closed-children-summary
+    (controller _acc k)
+  "Step: fetch CONTROLLER's closed children of root as `:closed-children'.
+Best-effort: a bd error or empty result still renders, so we emit
+`:closed-children nil' on failure rather than aborting the iteration --
+mirrors `--step-fetch-plan-view'.  Used only by the review-iteration
+composer; a normal iteration never calls this step."
+  (beads-agent-ralph--bd-list-closed-children-async
+   (oref controller root-id)
+   (lambda (ok result)
+     (funcall k nil (list :closed-children (if ok result nil))))))
+
+(defun beads-agent-ralph--step-render-review-prompt (controller acc k)
+  "Step: render the review prompt and emit it as ACC's `:prompt' + `:issue-id'.
+Reads `:closed-children' from ACC and computes `<DIFF-SINCE-LAST-REVIEW>'
+synchronously via `--git-diff-since-ref' against CONTROLLER's working
+directory + `last-review-git-ref'.  Emits two ACC keys:
+
+  :prompt    -- the rendered review template.
+  :issue-id  -- CONTROLLER's `root-id'.  Review iterations are about the
+                epic, not a specific child; threading the root id here
+                lets the existing `--step-spawn-stream' (which reads
+                `:issue-id') run unchanged.
+
+Wraps the synchronous renderer in `condition-case' so a template error
+short-circuits via `spawn-failed' rather than escaping `--then'."
+  (condition-case err
+      (let* ((closed (plist-get acc :closed-children))
+             (work-dir (beads-agent-ralph--controller-work-dir controller))
+             (ref (oref controller last-review-git-ref))
+             (diff (beads-agent-ralph--git-diff-since-ref work-dir ref))
+             (prompt (beads-agent-ralph--render-review-prompt
+                      controller closed diff)))
+        (funcall k nil
+                 (list :prompt prompt
+                       :issue-id (oref controller root-id))))
+    (error
+     (funcall k (or (car-safe err) 'spawn-failed) nil))))
+
+(defun beads-agent-ralph--review-iteration-steps (controller)
+  "Return the ordered step list for a review iteration on CONTROLLER.
+Sibling of `--normal-iteration-steps'; assembled from the same
+building blocks plus the two review-specific helpers
+\(`--step-fetch-closed-children-summary',
+`--step-render-review-prompt') and re-using `--step-spawn-stream'.
+
+Deliberately OMITS:
+ - `--step-resolve-target': review mode runs precisely because
+   `bd ready --parent ROOT' was empty, so there is no ready child
+   to pick.  The review iteration targets the root id instead.
+ - `--step-claim': nothing to claim -- the root is an epic, not a
+   workable issue, and the agent acts on the epic's planning surface
+   (`bd create --parent ROOT', `bd epic close-eligible').
+ - `--step-fetch-issue': no specific child to fetch.
+ - `--step-snapshot-acceptance': no child's acceptance to snapshot;
+   the description-immutability guard (bde-c95u.6) handles the
+   epic-level invariant separately.
+ - `--step-fetch-plan-view': review is about delivered (closed) work
+   plus the diff and verify output, not the live plan view.
+
+KEEPS:
+ - `--step-ensure-worktree' and `--step-maybe-bd-reset': both are
+   one-shot per controller and must run on the first iteration that
+   the loop reaches, review or otherwise.
+ - `--step-fetch-root': refreshes `root-notes-snapshot' (notes drift
+   each iteration) and is what bde-c95u.6 will hook the description-
+   immutability guard onto -- it needs to fire on review iterations
+   too, otherwise a mid-loop description edit could land unnoticed
+   while the review is the only thing running.
+
+ADDS:
+ - `--step-fetch-closed-children-summary': pulls the closed children
+   list for the `<CLOSED-CHILDREN-SUMMARY>' placeholder.
+ - `--step-render-review-prompt': renders the review template and
+   threads `:issue-id' = `root-id' so `--step-spawn-stream' picks up
+   the right id without a parallel spawn helper."
+  (list
+   (lambda (acc k) (beads-agent-ralph--step-ensure-worktree controller acc k))
+   (lambda (acc k) (beads-agent-ralph--step-maybe-bd-reset controller acc k))
+   (lambda (acc k) (beads-agent-ralph--step-fetch-root controller acc k))
+   (lambda (acc k)
+     (beads-agent-ralph--step-fetch-closed-children-summary controller acc k))
+   (lambda (acc k)
+     (beads-agent-ralph--step-render-review-prompt controller acc k))
+   (lambda (acc k) (beads-agent-ralph--step-spawn-stream controller acc k))))
+
 (cl-defun beads-agent-ralph--run-iteration (controller &key (mode 'normal))
   "Run one iteration body for CONTROLLER in MODE (`normal' or `review').
 Normal mode resolves the target issue (issue or epic), claims it,
 snapshots acceptance-before, renders the standard prompt, and spawns
-the stream.  Review mode (bde-c95u.5) will run a different step list
-that omits resolve-target/claim/snapshot and renders the review
-prompt; until that lands, `mode' = `review' falls through to the
-normal step composer with the seam in place.
+the stream.  Review mode runs a different step list (no resolve-target,
+no claim, no fetch-issue, no snapshot-acceptance, no fetch-plan-view;
+adds fetch-closed-children-summary + render-review-prompt) and targets
+the root id directly -- review iterations act on the epic's planning
+surface (`bd create --parent ROOT', `bd epic close-eligible'), not a
+specific child.
 
 Stream completion is handled by the subscriber installed in
 `beads-agent-ralph--spawn-stream-for'.
 
 The step sequence is composed by
-`beads-agent-ralph--normal-iteration-steps' (normal) or
-`beads-agent-ralph--review-iteration-steps' (review, once bde-c95u.5
-defines it); see the docstrings of the individual
-`beads-agent-ralph--step-*' helpers for what each contributes.
+`beads-agent-ralph--normal-iteration-steps' or
+`beads-agent-ralph--review-iteration-steps'; see the docstrings of the
+individual `beads-agent-ralph--step-*' helpers for what each
+contributes.
 
 Epic mode resolves-target to nil when the parent has no ready
 children, raising `epic-empty' through `--then''s on-error.  That
@@ -2976,12 +3283,7 @@ scheduling a review iteration."
   (let ((steps
          (pcase mode
            ('review
-            ;; bde-c95u.5 will define `--review-iteration-steps'.  Until
-            ;; then the seam exists so `--maybe-enter-review' can pass
-            ;; the mode flag through without a second refactor.
-            (if (fboundp 'beads-agent-ralph--review-iteration-steps)
-                (beads-agent-ralph--review-iteration-steps controller)
-              (beads-agent-ralph--normal-iteration-steps controller)))
+            (beads-agent-ralph--review-iteration-steps controller))
            (_
             (beads-agent-ralph--normal-iteration-steps controller)))))
     (beads-agent-ralph--then
