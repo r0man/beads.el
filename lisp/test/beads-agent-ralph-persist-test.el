@@ -377,6 +377,55 @@ the legacy schema continue to work (bde-c95u.7)."
          (alist (beads-agent-ralph-persist--iteration-to-alist iter "bde-g")))
     (should (eq t (cdr (assoc "gated" alist))))))
 
+(ert-deftest beads-agent-ralph-persist-test-review-iter-round-trip ()
+  "A review iter written to JSONL and read back preserves `kind',
+`review_number', `max_reviews', and `gated'.  End-to-end fidelity
+test that catches encoder/decoder mismatches the unit tests would
+miss (e.g. encoder emits `\"gated\"' but decoder reads it as the
+keyword `:gated' — would silently break the post-mortem reader).
+
+A gated review is also asserted: the JSON `true' literal round-trips
+to Lisp `t' (under the test fixture's reader bindings that bind
+`json-false' to nil) so the dashboard's `(oref iter gated)' test
+still flips it on rehydration (bde-c95u.7)."
+  (beads-agent-ralph-persist-test--in-tempdir dir
+    (let ((llm-iter (beads-agent-ralph--iteration
+                     :issue-id "bde-rt"
+                     :status 'finished
+                     :iter-number 3
+                     :kind 'review
+                     :gated nil
+                     :review-number 1
+                     :max-reviews 2
+                     :summary "wrote two follow-ups"))
+          (gated-iter (beads-agent-ralph--iteration
+                       :issue-id "bde-rt"
+                       :status 'finished
+                       :iter-number 5
+                       :kind 'review
+                       :gated t
+                       :review-number 2
+                       :max-reviews 2)))
+      (beads-agent-ralph-persist-record-iteration dir "bde-rt" llm-iter)
+      (beads-agent-ralph-persist-record-iteration dir "bde-rt" gated-iter)
+      (let* ((records (beads-agent-ralph-persist-read-jsonl dir "bde-rt"))
+             (r1 (nth 0 records))
+             (r2 (nth 1 records)))
+        (should (= 2 (length records)))
+        ;; LLM-fired review record.
+        (should (equal "review" (cdr (assoc "kind" r1))))
+        (should (= 1 (cdr (assoc "review_number" r1))))
+        (should (= 2 (cdr (assoc "max_reviews" r1))))
+        ;; Reader binds `json-false' to nil, so the JSON `false' literal
+        ;; comes back as nil; assert that explicitly rather than against
+        ;; the encoder's pre-write keyword form.
+        (should (null (cdr (assoc "gated" r1))))
+        ;; Gated review record.
+        (should (equal "review" (cdr (assoc "kind" r2))))
+        (should (eq t (cdr (assoc "gated" r2))))
+        (should (= 2 (cdr (assoc "review_number" r2))))
+        (should (= 2 (cdr (assoc "max_reviews" r2))))))))
+
 (ert-deftest beads-agent-ralph-persist-test-resume-summary-counts-reviews ()
   "Resume summary's `:iterations' counts review records, and the cursor
 takes the highest iter-number across normal+review records (bde-c95u.7).
