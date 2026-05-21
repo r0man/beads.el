@@ -59,10 +59,12 @@
   :type 'integer
   :group 'beads-agent-list)
 
-(defcustom beads-agent-list-type-width 6
+(defcustom beads-agent-list-type-width 8
   "Width of Type column in agent list.
 Holds the agent role icon (or single-letter fallback) plus the
-`#N' instance suffix (e.g. \"\U0001f477#1\" or \"T#1\")."
+`#N' instance suffix (e.g. \"\U0001f477#1\" or \"T#1\").  The default
+of 8 leaves headroom for multi-digit instance numbers like `#10'
+under GUI Emacs where the emoji occupies two display columns."
   :type 'integer
   :group 'beads-agent-list)
 

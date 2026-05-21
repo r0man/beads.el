@@ -35,6 +35,78 @@
 (require 'cl-lib)
 (require 'beads-agent-type)
 
+;;; Customization
+
+(defcustom beads-agent-display-use-icons 'auto
+  "Whether to use emoji icons for agent type indicators.
+
+Controls what `beads-agent-type-icon-or-letter' returns: an emoji
+icon (from the `icon' slot or a `beads-agent-display-type-icons' override)
+or the single-letter abbreviation from the `letter' slot.
+
+Possible values:
+- `auto' (default): icons under GUI Emacs, letters in TTY frames
+- t: always use icons regardless of frame type
+- nil: always use single letters (T/R/P/Q/C)
+
+Set this to nil when icons render as tofu (missing-glyph) on your
+system, or override icons per-type via `beads-agent-display-type-icons'."
+  :type '(choice (const :tag "Auto-detect by frame" auto)
+                 (const :tag "Always icons" t)
+                 (const :tag "Always letters" nil))
+  :group 'beads-agent)
+
+(defcustom beads-agent-display-type-icons nil
+  "Per-type icon overrides for agent display.
+
+Alist mapping lowercase type names to display strings.  Each entry
+takes precedence over the `icon' slot of the corresponding
+`beads-agent-type'.  When an entry is present with a nil value the
+type's icon resolves to nil (and renderers fall back to the letter)
+without consulting the slot.  Set the whole variable to nil to
+disable all overrides and use only class slots.
+
+Example:
+  ((\"task\" . \"\\=🛠\") (\"review\" . \"\\=🔍\"))"
+  :type '(alist :key-type (string :tag "Type name (lowercase)")
+                :value-type (choice (string :tag "Icon")
+                                    (const :tag "Suppress icon (use letter)" nil)))
+  :group 'beads-agent)
+
+(defcustom beads-agent-display-show-instance nil
+  "When non-nil, append #N to icons in narrow display contexts.
+
+By default the instance number is shown only in mode-line, the
+agent list buffer, and help-echo tooltips, freeing space in the
+issue list column and dashboard badges.  Set this to t to also
+show #N in those tight surfaces."
+  :type 'boolean
+  :group 'beads-agent)
+
+;;; Icon resolution
+
+(defun beads-agent--icons-supported-p ()
+  "Return non-nil when emoji icons should be rendered.
+Resolves `beads-agent-display-use-icons':
+- `auto' (default): non-nil in GUI frames, nil in TTY
+- t: always non-nil
+- nil: always nil"
+  (pcase beads-agent-display-use-icons
+    ('auto (display-graphic-p))
+    (val val)))
+
+(defun beads-agent-type-icon-or-letter (type)
+  "Return the user-visible identifier string for TYPE.
+
+Returns the configured icon when icons are enabled by
+`beads-agent-display-use-icons', supported by the frame, AND a
+non-nil icon is configured for TYPE (via
+`beads-agent-display-type-icons' override or the `icon' slot).  Otherwise
+returns the single-letter abbreviation from TYPE's `letter' slot."
+  (or (and (beads-agent--icons-supported-p)
+           (beads-agent-type-icon type))
+      (oref type letter)))
+
 ;; Session accessors live in beads-agent-backend.el; callers load that
 ;; module before this helper runs.  Declared here to keep
 ;; `beads-agent-display.el' load-cheap and avoid pulling sesman into
@@ -199,6 +271,10 @@ backend has not been required."
                        (beads-agent--get-sessions-focused-on-issue issue-id)))
          (touched (and (fboundp 'beads-agent--get-sessions-touching-issue)
                        (beads-agent--get-sessions-touching-issue issue-id)))
+         ;; `cl-set-difference' defaults to `eql', which is pointer
+         ;; equality for EIEIO session objects — the correct test here
+         ;; since both accessors return the same in-memory session
+         ;; instances from `beads-agent--sessions'.
          (touched-only (cl-set-difference touched focused))
          (legacy-sessions (and (not focused) (not touched)
                                (fboundp 'beads-agent--get-sessions-for-issue)

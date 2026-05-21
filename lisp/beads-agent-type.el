@@ -71,52 +71,12 @@
 (require 'cl-lib)
 (require 'beads-types)
 
-;;; Customization
-
-(defcustom beads-agent-display-use-icons 'auto
-  "Whether to use emoji icons for agent type indicators.
-
-Controls what `beads-agent-type-icon-or-letter' returns: an emoji
-icon (from the `icon' slot or a `beads-agent-display-type-icons' override)
-or the single-letter abbreviation from the `letter' slot.
-
-Possible values:
-- `auto' (default): icons under GUI Emacs, letters in TTY frames
-- t: always use icons regardless of frame type
-- nil: always use single letters (T/R/P/Q/C)
-
-Set this to nil when icons render as tofu (missing-glyph) on your
-system, or override icons per-type via `beads-agent-display-type-icons'."
-  :type '(choice (const :tag "Auto-detect by frame" auto)
-                 (const :tag "Always icons" t)
-                 (const :tag "Always letters" nil))
-  :group 'beads-agent)
-
-(defcustom beads-agent-display-type-icons nil
-  "Per-type icon overrides for agent display.
-
-Alist mapping lowercase type names to display strings.  Each entry
-takes precedence over the `icon' slot of the corresponding
-`beads-agent-type'.  When an entry is present with a nil value the
-type's icon resolves to nil (and renderers fall back to the letter)
-without consulting the slot.  Set the whole variable to nil to
-disable all overrides and use only class slots.
-
-Example:
-  ((\"task\" . \"\\=🛠\") (\"review\" . \"\\=🔍\"))"
-  :type '(alist :key-type (string :tag "Type name (lowercase)")
-                :value-type (string :tag "Icon"))
-  :group 'beads-agent)
-
-(defcustom beads-agent-display-show-instance nil
-  "When non-nil, append #N to icons in narrow display contexts.
-
-By default the instance number is shown only in mode-line, the
-agent list buffer, and help-echo tooltips, freeing space in the
-issue list column and dashboard badges.  Set this to t to also
-show #N in those tight surfaces."
-  :type 'boolean
-  :group 'beads-agent)
+;; Display-layer defcustoms live in `beads-agent-display.el'.  The
+;; `beads-agent-type-icon' cl-defmethod below reads
+;; `beads-agent-display-type-icons' to honour user overrides; declare
+;; it here to keep byte-compilation clean when this module is loaded
+;; in isolation (e.g. from pure type tests).
+(defvar beads-agent-display-type-icons)
 
 ;;; EIEIO Classes
 
@@ -282,27 +242,8 @@ Follows the resolution order documented on the generic."
         (cdr entry)
       (and (slot-boundp type 'icon) (oref type icon)))))
 
-(defun beads-agent--icons-supported-p ()
-  "Return non-nil when emoji icons should be rendered.
-Resolves `beads-agent-display-use-icons':
-- `auto' (default): non-nil in GUI frames, nil in TTY
-- t: always non-nil
-- nil: always nil"
-  (pcase beads-agent-display-use-icons
-    ('auto (display-graphic-p))
-    (val val)))
-
-(defun beads-agent-type-icon-or-letter (type)
-  "Return the user-visible identifier string for TYPE.
-
-Returns the configured icon when icons are enabled by
-`beads-agent-display-use-icons', supported by the frame, AND a
-non-nil icon is configured for TYPE (via
-`beads-agent-display-type-icons' override or the `icon' slot).  Otherwise
-returns the single-letter abbreviation from TYPE's `letter' slot."
-  (or (and (beads-agent--icons-supported-p)
-           (beads-agent-type-icon type))
-      (oref type letter)))
+;; `beads-agent--icons-supported-p' and `beads-agent-type-icon-or-letter'
+;; are display-layer helpers; they live in `beads-agent-display.el'.
 
 (cl-defgeneric beads-agent-type-name-display (type)
   "Return the display name for TYPE.

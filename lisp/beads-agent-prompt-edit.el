@@ -33,6 +33,7 @@
 
 ;;; Code:
 
+(require 'beads-agent-display)
 (require 'beads-agent-type)
 (require 'beads-buffer)
 (require 'subr-x)
@@ -85,9 +86,7 @@ fallback under TTY) when the type is registered, per
   (let* ((type-name (or beads-agent-prompt-edit--agent-type "Agent"))
          (type (beads-agent-type-get type-name))
          (glyph (and type (beads-agent-type-icon-or-letter type)))
-         (prefix (if (and glyph (not (string= glyph type-name)))
-                     (concat glyph " ")
-                   "")))
+         (prefix (if glyph (concat glyph " ") "")))
     (format " %s%s prompt for %s  |  C-c C-c: Confirm  |  C-c C-k: Cancel"
             prefix
             type-name

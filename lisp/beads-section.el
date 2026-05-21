@@ -104,11 +104,11 @@ artifacts."
          (label    (beads-section--propertize core
                                               (beads-issue-section :issue issue)
                                               extra-props))
-         (label    (if (and (stringp agents) (not (string-empty-p agents)))
-                       (concat label "  " agents)
-                     label)))
+         (full-label (if (and (stringp agents) (not (string-empty-p agents)))
+                         (concat label "  " agents)
+                       label)))
     (beads-section--plain-button
-     label
+     full-label
      (let ((issue-id id))
        (lambda () (beads-show issue-id))))))
 

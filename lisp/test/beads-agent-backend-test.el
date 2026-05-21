@@ -675,6 +675,23 @@ collision bug."
         (should (equal (car outcome) "Task"))
         (should (eq (cdr outcome) 'failed))))))
 
+(ert-deftest beads-agent-backend-test-run-state-change-hook-records-finished ()
+  "Test beads-agent--run-state-change-hook stores `finished' outcomes.
+The hook contract documents `finished' alongside `failed'.  Downstream
+renderers (`beads-agent-display-format-issue-agents',
+`beads-show--agent-session-state') only see a finished outcome when
+this arm of the pcase records it."
+  (let ((beads-agent--issue-outcomes (make-hash-table :test #'equal))
+        (beads-agent-state-change-hook nil))
+    (let ((session (beads-agent-backend-test--make-session
+                    :issue-id "bd-7"
+                    :agent-type-name "Review")))
+      (beads-agent--run-state-change-hook 'finished session)
+      (let ((outcome (beads-agent--get-issue-outcome "bd-7")))
+        (should (consp outcome))
+        (should (equal (car outcome) "Review"))
+        (should (eq (cdr outcome) 'finished))))))
+
 (ert-deftest beads-agent-backend-test-run-state-change-hook-clears-on-start ()
   "Test beads-agent--run-state-change-hook clears outcome on start."
   (let ((beads-agent--issue-outcomes (make-hash-table :test #'equal))
