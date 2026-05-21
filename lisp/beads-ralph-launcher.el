@@ -884,11 +884,18 @@ its header populates without a second round trip to bd."
   (let ((id (beads-read-issue-id)))
     (unless (and (stringp id) (not (string-empty-p id)))
       (user-error "beads-ralph-launch-at-point: no issue id detected"))
-    (let* ((issue (beads-issue-read id))
-           (kind (if (equal (oref issue issue-type) "epic")
-                     'epic
-                   'issue)))
-      (beads-ralph-launcher id :kind kind :issue issue))))
+    ;; `beads-issue-read' normally signals on a missing issue (because
+    ;; `bd show' exits non-zero and `beads-execute' surfaces the
+    ;; failure), but if the CLI ever returns an empty result set the
+    ;; helper degrades to nil.  Refuse that explicitly rather than
+    ;; letting `oref' fail with an opaque "wrong-type-argument".
+    (let ((issue (beads-issue-read id)))
+      (unless issue
+        (user-error "beads-ralph-launch-at-point: no such issue %S" id))
+      (let ((kind (if (equal (oref issue issue-type) "epic")
+                      'epic
+                    'issue)))
+        (beads-ralph-launcher id :kind kind :issue issue)))))
 
 (provide 'beads-ralph-launcher)
 
