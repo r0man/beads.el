@@ -1624,7 +1624,15 @@ Returns the result of `beads-agent-type-icon-or-letter' when
 `beads-agent-icons-supported-p' is non-nil and the type is
 registered.  Returns nil when icons are disabled (so callers
 preserve their original full type-name behavior) or when the
-type is not registered."
+type is not registered.
+
+The outer `beads-agent-icons-supported-p' guard looks redundant
+with the same check inside `beads-agent-type-icon-or-letter', but
+it is load-bearing: without it we would return the type's letter
+in TTY frames, and mode-line callers use `(or icon agent-type)'
+— which means a non-nil letter would suppress the full type-name
+text.  The contract here is nil = \"no glyph, fall back to the
+full type-name\", not nil = \"no icon configured\"."
   (when (and agent-type (beads-agent-icons-supported-p))
     (when-let ((type (beads-agent-type-get agent-type)))
       (beads-agent-type-icon-or-letter type))))

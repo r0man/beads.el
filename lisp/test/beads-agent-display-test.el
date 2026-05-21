@@ -570,6 +570,22 @@ both be nil in that case so the legacy branch is reached)."
       (when we-registered-review
         (beads-agent-type--unregister "Review")))))
 
+(ert-deftest beads-agent-display-test-format-issue-agents-touched-only ()
+  "Touched-only sessions (no focused, no outcome) produce no visible badge.
+Touched-but-not-focused sessions are intentionally omitted from the
+issue-list cell to keep it legible; their count surfaces only in the
+help-echo of focused badges.  When there are no focused sessions and
+no outcome, the cell is empty even if touched-only sessions exist."
+  (beads-agent-display-test--ensure-task-registered)
+  (let ((beads-agent-display-use-icons nil)
+        (beads-agent-display-type-icons nil))
+    (cl-letf (((symbol-function 'beads-agent-session-type-name)
+               (lambda (_s) "Task"))
+              ((symbol-function 'beads-agent-session-instance-number)
+               (lambda (_s) 1)))
+      (beads-agent-display-test--with-issue-agents nil '(touched1) nil
+        (should (equal (beads-agent-display-format-issue-agents "bd-x") ""))))))
+
 (ert-deftest beads-agent-display-test-format-issue-agents-finished-outcome ()
   "Finished outcome with no live sessions renders `✓T' (letter mode)."
   (let ((beads-agent-display-use-icons nil)

@@ -819,12 +819,12 @@ Returns one of:
   - `failed'     when the issue carries a `failed' outcome,
   - `stopped'    for inactive sessions with no recorded outcome.
 
-Known limitation tracked in bde-hjji: today an issue carries a
-single issue-level outcome, so if a previous session finished and
-a second session is now stopped, both lines render with the
-`finished' state instead of the second one as `stopped'.
-Resolving per-session state requires the agent backend to store
-outcomes per-session; deferred until that change lands.
+Known limitation: today an issue carries a single issue-level
+outcome, so if a previous session finished and a second session
+is now stopped, both lines render with the `finished' state
+instead of the second one as `stopped'.  Resolving per-session
+state requires the agent backend to store outcomes per-session;
+deferred until that change lands.
 
 Note: this PR does NOT regress previous behaviour.  Before the
 outcome-mark feature, the column showed no outcome glyphs at all
