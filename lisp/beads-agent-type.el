@@ -77,7 +77,7 @@
   "Whether to use emoji icons for agent type indicators.
 
 Controls what `beads-agent-type-icon-or-letter' returns: an emoji
-icon (from the `icon' slot or a `beads-agent-type-icons' override)
+icon (from the `icon' slot or a `beads-agent-display-type-icons' override)
 or the single-letter abbreviation from the `letter' slot.
 
 Possible values:
@@ -86,13 +86,13 @@ Possible values:
 - nil: always use single letters (T/R/P/Q/C)
 
 Set this to nil when icons render as tofu (missing-glyph) on your
-system, or override icons per-type via `beads-agent-type-icons'."
+system, or override icons per-type via `beads-agent-display-type-icons'."
   :type '(choice (const :tag "Auto-detect by frame" auto)
                  (const :tag "Always icons" t)
                  (const :tag "Always letters" nil))
   :group 'beads-agent)
 
-(defcustom beads-agent-type-icons nil
+(defcustom beads-agent-display-type-icons nil
   "Per-type icon overrides for agent display.
 
 Alist mapping lowercase type names to display strings.  Each entry
@@ -158,7 +158,7 @@ default in Phase 1a-i where all slots are still nil).")
     :documentation "Display icon string for this agent type, or nil.
 A short string (typically a single emoji, two display columns wide) used
 as the visual identifier across all UIs.  When nil, the letter slot is
-used as fallback.  Users may override via `beads-agent-type-icons'."))
+used as fallback.  Users may override via `beads-agent-display-type-icons'."))
   :abstract t
   :documentation "Abstract base class for AI agent types.
 Subclasses define specific agent behaviors and can override generic methods.
@@ -264,7 +264,7 @@ Returns a string suitable for display in list columns.")
   "Return the icon string for TYPE, or nil if no icon is configured.
 
 Resolution order:
-1. `beads-agent-type-icons' override (alist lookup by lowercase
+1. `beads-agent-display-type-icons' override (alist lookup by lowercase
    name).  A cons cell present in the alist wins even when its
    cdr is nil, so a user can explicitly clear the icon for a
    type without subclassing.
@@ -277,7 +277,7 @@ user-visible identifier should use `beads-agent-type-icon-or-letter'.")
 (cl-defmethod beads-agent-type-icon ((type beads-agent-type))
   "Return the configured icon string for TYPE, or nil.
 Follows the resolution order documented on the generic."
-  (let ((entry (assoc (downcase (oref type name)) beads-agent-type-icons)))
+  (let ((entry (assoc (downcase (oref type name)) beads-agent-display-type-icons)))
     (if entry
         (cdr entry)
       (and (slot-boundp type 'icon) (oref type icon)))))
@@ -298,7 +298,7 @@ Resolves `beads-agent-display-use-icons':
 Returns the configured icon when icons are enabled by
 `beads-agent-display-use-icons', supported by the frame, AND a
 non-nil icon is configured for TYPE (via
-`beads-agent-type-icons' override or the `icon' slot).  Otherwise
+`beads-agent-display-type-icons' override or the `icon' slot).  Otherwise
 returns the single-letter abbreviation from TYPE's `letter' slot."
   (or (and (beads-agent--icons-supported-p)
            (beads-agent-type-icon type))

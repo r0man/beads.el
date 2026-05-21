@@ -563,11 +563,20 @@ Transient levels control which options are visible (cycle with C-x l):
 
 (defcustom beads-list-agent-width 11
   "Width of Agents column in issue lists.
-Shows the role icon (or single letter under TTY) for each focused
-session on an issue, plus the outcome glyph (✓/✗) when an agent
-has finished or failed.  Default width accommodates two outcomed
-agents plus one running agent (with separators), or three running
-agents."
+Measured in display columns (as elsewhere in `tabulated-list-format'),
+not in characters.  Under GUI Emacs each agent emoji occupies two
+display columns; under TTY each letter occupies one.  Outcome glyphs
+\(`✓'/`✗') and the inter-agent separator each occupy one column.
+
+Default width accommodates either:
+  - two outcomed agents plus one running agent under GUI
+    (e.g. `✓🦫 ✗🦉 🐙' = 3+1+3+1+2 = 10 cols), or
+  - three running agents (= 2+1+2+1+2 = 8 cols), or
+  - five letter-only agents under TTY.
+
+When using a custom icon set that includes wider glyphs (or in
+GUI frames where your font renders emoji wider than two columns),
+increase this value via \\[customize-variable]."
   :type 'integer
   :group 'beads-list)
 

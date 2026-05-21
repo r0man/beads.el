@@ -2540,7 +2540,7 @@ buffer text or interrogate text properties."
                (lambda (_) ,outcome)))
       (let ((inhibit-read-only t)
             (beads-agent-display-use-icons nil)
-            (beads-agent-type-icons nil)
+            (beads-agent-display-type-icons nil)
             (beads-agent-display-show-instance nil))
         (beads-show--insert-agent-section "bd-42")
         ,@body))))

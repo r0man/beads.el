@@ -200,9 +200,14 @@ Holds the agent role icon (or single-letter fallback) plus the
 
 (defun beads-agent-list--format-type (session)
   "Return the propertized Type cell for SESSION.
-The agent list buffer has space to show the `#N' instance suffix
-even when callers in narrow surfaces hide it, so this binding of
-`beads-agent-display-show-instance' is forced to t for the cell."
+The agent list is the canonical place to disambiguate parallel
+sessions: this cell IS the session's identifier, and the buffer
+dedicates `beads-agent-list-type-width' columns to it.  We therefore
+force `beads-agent-display-show-instance' to t for the duration of
+this call regardless of the user's preference, so the `#N' suffix is
+always rendered even when the user has opted to hide it in tighter
+surfaces (issue list, dashboard).  Other narrow surfaces still honour
+the defcustom."
   (let ((beads-agent-display-show-instance t))
     (beads-agent-display-format-session session nil nil)))
 

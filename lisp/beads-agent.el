@@ -1635,9 +1635,10 @@ CTX is a plist from `beads-agent--mode-line-context'.
 Returns a string like [beads.el:Task#1@wt] or [beads.el:main].
 
 When `beads-agent-display-use-icons' resolves to non-nil and the
-agent's type has an icon, the type-name+`#' is replaced by the icon
-\(e.g. `[beads.el:\\=👷1@wt]') so the icon visually anchors the
-instance number."
+agent's type has an icon, the type-name is replaced by the icon
+\(e.g. `[beads.el:\\=👷#1@wt]') while the `#' separator before the
+instance number is preserved so the icon visually anchors the
+instance number without merging into it."
   (let* ((project-name (plist-get ctx :project-name))
          (branch (plist-get ctx :branch))
          (in-worktree (plist-get ctx :in-worktree))
@@ -1651,11 +1652,9 @@ instance number."
                                        'face 'beads-agent-mode-line-project)
                          project-name))
              (agent-str (when agent-type
-                          (let ((str (if icon
-                                         (format "%s%d" icon
-                                                 (or agent-instance 1))
-                                       (format "%s#%d" agent-type
-                                               (or agent-instance 1)))))
+                          (let ((str (format "%s#%d"
+                                             (or icon agent-type)
+                                             (or agent-instance 1))))
                             (if use-faces
                                 (propertize str
                                             'face 'beads-agent-mode-line-agent)
@@ -1680,8 +1679,9 @@ CTX is a plist from `beads-agent--mode-line-context'.
 Returns a string like [P:T#1] where P is first char of project.
 
 When `beads-agent-display-use-icons' resolves to non-nil and the
-agent's type has an icon, the single letter+`#' is replaced by the
-icon \(e.g. `[b:\\=👷1*]')."
+agent's type has an icon, the single letter is replaced by the
+icon \(e.g. `[b:\\=👷#1*]') while the `#' separator before the
+instance number is preserved."
   (let* ((project-name (plist-get ctx :project-name))
          (agent-type (plist-get ctx :agent-type))
          (agent-instance (plist-get ctx :agent-instance))
@@ -1690,11 +1690,9 @@ icon \(e.g. `[b:\\=👷1*]')."
     (when (and project-name (> (length project-name) 0))
       (let* ((p-char (substring project-name 0 1))
              (agent-str (when (and agent-type (> (length agent-type) 0))
-                          (if icon
-                              (format "%s%d" icon (or agent-instance 1))
-                            (format "%s#%d"
-                                    (substring agent-type 0 1)
-                                    (or agent-instance 1)))))
+                          (format "%s#%d"
+                                  (or icon (substring agent-type 0 1))
+                                  (or agent-instance 1))))
              (wt-str (if in-worktree "*" "")))
         (concat "[" p-char
                 (when agent-str (concat ":" agent-str))

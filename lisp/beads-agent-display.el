@@ -152,6 +152,24 @@ The returned string carries two text properties:
    outcome
    brief))
 
+(defun beads-agent-display--outcome-parts (outcome)
+  "Decompose OUTCOME into a (TYPE-NAME . STATE-SYM) pair.
+OUTCOME is the value returned by `beads-agent--get-issue-outcome'.
+It may be:
+  - nil                          : no outcome on record
+  - a bare symbol (`finished'/`failed')
+  - a cons cell `(TYPE-NAME . OUTCOME-SYM)' from the typed storage
+
+Returns a cons cell `(TYPE-NAME . STATE-SYM)' where TYPE-NAME may be
+nil (legacy `bare-symbol' form) and STATE-SYM is `finished' or `failed'.
+Returns nil when OUTCOME does not resolve to a recognised state, so
+callers can skip outcome rendering entirely."
+  (let* ((state (cond ((symbolp outcome) outcome)
+                      ((consp outcome) (cdr outcome))))
+         (type-name (and (consp outcome) (car outcome))))
+    (and (memq state '(finished failed))
+         (cons type-name state))))
+
 ;;;###autoload
 (defun beads-agent-display-format-issue-agents (issue-id)
   "Return the agent-badge string for ISSUE-ID, or empty string.
@@ -162,8 +180,12 @@ under TTY it is the type's single letter.  Finished and failed
 outcomes prefix the glyph with `✓' or `✗' so the status stays
 shape-distinguishable in TTY too.
 
-Touched-only sessions (focused elsewhere) are not rendered; their
-count surfaces only in the cell `help-echo'.
+Behaviour note: touched-only sessions (sessions that touched ISSUE-ID
+but are focused elsewhere) are intentionally omitted from the visible
+badges to keep the cell legible — their count surfaces only in the
+cell `help-echo'.  This is a deliberate change from the previous
+inline tilde-prefixed indicator (e.g. `~P'); see the design doc under
+`.designs/agent-icon-display/' for rationale.
 
 Returns \"\" when there are no focused sessions and no outcome.
 Functions in `beads-agent-backend' are guarded via `fboundp' so the
@@ -179,6 +201,7 @@ backend has not been required."
                                (beads-agent--get-sessions-for-issue issue-id)))
          (outcome (and (fboundp 'beads-agent--get-issue-outcome)
                        (beads-agent--get-issue-outcome issue-id)))
+         (outcome-parts (beads-agent-display--outcome-parts outcome))
          (separator (propertize " " 'face 'shadow)))
     (cond
      (focused
@@ -201,14 +224,9 @@ backend has not been required."
                     'help-echo (format "%d agent%s working"
                                        (length legacy-sessions)
                                        (if (= (length legacy-sessions) 1) "" "s")))))
-     ((and (consp outcome) (eq (cdr outcome) 'finished))
-      (beads-agent-display-format-type-name (car outcome) 'finished))
-     ((eq outcome 'finished)
-      (beads-agent-display-format-type-name nil 'finished))
-     ((and (consp outcome) (eq (cdr outcome) 'failed))
-      (beads-agent-display-format-type-name (car outcome) 'failed))
-     ((eq outcome 'failed)
-      (beads-agent-display-format-type-name nil 'failed))
+     (outcome-parts
+      (beads-agent-display-format-type-name (car outcome-parts)
+                                            (cdr outcome-parts)))
      (t ""))))
 
 ;;;###autoload

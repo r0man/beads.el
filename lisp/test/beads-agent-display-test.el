@@ -10,7 +10,7 @@
 ;; ERT tests for the icon-resolution defcustoms and accessors added
 ;; in bde-npte.2:
 ;;   - `beads-agent-display-use-icons'
-;;   - `beads-agent-type-icons'
+;;   - `beads-agent-display-type-icons'
 ;;   - `beads-agent-display-show-instance'
 ;;   - `beads-agent-type-icon' (generic + method)
 ;;   - `beads-agent--icons-supported-p'
@@ -51,10 +51,10 @@
   (should (get 'beads-agent-display-use-icons 'custom-type)))
 
 (ert-deftest beads-agent-display-test-defcustom-type-icons-defined ()
-  "`beads-agent-type-icons' is defined and defaults to nil."
-  (should (boundp 'beads-agent-type-icons))
-  (should (null (default-value 'beads-agent-type-icons)))
-  (should (get 'beads-agent-type-icons 'custom-type)))
+  "`beads-agent-display-type-icons' is defined and defaults to nil."
+  (should (boundp 'beads-agent-display-type-icons))
+  (should (null (default-value 'beads-agent-display-type-icons)))
+  (should (get 'beads-agent-display-type-icons 'custom-type)))
 
 (ert-deftest beads-agent-display-test-defcustom-show-instance-defined ()
   "`beads-agent-display-show-instance' is defined and defaults to nil."
@@ -66,38 +66,38 @@
 
 (ert-deftest beads-agent-display-test-icon-from-slot ()
   "Returns the `icon' slot value when no override is present."
-  (let ((beads-agent-type-icons nil)
+  (let ((beads-agent-display-type-icons nil)
         (type (beads-agent-display-test--task)))
     (should (equal (beads-agent-type-icon type) "👷"))))
 
 (ert-deftest beads-agent-display-test-icon-override-wins-over-slot ()
-  "An override entry in `beads-agent-type-icons' wins over the slot."
-  (let ((beads-agent-type-icons '(("task" . "🛠")))
+  "An override entry in `beads-agent-display-type-icons' wins over the slot."
+  (let ((beads-agent-display-type-icons '(("task" . "🛠")))
         (type (beads-agent-display-test--task)))
     (should (equal (beads-agent-type-icon type) "🛠"))))
 
 (ert-deftest beads-agent-display-test-icon-override-case-insensitive ()
   "Override lookup is case-insensitive on the type name."
-  (let ((beads-agent-type-icons '(("task" . "🛠")))
+  (let ((beads-agent-display-type-icons '(("task" . "🛠")))
         ;; Type name is registered as "Task" (mixed case).
         (type (beads-agent-display-test--task)))
     (should (equal (beads-agent-type-icon type) "🛠"))))
 
 (ert-deftest beads-agent-display-test-icon-override-explicit-nil ()
   "An override entry with a nil cdr returns nil — slot is NOT consulted."
-  (let ((beads-agent-type-icons '(("task" . nil)))
+  (let ((beads-agent-display-type-icons '(("task" . nil)))
         (type (beads-agent-display-test--task)))
     (should (null (beads-agent-type-icon type)))))
 
 (ert-deftest beads-agent-display-test-icon-slot-nil-no-override ()
   "Returns nil when the slot is nil and no override is configured."
-  (let ((beads-agent-type-icons nil)
+  (let ((beads-agent-display-type-icons nil)
         (type (beads-agent-display-test--iconless)))
     (should (null (beads-agent-type-icon type)))))
 
 (ert-deftest beads-agent-display-test-icon-no-match-falls-to-slot ()
   "An override alist with unrelated entries falls through to the slot."
-  (let ((beads-agent-type-icons '(("review" . "🔍")))
+  (let ((beads-agent-display-type-icons '(("review" . "🔍")))
         (type (beads-agent-display-test--task)))
     (should (equal (beads-agent-type-icon type) "👷"))))
 
@@ -136,42 +136,42 @@
 (ert-deftest beads-agent-display-test-or-letter-icon-when-supported ()
   "Returns icon when icons are enabled and one is configured."
   (let ((beads-agent-display-use-icons t)
-        (beads-agent-type-icons nil)
+        (beads-agent-display-type-icons nil)
         (type (beads-agent-display-test--task)))
     (should (equal (beads-agent-type-icon-or-letter type) "👷"))))
 
 (ert-deftest beads-agent-display-test-or-letter-letter-when-disabled ()
   "Returns letter when icons are disabled, even if icon is configured."
   (let ((beads-agent-display-use-icons nil)
-        (beads-agent-type-icons nil)
+        (beads-agent-display-type-icons nil)
         (type (beads-agent-display-test--task)))
     (should (equal (beads-agent-type-icon-or-letter type) "T"))))
 
 (ert-deftest beads-agent-display-test-or-letter-letter-when-slot-nil ()
   "Returns letter when icons are enabled but slot has no icon."
   (let ((beads-agent-display-use-icons t)
-        (beads-agent-type-icons nil)
+        (beads-agent-display-type-icons nil)
         (type (beads-agent-display-test--iconless)))
     (should (equal (beads-agent-type-icon-or-letter type) "X"))))
 
 (ert-deftest beads-agent-display-test-or-letter-override-wins ()
   "Override icon wins when icons are enabled."
   (let ((beads-agent-display-use-icons t)
-        (beads-agent-type-icons '(("task" . "🛠")))
+        (beads-agent-display-type-icons '(("task" . "🛠")))
         (type (beads-agent-display-test--task)))
     (should (equal (beads-agent-type-icon-or-letter type) "🛠"))))
 
 (ert-deftest beads-agent-display-test-or-letter-override-nil-falls-to-letter ()
   "Override explicitly nil falls back to letter (skips slot)."
   (let ((beads-agent-display-use-icons t)
-        (beads-agent-type-icons '(("task" . nil)))
+        (beads-agent-display-type-icons '(("task" . nil)))
         (type (beads-agent-display-test--task)))
     (should (equal (beads-agent-type-icon-or-letter type) "T"))))
 
 (ert-deftest beads-agent-display-test-or-letter-auto-gui ()
   "`auto' under a GUI frame returns the icon."
   (let ((beads-agent-display-use-icons 'auto)
-        (beads-agent-type-icons nil)
+        (beads-agent-display-type-icons nil)
         (type (beads-agent-display-test--task)))
     (cl-letf (((symbol-function 'display-graphic-p) (lambda (&rest _) t)))
       (should (equal (beads-agent-type-icon-or-letter type) "👷")))))
@@ -179,7 +179,7 @@
 (ert-deftest beads-agent-display-test-or-letter-auto-tty ()
   "`auto' under a TTY frame returns the letter."
   (let ((beads-agent-display-use-icons 'auto)
-        (beads-agent-type-icons nil)
+        (beads-agent-display-type-icons nil)
         (type (beads-agent-display-test--task)))
     (cl-letf (((symbol-function 'display-graphic-p) (lambda (&rest _) nil)))
       (should (equal (beads-agent-type-icon-or-letter type) "T")))))
@@ -220,7 +220,7 @@ Required because tests run with the icon \"🦫\" and letter \"T\"."
   "Running state in icons mode renders the icon with working face."
   (beads-agent-display-test--ensure-task-registered)
   (let ((beads-agent-display-use-icons t)
-        (beads-agent-type-icons nil)
+        (beads-agent-display-type-icons nil)
         (beads-agent-display-show-instance nil))
     (beads-agent-display-test--with-session "Task" 1
       (let ((result (beads-agent-display-format-session session)))
@@ -234,7 +234,7 @@ Required because tests run with the icon \"🦫\" and letter \"T\"."
   "Running state in letter mode renders the letter with working face."
   (beads-agent-display-test--ensure-task-registered)
   (let ((beads-agent-display-use-icons nil)
-        (beads-agent-type-icons nil)
+        (beads-agent-display-type-icons nil)
         (beads-agent-display-show-instance nil))
     (beads-agent-display-test--with-session "Task" 1
       (let ((result (beads-agent-display-format-session session)))
@@ -248,7 +248,7 @@ Required because tests run with the icon \"🦫\" and letter \"T\"."
   "Touched state in icons mode renders the icon with shadow face and no `~'."
   (beads-agent-display-test--ensure-task-registered)
   (let ((beads-agent-display-use-icons t)
-        (beads-agent-type-icons nil)
+        (beads-agent-display-type-icons nil)
         (beads-agent-display-show-instance nil))
     (beads-agent-display-test--with-session "Task" 2
       (let ((result (beads-agent-display-format-session session 'touched)))
@@ -264,7 +264,7 @@ Required because tests run with the icon \"🦫\" and letter \"T\"."
   "Touched state in letter mode renders the letter with shadow face."
   (beads-agent-display-test--ensure-task-registered)
   (let ((beads-agent-display-use-icons nil)
-        (beads-agent-type-icons nil)
+        (beads-agent-display-type-icons nil)
         (beads-agent-display-show-instance nil))
     (beads-agent-display-test--with-session "Task" 1
       (let ((result (beads-agent-display-format-session session 'touched)))
@@ -278,7 +278,7 @@ Required because tests run with the icon \"🦫\" and letter \"T\"."
   "Finished state in icons mode renders ✓ + icon with finished face."
   (beads-agent-display-test--ensure-task-registered)
   (let ((beads-agent-display-use-icons t)
-        (beads-agent-type-icons nil)
+        (beads-agent-display-type-icons nil)
         (beads-agent-display-show-instance nil))
     (beads-agent-display-test--with-session "Task" 1
       (let ((result (beads-agent-display-format-session session 'finished)))
@@ -295,7 +295,7 @@ Required because tests run with the icon \"🦫\" and letter \"T\"."
   "Finished state in letter mode renders ✓T with finished face."
   (beads-agent-display-test--ensure-task-registered)
   (let ((beads-agent-display-use-icons nil)
-        (beads-agent-type-icons nil)
+        (beads-agent-display-type-icons nil)
         (beads-agent-display-show-instance nil))
     (beads-agent-display-test--with-session "Task" 1
       (let ((result (beads-agent-display-format-session session 'finished)))
@@ -309,7 +309,7 @@ Required because tests run with the icon \"🦫\" and letter \"T\"."
   "Failed state in icons mode renders ✗ + icon with failed face."
   (beads-agent-display-test--ensure-task-registered)
   (let ((beads-agent-display-use-icons t)
-        (beads-agent-type-icons nil)
+        (beads-agent-display-type-icons nil)
         (beads-agent-display-show-instance nil))
     (beads-agent-display-test--with-session "Task" 1
       (let ((result (beads-agent-display-format-session session 'failed)))
@@ -325,7 +325,7 @@ Required because tests run with the icon \"🦫\" and letter \"T\"."
   "Failed state in letter mode renders ✗T with failed face."
   (beads-agent-display-test--ensure-task-registered)
   (let ((beads-agent-display-use-icons nil)
-        (beads-agent-type-icons nil)
+        (beads-agent-display-type-icons nil)
         (beads-agent-display-show-instance nil))
     (beads-agent-display-test--with-session "Task" 1
       (let ((result (beads-agent-display-format-session session 'failed)))
@@ -340,7 +340,7 @@ Required because tests run with the icon \"🦫\" and letter \"T\"."
   (beads-agent-display-test--ensure-task-registered)
   (dolist (use-icons '(t nil))
     (let ((beads-agent-display-use-icons use-icons)
-          (beads-agent-type-icons nil))
+          (beads-agent-display-type-icons nil))
       (beads-agent-display-test--with-session "Task" 1
         (should (string-match-p
                  "✓"
@@ -355,7 +355,7 @@ Required because tests run with the icon \"🦫\" and letter \"T\"."
   "No `#N' suffix when `beads-agent-display-show-instance' is nil."
   (beads-agent-display-test--ensure-task-registered)
   (let ((beads-agent-display-use-icons nil)
-        (beads-agent-type-icons nil)
+        (beads-agent-display-type-icons nil)
         (beads-agent-display-show-instance nil))
     (beads-agent-display-test--with-session "Task" 3
       (let ((result (beads-agent-display-format-session session)))
@@ -365,7 +365,7 @@ Required because tests run with the icon \"🦫\" and letter \"T\"."
   "`#N' suffix appears when `beads-agent-display-show-instance' is t."
   (beads-agent-display-test--ensure-task-registered)
   (let ((beads-agent-display-use-icons nil)
-        (beads-agent-type-icons nil)
+        (beads-agent-display-type-icons nil)
         (beads-agent-display-show-instance t))
     (beads-agent-display-test--with-session "Task" 3
       (let ((result (beads-agent-display-format-session session)))
@@ -375,7 +375,7 @@ Required because tests run with the icon \"🦫\" and letter \"T\"."
   "BRIEF non-nil forces `#N' off even when show-instance is t."
   (beads-agent-display-test--ensure-task-registered)
   (let ((beads-agent-display-use-icons nil)
-        (beads-agent-type-icons nil)
+        (beads-agent-display-type-icons nil)
         (beads-agent-display-show-instance t))
     (beads-agent-display-test--with-session "Task" 3
       (let ((result (beads-agent-display-format-session session nil t)))
@@ -387,7 +387,7 @@ Required because tests run with the icon \"🦫\" and letter \"T\"."
   "Passing nil for OUTCOME is equivalent to the running state."
   (beads-agent-display-test--ensure-task-registered)
   (let ((beads-agent-display-use-icons t)
-        (beads-agent-type-icons nil)
+        (beads-agent-display-type-icons nil)
         (beads-agent-display-show-instance nil))
     (beads-agent-display-test--with-session "Task" 1
       (let ((nil-out (beads-agent-display-format-session session nil))
@@ -402,7 +402,7 @@ Required because tests run with the icon \"🦫\" and letter \"T\"."
   "Type-name façade renders ✓ + role icon in icons mode."
   (beads-agent-display-test--ensure-task-registered)
   (let ((beads-agent-display-use-icons t)
-        (beads-agent-type-icons nil))
+        (beads-agent-display-type-icons nil))
     (let ((result (beads-agent-display-format-type-name "Task" 'finished)))
       (should (equal (substring-no-properties result) "✓🦫"))
       (should (eq (get-text-property 0 'face result)
@@ -412,7 +412,7 @@ Required because tests run with the icon \"🦫\" and letter \"T\"."
   "Type-name façade renders ✗T in letter mode."
   (beads-agent-display-test--ensure-task-registered)
   (let ((beads-agent-display-use-icons nil)
-        (beads-agent-type-icons nil))
+        (beads-agent-display-type-icons nil))
     (let ((result (beads-agent-display-format-type-name "Task" 'failed)))
       (should (equal (substring-no-properties result) "✗T"))
       (should (eq (get-text-property 0 'face result)
@@ -421,7 +421,7 @@ Required because tests run with the icon \"🦫\" and letter \"T\"."
 (ert-deftest beads-agent-display-test-format-type-name-nil-type ()
   "Type-name façade falls back to the `●' glyph when TYPE-NAME is nil."
   (let ((beads-agent-display-use-icons nil)
-        (beads-agent-type-icons nil))
+        (beads-agent-display-type-icons nil))
     (let ((result (beads-agent-display-format-type-name nil 'finished)))
       (should (equal (substring-no-properties result) "✓●")))))
 
@@ -444,7 +444,7 @@ old `(substring type-name 0 1)' callsites would have rendered this
 type as \"T\", colliding with Task."
   (require 'beads-agent-types)
   (let ((beads-agent-display-use-icons nil)
-        (beads-agent-type-icons nil)
+        (beads-agent-display-type-icons nil)
         (collision (beads-agent-display-test--collision)))
     (unwind-protect
         (progn
@@ -486,7 +486,7 @@ the value returned by `beads-agent--get-issue-outcome'."
   "One focused Task agent renders as the role glyph (letter mode = `T')."
   (beads-agent-display-test--ensure-task-registered)
   (let ((beads-agent-display-use-icons nil)
-        (beads-agent-type-icons nil))
+        (beads-agent-display-type-icons nil))
     (cl-letf (((symbol-function 'beads-agent-session-type-name)
                (lambda (_s) "Task"))
               ((symbol-function 'beads-agent-session-instance-number)
@@ -504,7 +504,7 @@ the value returned by `beads-agent--get-issue-outcome'."
   (unless (beads-agent-type-get "review")
     (beads-agent-type-register (beads-agent-type-review)))
   (let* ((beads-agent-display-use-icons nil)
-         (beads-agent-type-icons nil)
+         (beads-agent-display-type-icons nil)
          (types '((s1 . "Task") (s2 . "Review"))))
     (cl-letf (((symbol-function 'beads-agent-session-type-name)
                (lambda (s) (cdr (assoc s types))))
@@ -519,7 +519,7 @@ the value returned by `beads-agent--get-issue-outcome'."
 (ert-deftest beads-agent-display-test-format-issue-agents-finished-outcome ()
   "Finished outcome with no live sessions renders `✓T' (letter mode)."
   (let ((beads-agent-display-use-icons nil)
-        (beads-agent-type-icons nil))
+        (beads-agent-display-type-icons nil))
     (beads-agent-display-test--with-issue-agents nil nil '("Task" . finished)
       (let ((result (beads-agent-display-format-issue-agents "bd-x")))
         (should (string= (substring-no-properties result) "✓T"))
@@ -529,7 +529,7 @@ the value returned by `beads-agent--get-issue-outcome'."
 (ert-deftest beads-agent-display-test-format-issue-agents-failed-outcome ()
   "Failed outcome with no live sessions renders `✗R' (letter mode)."
   (let ((beads-agent-display-use-icons nil)
-        (beads-agent-type-icons nil))
+        (beads-agent-display-type-icons nil))
     (beads-agent-display-test--with-issue-agents nil nil '("Review" . failed)
       (let ((result (beads-agent-display-format-issue-agents "bd-x")))
         (should (string= (substring-no-properties result) "✗R"))
@@ -542,7 +542,7 @@ The outcome cell is reserved for terminated sessions; an active focused
 session means the issue is still in flight."
   (beads-agent-display-test--ensure-task-registered)
   (let ((beads-agent-display-use-icons nil)
-        (beads-agent-type-icons nil))
+        (beads-agent-display-type-icons nil))
     (cl-letf (((symbol-function 'beads-agent-session-type-name)
                (lambda (_s) "Task"))
               ((symbol-function 'beads-agent-session-instance-number)

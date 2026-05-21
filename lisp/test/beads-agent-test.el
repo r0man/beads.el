@@ -1892,7 +1892,7 @@ behavior is to always prompt unless a default is configured."
                (icon (and type (slot-boundp type 'icon) (oref type icon))))
           (skip-unless icon)
           (let ((beads-agent-display-use-icons t)
-                (beads-agent-type-icons nil))
+                (beads-agent-display-type-icons nil))
             (let* ((suffix (beads-agent-issue--make-jump-suffix session 1))
                    (desc (cadr suffix)))
               (should (string-match-p (regexp-quote icon) desc))
@@ -1914,7 +1914,7 @@ behavior is to always prompt unless a default is configured."
                (letter (and type (oref type letter))))
           (skip-unless icon)
           (let ((beads-agent-display-use-icons nil)
-                (beads-agent-type-icons nil))
+                (beads-agent-display-type-icons nil))
             (let* ((suffix (beads-agent-issue--make-jump-suffix session 1))
                    (desc (cadr suffix)))
               (should-not (string-match-p (regexp-quote icon) desc))
@@ -1940,7 +1940,7 @@ behavior is to always prompt unless a default is configured."
         (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
                    (lambda (_) (list session))))
           (let ((beads-agent-display-use-icons t)
-                (beads-agent-type-icons nil))
+                (beads-agent-display-type-icons nil))
             (let ((header (beads-agent-issue--format-header)))
               (should (string-match-p (regexp-quote icon) header))
               ;; Icon precedes the "Agents for" body.
@@ -1968,7 +1968,7 @@ behavior is to always prompt unless a default is configured."
         (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
                    (lambda (_) (list session))))
           (let ((beads-agent-display-use-icons nil)
-                (beads-agent-type-icons nil))
+                (beads-agent-display-type-icons nil))
             (let ((header (beads-agent-issue--format-header)))
               (should-not (string-match-p (regexp-quote icon) header))
               ;; Header starts with the letter glyph then space then "Agents".
@@ -3406,12 +3406,12 @@ When worktrees are disabled, uses beads-agent-start directly."
 ;;; assume the load-time registration is in effect.
 
 (ert-deftest beads-agent-test-mode-line-format-default-icons-enabled ()
-  "Default format replaces type-name+`#' with the icon when icons enabled."
+  "Default format swaps type-name for icon and keeps the `#' separator."
   (beads-agent-test--setup)
   (unwind-protect
       (let* ((beads-agent-mode-line-faces nil)
              (beads-agent-display-use-icons t)
-             (beads-agent-type-icons nil)
+             (beads-agent-display-type-icons nil)
              (mock-session (beads-agent-session
                             :id "beads.el#1"
                             :project-dir "/home/user/beads.el"
@@ -3426,7 +3426,7 @@ When worktrees are disabled, uses beads-agent-start directly."
                         :agent-type "Task"
                         :agent-instance 1)))
         (let ((result (beads-agent--mode-line-format-default ctx)))
-          (should (string= result "[beads.el:🦫1@main]"))))
+          (should (string= result "[beads.el:🦫#1@main]"))))
     (beads-agent-test--teardown)))
 
 (ert-deftest beads-agent-test-mode-line-format-default-icons-disabled ()
@@ -3435,7 +3435,7 @@ When worktrees are disabled, uses beads-agent-start directly."
   (unwind-protect
       (let* ((beads-agent-mode-line-faces nil)
              (beads-agent-display-use-icons nil)
-             (beads-agent-type-icons nil)
+             (beads-agent-display-type-icons nil)
              (mock-session (beads-agent-session
                             :id "beads.el#1"
                             :project-dir "/home/user/beads.el"
@@ -3454,11 +3454,11 @@ When worktrees are disabled, uses beads-agent-start directly."
     (beads-agent-test--teardown)))
 
 (ert-deftest beads-agent-test-mode-line-format-compact-icons-enabled ()
-  "Compact format replaces single-letter+`#' with the icon when icons enabled."
+  "Compact format swaps single-letter for icon and keeps the `#' separator."
   (beads-agent-test--setup)
   (unwind-protect
       (let* ((beads-agent-display-use-icons t)
-             (beads-agent-type-icons nil)
+             (beads-agent-display-type-icons nil)
              (ctx (list :project-name "beads.el"
                         :branch "main"
                         :in-worktree nil
@@ -3466,7 +3466,7 @@ When worktrees are disabled, uses beads-agent-start directly."
                         :agent-type "Task"
                         :agent-instance 1)))
         (let ((result (beads-agent--mode-line-format-compact ctx)))
-          (should (string= result "[b:🦫1]"))))
+          (should (string= result "[b:🦫#1]"))))
     (beads-agent-test--teardown)))
 
 (ert-deftest beads-agent-test-mode-line-format-compact-icons-disabled ()
@@ -3474,7 +3474,7 @@ When worktrees are disabled, uses beads-agent-start directly."
   (beads-agent-test--setup)
   (unwind-protect
       (let* ((beads-agent-display-use-icons nil)
-             (beads-agent-type-icons nil)
+             (beads-agent-display-type-icons nil)
              (ctx (list :project-name "beads.el"
                         :branch "main"
                         :in-worktree nil
@@ -3491,7 +3491,7 @@ When worktrees are disabled, uses beads-agent-start directly."
   (unwind-protect
       (let* ((beads-agent-mode-line-faces nil)
              (beads-agent-display-use-icons t)
-             (beads-agent-type-icons nil)
+             (beads-agent-display-type-icons nil)
              (mock-session (beads-agent-session
                             :id "beads.el#1"
                             :project-dir "/home/user/beads.el"
@@ -3519,7 +3519,7 @@ When worktrees are disabled, uses beads-agent-start directly."
   (unwind-protect
       (let* ((beads-agent-mode-line-faces nil)
              (beads-agent-display-use-icons nil)
-             (beads-agent-type-icons nil)
+             (beads-agent-display-type-icons nil)
              (mock-session (beads-agent-session
                             :id "beads.el#1"
                             :project-dir "/home/user/beads.el"
@@ -3547,7 +3547,7 @@ When worktrees are disabled, uses beads-agent-start directly."
   (unwind-protect
       (let* ((beads-agent-mode-line-faces nil)
              (beads-agent-display-use-icons 'auto)
-             (beads-agent-type-icons nil)
+             (beads-agent-display-type-icons nil)
              (mock-session (beads-agent-session
                             :id "beads.el#1"
                             :project-dir "/home/user/beads.el"
@@ -3575,7 +3575,7 @@ letter (the latent bug `bde-npte' fixes elsewhere)."
   (unwind-protect
       (let* ((beads-agent-mode-line-faces nil)
              (beads-agent-display-use-icons t)
-             (beads-agent-type-icons nil)
+             (beads-agent-display-type-icons nil)
              (ctx (list :project-name "beads.el"
                         :branch "main"
                         :in-worktree nil

@@ -805,8 +805,11 @@ Section header is uppercase without underline, matching DEPENDS ON style."
       ;; Make issue references clickable
       (beads-show--buttonize-references start (point)))))
 
-(defun beads-show--agent-session-state (session active issue-outcome)
-  "Return the display state symbol for SESSION.
+(defun beads-show--agent-session-state (_session active issue-outcome)
+  "Return the display state symbol for the agent session.
+_SESSION is currently unused; resolution depends only on the active
+flag and the issue-level outcome.  The parameter is retained so
+callers can pass the session object for forward compatibility.
 ACTIVE is the result of `beads-agent--session-active-p'.
 ISSUE-OUTCOME is the value from `beads-agent--get-issue-outcome' for
 the issue; it may be a bare symbol (`finished'/`failed') or a
@@ -814,7 +817,6 @@ the issue; it may be a bare symbol (`finished'/`failed') or a
 sessions (mapped to `running' by the display helper), `finished',
 `failed', or `touched' for inactive sessions with no recorded
 outcome."
-  (ignore session)
   (let ((outcome-sym (cond
                       ((symbolp issue-outcome) issue-outcome)
                       ((consp issue-outcome) (cdr issue-outcome)))))

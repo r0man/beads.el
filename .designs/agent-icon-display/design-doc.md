@@ -6,7 +6,7 @@ This document is the original design that landed under epic
 [bde-npte](https://github.com/) (closed 2026-05-21, 9/9 children
 complete). All mechanism — `:icon` slot on `beads-agent-type`,
 `beads-agent-type-icon-or-letter` accessor, GUI/TTY auto-detection via
-`beads-agent-display-use-icons`, `beads-agent-type-icons` user
+`beads-agent-display-use-icons`, `beads-agent-display-type-icons` user
 overrides, propagation across the seven UI surfaces (issue list,
 dashboard, `*beads-agents*` list, show buffer Agent Sessions, mode-line,
 per-issue transient header, prompt-edit header line) — is as designed
@@ -27,7 +27,7 @@ outcome glyphs, override surface) is unchanged.
 
 Source of truth for the live values: `lisp/beads-agent-types.el`
 (`:icon` initforms on each `beads-agent-type-<x>` subclass). User
-overrides via `beads-agent-type-icons` still take precedence over the
+overrides via `beads-agent-display-type-icons` still take precedence over the
 shipped initforms — see the resolution order in
 `beads-agent-type-icon-or-letter` (`lisp/beads-agent-type.el`).
 
@@ -154,7 +154,7 @@ help-echo.
     :documentation "Display icon string for this agent type, or nil.
 A short string (typically a single emoji, two display columns wide) used
 as the visual identifier across all UIs.  When nil, the letter slot is
-used as fallback.  Users may override via `beads-agent-type-icons'.")))
+used as fallback.  Users may override via `beads-agent-display-type-icons'.")))
 ```
 
 #### New defcustoms
@@ -170,7 +170,7 @@ used as fallback.  Users may override via `beads-agent-type-icons'.")))
                  (const :tag "Always letters" nil))
   :group 'beads-agent)
 
-(defcustom beads-agent-type-icons nil
+(defcustom beads-agent-display-type-icons nil
   "Per-type icon overrides for agent display.
 Alist mapping lowercase type names to display strings.  Overrides the
 `:icon' slot of the corresponding `beads-agent-type'.  Set the whole
@@ -192,12 +192,12 @@ and help-echo tooltips, freeing space in the issue list column."
 ```elisp
 (cl-defgeneric beads-agent-type-icon (type)
   "Return the icon string for TYPE, or nil if no icon is configured.
-Resolution order: `beads-agent-type-icons' override → `icon' slot.
+Resolution order: `beads-agent-display-type-icons' override → `icon' slot.
 Does not apply the terminal-supported-p gate; callers should use
 `beads-agent-type-icon-or-letter' for the user-visible string.")
 
 (cl-defmethod beads-agent-type-icon ((type beads-agent-type))
-  (or (cdr (assoc (downcase (oref type name)) beads-agent-type-icons))
+  (or (cdr (assoc (downcase (oref type name)) beads-agent-display-type-icons))
       (and (slot-boundp type 'icon) (oref type icon))))
 
 (defun beads-agent--icons-supported-p ()
@@ -237,7 +237,7 @@ With BRIEF non-nil, omits the #N suffix even when
   Color Emoji. Store the icon as `"🕵️"` (two codepoints) in the slot.
 - Plan/QA/Custom use Unicode 11.0+ glyphs — fine on Emacs 29+ with Noto
   Color Emoji 2018+, Apple Color Emoji 12.0+ (macOS 10.15+). Older systems
-  fall back to tofu; users override via `beads-agent-type-icons`.
+  fall back to tofu; users override via `beads-agent-display-type-icons`.
 - `🪄` (Custom) is the youngest glyph (2020). Risk-mitigation: per-type
   override defcustom lets users swap to e.g. `✨` or `🎨` without subclassing.
 - The metaphor is **"the role's tool"** — a navigator is identified by the
@@ -353,7 +353,7 @@ single tinted `●` legacy fallback, which is itself a strict improvement.
 | Emoji renders as `?` / tofu on some Emacs builds | Medium | `display-graphic-p` gate + `nil` defcustom + letter fallback |
 | `string-width` miscalculation in tabulated-list-mode | Low | Emacs ≥27 handles it; pin Emacs 29.1+ already in package reqs |
 | Custom agent types lack an icon | Low | Slot default is nil → falls back to letter automatically |
-| User dislikes the icon set | Low | `beads-agent-type-icons` defcustom for per-type override |
+| User dislikes the icon set | Low | `beads-agent-display-type-icons` defcustom for per-type override |
 | Tmux/screen width bugs cause column misalignment | Low | Off by default in TTY (`'auto`); known-bad combos opt out |
 | Loss of `:letter` semantic in user-customized classes | None | `:letter` slot retained, fully backwards compatible |
 
@@ -366,7 +366,7 @@ Single small change set:
 1. Add `icon` slot to `beads-agent-type` in `beads-agent-type.el`.
 2. Add `:icon` initforms to the five built-in classes in
    `beads-agent-types.el`.
-3. Add `beads-agent-display-use-icons`, `beads-agent-type-icons`,
+3. Add `beads-agent-display-use-icons`, `beads-agent-display-type-icons`,
    `beads-agent-display-show-instance` defcustoms.
 4. Add `beads-agent-type-icon`, `beads-agent--icons-supported-p`,
    `beads-agent-type-icon-or-letter`, `beads-agent-display-format-session`.
