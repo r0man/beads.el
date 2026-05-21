@@ -372,12 +372,24 @@ inline."
             :face 'beads-ralph-cockpit-separator-face))
 
 (defun beads-ralph-cockpit--action-bar ()
-  "Return the action-bar legend vnode."
+  "Return the action-bar legend vnode.
+The legend must mirror the bindings in
+`beads-ralph-cockpit-mode-map'; `n' / `M-p' navigate rows
+\(`p' is taken by pause)."
   (vui-text
    (concat
     "[SPC]switch · [s]top · [p]ause · [r]esume · [k]ill · "
-    "[N]ew · [G]c-done · [f]ilter · [g]refresh · [q]uit")
+    "[n]/[M-p]move · [N]ew · [G]c-done · [f]ilter · [g]refresh · [q]uit")
    :face 'shadow))
+
+(defun beads-ralph-cockpit--rows-region (controllers filters)
+  "Return the vnode for the body of the loop table.
+Renders either the filtered rows or a `(no matching loops)' hint."
+  (let ((visible (beads-ralph-cockpit--filtered controllers filters)))
+    (if (null visible)
+        (vui-text "  (no matching loops)" :face 'shadow)
+      (apply #'vui-vstack
+             (mapcar #'beads-ralph-cockpit--row-vnode visible)))))
 
 (vui-defcomponent beads-ralph-cockpit--root (controllers filters)
   "Top-level cockpit composition.
@@ -399,11 +411,7 @@ is the active badge-group subset."
       (beads-ralph-cockpit--separator)
       (beads-ralph-cockpit--filter-bar filters)
       (vui-text "")
-      (let ((visible (beads-ralph-cockpit--filtered controllers filters)))
-        (if (null visible)
-            (vui-text "  (no matching loops)" :face 'shadow)
-          (apply #'vui-vstack
-                 (mapcar #'beads-ralph-cockpit--row-vnode visible))))
+      (beads-ralph-cockpit--rows-region controllers filters)
       (vui-text "")
       (beads-ralph-cockpit--action-bar)))))
 
@@ -674,9 +682,7 @@ late tick after a kill-buffer that bypassed `kill-buffer-hook'
   (when (timerp beads-ralph-cockpit--rerender-timer)
     (cancel-timer beads-ralph-cockpit--rerender-timer))
   (when (timerp beads-ralph-cockpit--refresh-timer)
-    (cancel-timer beads-ralph-cockpit--refresh-timer))
-  (setq-local beads-ralph-cockpit--rerender-timer nil)
-  (setq-local beads-ralph-cockpit--refresh-timer nil))
+    (cancel-timer beads-ralph-cockpit--refresh-timer)))
 
 ;;; Mode + keymap
 
