@@ -32,6 +32,7 @@
 
 (require 'beads)
 (require 'beads-actions)
+(require 'beads-agent-display)
 (require 'beads-agent-keys)
 (require 'beads-buffer)
 (require 'beads-command)
@@ -804,30 +805,75 @@ Section header is uppercase without underline, matching DEPENDS ON style."
       ;; Make issue references clickable
       (beads-show--buttonize-references start (point)))))
 
+(defun beads-show--agent-session-state (active issue-outcome)
+  "Return the display state symbol for an agent session.
+ACTIVE is the result of `beads-agent--session-active-p'.
+ISSUE-OUTCOME is the value from `beads-agent--get-issue-outcome' for
+the issue; it may be a bare symbol (`finished'/`failed') or a
+`(TYPE-NAME . OUTCOME-SYM)' cons cell.
+
+Returns one of:
+  - nil          for active sessions (mapped to `running' by the
+                 display helper),
+  - `finished'   when the issue carries a `finished' outcome,
+  - `failed'     when the issue carries a `failed' outcome,
+  - `stopped'    for inactive sessions with no recorded outcome.
+
+Known limitation: today an issue carries a single issue-level
+outcome, so if a previous session finished and a second session
+is now stopped, both lines render with the `finished' state
+instead of the second one as `stopped'.  Resolving per-session
+state requires the agent backend to store outcomes per-session;
+deferred until that change lands.
+
+Note: this PR does NOT regress previous behaviour.  Before the
+outcome-mark feature, the column showed no outcome glyphs at all
+— stopped sessions were shown without an outcome anyway — so the
+ambiguity is at worst neutral relative to the pre-PR baseline."
+  (let ((outcome-sym (cond
+                      ((symbolp issue-outcome) issue-outcome)
+                      ((consp issue-outcome) (cdr issue-outcome)))))
+    (cond
+     (active nil)
+     ((eq outcome-sym 'finished) 'finished)
+     ((eq outcome-sym 'failed) 'failed)
+     (t 'stopped))))
+
+(defun beads-show--insert-agent-session-line (session issue-outcome)
+  "Insert one Agent Sessions row for SESSION.
+ISSUE-OUTCOME is the issue-level outcome value (see
+`beads-show--agent-session-state')."
+  (let* ((backend (or (beads-agent-session-backend-name session)
+                      "unknown"))
+         (started (beads-agent-session-started-at session))
+         (active (beads-agent--session-active-p session))
+         (state (beads-show--agent-session-state active issue-outcome))
+         (icon (beads-agent-display-format-session session state t))
+         (status-str (if active
+                         (propertize "active" 'face 'success)
+                       (propertize "stopped" 'face 'shadow))))
+    (insert (format "  %s %s: %s [%s]\n"
+                    icon
+                    (propertize backend 'face 'font-lock-constant-face)
+                    (beads-show--format-date started)
+                    status-str))))
+
 (defun beads-show--insert-agent-section (issue-id)
   "Insert agent sessions section for ISSUE-ID if sessions exist."
   (when (and (fboundp 'beads-agent--get-sessions-for-issue)
              (fboundp 'beads-agent--session-active-p))
     (let ((sessions (beads-agent--get-sessions-for-issue issue-id)))
       (when sessions
-        (insert beads-show-section-separator)
-        (insert (propertize "Agent Sessions" 'face 'beads-show-header-face))
-        (insert "\n")
-        (insert (propertize (make-string 14 ?─) 'face 'beads-show-header-face))
-        (insert "\n\n")
-        (dolist (session sessions)
-          (let* ((backend (or (beads-agent-session-backend-name session)
-                              "unknown"))
-                 (started (beads-agent-session-started-at session))
-                 (active (beads-agent--session-active-p session))
-                 (status-str (if active
-                                 (propertize "active" 'face 'success)
-                               (propertize "stopped" 'face 'shadow))))
-            (insert (format "  %s: %s [%s]\n"
-                            (propertize backend 'face 'font-lock-constant-face)
-                            (beads-show--format-date started)
-                            status-str))))
-        (insert "\n")))))
+        (let ((issue-outcome (when (fboundp 'beads-agent--get-issue-outcome)
+                               (beads-agent--get-issue-outcome issue-id))))
+          (insert beads-show-section-separator)
+          (insert (propertize "Agent Sessions" 'face 'beads-show-header-face))
+          (insert "\n")
+          (insert (propertize (make-string 14 ?─) 'face 'beads-show-header-face))
+          (insert "\n\n")
+          (dolist (session sessions)
+            (beads-show--insert-agent-session-line session issue-outcome))
+          (insert "\n"))))))
 
 (defun beads-show--get-sub-issues (epic-id)
   "Fetch sub-issues for EPIC-ID.

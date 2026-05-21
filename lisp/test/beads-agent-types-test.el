@@ -329,6 +329,101 @@ method must never prompt via `read-string'."
         (should (> (length (oref type description)) 0)))
     (beads-agent-types-test--teardown)))
 
+;;; Tests for Icon Slot
+
+(ert-deftest beads-agent-types-test-task-icon ()
+  "Test Task agent has the eagle icon (U+1F985).
+The eagle is the apex-predator role for the Task agent: sharp eye on
+the target, decisive strike — autonomous work delivered end to end."
+  (beads-agent-types-test--setup)
+  (unwind-protect
+      (let ((type (beads-agent-type-get "task")))
+        (should (equal (oref type icon) "🦅"))
+        (should (equal (oref type icon) (string #x1F985))))
+    (beads-agent-types-test--teardown)))
+
+(ert-deftest beads-agent-types-test-review-icon ()
+  "Test Review agent has the deer icon (U+1F98C).
+Single-codepoint deer — alert, careful forager — the temperament
+of the Review role: pause, look, weigh."
+  (beads-agent-types-test--setup)
+  (unwind-protect
+      (let ((type (beads-agent-type-get "review")))
+        (should (equal (oref type icon) "🦌"))
+        (should (equal (oref type icon) (string #x1F98C))))
+    (beads-agent-types-test--teardown)))
+
+(ert-deftest beads-agent-types-test-plan-icon ()
+  "Test Plan agent has the raccoon icon (U+1F99D).
+Inquisitive, dextrous problem-solver — the planning role pries open
+the box, tries pieces, lays out the route."
+  (beads-agent-types-test--setup)
+  (unwind-protect
+      (let ((type (beads-agent-type-get "plan")))
+        (should (equal (oref type icon) "🦝"))
+        (should (equal (oref type icon) (string #x1F99D))))
+    (beads-agent-types-test--teardown)))
+
+(ert-deftest beads-agent-types-test-qa-icon ()
+  "Test QA agent has the chipmunk icon (U+1F43F U+FE0F).
+The chipmunk is a two-codepoint emoji (base + VS16): the variation
+selector is required for color rendering.  The fast, scurrying QA
+agent darts through tests and corner cases."
+  (beads-agent-types-test--setup)
+  (unwind-protect
+      (let ((type (beads-agent-type-get "qa")))
+        (should (equal (oref type icon) "🐿️"))
+        (should (equal (oref type icon)
+                       (concat (string #x1F43F) (string #xFE0F)))))
+    (beads-agent-types-test--teardown)))
+
+(ert-deftest beads-agent-types-test-custom-icon ()
+  "Test Custom agent has the fox icon (U+1F98A).
+The clever, adaptable fox — every Custom agent is shaped at runtime
+by the user's prompt."
+  (beads-agent-types-test--setup)
+  (unwind-protect
+      (let ((type (beads-agent-type-get "custom")))
+        (should (equal (oref type icon) "🦊"))
+        (should (equal (oref type icon) (string #x1F98A))))
+    (beads-agent-types-test--teardown)))
+
+(ert-deftest beads-agent-types-test-each-has-icon ()
+  "Test that every built-in type has a non-empty icon string."
+  (beads-agent-types-test--setup)
+  (unwind-protect
+      (dolist (type (beads-agent-type-list))
+        (let ((icon (oref type icon)))
+          (should (stringp icon))
+          (should (> (length icon) 0))))
+    (beads-agent-types-test--teardown)))
+
+(ert-deftest beads-agent-types-test-icons-are-unique ()
+  "Test that each built-in type uses a distinct icon string."
+  (beads-agent-types-test--setup)
+  (unwind-protect
+      (let ((icons nil))
+        (dolist (type (beads-agent-type-list))
+          (let ((icon (oref type icon)))
+            (should-not (member icon icons))
+            (push icon icons))))
+    (beads-agent-types-test--teardown)))
+
+(ert-deftest beads-agent-types-test-icon-slot-default-nil ()
+  "Test that the icon slot defaults to nil on a bare subclass.
+A new beads-agent-type subclass that does not set :icon should have
+icon = nil so the letter slot remains the fallback."
+  (beads-agent-types-test--setup)
+  (unwind-protect
+      (progn
+        (defclass beads-agent-types-test--no-icon-type (beads-agent-type)
+          ((name :initform "NoIconTest")
+           (letter :initform "Z"))
+          :documentation "Test-only subclass without an icon.")
+        (let ((type (beads-agent-types-test--no-icon-type)))
+          (should (null (oref type icon)))))
+    (beads-agent-types-test--teardown)))
+
 ;;; Tests for Per-Type Backend Preferences
 
 (defvar beads-agent-types-test--saved-task-backend nil

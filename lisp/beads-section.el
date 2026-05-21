@@ -76,7 +76,7 @@ hyperlinks (no underline, no tooltip)."
     :help-echo nil
     :on-click on-click))
 
-(defun beads-section--issue-line-vnode (issue &optional extra-props)
+(defun beads-section--issue-line-vnode (issue &optional extra-props agents)
   "Return a vui button vnode for a single ISSUE.
 The button displays the issue id, priority, type, status, and title.
 Its label carries a `beads-section' text property for context
@@ -85,20 +85,30 @@ detection at point via `beads-section-issue-id-at-point'.
 EXTRA-PROPS, when non-nil, is a plist of additional text properties
 merged into the label (e.g. `beads-dashboard-section-key' stamped by
 the dashboard so commands like `beads-dashboard-load-more' can resolve
-the enclosing section in O(1))."
+the enclosing section in O(1)).
+
+AGENTS, when a non-empty string, is appended to the line as a trailing
+badge group (two-space separator).  The string is expected to already
+carry its own faces and `help-echo' — typically the return value of
+`beads-agent-display-format-issue-agents'.  When nil or empty, no
+separator is added so rows with no agent activity show no padding
+artifacts."
   (let* ((id       (or (oref issue id) ""))
          (title    (or (oref issue title) ""))
          (priority (oref issue priority))
          (type     (or (oref issue issue-type) ""))
          (status   (or (oref issue status) ""))
          (prio-str (if priority (format "P%d" priority) "--"))
-         (label    (beads-section--propertize
-                    (format "  %-14s %-4s %-10s %-14s %s"
-                            id prio-str type status title)
-                    (beads-issue-section :issue issue)
-                    extra-props)))
+         (core     (format "  %-14s %-4s %-10s %-14s %s"
+                           id prio-str type status title))
+         (label    (beads-section--propertize core
+                                              (beads-issue-section :issue issue)
+                                              extra-props))
+         (full-label (if (and (stringp agents) (not (string-empty-p agents)))
+                         (concat label "  " agents)
+                       label)))
     (beads-section--plain-button
-     label
+     full-label
      (let ((issue-id id))
        (lambda () (beads-show issue-id))))))
 

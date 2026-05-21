@@ -1028,107 +1028,140 @@ ISSUES should be a list of alists (test data format)."
     (should (equal (beads-list--format-agent "bd-1") ""))))
 
 (ert-deftest beads-list-test-format-agent-working ()
-  "Test format-agent shows just type letter for single agent."
-  (let ((mock-session (list 'mock-session)))
-    (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+  "Test format-agent shows the type's single-letter glyph for one agent.
+Forces letter-mode (icons off) so the test is deterministic across
+GUI/TTY runners."
+  (let ((mock-session (list 'mock-session))
+        (beads-agent-display-use-icons nil))
+    (cl-letf (((symbol-function 'beads-agent--get-sessions-focused-on-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent--get-sessions-touching-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent--get-sessions-for-issue)
                (lambda (_id) mock-session))
               ((symbol-function 'beads-agent--get-issue-outcome)
                (lambda (_id) nil))
               ((symbol-function 'beads-agent-session-type-name)
                (lambda (_session) "Task"))
-              ((symbol-function 'beads-agent--session-instance-number)
+              ((symbol-function 'beads-agent-session-instance-number)
                (lambda (_session) 1)))
       (let ((result (beads-list--format-agent "bd-1")))
-        ;; Single agent shows just letter, no instance number
+        ;; Letter-mode renders the Task letter "T", no instance suffix.
         (should (string= (substring-no-properties result) "T"))
         (should (eq (get-text-property 0 'face result)
                     'beads-list-agent-working))
-        ;; Verify help-echo tooltip mentions agent count
         (should (string-match-p "1 agent"
                                 (get-text-property 0 'help-echo result)))))))
 
 (ert-deftest beads-list-test-format-agent-working-no-backend-name ()
-  "Test format-agent shows fallback circle when no type name (single agent)."
-  (let ((mock-session (list 'mock-session)))
-    (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+  "Test format-agent shows fallback glyph when no type name (single agent)."
+  (let ((mock-session (list 'mock-session))
+        (beads-agent-display-use-icons nil))
+    (cl-letf (((symbol-function 'beads-agent--get-sessions-focused-on-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent--get-sessions-touching-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent--get-sessions-for-issue)
                (lambda (_id) mock-session))
               ((symbol-function 'beads-agent--get-issue-outcome)
                (lambda (_id) nil))
               ((symbol-function 'beads-agent-session-type-name)
                (lambda (_session) nil))
-              ((symbol-function 'beads-agent--session-instance-number)
+              ((symbol-function 'beads-agent-session-instance-number)
                (lambda (_session) 1)))
       (let ((result (beads-list--format-agent "bd-1")))
-        ;; Single agent shows just fallback circle, no instance number
         (should (string= (substring-no-properties result) "●"))
         (should (eq (get-text-property 0 'face result)
                     'beads-list-agent-working))
         (should (get-text-property 0 'help-echo result))))))
 
 (ert-deftest beads-list-test-format-agent-finished ()
-  "Test format-agent shows green circle when agent finished."
-  (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
-             (lambda (_id) nil))
-            ((symbol-function 'beads-agent--get-issue-outcome)
-             (lambda (_id) 'finished)))
-    (let ((result (beads-list--format-agent "bd-1")))
-      (should (string= (substring-no-properties result) "●"))
-      (should (eq (get-text-property 0 'face result)
-                  'beads-list-agent-finished))
-      (should (string-match-p "finished"
-                              (get-text-property 0 'help-echo result))))))
+  "Test format-agent shows ✓ prefix when bare `finished' outcome is recorded."
+  (let ((beads-agent-display-use-icons nil))
+    (cl-letf (((symbol-function 'beads-agent--get-sessions-focused-on-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent--get-sessions-touching-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent--get-sessions-for-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent--get-issue-outcome)
+               (lambda (_id) 'finished)))
+      (let ((result (beads-list--format-agent "bd-1")))
+        (should (string= (substring-no-properties result) "✓●"))
+        (should (eq (get-text-property 0 'face result)
+                    'beads-list-agent-finished))
+        (should (string-match-p "finished"
+                                (get-text-property 0 'help-echo result)))))))
 
 (ert-deftest beads-list-test-format-agent-failed ()
-  "Test format-agent shows red circle when agent failed."
-  (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
-             (lambda (_id) nil))
-            ((symbol-function 'beads-agent--get-issue-outcome)
-             (lambda (_id) 'failed)))
-    (let ((result (beads-list--format-agent "bd-1")))
-      (should (string= (substring-no-properties result) "●"))
-      (should (eq (get-text-property 0 'face result)
-                  'beads-list-agent-failed))
-      (should (string-match-p "failed"
-                              (get-text-property 0 'help-echo result))))))
+  "Test format-agent shows ✗ prefix when bare `failed' outcome is recorded."
+  (let ((beads-agent-display-use-icons nil))
+    (cl-letf (((symbol-function 'beads-agent--get-sessions-focused-on-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent--get-sessions-touching-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent--get-sessions-for-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent--get-issue-outcome)
+               (lambda (_id) 'failed)))
+      (let ((result (beads-list--format-agent "bd-1")))
+        (should (string= (substring-no-properties result) "✗●"))
+        (should (eq (get-text-property 0 'face result)
+                    'beads-list-agent-failed))
+        (should (string-match-p "failed"
+                                (get-text-property 0 'help-echo result)))))))
 
 (ert-deftest beads-list-test-format-agent-active-takes-priority ()
   "Test format-agent shows working status even if outcome exists.
 Active session should take priority over previous outcome."
-  (let ((mock-session (list 'mock-session)))
-    (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+  (let ((mock-session (list 'mock-session))
+        (beads-agent-display-use-icons nil))
+    (cl-letf (((symbol-function 'beads-agent--get-sessions-focused-on-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent--get-sessions-touching-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent--get-sessions-for-issue)
                (lambda (_id) mock-session))
               ((symbol-function 'beads-agent--get-issue-outcome)
-               (lambda (_id) '("T" . finished)))  ; Previous outcome exists
+               (lambda (_id) '("Task" . finished)))
               ((symbol-function 'beads-agent-session-type-name)
-               (lambda (_session) "Review")))
+               (lambda (_session) "Review"))
+              ((symbol-function 'beads-agent-session-instance-number)
+               (lambda (_session) 1)))
       (let ((result (beads-list--format-agent "bd-1")))
-        ;; Single agent shows just letter, no instance number
         (should (string= (substring-no-properties result) "R"))
         (should (eq (get-text-property 0 'face result)
                     'beads-list-agent-working))))))
 
 (ert-deftest beads-list-test-format-agent-multiple-sessions ()
-  "Test format-agent shows per-type instance numbers for duplicate types."
+  "Test format-agent renders one letter per focused agent (no #N suffix).
+Multiple agents are joined by a faint single-space separator."
   (let ((mock-sessions (list 'session1 'session2 'session3))
         (session-types '(("session1" . "Task")
                          ("session2" . "Review")
-                         ("session3" . "Task"))))
-    (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+                         ("session3" . "Task")))
+        (beads-agent-display-use-icons nil))
+    (cl-letf (((symbol-function 'beads-agent--get-sessions-focused-on-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent--get-sessions-touching-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent--get-sessions-for-issue)
                (lambda (_id) mock-sessions))
               ((symbol-function 'beads-agent--get-issue-outcome)
                (lambda (_id) nil))
               ((symbol-function 'beads-agent-session-type-name)
                (lambda (session)
-                 (cdr (assoc (symbol-name session) session-types)))))
-      (let ((result (beads-list--format-agent "bd-1")))
-        ;; Task appears twice, so shows per-type instance numbers: T#1 and T#2
-        (should (string-match-p "T#1" result))
-        (should (string-match-p "T#2" result))
-        ;; Review appears once, so just "R" without instance number
-        (should (string-match-p "R" result))
-        (should-not (string-match-p "R#" result))
-        ;; Multiple agents use / separator
-        (should (string-match-p "/" result))
+                 (cdr (assoc (symbol-name session) session-types))))
+              ((symbol-function 'beads-agent-session-instance-number)
+               (lambda (_session) 1)))
+      (let* ((result (beads-list--format-agent "bd-1"))
+             (plain (substring-no-properties result)))
+        ;; Three letters joined by spaces, no `#N' suffix.
+        (should (string-match-p "T" plain))
+        (should (string-match-p "R" plain))
+        (should-not (string-match-p "#" plain))
+        ;; Single space separators between three single-letter glyphs.
+        (should (= 5 (length plain)))
         ;; Help-echo should mention 3 agents
         (should (string-match-p "3 agents"
                                 (get-text-property 0 'help-echo result)))))))
@@ -1209,45 +1242,11 @@ Tests that the preview command shows the bd command that would be executed."
 ;; (beads-list-test-transient-menu-displays, beads-list-test-transient-menu-executes).
 ;; Filter functionality is tested via beads-list--parse-transient-args unit tests.
 
-;;; Agent Indicator Formatting Tests
-
-(ert-deftest beads-list-test-format-agent-indicator-nil-type-name ()
-  "Test that nil type-name produces fallback indicator."
-  (let ((result (beads-list--format-agent-indicator nil 1 'beads-list-agent-working)))
-    ;; Should use "●" as fallback when type-name is nil
-    (should (stringp result))
-    (should (string-match-p "●" result))
-    ;; Face should be applied
-    (should (eq (get-text-property 0 'face result) 'beads-list-agent-working))))
-
-(ert-deftest beads-list-test-format-agent-indicator-valid-type-name ()
-  "Test that valid type-name produces first letter indicator."
-  (let ((result (beads-list--format-agent-indicator "Task" 1 'beads-list-agent-working)))
-    ;; Should use "T" from "Task"
-    (should (string-match-p "T" result))
-    ;; Should include instance number
-    (should (string-match-p "#1" result))))
-
-(ert-deftest beads-list-test-format-agent-indicator-brief-mode ()
-  "Test that brief mode omits instance number."
-  (let ((result (beads-list--format-agent-indicator "Review" 2 'beads-list-agent-finished t)))
-    ;; Should just be "R" in brief mode
-    (should (equal result (propertize "R" 'face 'beads-list-agent-finished)))))
-
-(ert-deftest beads-list-test-format-agent-indicator-nil-instance ()
-  "Test that nil instance number produces letter-only indicator."
-  (let ((result (beads-list--format-agent-indicator "QA" nil 'beads-list-agent-failed)))
-    ;; Should just be "Q" when instance is nil
-    (should (string-match-p "Q" result))
-    (should-not (string-match-p "#" result))))
-
-(ert-deftest beads-list-test-format-agent-indicator-nil-both ()
-  "Test that nil type-name with nil instance produces fallback."
-  (let ((result (beads-list--format-agent-indicator nil nil 'beads-list-agent-working)))
-    ;; Should use "●" fallback
-    (should (string-match-p "●" result))
-    ;; No instance number
-    (should-not (string-match-p "#" result))))
+;; Tests for the removed `beads-list--format-agent-indicator' have been
+;; deleted along with the helper itself.  Glyph formatting is now handled
+;; by `beads-agent-display-format-session' /
+;; `beads-agent-display-format-type-name' and covered by
+;; `lisp/test/beads-agent-display-test.el'.
 
 ;;; =========================================================================
 ;;; Directory-Aware Buffer Identity Tests (beads.el-n3lv)
@@ -1529,26 +1528,36 @@ Even if they have the same branch name."
 ;;; Agent Indicator Edge Cases
 
 (ert-deftest beads-list-test-format-agent-finished-with-indicator ()
-  "Test format-agent shows indicator for finished outcome."
-  (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
-             (lambda (_id) nil))
-            ((symbol-function 'beads-agent--get-issue-outcome)
-             (lambda (_id) '("T" . finished))))
-    (let ((result (beads-list--format-agent "bd-1")))
-      (should (string-match-p "T" result))
-      (should (eq (get-text-property 0 'face result)
-                  'beads-list-agent-finished)))))
+  "Test format-agent shows ✓ + type glyph for finished outcome."
+  (let ((beads-agent-display-use-icons nil))
+    (cl-letf (((symbol-function 'beads-agent--get-sessions-focused-on-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent--get-sessions-touching-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent--get-sessions-for-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent--get-issue-outcome)
+               (lambda (_id) '("Task" . finished))))
+      (let ((result (beads-list--format-agent "bd-1")))
+        (should (string= (substring-no-properties result) "✓T"))
+        (should (eq (get-text-property 0 'face result)
+                    'beads-list-agent-finished))))))
 
 (ert-deftest beads-list-test-format-agent-failed-with-indicator ()
-  "Test format-agent shows indicator for failed outcome."
-  (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
-             (lambda (_id) nil))
-            ((symbol-function 'beads-agent--get-issue-outcome)
-             (lambda (_id) '("R" . failed))))
-    (let ((result (beads-list--format-agent "bd-1")))
-      (should (string-match-p "R" result))
-      (should (eq (get-text-property 0 'face result)
-                  'beads-list-agent-failed)))))
+  "Test format-agent shows ✗ + type glyph for failed outcome."
+  (let ((beads-agent-display-use-icons nil))
+    (cl-letf (((symbol-function 'beads-agent--get-sessions-focused-on-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent--get-sessions-touching-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent--get-sessions-for-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent--get-issue-outcome)
+               (lambda (_id) '("Review" . failed))))
+      (let ((result (beads-list--format-agent "bd-1")))
+        (should (string= (substring-no-properties result) "✗R"))
+        (should (eq (get-text-property 0 'face result)
+                    'beads-list-agent-failed))))))
 
 ;;; Refresh All Tests
 
@@ -1645,22 +1654,9 @@ Even if they have the same branch name."
       (let ((result (beads-list--format-date timestamp)))
         (should (string-match-p "m ago" result))))))
 
-;;; Agent Indicator Tests
-
-(ert-deftest beads-list-test-format-agent-indicator-basic ()
-  "Test format-agent-indicator returns string."
-  (let ((result (beads-list--format-agent-indicator "Task" 1 'default)))
-    (should (stringp result))
-    ;; Function uses just the first letter
-    (should (string-match-p "T" result))
-    (should (string-match-p "1" result))))
-
-(ert-deftest beads-list-test-format-agent-indicator-brief ()
-  "Test format-agent-indicator in brief mode."
-  (let ((result (beads-list--format-agent-indicator "Task" 1 'default t)))
-    (should (stringp result))
-    ;; Brief mode uses first letter only
-    (should (string-match-p "T" result))))
+;; Agent Indicator Tests removed — `beads-list--format-agent-indicator'
+;; was deleted in favor of `beads-agent-display-format-session', which is
+;; covered by `lisp/test/beads-agent-display-test.el'.
 
 ;;; Buffer Creation Tests
 
@@ -1739,30 +1735,33 @@ Even if they have the same branch name."
 ;;; Focused/Touched Agent Indicator Tests
 
 (ert-deftest beads-list-test-format-agent-focused-session ()
-  "Test format-agent with a focused session."
-  (cl-letf (((symbol-function 'beads-agent--get-sessions-focused-on-issue)
-             (lambda (_issue-id)
-               (list (beads-agent-session
-                      :id "test#1" :issue-id "bd-1"
-                      :backend-name "mock" :project-dir "/tmp"
-                      :started-at "2025-01-01T00:00:00Z"
-                      :agent-type-name "Task"))))
-            ((symbol-function 'beads-agent--get-sessions-touching-issue)
-             (lambda (_issue-id) nil))
-            ((symbol-function 'beads-agent--get-sessions-for-issue)
-             (lambda (_issue-id) nil))
-            ((symbol-function 'beads-agent--get-issue-outcome)
-             (lambda (_issue-id) nil))
-            ((symbol-function 'beads-agent-session-type-name)
-             (lambda (_s) "Task"))
-            ((symbol-function 'beads-agent-session-instance-number)
-             (lambda (_s) 1)))
-    (let ((result (beads-list--format-agent "bd-1")))
-      (should (stringp result))
-      (should (> (length result) 0)))))
+  "Test format-agent with a focused session renders the type's letter."
+  (let ((beads-agent-display-use-icons nil))
+    (cl-letf (((symbol-function 'beads-agent--get-sessions-focused-on-issue)
+               (lambda (_issue-id)
+                 (list (beads-agent-session
+                        :id "test#1" :issue-id "bd-1"
+                        :backend-name "mock" :project-dir "/tmp"
+                        :started-at "2025-01-01T00:00:00Z"
+                        :agent-type-name "Task"))))
+              ((symbol-function 'beads-agent--get-sessions-touching-issue)
+               (lambda (_issue-id) nil))
+              ((symbol-function 'beads-agent--get-sessions-for-issue)
+               (lambda (_issue-id) nil))
+              ((symbol-function 'beads-agent--get-issue-outcome)
+               (lambda (_issue-id) nil))
+              ((symbol-function 'beads-agent-session-type-name)
+               (lambda (_s) "Task"))
+              ((symbol-function 'beads-agent-session-instance-number)
+               (lambda (_s) 1)))
+      (let ((result (beads-list--format-agent "bd-1")))
+        (should (string= "T" (substring-no-properties result)))
+        (should (eq (get-text-property 0 'face result)
+                    'beads-list-agent-working))))))
 
 (ert-deftest beads-list-test-format-agent-touched-session ()
-  "Test format-agent with a touched (not focused) session."
+  "Test format-agent with a touched-only (not focused) session.
+Touched-only sessions no longer appear in the column at all."
   (cl-letf (((symbol-function 'beads-agent--get-sessions-focused-on-issue)
              (lambda (_issue-id) nil))
             ((symbol-function 'beads-agent--get-sessions-touching-issue)
@@ -1781,11 +1780,12 @@ Even if they have the same branch name."
             ((symbol-function 'beads-agent-session-instance-number)
              (lambda (_s) 1)))
     (let ((result (beads-list--format-agent "bd-1")))
-      (should (stringp result))
-      (should (> (length result) 0)))))
+      (should (string= "" result)))))
 
 (ert-deftest beads-list-test-format-agent-focused-and-touched ()
-  "Test format-agent with both focused and touched sessions."
+  "Test format-agent with both focused and touched sessions.
+Only focused agents render in the column body; the touched count
+surfaces in help-echo."
   (let* ((focused-session (beads-agent-session
                            :id "test#1" :issue-id "bd-1"
                            :backend-name "mock" :project-dir "/tmp"
@@ -1795,11 +1795,12 @@ Even if they have the same branch name."
                            :id "test#2" :issue-id "bd-1"
                            :backend-name "mock" :project-dir "/tmp"
                            :started-at "2025-01-01T00:00:00Z"
-                           :agent-type-name "Plan")))
+                           :agent-type-name "Plan"))
+         (beads-agent-display-use-icons nil))
     (cl-letf (((symbol-function 'beads-agent--get-sessions-focused-on-issue)
                (lambda (_issue-id) (list focused-session)))
               ((symbol-function 'beads-agent--get-sessions-touching-issue)
-               (lambda (_issue-id) (list touched-session)))
+               (lambda (_issue-id) (list focused-session touched-session)))
               ((symbol-function 'beads-agent--get-sessions-for-issue)
                (lambda (_issue-id) nil))
               ((symbol-function 'beads-agent--get-issue-outcome)
@@ -1809,8 +1810,10 @@ Even if they have the same branch name."
               ((symbol-function 'beads-agent-session-instance-number)
                (lambda (_s) 1)))
       (let ((result (beads-list--format-agent "bd-1")))
-        (should (stringp result))
-        (should (> (length result) 0))))))
+        ;; Only the focused Task agent ("T") renders.
+        (should (string= "T" (substring-no-properties result)))
+        (should (string-match-p "1 focused agent, 1 touched"
+                                (get-text-property 0 'help-echo result)))))))
 
 ;;; Bulk Operation State Tests
 

@@ -2513,6 +2513,118 @@ Note: Notes cannot be set at creation time, only via update."
            ;; Should still show the agent section
            (should (string-match-p "Agent Sessions" content))))))))
 
+;;; Tests for icon-prefix on Agent Sessions section (bde-npte.8)
+
+(defun beads-show-test--ensure-task-type-registered ()
+  "Ensure the built-in Task agent type is registered for icon tests."
+  (require 'beads-agent-types)
+  (unless (beads-agent-type-get "task")
+    (beads-agent-type-register (beads-agent-type-task))))
+
+(defmacro beads-show-test--with-agent-section (sessions outcome &rest body)
+  "Render the Agent Sessions section for SESSIONS with OUTCOME, then BODY.
+SESSIONS is a list of `beads-agent-session' objects.  OUTCOME is the
+value `beads-agent--get-issue-outcome' will return for `\"bd-42\"' —
+typically nil, `finished', or `failed'.  Active-ness is decided by the
+session's `agent-type-name' helper: sessions whose `current-issue' equals
+`\"running\"' are active; others are inactive.  BODY may read the current
+buffer text or interrogate text properties."
+  (declare (indent 2))
+  `(beads-show-test-with-temp-buffer
+    (beads-show-test--ensure-task-type-registered)
+    (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+               (lambda (_) ,sessions))
+              ((symbol-function 'beads-agent--session-active-p)
+               (lambda (s) (equal (oref s current-issue) "running")))
+              ((symbol-function 'beads-agent--get-issue-outcome)
+               (lambda (_) ,outcome)))
+      (let ((inhibit-read-only t)
+            (beads-agent-display-use-icons nil)
+            (beads-agent-display-type-icons nil)
+            (beads-agent-display-show-instance nil))
+        (beads-show--insert-agent-section "bd-42")
+        ,@body))))
+
+(ert-deftest beads-show-test-agent-section-prefix-running ()
+  "Running session line is prefixed by the role letter + space."
+  (let ((session (beads-agent-session
+                  :id "bd-42#1"
+                  :issue-id "bd-42"
+                  :current-issue "running"
+                  :backend-name "claude-code"
+                  :project-dir "/tmp"
+                  :agent-type-name "Task"
+                  :started-at "2025-01-15T10:30:00Z")))
+    (beads-show-test--with-agent-section (list session) nil
+      (let ((content (buffer-substring-no-properties (point-min) (point-max))))
+        (should (string-match-p "Agent Sessions" content))
+        (should (string-match-p "^  T claude-code:" content))
+        (should (string-match-p "\\[active\\]" content))
+        (should-not (string-match-p "✓" content))
+        (should-not (string-match-p "✗" content))))))
+
+(ert-deftest beads-show-test-agent-section-prefix-finished ()
+  "Finished session line is prefixed by `✓T' (letter mode) + space."
+  (let ((session (beads-agent-session
+                  :id "bd-42#1"
+                  :issue-id "bd-42"
+                  :current-issue "stopped"
+                  :backend-name "claude-code"
+                  :project-dir "/tmp"
+                  :agent-type-name "Task"
+                  :started-at "2025-01-15T10:30:00Z")))
+    (beads-show-test--with-agent-section (list session) (cons "Task" 'finished)
+      (let ((content (buffer-substring-no-properties (point-min) (point-max))))
+        (should (string-match-p "^  ✓T claude-code:" content))
+        (should (string-match-p "\\[stopped\\]" content))))))
+
+(ert-deftest beads-show-test-agent-section-prefix-failed ()
+  "Failed session line is prefixed by `✗T' (letter mode) + space."
+  (let ((session (beads-agent-session
+                  :id "bd-42#1"
+                  :issue-id "bd-42"
+                  :current-issue "stopped"
+                  :backend-name "claude-code"
+                  :project-dir "/tmp"
+                  :agent-type-name "Task"
+                  :started-at "2025-01-15T10:30:00Z")))
+    (beads-show-test--with-agent-section (list session) (cons "Task" 'failed)
+      (let ((content (buffer-substring-no-properties (point-min) (point-max))))
+        (should (string-match-p "^  ✗T claude-code:" content))
+        (should (string-match-p "\\[stopped\\]" content))))))
+
+(ert-deftest beads-show-test-agent-section-prefix-uses-display-helper ()
+  "The icon prefix carries the running face from `beads-agent-display-format-session'."
+  (let ((session (beads-agent-session
+                  :id "bd-42#1"
+                  :issue-id "bd-42"
+                  :current-issue "running"
+                  :backend-name "claude-code"
+                  :project-dir "/tmp"
+                  :agent-type-name "Task"
+                  :started-at "2025-01-15T10:30:00Z")))
+    (beads-show-test--with-agent-section (list session) nil
+      (goto-char (point-min))
+      (re-search-forward "^  ")
+      (let ((face (get-text-property (point) 'face)))
+        (should (eq face 'beads-list-agent-working))))))
+
+(ert-deftest beads-show-test-agent-section-rest-of-line-preserved ()
+  "Backend name, timestamp, and status tag are preserved verbatim."
+  (let ((session (beads-agent-session
+                  :id "bd-42#1"
+                  :issue-id "bd-42"
+                  :current-issue "running"
+                  :backend-name "claude-code"
+                  :project-dir "/tmp"
+                  :agent-type-name "Task"
+                  :started-at "2025-01-15T10:30:00Z")))
+    (beads-show-test--with-agent-section (list session) nil
+      (let ((content (buffer-substring-no-properties (point-min) (point-max))))
+        (should (string-match
+                 "^  T claude-code: 2025-01-15 10:30:00 \\[active\\]$"
+                 content))))))
+
 ;;; =========================================================================
 ;;; Directory-Aware Buffer Identity Tests (beads.el-4pgx)
 ;;; =========================================================================

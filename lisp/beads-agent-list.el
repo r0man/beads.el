@@ -35,6 +35,7 @@
 (require 'beads-buffer)
 (require 'beads-command)
 (require 'beads-agent-backend)
+(require 'beads-agent-display)
 (require 'beads-pager)
 (require 'beads-sesman)
 
@@ -55,6 +56,15 @@
 
 (defcustom beads-agent-list-issue-width 16
   "Width of Issue ID column in agent list."
+  :type 'integer
+  :group 'beads-agent-list)
+
+(defcustom beads-agent-list-type-width 8
+  "Width of Type column in agent list.
+Holds the agent role icon (or single-letter fallback) plus the
+`#N' instance suffix (e.g. \"🦅#1\" or \"T#1\").  The default of 8
+leaves headroom for multi-digit instance numbers like `#10' under
+GUI Emacs where the emoji occupies two display columns."
   :type 'integer
   :group 'beads-agent-list)
 
@@ -190,10 +200,24 @@
       (gethash issue-id beads-agent-list--title-cache "")
     ""))
 
+(defun beads-agent-list--format-type (session)
+  "Return the propertized Type cell for SESSION.
+The agent list is the canonical place to disambiguate parallel
+sessions: this cell IS the session's identifier, and the buffer
+dedicates `beads-agent-list-type-width' columns to it.  We therefore
+force `beads-agent-display-show-instance' to t for the duration of
+this call regardless of the user's preference, so the `#N' suffix is
+always rendered even when the user has opted to hide it in tighter
+surfaces (issue list, dashboard).  Other narrow surfaces still honour
+the defcustom."
+  (let ((beads-agent-display-show-instance t))
+    (beads-agent-display-format-session session nil nil)))
+
 (defun beads-agent-list--session-to-entry (session)
   "Convert SESSION (beads-agent-session object) to tabulated-list entry."
   (let* ((session-id (oref session id))
          (issue-id (oref session issue-id))
+         (type-str (beads-agent-list--format-type session))
          (title (beads-agent-list--get-title issue-id))
          (backend-name (oref session backend-name))
          (status-str (beads-agent-list--format-status session))
@@ -202,6 +226,7 @@
          (dir-str (beads-agent-list--format-directory session)))
     (list session-id
           (vector issue-id
+                  type-str
                   title
                   backend-name
                   status-str
@@ -361,6 +386,7 @@ Stops the current session and starts a new one for the same issue."
 \\{beads-agent-list-mode-map}"
   (setq tabulated-list-format
         (vector (list "Issue" beads-agent-list-issue-width t)
+                (list "Type" beads-agent-list-type-width t)
                 (list "Title" beads-agent-list-title-width t)
                 (list "Backend" beads-agent-list-backend-width t)
                 (list "Status" beads-agent-list-status-width t)
