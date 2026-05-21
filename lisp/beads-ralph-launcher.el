@@ -881,16 +881,14 @@ Resolution order:
 The resolved `beads-issue' object is forwarded to the launcher so
 its header populates without a second round trip to bd."
   (interactive)
-  (let* ((id (beads-read-issue-id))
-         (_ (unless (and (stringp id) (not (string-empty-p id)))
-              (user-error "beads-ralph-launch-at-point: no issue id detected")))
-         (issue (beads-issue-read id))
-         (kind (if (and issue
-                        (stringp (oref issue issue-type))
-                        (string= (oref issue issue-type) "epic"))
-                   'epic
-                 'issue)))
-    (beads-ralph-launcher id :kind kind :issue issue)))
+  (let ((id (beads-read-issue-id)))
+    (unless (and (stringp id) (not (string-empty-p id)))
+      (user-error "beads-ralph-launch-at-point: no issue id detected"))
+    (let* ((issue (beads-issue-read id))
+           (kind (if (equal (oref issue issue-type) "epic")
+                     'epic
+                   'issue)))
+      (beads-ralph-launcher id :kind kind :issue issue))))
 
 (provide 'beads-ralph-launcher)
 

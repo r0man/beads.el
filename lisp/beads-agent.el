@@ -426,11 +426,14 @@ history list."
       (beads-completion-read-issue
        "Issue: " nil t nil 'beads--issue-id-history)))
 
-;; Backwards-compatible private aliases — preserve all existing call sites.
+;; Backwards-compatible private aliases — preserve every existing
+;; call site without behavior change.  Not marked `make-obsolete'
+;; because in-tree callers are still legitimate; future refactors
+;; can migrate them and then declare these obsolete.
 (defalias 'beads-agent--detect-issue-id #'beads-detect-issue-id
-  "Obsolete alias for `beads-detect-issue-id'.")
+  "Internal alias for the public `beads-detect-issue-id'.")
 (defalias 'beads-agent--read-issue-id #'beads-read-issue-id
-  "Obsolete alias for `beads-read-issue-id'.")
+  "Internal alias for the public `beads-read-issue-id'.")
 
 ;;; Public API Functions
 
