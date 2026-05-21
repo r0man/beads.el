@@ -779,6 +779,43 @@ normal one."
       (should (string-match-p "stat-stub" prompt))
       (should (string-match-p "bd epic close-eligible" prompt)))))
 
+(ert-deftest beads-agent-ralph-test-render-review-prompt-no-re-expansion ()
+  "Closed-children titles containing `<TAG>' lookalikes are NOT re-substituted.
+The renderer must be single-pass: a title like `see <ROOT-ID>' is
+agent-supplied data, not a placeholder, so it must survive verbatim
+through the template render even when the template ALSO substitutes
+the real <ROOT-ID> elsewhere.  Inherited from the shared
+`--apply-substitutions' contract, but pinned here so a review-prompt
+refactor cannot silently regress it."
+  (let* ((closed (beads-agent-ralph-test--make-issue
+                  :id "bde-x9" :title "see <ROOT-ID> for context"))
+         (c (beads-agent-ralph-test--make-controller
+             :root-id "bde-epic"
+             :consecutive-empty-reviews 0
+             :max-consecutive-empty-reviews 2
+             :max-followups-per-review 3))
+         (beads-agent-ralph-review-prompt
+          "Root:<ROOT-ID>\nClosed:\n<CLOSED-CHILDREN-SUMMARY>")
+         (out (beads-agent-ralph--render-review-prompt c (list closed) "")))
+    (should (string-match-p "^Root:bde-epic$" out))
+    (should (string-match-p "\\[bde-x9\\] see <ROOT-ID> for context" out))))
+
+(ert-deftest beads-agent-ralph-test-render-review-prompt-first-review-diff-marker ()
+  "First review (`last-review-git-ref' = nil) renders the diff marker, not bare empty.
+The agent reads `(no prior review reference)' and understands this
+is the inaugural review; bare empty would look like a render bug."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :consecutive-empty-reviews 0
+             :max-consecutive-empty-reviews 2
+             :max-followups-per-review 3
+             :last-review-git-ref nil))
+         (beads-agent-ralph-review-prompt "DIFF:<DIFF-SINCE-LAST-REVIEW>")
+         (diff (beads-agent-ralph--git-diff-since-ref
+                (beads-agent-ralph--controller-work-dir c)
+                (oref c last-review-git-ref)))
+         (out (beads-agent-ralph--render-review-prompt c nil diff)))
+    (should (equal out "DIFF:(no prior review reference)"))))
+
 (ert-deftest beads-agent-ralph-test-review-iteration-steps-tolerates-bd-failure ()
   "A bd-list failure on closed-children renders an empty summary, not an abort.
 Best-effort: review still proceeds with no closed list, the agent
