@@ -190,7 +190,26 @@ there was nothing to review, so the controller incremented
 claude stream.  The dashboard renders gated rows with a `[gated]'
 marker (bde-c95u.7) so users can see why the loop wound down quickly.
 Always paired with `kind' = `review'; ignored on `kind' = `iteration'
-records."))
+records.")
+   (review-number
+    :initarg :review-number
+    :initform nil
+    :type (or null integer)
+    :documentation "1-based index of this review within the empty-review cycle.
+Populated on `kind' = `review' records (both gated and LLM-fired) so
+the dashboard can render `[review N/M]' without re-deriving from
+controller state.  Nil on `kind' = `iteration' records.  Captured at
+record-construction time: LLM-fired uses `(1+ consecutive-empty-
+reviews)' (mirrors the prompt placeholder formula), gated uses the
+counter value right after its post-increment.  Both end up holding
+the cycle number this record represents (bde-c95u.7).")
+   (max-reviews
+    :initarg :max-reviews
+    :initform nil
+    :type (or null integer)
+    :documentation "Snapshot of `max-consecutive-empty-reviews' at construction.
+Lets the dashboard render `[review N/M]' without needing controller
+access.  Nil on `kind' = `iteration' records (bde-c95u.7)."))
   :documentation "One completed Ralph iteration.
 
 The controller pushes one of these into `history' when an iteration
@@ -2365,7 +2384,17 @@ need only read this record to render its row."
      :stderr-tail (oref stream stderr-tail)
      :verify-result (oref stream verify-result)
      :iter-number (oref controller iteration)
-     :kind (or (oref controller current-iter-kind) 'iteration))))
+     :kind (or (oref controller current-iter-kind) 'iteration)
+     ;; Stamp the review cycle counters on `review' iters so the
+     ;; dashboard can render `[review N/M]' without re-deriving from
+     ;; controller state.  The post-review check on the on-stream-
+     ;; finish path increments `consecutive-empty-reviews' AFTER this
+     ;; record is built, so the about-to-be cycle number is
+     ;; `(1+ current value)' — matches the prompt placeholder formula.
+     :review-number (and (eq (oref controller current-iter-kind) 'review)
+                         (1+ (or (oref controller consecutive-empty-reviews) 0)))
+     :max-reviews (and (eq (oref controller current-iter-kind) 'review)
+                       (oref controller max-consecutive-empty-reviews)))))
 
 (defun beads-agent-ralph--terminate (controller reason)
   "Terminate CONTROLLER's loop with REASON (a symbol).
@@ -2540,7 +2569,11 @@ on the next pass without growing the call stack."
          :status 'finished
          :iter-number (oref controller iteration)
          :kind 'review
-         :gated t)
+         :gated t
+         ;; Counter was just incremented above, so its current value
+         ;; equals the cycle number this gated record represents.
+         :review-number (oref controller consecutive-empty-reviews)
+         :max-reviews (oref controller max-consecutive-empty-reviews))
         (oref controller history))
   (beads-agent-ralph--push-banner
    controller 'notice

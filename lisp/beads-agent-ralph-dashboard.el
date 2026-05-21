@@ -425,12 +425,33 @@ to the iteration's bd issue."
             :face face
             :beads-ralph-iter-issue-id issue-id))
 
+(defun beads-agent-ralph-dashboard--iter-row-summary-prefix (iter)
+  "Return the marker prefix for ITER's summary cell, or empty string.
+Review iters get a `[review N/M] ' tag sourced from ITER's
+`review-number'/`max-reviews' slots; gated reviews (pre-LLM skipped)
+additionally get a `[gated] ' tag prepended.  Normal iters get no
+prefix (bde-c95u.7)."
+  (let ((kind (oref iter kind)))
+    (if (not (eq kind 'review))
+        ""
+      (let* ((n (oref iter review-number))
+             (m (oref iter max-reviews))
+             (review-tag (if (and n m)
+                             (format "[review %d/%d] " n m)
+                           "[review] "))
+             (gated-tag (if (oref iter gated) "[gated] " "")))
+        (concat gated-tag review-tag)))))
+
 (defun beads-agent-ralph-dashboard--iter-row (iter idx)
   "Return one row vnode for ITER (a `--iteration') at IDX.
 The row is a `vui-hstack' of fixed-width cells (glyph, index,
 issue-id, status, cost, wall-time, tools, summary).  Every cell
 carries the iteration's issue-id as a text property so a single
-`RET' anywhere on the row activates the right target."
+`RET' anywhere on the row activates the right target.
+
+Review iters render with a `[review N/M]' prefix in the summary cell;
+pre-LLM-gated reviews additionally render with a leading `[gated]'
+tag (bde-c95u.7)."
   (let* ((status (oref iter status))
          (sentinel (oref iter sentinel-hit))
          (root-closed-mismatch
@@ -454,7 +475,9 @@ carries the iteration's issue-id as a text property so a single
          (wall (beads-agent-ralph-dashboard--format-duration
                 (oref iter duration-ms)))
          (tools (or (oref iter tool-call-count) 0))
-         (summary (or (oref iter summary) ""))
+         (raw-summary (or (oref iter summary) ""))
+         (prefix (beads-agent-ralph-dashboard--iter-row-summary-prefix iter))
+         (summary (concat prefix raw-summary))
          (issue-id (or (oref iter issue-id) "?"))
          (summary-cell (if (> (length summary) 60)
                            (concat (substring summary 0 60) "…")

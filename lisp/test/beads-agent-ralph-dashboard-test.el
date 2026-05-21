@@ -392,6 +392,53 @@ so RET on any column activates the same target."
     (should (string-match-p "\\$0\\.33" text))
     (should-not (string-match-p "\\$0\\.3290" text))))
 
+(ert-deftest beads-agent-ralph-dashboard-test-iter-row-review-prefix ()
+  "An LLM-fired review iter prefixes the summary cell with `[review N/M]'.
+The marker is sourced from the iteration's `review-number'/`max-reviews'
+slots so the row is self-describing (bde-c95u.7)."
+  (let* ((iter (beads-agent-ralph--iteration
+                :issue-id "bde-rev-row"
+                :status 'finished
+                :summary "filed 2 follow-ups"
+                :kind 'review
+                :review-number 1
+                :max-reviews 2))
+         (row (beads-agent-ralph-dashboard--iter-row iter 4))
+         (text (mapconcat #'vui-vnode-text-content
+                          (vui-vnode-hstack-children row) " ")))
+    (should (string-match-p "\\[review 1/2\\]" text))
+    (should (string-match-p "filed 2 follow-ups" text))
+    (should-not (string-match-p "\\[gated\\]" text))))
+
+(ert-deftest beads-agent-ralph-dashboard-test-iter-row-gated-review-prefix ()
+  "A gated review iter prefixes with both `[gated]' and `[review N/M]'.
+Gated comes first so a scanning user sees the cheap-skip reason before
+the review-cycle index (bde-c95u.7)."
+  (let* ((iter (beads-agent-ralph--iteration
+                :issue-id "bde-gated-row"
+                :status 'finished
+                :kind 'review
+                :gated t
+                :review-number 2
+                :max-reviews 2))
+         (row (beads-agent-ralph-dashboard--iter-row iter 5))
+         (text (mapconcat #'vui-vnode-text-content
+                          (vui-vnode-hstack-children row) " ")))
+    (should (string-match-p "\\[gated\\][^[]*\\[review 2/2\\]" text))))
+
+(ert-deftest beads-agent-ralph-dashboard-test-iter-row-normal-no-prefix ()
+  "A normal iteration's summary cell carries no review/gated marker."
+  (let* ((iter (beads-agent-ralph--iteration
+                :issue-id "bde-norm" :status 'finished
+                :summary "did things"
+                :kind 'iteration))
+         (row (beads-agent-ralph-dashboard--iter-row iter 1))
+         (text (mapconcat #'vui-vnode-text-content
+                          (vui-vnode-hstack-children row) " ")))
+    (should-not (string-match-p "\\[review" text))
+    (should-not (string-match-p "\\[gated\\]" text))
+    (should (string-match-p "did things" text))))
+
 (ert-deftest beads-agent-ralph-dashboard-test-live-stream-terminal-panel ()
   "Terminal controllers show a `Loop terminated' panel, not the
 `waiting for first event' placeholder."

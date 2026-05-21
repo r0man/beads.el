@@ -338,6 +338,88 @@ the existing per-iter NDJSON for the real iter 4."
     (should (string-match-p "Worktree DIRTY" text))
     (should (string-match-p "\\[s\\]tash" text))))
 
+;;; Review iter encoding (bde-c95u.7)
+
+(ert-deftest beads-agent-ralph-persist-test-iteration-to-alist-review-kind ()
+  "An iter with `:kind 'review' encodes `kind' as the string \"review\".
+Also asserts the review-only fields (`gated', `review_number',
+`max_reviews') are present on the encoded record."
+  (let* ((iter (beads-agent-ralph--iteration
+                :issue-id "bde-rev" :status 'finished
+                :iter-number 5
+                :kind 'review
+                :gated nil
+                :review-number 1
+                :max-reviews 2))
+         (alist (beads-agent-ralph-persist--iteration-to-alist iter "bde-rev")))
+    (should (equal "review" (cdr (assoc "kind" alist))))
+    (should (equal :json-false (cdr (assoc "gated" alist))))
+    (should (= 1 (cdr (assoc "review_number" alist))))
+    (should (= 2 (cdr (assoc "max_reviews" alist))))))
+
+(ert-deftest beads-agent-ralph-persist-test-iteration-to-alist-normal-omits-review-fields ()
+  "Normal iters (kind='iteration) do not carry review-only fields.
+Keeps the wire shape unchanged for non-review records so consumers of
+the legacy schema continue to work (bde-c95u.7)."
+  (let* ((iter (beads-agent-ralph-persist-test--make-iter))
+         (alist (beads-agent-ralph-persist--iteration-to-alist iter "bde-n")))
+    (should (equal "iteration" (cdr (assoc "kind" alist))))
+    (should-not (assoc "gated" alist))
+    (should-not (assoc "review_number" alist))
+    (should-not (assoc "max_reviews" alist))))
+
+(ert-deftest beads-agent-ralph-persist-test-iteration-to-alist-gated-encoded ()
+  "A gated review encodes `gated' as JSON true (not :json-false)."
+  (let* ((iter (beads-agent-ralph--iteration
+                :issue-id "bde-g" :status 'finished
+                :iter-number 7 :kind 'review
+                :gated t :review-number 2 :max-reviews 2))
+         (alist (beads-agent-ralph-persist--iteration-to-alist iter "bde-g")))
+    (should (eq t (cdr (assoc "gated" alist))))))
+
+(ert-deftest beads-agent-ralph-persist-test-resume-summary-counts-reviews ()
+  "Resume summary's `:iterations' counts review records, and the cursor
+takes the highest iter-number across normal+review records (bde-c95u.7).
+Without this, a resume could spawn an iter that overwrites an existing
+per-iter NDJSON event file for a previously-recorded review iter."
+  (beads-agent-ralph-persist-test--in-tempdir dir
+    (let ((iter-1 (beads-agent-ralph-persist-test--make-iter
+                   :iter-number 1 :cost-usd 0.1))
+          (iter-2 (beads-agent-ralph--iteration
+                   :issue-id "bde-revsum"
+                   :status 'finished
+                   :iter-number 2 :cost-usd 0.2
+                   :kind 'review
+                   :review-number 1 :max-reviews 2)))
+      (beads-agent-ralph-persist-record-iteration dir "bde-revsum" iter-1)
+      (beads-agent-ralph-persist-record-iteration dir "bde-revsum" iter-2)
+      (let ((summary (beads-agent-ralph-persist-resume-summary dir "bde-revsum")))
+        (should summary)
+        (should (= 2 (plist-get summary :iterations)))
+        (should (= 2 (plist-get summary :last-iteration)))
+        ;; 0.1 + 0.2 ≠ 0.3 exactly in IEEE-754 floating point; assert
+        ;; within a tight epsilon rather than literal equality.
+        (should (< (abs (- 0.3 (plist-get summary :cumulative-cost))) 1e-9))))))
+
+(ert-deftest beads-agent-ralph-persist-test-resume-summary-missing-kind-is-included ()
+  "Records missing the `kind' field are treated as iterations.
+Forward-compat: a pre-`kind' JSONL line — or any future writer that
+forgets to set `kind' — still counts toward the resume cursor instead
+of being silently dropped (bde-c95u.7)."
+  (beads-agent-ralph-persist-test--in-tempdir dir
+    (beads-agent-ralph-persist--ensure-dir dir)
+    (let ((path (beads-agent-ralph-persist-jsonl-path dir "bde-nokind")))
+      (with-temp-file path
+        ;; First record omits `kind' entirely; second has `kind' = `status'
+        ;; (which must NOT be counted as an iteration).
+        (insert "{\"root_id\":\"bde-nokind\",\"iteration\":3,\"cost_usd\":0.5}\n")
+        (insert "{\"kind\":\"status\",\"root_id\":\"bde-nokind\",\"iteration\":3}\n"))
+      (let ((summary (beads-agent-ralph-persist-resume-summary dir "bde-nokind")))
+        (should summary)
+        ;; Only the missing-kind record counts; the `status' record is skipped.
+        (should (= 1 (plist-get summary :iterations)))
+        (should (= 3 (plist-get summary :last-iteration)))))))
+
 ;;; Path enumeration
 
 (ert-deftest beads-agent-ralph-persist-test-record-paths ()

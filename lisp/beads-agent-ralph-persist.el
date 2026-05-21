@@ -131,29 +131,46 @@ duality)."
   "Convert an `beads-agent-ralph--iteration' ITER into an alist for JSON.
 ROOT-ID is recorded on each summary record so the JSONL is self-
 describing even when copied out of context.  The shape mirrors the
-iteration object slots plus a stable `kind' tag."
+iteration object slots plus a `kind' tag (\"iteration\" or \"review\",
+sourced from ITER's `kind' slot — bde-c95u.7).  Review iters also
+carry `gated', `review_number', and `max_reviews' so a post-mortem
+reader can reconstruct the review cycle without re-running the loop."
   ;; `with-no-warnings' here silences spurious \"Unknown slot\" warnings:
   ;; this module deliberately does not require `beads-agent-ralph' (the
   ;; dep direction is the other way), so the byte-compiler cannot see
   ;; the iteration class.  Slots are real -- see the iteration defclass
   ;; in `beads-agent-ralph.el'.  Same precedent as `beads-command.el'.
   (with-no-warnings
-    (list
-     (cons "kind" "iteration")
-     (cons "root_id" (or root-id ""))
-     (cons "issue_id" (or (oref iter issue-id) ""))
-     (cons "iteration" (or (oref iter iter-number) 0))
-     (cons "status" (and (oref iter status) (symbol-name (oref iter status))))
-     (cons "duration_ms" (or (oref iter duration-ms) 0))
-     (cons "cost_usd" (or (oref iter cost-usd) 0))
-     (cons "tool_call_count" (oref iter tool-call-count))
-     (cons "bd_updates_count" (oref iter bd-updates-count))
-     (cons "sentinel_hit" (if (oref iter sentinel-hit) t :json-false))
-     (cons "summary" (or (oref iter summary) ""))
-     (cons "files_touched" (oref iter files-touched))
-     (cons "stderr_tail" (oref iter stderr-tail))
-     (cons "verify_result" (oref iter verify-result))
-     (cons "timestamp" (format-time-string "%FT%T%z")))))
+    (let* ((kind-sym (or (oref iter kind) 'iteration))
+           (kind-str (symbol-name kind-sym))
+           (review-p (eq kind-sym 'review)))
+      (append
+       (list
+        (cons "kind" kind-str)
+        (cons "root_id" (or root-id ""))
+        (cons "issue_id" (or (oref iter issue-id) ""))
+        (cons "iteration" (or (oref iter iter-number) 0))
+        (cons "status" (and (oref iter status) (symbol-name (oref iter status))))
+        (cons "duration_ms" (or (oref iter duration-ms) 0))
+        (cons "cost_usd" (or (oref iter cost-usd) 0))
+        (cons "tool_call_count" (oref iter tool-call-count))
+        (cons "bd_updates_count" (oref iter bd-updates-count))
+        (cons "sentinel_hit" (if (oref iter sentinel-hit) t :json-false))
+        (cons "summary" (or (oref iter summary) ""))
+        (cons "files_touched" (oref iter files-touched))
+        (cons "stderr_tail" (oref iter stderr-tail))
+        (cons "verify_result" (oref iter verify-result))
+        (cons "timestamp" (format-time-string "%FT%T%z")))
+       ;; Review-only fields: only emit on `kind' = `review' records to
+       ;; keep the normal-iter shape unchanged (bde-c95u.7).
+       (when review-p
+         (list
+          (cons "gated"
+                (if (oref iter gated) t :json-false))
+          (cons "review_number"
+                (or (oref iter review-number) 0))
+          (cons "max_reviews"
+                (or (oref iter max-reviews) 0))))))))
 
 (defun beads-agent-ralph-persist--status-to-alist (controller status)
   "Convert a CONTROLLER transition to STATUS into an alist for JSON.
@@ -438,12 +455,29 @@ in receive order; an unparsable line is preserved as
 
 ;;; Resume detection
 
+(defun beads-agent-ralph-persist--iteration-record-p (record)
+  "Return non-nil when RECORD is an iteration-like row from JSONL.
+RECORD is an alist read by `beads-agent-ralph-persist-read-jsonl'.
+Matches `kind' = `iteration' (normal work) or `kind' = `review' (epic-
+empty review iter, bde-c95u.7).  Records missing the `kind' field
+predate this scheme and are treated as iterations for forward-compat;
+a non-iteration kind we don't recognise (e.g. `status', `malformed', or
+a future tag) is excluded so review iters can be counted toward the
+resume cursor without sweeping in unrelated record types."
+  (let ((k (cdr (assoc "kind" record))))
+    (or (null k) (member k '("iteration" "review")))))
+
 (defun beads-agent-ralph-persist-resume-summary (project-dir root-id)
   "Return a plist summarising prior state for ROOT-ID under PROJECT-DIR.
 
 Plist keys:
-  :iterations        — count of iteration records on disk.
-  :last-iteration    — most recent iteration index, or nil.
+  :iterations        — count of iteration records on disk (includes
+                       both normal and review iters; bde-c95u.7).
+  :last-iteration    — most recent iteration index, or nil.  Counts
+                       review iters too, since LLM-fired reviews bump
+                       the controller's iteration counter; excluding
+                       them risks resuming at an index that overwrites
+                       an existing per-iter NDJSON event file.
   :cumulative-cost   — sum of cost_usd across iteration records.
   :last-timestamp    — ISO-8601 string of the most recent record.
   :path              — path to the summary log.
@@ -452,7 +486,7 @@ Returns nil when no summary log exists or it is empty."
   (let* ((path (beads-agent-ralph-persist-jsonl-path project-dir root-id))
          (records (beads-agent-ralph-persist-read-jsonl project-dir root-id))
          (iters (cl-remove-if-not
-                 (lambda (r) (equal (cdr (assoc "kind" r)) "iteration"))
+                 #'beads-agent-ralph-persist--iteration-record-p
                  records)))
     (when iters
       (let ((cost 0.0)
