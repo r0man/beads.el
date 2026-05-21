@@ -167,7 +167,17 @@ Captured from the controller's `iteration' slot at the time the
 iteration record is built so the persisted JSONL is self-describing
 even after iter records are lost or archived.  bde-3787: lets resume
 recover the actual highest iteration index rather than a count of
-records on disk."))
+records on disk.")
+   (kind
+    :initarg :kind
+    :initform 'iteration
+    :type symbol
+    :documentation "Iteration kind: `iteration' (normal work) or `review' (epic-empty review).
+Normal iterations work a claimed child issue; review iterations run
+when `bd ready --parent ROOT-ID' is empty and ask the agent to file
+follow-up children or close the epic before the controller terminates.
+Persisted to JSONL as the string \"iteration\" or \"review\".  The
+dashboard row renderer and `--on-stream-finish' branch on this slot."))
   :documentation "One completed Ralph iteration.
 
 The controller pushes one of these into `history' when an iteration
@@ -200,12 +210,14 @@ This is the directory the user launched the loop from; the worktree
    (worktree-dir
     :initarg :worktree-dir
     :initform nil
-    :documentation "Working directory for `claude --add-dir', or nil for the project root.
-Resolved by the worktree-sharing step (bde-soyy) on the first
-iteration when `beads-agent-use-worktrees' is non-nil; for epic
-loops the worktree is keyed on `root-id' so all children share one
-tree.  When set explicitly at start time, the resolution step is
-skipped.")
+    :documentation "Working directory for the spawned `claude' process, or nil for the project root.
+The stream-spawn site binds `default-directory' to this path so the
+child inherits it as cwd; `--add-dir' is also passed pointing at the
+same path so it shows up in claude's allowed-edit set.  Resolved by
+the worktree-sharing step (bde-soyy) on the first iteration when
+`beads-agent-use-worktrees' is non-nil; for epic loops the worktree
+is keyed on `root-id' so all children share one tree.  When set
+explicitly at start time, the resolution step is skipped.")
    (worktree-resolved
     :initarg :worktree-resolved
     :initform nil
@@ -331,6 +343,71 @@ toward `consecutive-stalls'.")
     :type integer
     :documentation "Number of stalled iterations in a row.
 Two in a row trips the stall detector and pauses the loop.")
+   (consecutive-empty-reviews
+    :initarg :consecutive-empty-reviews
+    :initform 0
+    :type integer
+    :documentation "Count of consecutive review iterations that produced no new ready children.
+Reset to 0 when a review iteration files follow-up children OR when a
+normal iteration closes a child (productive iteration).  When this
+reaches `max-consecutive-empty-reviews' the loop terminates with
+`done-reason' = `epic-complete'.  Counts BOTH LLM-fired and pre-LLM-
+gated review iterations: a gated review (precondition skipped the LLM
+call) still increments this counter, which is how the loop terminates
+cheaply when nothing changed since the last review.")
+   (max-consecutive-empty-reviews
+    :initarg :max-consecutive-empty-reviews
+    :initform 2
+    :type integer
+    :documentation "Cap on consecutive empty reviews before terminating with `epic-complete'.
+Seeded from `beads-agent-ralph-max-consecutive-empty-reviews' at start
+time.  Default 2: one chance after the planned children drain, plus
+one retry if the first review found nothing.  Set to 1 for strict
+single-review behaviour, higher values to give the agent more chances
+to think of follow-ups before giving up.")
+   (max-followups-per-review
+    :initarg :max-followups-per-review
+    :initform 3
+    :type integer
+    :documentation "Cap on new child issues a single review iteration may file.
+Counted as the delta in open children of `root-id' between the start
+and end of the review iteration's stream.  If exceeded, the controller
+refuses to resume into normal mode and terminates with `done-reason' =
+`review-overproduced', treating the run as drift (agent fabricating
+work to justify iteration).  Seeded from
+`beads-agent-ralph-max-followups-per-review' at start time.")
+   (epic-description-snapshot
+    :initarg :epic-description-snapshot
+    :initform nil
+    :type (or null string)
+    :documentation "Snapshot of the root epic's description taken at controller startup.
+Two uses: (1) rendered into every iteration prompt as `<EPIC-DESCRIPTION>'
+so the agent retains the high-level goal across iterations without
+re-fetching root each time; (2) compared against the current root
+description at the start of each iteration — a mismatch terminates the
+loop with `done-reason' = `spec-mutated' rather than continuing under a
+moved goalpost (the description-immutability guard).  Nil until the
+first iteration fetches root.")
+   (last-review-git-ref
+    :initarg :last-review-git-ref
+    :initform nil
+    :type (or null string)
+    :documentation "Git ref (HEAD SHA) recorded at the end of the last review iteration.
+Nil before any review has run.  Used by the pre-LLM gate to compute
+diff-since-last-review (cheap precondition: if no diff and no new closed
+children since this ref, the gate skips the LLM call and increments
+`consecutive-empty-reviews' directly).  Also scopes the
+`<DIFF-SINCE-LAST-REVIEW>' placeholder rendered into the review prompt.")
+   (last-review-closed-count
+    :initarg :last-review-closed-count
+    :initform 0
+    :type integer
+    :documentation "Total closed-children count of `root-id' at the end of the last review.
+Zero before any review has run.  Paired with `last-review-git-ref' to
+form the pre-LLM gate's precondition: when `(current-closed-count =
+this)' AND `(diff-since-last-review = empty)' there is provably nothing
+to review, so the gate skips the LLM call.  Updated at the end of every
+review iteration (gated or LLM-fired).")
    (status
     :initarg :status
     :initform 'idle
@@ -347,9 +424,15 @@ stall or lying-agent detector; resume keeps state).")
     :type symbol
     :documentation "Why the controller left the running family of states.
 One of: `sentinel' (agent declared done), `closed' (bd issue moved to
-closed externally), `epic-empty' (epic mode ran out of ready
-children), `budget' (max-iterations or cost cap), `stop' (user),
-`failed' (terminal failure).")
+closed externally), `epic-empty' (epic mode ran out of ready children
+and review mode was not entered — e.g. issue mode or review disabled),
+`epic-complete' (review mode ran and concluded the epic is done after
+`max-consecutive-empty-reviews' consecutive empty reviews),
+`review-overproduced' (a review iteration filed more than
+`max-followups-per-review' children — treated as drift),
+`spec-mutated' (the root epic's description changed mid-loop —
+description-immutability guard fired), `budget' (max-iterations or
+cost cap), `stop' (user), `failed' (terminal failure).")
    (iteration-delay
     :initarg :iteration-delay
     :initform 0.0
@@ -638,6 +721,33 @@ row legible without expanding."
 A stalled iteration is one with no bd-mutating tool calls, no
 files-touched, and no completion sentinel.  Two in a row is the
 default per the plan: one stall is noise, two is a pattern."
+  :type 'integer
+  :group 'beads-agent-ralph)
+
+(defcustom beads-agent-ralph-max-consecutive-empty-reviews 2
+  "Default cap on consecutive empty review iterations (epic mode).
+Seeds the controller's `max-consecutive-empty-reviews' slot when
+`beads-agent-ralph-start' is called without an explicit
+`:max-consecutive-empty-reviews'.  Review mode runs when `bd ready
+--parent ROOT' returns empty in epic mode; an empty review is one
+that files no new ready children (LLM- or pre-LLM-gate-decided).
+Reaching this cap terminates the loop with `done-reason' =
+`epic-complete'.  Default 2: one chance after planned children drain,
+plus one retry if the first review found nothing.  Set to 1 for
+strict single-review behaviour."
+  :type 'integer
+  :group 'beads-agent-ralph)
+
+(defcustom beads-agent-ralph-max-followups-per-review 3
+  "Default cap on follow-up children a single review iteration may file.
+Seeds the controller's `max-followups-per-review' slot when
+`beads-agent-ralph-start' is called without an explicit
+`:max-followups-per-review'.  If a review iteration files more than
+this many new children of `root-id', the controller terminates with
+`done-reason' = `review-overproduced' rather than resuming into normal
+mode.  This is the structural guard against agent drift / makework —
+a strongly-worded prompt is not enough on its own.  Default 3: keeps
+review focused on the most material gaps."
   :type 'integer
   :group 'beads-agent-ralph)
 
@@ -2608,6 +2718,14 @@ ARGS is a plist:
                 directory signals a `user-error' (see safety guard).
   :model       STRING — defaults to `beads-agent-ralph-model'.
   :extra-args  LIST   — defaults to `beads-agent-ralph-extra-args'.
+  :max-consecutive-empty-reviews INTEGER — epic-mode cap on consecutive
+                empty review iterations before terminating with
+                `epic-complete'.  Defaults to
+                `beads-agent-ralph-max-consecutive-empty-reviews'.
+  :max-followups-per-review INTEGER — cap on follow-up children a single
+                review iteration may file.  Exceeding terminates with
+                `review-overproduced'.  Defaults to
+                `beads-agent-ralph-max-followups-per-review'.
   :resume-action SYMBOL — bypasses the interactive resume prompt with
                 one of `resume', `stash', `fresh', `full-reset', or
                 `cancel'.  Test/backend callers use this to skip the
@@ -2649,6 +2767,12 @@ is prompted to resume / stash / fresh / full-reset / cancel."
          (model (or (plist-get args :model) beads-agent-ralph-model))
          (extra-args (or (plist-get args :extra-args)
                          beads-agent-ralph-extra-args))
+         (max-consecutive-empty-reviews
+          (or (plist-get args :max-consecutive-empty-reviews)
+              beads-agent-ralph-max-consecutive-empty-reviews))
+         (max-followups-per-review
+          (or (plist-get args :max-followups-per-review)
+              beads-agent-ralph-max-followups-per-review))
          ;; Per-loop budget / turns overrides (bde-deqx.5).  nil
          ;; preserves the historical defcustom-driven default; an
          ;; explicit value lands on the controller and overrides the
@@ -2688,6 +2812,8 @@ is prompted to resume / stash / fresh / full-reset / cancel."
                     :permission-mode permission-mode
                     :model model
                     :extra-args extra-args
+                    :max-consecutive-empty-reviews max-consecutive-empty-reviews
+                    :max-followups-per-review max-followups-per-review
                     :max-budget-usd-per-iter max-budget-usd-per-iter
                     :max-budget-usd max-budget-usd
                     :max-turns max-turns

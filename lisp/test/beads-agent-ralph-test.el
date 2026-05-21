@@ -1999,6 +1999,60 @@ write the same buffer name)."
         (beads-agent-ralph--dashboard-rerender controller)))
     (should (= 1 stub-calls))))
 
+;;; Review-mode slots (bde-c95u.2)
+
+(ert-deftest beads-agent-ralph-test-controller-review-slot-defaults ()
+  "New review-mode slots default to plan-specified initforms."
+  (let ((c (beads-agent-ralph--controller :root-id "bde-x" :root-kind 'epic)))
+    (should (= 0 (oref c consecutive-empty-reviews)))
+    (should (= 2 (oref c max-consecutive-empty-reviews)))
+    (should (= 3 (oref c max-followups-per-review)))
+    (should (null (oref c epic-description-snapshot)))
+    (should (null (oref c last-review-git-ref)))
+    (should (= 0 (oref c last-review-closed-count)))))
+
+(ert-deftest beads-agent-ralph-test-controller-review-slot-explicit-values ()
+  "Explicit :initarg values override the defaults."
+  (let ((c (beads-agent-ralph--controller
+            :root-id "bde-x"
+            :root-kind 'epic
+            :max-consecutive-empty-reviews 5
+            :max-followups-per-review 1
+            :epic-description-snapshot "deliver foo"
+            :last-review-git-ref "abc123"
+            :last-review-closed-count 7)))
+    (should (= 5 (oref c max-consecutive-empty-reviews)))
+    (should (= 1 (oref c max-followups-per-review)))
+    (should (equal "deliver foo" (oref c epic-description-snapshot)))
+    (should (equal "abc123" (oref c last-review-git-ref)))
+    (should (= 7 (oref c last-review-closed-count)))))
+
+(ert-deftest beads-agent-ralph-test-controller-defcustom-defaults-wire-through ()
+  "Per-loop defaults follow the customisable variables at construction time."
+  (let ((beads-agent-ralph-max-consecutive-empty-reviews 4)
+        (beads-agent-ralph-max-followups-per-review 7))
+    (let ((c (beads-agent-ralph--controller
+              :root-id "bde-x"
+              :root-kind 'epic
+              :max-consecutive-empty-reviews
+              beads-agent-ralph-max-consecutive-empty-reviews
+              :max-followups-per-review
+              beads-agent-ralph-max-followups-per-review)))
+      (should (= 4 (oref c max-consecutive-empty-reviews)))
+      (should (= 7 (oref c max-followups-per-review))))))
+
+(ert-deftest beads-agent-ralph-test-iteration-kind-default ()
+  "Iteration `kind' slot defaults to `iteration'."
+  (let ((iter (beads-agent-ralph--iteration
+               :issue-id "bde-x" :status 'finished)))
+    (should (eq 'iteration (oref iter kind)))))
+
+(ert-deftest beads-agent-ralph-test-iteration-kind-explicit-review ()
+  "Iteration `kind' slot accepts the `review' value."
+  (let ((iter (beads-agent-ralph--iteration
+               :issue-id nil :status 'finished :kind 'review)))
+    (should (eq 'review (oref iter kind)))))
+
 (provide 'beads-agent-ralph-test)
 
 ;;; beads-agent-ralph-test.el ends here
