@@ -282,20 +282,29 @@ prompt and argv preview blocks."
 
 ;;; Component composition
 
-(defun beads-ralph-launcher--header-block (root-id kind issue)
+(defun beads-ralph-launcher--header-block
+    (root-id kind issue dirty-p template-loaded-p)
   "Render the launcher header.
 KIND is `issue' or `epic'; ISSUE is an optional `beads-issue' whose
-title / priority / status are folded into a subtitle line."
+title / priority / status are folded into a subtitle line.
+
+DIRTY-P prefixes the title with the conventional `*' marker so the
+user can see at a glance that the params have unsaved edits relative
+to the baseline.  TEMPLATE-LOADED-P appends a `[template]' suffix so
+the user knows the rows started from a saved per-root preset rather
+than the defaults."
   (let* ((priority (and issue (oref issue priority)))
          (status (or (and issue (oref issue status)) ""))
          (title (or (and issue (oref issue title)) "")))
     (vui-vstack
      (vui-text
-      (format "Launch Ralph on %s  (%s%s%s)"
+      (format "%sLaunch Ralph on %s  (%s%s%s)%s"
+              (if dirty-p "*" "")
               root-id
               (symbol-name kind)
               (if priority (format " · P%d" priority) "")
-              (if (not (string-empty-p status)) (concat " · " status) ""))
+              (if (not (string-empty-p status)) (concat " · " status) "")
+              (if template-loaded-p "  [template]" ""))
       :face 'beads-ralph-launcher-header-face)
      (when (not (string-empty-p title))
        (vui-text (concat "  " title) :face 'shadow)))))
@@ -492,26 +501,32 @@ Optional MIN bounds the parser (e.g. budgets cannot be negative)."
                  :face 'beads-ralph-launcher-preview-face)))))
 
 (defun beads-ralph-launcher--action-bar (incumbent cap-reached-p)
-  "Bottom action bar.
+  "Bottom action bar and key legend.
 The Launch button is disabled when an INCUMBENT exists or
-CAP-REACHED-P is non-nil; the other buttons are always enabled."
-  (vui-hstack
-   :spacing 3
-   (vui-text "  ")
-   (vui-button "[L]aunch"
-     :disabled (or (and incumbent t) cap-reached-p)
-     :face (if (or incumbent cap-reached-p) 'shadow 'success)
-     :on-click (lambda () (beads-ralph-launcher-launch)))
-   (vui-button "[E]dit prompt"
-     :on-click (lambda () (beads-ralph-launcher-edit-prompt)))
-   (vui-button "[S]ave-as-template"
-     :on-click (lambda () (beads-ralph-launcher-save-template)))
-   (vui-button "[q]Cancel"
-     :on-click (lambda () (beads-ralph-launcher-quit)))))
+CAP-REACHED-P is non-nil; the other buttons are always enabled.
+A second row beneath the buttons spells out the full keymap so
+users don't have to TAB onto a button to discover the shortcuts."
+  (vui-vstack
+   (vui-hstack
+    :spacing 3
+    (vui-text "  ")
+    (vui-button "[L]aunch"
+      :disabled (or (and incumbent t) cap-reached-p)
+      :face (if (or incumbent cap-reached-p) 'shadow 'success)
+      :on-click (lambda () (beads-ralph-launcher-launch)))
+    (vui-button "[E]dit prompt"
+      :on-click (lambda () (beads-ralph-launcher-edit-prompt)))
+    (vui-button "[S]ave-as-template"
+      :on-click (lambda () (beads-ralph-launcher-save-template)))
+    (vui-button "[q]Cancel"
+      :on-click (lambda () (beads-ralph-launcher-quit))))
+   (vui-text
+    "  Keys: [L]aunch [E]dit [S]ave-template [F]orce-relaunch [g]refresh [?]help [q]uit"
+    :face 'shadow)))
 
 (vui-defcomponent beads-ralph-launcher--root
     (root-id kind issue child-issues params prompt-override shell-expanded
-             incumbent cap-reached-p)
+             incumbent cap-reached-p dirty-p template-loaded-p)
   "Top-level launcher composition.
 All state lives in props; the buffer-local state owned by the
 launcher mode is threaded in by `beads-ralph-launcher--render'.
@@ -529,7 +544,8 @@ not collide with `vui-defcomponent's implicit `children' binding."
    (list
     (vui-vstack
      :spacing 1
-     (beads-ralph-launcher--header-block root-id kind issue)
+     (beads-ralph-launcher--header-block
+      root-id kind issue dirty-p template-loaded-p)
      (beads-ralph-launcher--already-running-block incumbent)
      (beads-ralph-launcher--cap-reached-block cap-reached-p)
      (beads-ralph-launcher--ready-children-block kind child-issues)
@@ -553,7 +569,16 @@ number-or-marker-p nil')."
   (with-current-buffer buffer
     (unless (eq major-mode 'beads-ralph-launcher-mode)
       (beads-ralph-launcher-mode))
-    (let ((inhibit-modification-hooks t))
+    (let ((inhibit-modification-hooks t)
+          (dirty-p
+           (not (beads-ralph-launcher--params-equal-p
+                 beads-ralph-launcher--params
+                 beads-ralph-launcher--baseline-params)))
+          (template-loaded-p
+           (and beads-ralph-launcher--root-id
+                (assoc beads-ralph-launcher--root-id
+                       beads-agent-ralph-launch-templates)
+                t)))
       (vui-mount
        (vui-component 'beads-ralph-launcher--root
                       :root-id beads-ralph-launcher--root-id
@@ -565,7 +590,9 @@ number-or-marker-p nil')."
                       :shell-expanded beads-ralph-launcher--shell-expanded
                       :incumbent (beads-ralph-launcher--incumbent
                                   beads-ralph-launcher--root-id)
-                      :cap-reached-p (beads-agent-ralph-cap-reached-p))
+                      :cap-reached-p (beads-agent-ralph-cap-reached-p)
+                      :dirty-p dirty-p
+                      :template-loaded-p template-loaded-p)
        (buffer-name buffer)))))
 
 (defun beads-ralph-launcher--set-param (key value)
@@ -673,9 +700,19 @@ concurrent-loops cap is reached."
 (defun beads-ralph-launcher-refresh ()
   "Force a re-render of the launcher."
   (interactive)
-  (unless (eq major-mode 'beads-ralph-launcher-mode)
-    (user-error "Not in a Ralph launcher buffer"))
+  (beads-ralph-launcher--ensure-mode)
   (beads-ralph-launcher--render (current-buffer)))
+
+(defun beads-ralph-launcher-help ()
+  "Echo the launcher's keymap legend.  Mirrors the action-bar legend
+so `?' and the buffer footer agree."
+  (interactive)
+  (beads-ralph-launcher--ensure-mode)
+  (message
+   (concat
+    "Launcher keys: [L]aunch [E]dit-prompt [S]ave-template "
+    "[F]orce-relaunch [g]refresh [?]help [q]uit · "
+    "TAB / S-TAB to navigate rows")))
 
 (defun beads-ralph-launcher-switch-to-incumbent ()
   "Switch to the dashboard of the loop already running for this root."
@@ -724,6 +761,7 @@ launcher stays open with an error message."
     (define-key map (kbd "F") #'beads-ralph-launcher-force-relaunch)
     (define-key map (kbd "C") #'beads-ralph-launcher-quit)
     (define-key map (kbd "g") #'beads-ralph-launcher-refresh)
+    (define-key map (kbd "?") #'beads-ralph-launcher-help)
     (define-key map (kbd "q") #'beads-ralph-launcher-quit)
     map)
   "Keymap for `beads-ralph-launcher-mode'.
