@@ -1587,26 +1587,30 @@ the git-helpers below share the same precedence rule as the existing
       (oref controller project-dir)
       default-directory))
 
+(defun beads-agent-ralph--call-git (dir &rest args)
+  "Run `git ARGS' under DIR and return trimmed stdout, or nil.
+Returns nil when DIR is not a directory, when git is missing, or on
+any non-zero exit (stderr is discarded).  The empty string is a valid
+non-nil return (e.g. `git diff --stat A..A' produces empty stdout).
+Centralises the call-process plumbing for the pre-LLM gate helpers."
+  (when (and dir (file-directory-p dir))
+    (let ((default-directory (file-name-as-directory dir)))
+      (with-temp-buffer
+        (let ((exit (condition-case _err
+                        (apply #'call-process "git" nil
+                               (list (current-buffer) nil) nil args)
+                      (error nil))))
+          (when (eq exit 0)
+            (string-trim (buffer-string))))))))
+
 (defun beads-agent-ralph--current-git-head (dir)
   "Return the HEAD commit SHA under DIR, or nil on failure.
-Runs `git rev-parse HEAD' synchronously via `call-process'.  Returns nil
-when DIR is not a directory, when git is missing, when the working tree
-has no HEAD yet, or on any other non-zero exit.  Used by the pre-LLM
-gate to snapshot a stable reference for diff-since-last-review."
-  (when (and dir (file-directory-p dir))
-    (let* ((default-directory (file-name-as-directory dir))
-           (output
-            (condition-case _err
-                (with-output-to-string
-                  (with-current-buffer standard-output
-                    (let ((exit (call-process "git" nil
-                                              (list (current-buffer) nil)
-                                              nil "rev-parse" "HEAD")))
-                      (unless (zerop exit)
-                        (erase-buffer)))))
-              (error nil)))
-           (trimmed (and output (string-trim output))))
-      (and trimmed (not (string-empty-p trimmed)) trimmed))))
+Runs `git rev-parse HEAD' synchronously.  Returns nil when DIR is not
+a directory, when git is missing, when the working tree has no HEAD
+yet, or on any other non-zero exit.  Used by the pre-LLM gate to
+snapshot a stable reference for diff-since-last-review."
+  (let ((sha (beads-agent-ralph--call-git dir "rev-parse" "HEAD")))
+    (and sha (not (string-empty-p sha)) sha)))
 
 (defun beads-agent-ralph--git-diff-since (dir ref)
   "Return `git diff --stat REF..HEAD' output under DIR, or nil.
@@ -1617,21 +1621,9 @@ to detect whether any committed work appeared since the last review.
 The gate also treats a nil return as \"no diff\" so a transient git
 failure errs on the safe side (counter increments, the loop will retry
 the gate next time rather than firing a wasted LLM call)."
-  (when (and dir (file-directory-p dir) ref)
-    (let* ((default-directory (file-name-as-directory dir))
-           (output
-            (condition-case _err
-                (with-output-to-string
-                  (with-current-buffer standard-output
-                    (let ((exit (call-process "git" nil
-                                              (list (current-buffer) nil)
-                                              nil
-                                              "diff" "--stat"
-                                              (concat ref "..HEAD"))))
-                      (unless (zerop exit)
-                        (erase-buffer)))))
-              (error nil))))
-      (and output (string-trim output)))))
+  (and ref
+       (beads-agent-ralph--call-git dir "diff" "--stat"
+                                    (concat ref "..HEAD"))))
 
 (defun beads-agent-ralph--maybe-banner-dirty-state (controller)
   "Push a notice banner when CONTROLLER's worktree has uncommitted change.
@@ -2190,7 +2182,7 @@ ISSUES is the list returned by `--bd-list-children-async' (possibly
 nil).  Used by the pre-LLM gate to compare against
 `last-review-closed-count' on CONTROLLER."
   (cl-count-if (lambda (i) (equal (oref i status) beads-status-closed))
-               (or issues nil)))
+               issues))
 
 (defun beads-agent-ralph--maybe-enter-review (controller)
   "Intercept epic-empty on CONTROLLER and decide whether to review.
@@ -2254,59 +2246,80 @@ On bd-list failure, `closed-count' falls back to the existing
 gate's decision turns on the diff alone.  A notice banner records
 the fallback for the user."
   (unless (memq (oref controller status) '(stopped done failed auto-paused))
+    (unless ok
+      (beads-agent-ralph--push-banner
+       controller 'notice
+       "bd list failed during review gate; using cached snapshot"))
     (let* ((prev-closed (oref controller last-review-closed-count))
            (closed-count
             (if ok
                 (beads-agent-ralph--count-closed-children result)
               prev-closed))
-           (delta (- closed-count prev-closed))
            (work-dir (beads-agent-ralph--controller-work-dir controller))
-           (head (beads-agent-ralph--current-git-head work-dir))
            (prior-ref (oref controller last-review-git-ref))
            (diff (and prior-ref
                       (beads-agent-ralph--git-diff-since
                        work-dir prior-ref)))
-           (empty-diff (or (null prior-ref)
-                           (null diff)
-                           (string-empty-p diff)))
-           (no-new-work (and (<= delta 0) empty-diff)))
-      (unless ok
-        (beads-agent-ralph--push-banner
-         controller 'notice
-         "bd list failed during review gate; using cached snapshot"))
+           (no-new-closed (<= (- closed-count prev-closed) 0))
+           (no-new-commits (or (null prior-ref)
+                               (null diff)
+                               (string-empty-p diff))))
       (cond
-       (no-new-work
-        (cl-incf (oref controller consecutive-empty-reviews))
-        (when head
-          (oset controller last-review-git-ref head))
-        (when ok
-          (oset controller last-review-closed-count closed-count))
-        (push (beads-agent-ralph--iteration
-               :issue-id (oref controller root-id)
-               :status 'finished
-               :iter-number (oref controller iteration)
-               :kind 'review
-               :gated t)
-              (oref controller history))
-        (beads-agent-ralph--push-banner
-         controller 'notice
-         (format "Review %d/%d gated: no work since last review"
-                 (oref controller consecutive-empty-reviews)
-                 (oref controller max-consecutive-empty-reviews)))
-        (beads-agent-ralph--dashboard-rerender controller)
-        ;; Break the stack across the recursion so a deep cap cannot
-        ;; blow the call stack and `--terminate' state transitions
-        ;; interleave with the dashboard render.
-        (run-at-time 0 nil
-                     #'beads-agent-ralph--maybe-enter-review controller))
-       (t
-        (beads-agent-ralph--set-status controller 'cooling-down)
-        (beads-agent-ralph--schedule-next-iteration
+       ((and no-new-closed no-new-commits)
+        (beads-agent-ralph--fire-gate
          controller
-         (lambda ()
-           (beads-agent-ralph--set-status controller 'running)
-           (beads-agent-ralph--run-iteration
-            controller :mode 'review))))))))
+         (beads-agent-ralph--current-git-head work-dir)
+         closed-count ok))
+       (t
+        (beads-agent-ralph--schedule-review-iteration controller))))))
+
+(defun beads-agent-ralph--fire-gate (controller head closed-count snapshot-closed-p)
+  "Apply a pre-LLM-gate decision on CONTROLLER.
+HEAD is the current HEAD SHA (nil on git failure); CLOSED-COUNT is the
+just-computed closed-children count of `root-id'.  SNAPSHOT-CLOSED-P
+is the bd-list success flag: when nil, the closed-count snapshot is
+NOT overwritten (preserving the cached value across a transient bd
+outage); when non-nil, the snapshot is refreshed to CLOSED-COUNT.
+
+Side effects: increments `consecutive-empty-reviews', refreshes the
+`last-review-*' snapshots (HEAD unconditionally when non-nil;
+closed-count only when SNAPSHOT-CLOSED-P), pushes a `kind' = `review'
++ `gated' = t iteration record onto `history', and re-enters
+`--maybe-enter-review' via `run-at-time' 0 so the cap check can fire
+on the next pass without growing the call stack."
+  (cl-incf (oref controller consecutive-empty-reviews))
+  (when head
+    (oset controller last-review-git-ref head))
+  (when snapshot-closed-p
+    (oset controller last-review-closed-count closed-count))
+  (push (beads-agent-ralph--iteration
+         :issue-id (oref controller root-id)
+         :status 'finished
+         :iter-number (oref controller iteration)
+         :kind 'review
+         :gated t)
+        (oref controller history))
+  (beads-agent-ralph--push-banner
+   controller 'notice
+   (format "Review %d/%d gated: no work since last review"
+           (oref controller consecutive-empty-reviews)
+           (oref controller max-consecutive-empty-reviews)))
+  (beads-agent-ralph--dashboard-rerender controller)
+  (run-at-time 0 nil
+               #'beads-agent-ralph--maybe-enter-review controller))
+
+(defun beads-agent-ralph--schedule-review-iteration (controller)
+  "Schedule a review-mode iteration on CONTROLLER.
+Sets status to `cooling-down' and dispatches the next iteration body
+in `review' mode via `--schedule-next-iteration'.  The agent gets a
+chance to file follow-up children or close the epic before the loop
+re-enters `--maybe-enter-review'."
+  (beads-agent-ralph--set-status controller 'cooling-down)
+  (beads-agent-ralph--schedule-next-iteration
+   controller
+   (lambda ()
+     (beads-agent-ralph--set-status controller 'running)
+     (beads-agent-ralph--run-iteration controller :mode 'review))))
 
 (defun beads-agent-ralph--continue-after-iteration (controller)
   "Schedule the next iteration body on CONTROLLER unless terminating.
