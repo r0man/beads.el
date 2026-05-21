@@ -319,6 +319,19 @@ the stop command kills its process.")
     :initform nil
     :documentation "Issue the in-flight or next iteration targets.
 Updated by the resolve-target step at the start of each iteration.")
+   (current-iter-kind
+    :initarg :current-iter-kind
+    :initform 'iteration
+    :type symbol
+    :documentation "Kind of the in-flight (or next) iteration.
+Either `iteration' (normal work) or `review' (epic-empty review).  Set
+by `beads-agent-ralph--run-iteration' before each spawn so
+`--build-iteration' can tag the persisted history record with the right
+kind and `--on-stream-finish' can dispatch to the post-review check
+when the stream finishes (bde-c95u.6).  Mirrors the per-iteration class
+slot of the same name; this controller-level slot exists because the
+sentinel that fires `--on-stream-finish' does not know the mode the
+iteration was started under.")
    (history
     :initarg :history
     :initform nil
@@ -2351,7 +2364,8 @@ need only read this record to render its row."
      :sentinel-hit sentinel-hit
      :stderr-tail (oref stream stderr-tail)
      :verify-result (oref stream verify-result)
-     :iter-number (oref controller iteration))))
+     :iter-number (oref controller iteration)
+     :kind (or (oref controller current-iter-kind) 'iteration))))
 
 (defun beads-agent-ralph--terminate (controller reason)
   "Terminate CONTROLLER's loop with REASON (a symbol).
@@ -2375,10 +2389,14 @@ instead of silently mutating `done-reason' (bde-rx4u)."
     (beads-agent-ralph--set-status
      controller
      (pcase reason
-       ('stop          'stopped)
-       ('failed        'failed)
-       ('epic-complete 'done)
-       (_              'done)))
+       ('stop                'stopped)
+       ('failed              'failed)
+       ('epic-complete       'done)
+       ;; Drift detectors: treat the loop as a failed run so the user
+       ;; investigates rather than reads the dashboard as a clean exit.
+       ('review-overproduced 'failed)
+       ('spec-mutated        'failed)
+       (_                    'done)))
     ;; Schedule passive eviction from the public registry after the
     ;; configured retention window (bde-deqx.3).  The dashboard's
     ;; kill-buffer hook cancels this timer and unregisters immediately
@@ -2546,6 +2564,124 @@ re-enters `--maybe-enter-review'."
      (beads-agent-ralph--set-status controller 'running)
      (beads-agent-ralph--run-iteration controller :mode 'review))))
 
+(defun beads-agent-ralph--count-followup-creates (bd-updates)
+  "Return the count of `bd create' entries in BD-UPDATES.
+BD-UPDATES is the (ID . SUB) list returned by
+`beads-agent-ralph--extract-bd-updates'.  Used by the review-iteration
+post-check to enforce `max-followups-per-review': the review prompt
+instructs the agent to file follow-ups via `bd create --parent <ROOT-ID>',
+so each `create' subcommand in the stream counts as one follow-up.
+Other mutations (`bd update', `bd close', etc.) are excluded."
+  (cl-count-if (lambda (p) (equal (cdr p) "create")) bd-updates))
+
+(defun beads-agent-ralph--iter-closes-child-p (bd-updates)
+  "Return non-nil when BD-UPDATES contain at least one `bd close' call.
+Used by `--on-stream-finish' to detect a productive normal iteration
+\(child closed) and reset `consecutive-empty-reviews' to 0 — the
+counter-reset semantics from the bde-c95u plan: a stalled normal
+iteration must NOT reset the counter, only one that actually closed
+work.  Closures expressed as `bd update <id> --status=closed' are
+not detected here; the canonical close path is `bd close <id>' and
+matches the bd prime guidance."
+  (cl-some (lambda (p) (equal (cdr p) "close")) bd-updates))
+
+(defun beads-agent-ralph--finalize-post-review (controller ready-list)
+  "Finalize post-review state on CONTROLLER given READY-LIST (possibly nil).
+Updates HEAD and closed-count snapshots so the next review's pre-LLM
+gate compares against THIS review's end-state, then dispatches:
+
+  READY-LIST non-empty -> the review produced work (filed children
+    that became ready, or bd's blocker analysis surfaced fresh
+    children): reset `consecutive-empty-reviews' to 0 and schedule a
+    normal iteration via `--continue-after-iteration' to drain it.
+
+  READY-LIST empty -> the review filed nothing useful: increment
+    `consecutive-empty-reviews' and re-enter `--maybe-enter-review' via
+    `run-at-time' 0 so the cap check / pre-LLM gate fires on the next
+    pass.  We do NOT push a separate history record here -- the LLM-
+    fired review iteration's record was already pushed by the
+    `--build-iteration' path in `--on-stream-finish'."
+  (let* ((work-dir (beads-agent-ralph--controller-work-dir controller))
+         (head (beads-agent-ralph--current-git-head work-dir)))
+    (when head
+      (oset controller last-review-git-ref head)))
+  ;; Snapshot closed-count via a side query; the decision dispatch
+  ;; happens in the callback so the snapshot is always written before
+  ;; the recursive --maybe-enter-review can re-read it.  A bd failure
+  ;; on this query is non-fatal: we still dispatch on READY-LIST
+  ;; (which already succeeded).
+  (beads-agent-ralph--bd-list-children-async
+   (oref controller root-id)
+   (lambda (ok all-children)
+     (when ok
+       (oset controller last-review-closed-count
+             (beads-agent-ralph--count-closed-children all-children)))
+     (cond
+      (ready-list
+       (oset controller consecutive-empty-reviews 0)
+       (beads-agent-ralph--continue-after-iteration controller))
+      (t
+       (cl-incf (oref controller consecutive-empty-reviews))
+       (run-at-time
+        0 nil
+        #'beads-agent-ralph--maybe-enter-review controller))))))
+
+(defun beads-agent-ralph--apply-post-review-decision (controller ok result)
+  "Apply the post-review decision for CONTROLLER from a bd-ready re-check.
+OK is the success flag from `--bd-ready-children-async'; RESULT is the
+ready-children list or the error payload.  Bails out if CONTROLLER is
+already in a terminal state (a queued stop could have raced ahead).
+
+On bd-ready failure the snapshots are intentionally left untouched
+\(preserving cached values across a transient bd outage) and a normal
+iteration is scheduled anyway -- the loop drains whatever it can and
+fails naturally if bd is really broken.  On success we hand off to
+`--finalize-post-review' which handles snapshot updates and the
+reset/increment dispatch."
+  (unless (memq (oref controller status) '(stopped done failed auto-paused))
+    (cond
+     ((not ok)
+      (beads-agent-ralph--push-banner
+       controller 'notice
+       "bd ready failed during post-review check; continuing")
+      (beads-agent-ralph--continue-after-iteration controller))
+     (t
+      (beads-agent-ralph--finalize-post-review controller result)))))
+
+(defun beads-agent-ralph--handle-review-iter-finish
+    (controller bd-updates)
+  "Run the post-review pipeline for CONTROLLER after a review iteration ends.
+BD-UPDATES is the (ID . SUB) list extracted from the just-finished
+stream by `--extract-bd-updates'.
+
+Step 1 — over-production guard.  Count `bd create' calls in
+BD-UPDATES (the review prompt instructs the agent to file follow-ups
+via `bd create --parent <ROOT-ID>').  If the count exceeds
+`max-followups-per-review' the run is treated as drift and terminates
+with `done-reason' = `review-overproduced' (mapped to status `failed'
+by `--terminate' so the user investigates).
+
+Step 2 — re-run bd ready.  When the agent files follow-ups, those
+become ready children of root; an empty ready list means the review
+produced nothing.  Result drives the snapshot update + counter
+dispatch in `--finalize-post-review' (via
+`--apply-post-review-decision')."
+  (let ((followups (beads-agent-ralph--count-followup-creates bd-updates))
+        (cap (oref controller max-followups-per-review)))
+    (cond
+     ((and cap (> followups cap))
+      (beads-agent-ralph--push-banner
+       controller 'warning
+       (format "Review filed %d follow-ups (cap %d); aborting (review-overproduced)"
+               followups cap))
+      (beads-agent-ralph--terminate controller 'review-overproduced))
+     (t
+      (beads-agent-ralph--bd-ready-children-async
+       (oref controller root-id)
+       (lambda (ok result)
+         (beads-agent-ralph--apply-post-review-decision
+          controller ok result)))))))
+
 (defun beads-agent-ralph--continue-after-iteration (controller)
   "Schedule the next iteration body on CONTROLLER unless terminating.
 Increments `iteration' before scheduling so dashboard rows align.
@@ -2588,6 +2724,8 @@ Steps:
                   (oref (beads-agent-ralph--coerce-single-issue root-result)
                         status)))
                (iter (beads-agent-ralph--build-iteration controller stream))
+               (iter-kind (oref iter kind))
+               (bd-updates (beads-agent-ralph--extract-bd-updates stream))
                (sentinel-hit (oref iter sentinel-hit))
                (stalled (beads-agent-ralph--iteration-stalled-p
                          iter sentinel-hit))
@@ -2611,6 +2749,16 @@ Steps:
                (if stalled
                    (cl-incf (oref controller consecutive-stalls))
                  (oset controller consecutive-stalls 0))
+               ;; Counter-reset semantics (bde-c95u.6): only a normal
+               ;; iteration that actually closed a child resets the
+               ;; empty-review counter.  A stalled normal iteration
+               ;; must NOT reset, or a never-closing loop would never
+               ;; terminate via the review cap.
+               (when (and (eq iter-kind 'iteration)
+                          (> (oref iter bd-updates-count) 0)
+                          (beads-agent-ralph--iter-closes-child-p
+                           bd-updates))
+                 (oset controller consecutive-empty-reviews 0))
                (when lying
                  (cl-incf (oref controller false-claim-count))
                  (beads-agent-ralph--push-banner
@@ -2660,6 +2808,14 @@ Steps:
                         beads-agent-ralph-stop-on-failed
                         (not user-killed))
                    (beads-agent-ralph--terminate controller 'failed))
+                  ;; Review iteration completion (bde-c95u.6): count
+                  ;; follow-ups, then re-run bd ready and decide
+                  ;; reset/increment/over-production.  Must come
+                  ;; BEFORE the epic-mode branch so it intercepts the
+                  ;; default-continue path.
+                  ((eq iter-kind 'review)
+                   (beads-agent-ralph--handle-review-iter-finish
+                    controller bd-updates))
                   ;; Epic loop: a child closed (or didn't) — advance.
                   ;; The next resolve-target step emits `epic-empty'
                   ;; when no more ready children remain.
@@ -3027,11 +3183,17 @@ No-op when `pending-full-reset' is nil."
 (defun beads-agent-ralph--step-fetch-root (controller _acc k)
   "Step: fetch CONTROLLER's root issue for description-cache + notes.
 Caches `epic-description-snapshot' the first time (immutable
-thereafter — bde-c95u.6 enforces the immutability guard).  Always
-overwrites `root-notes-snapshot' so the next iteration's prompt
-reflects insights the agent or earlier sessions appended via
-`bd update <ROOT-ID> --append-notes'.  Non-fatal on failure: a
-transient bd error must not break the loop; we banner and continue."
+thereafter — the immutability guard short-circuits via `spec-mutated'
+if a subsequent fetch finds a different description, bde-c95u.6).
+Always overwrites `root-notes-snapshot' on a successful fetch so the
+next iteration's prompt reflects insights the agent or earlier
+sessions appended via `bd update <ROOT-ID> --append-notes'.
+
+Non-fatal on bd failure: a transient bd error must not break the loop;
+we banner and continue with the cached snapshot.  Description-immutability
+mismatch IS fatal: routing through `--then''s `:on-error' as
+`spec-mutated' terminates the run rather than letting the agent
+continue under a moved goalpost."
   (beads-agent-ralph--bd-show-async
    (oref controller root-id)
    (lambda (ok result)
@@ -3042,14 +3204,32 @@ transient bd error must not break the loop; we banner and continue."
             (format "Root fetch failed for %s — keeping cached snapshot"
                     (oref controller root-id)))
            (funcall k nil nil))
-       (let ((root (beads-agent-ralph--coerce-single-issue result)))
-         (when root
-           (when (null (oref controller epic-description-snapshot))
-             (oset controller epic-description-snapshot
-                   (or (oref root description) "")))
+       (let* ((root (beads-agent-ralph--coerce-single-issue result))
+              (current-desc (and root (or (oref root description) "")))
+              (snapshot (oref controller epic-description-snapshot)))
+         (cond
+          ;; No root payload (defensive: coerce returned nil).  Treat
+          ;; like a soft bd failure: keep the cached snapshot, continue.
+          ((null root)
+           (funcall k nil nil))
+          ;; First successful fetch: cache description, refresh notes.
+          ((null snapshot)
+           (oset controller epic-description-snapshot current-desc)
            (oset controller root-notes-snapshot
-                 (or (oref root notes) "")))
-         (funcall k nil nil))))))
+                 (or (oref root notes) ""))
+           (funcall k nil nil))
+          ;; Immutability mismatch: abort the iteration with
+          ;; `spec-mutated'.  The on-error handler terminates the loop;
+          ;; we do NOT update the snapshot here because the whole point
+          ;; of the guard is that the original description is what the
+          ;; loop committed to deliver.
+          ((not (string-equal current-desc snapshot))
+           (funcall k 'spec-mutated nil))
+          ;; Match: refresh notes only.
+          (t
+           (oset controller root-notes-snapshot
+                 (or (oref root notes) ""))
+           (funcall k nil nil))))))))
 
 (defun beads-agent-ralph--step-resolve-target (controller _acc k)
   "Step: resolve the target issue id for CONTROLLER.
@@ -3286,6 +3466,11 @@ branch routes to `--maybe-enter-review', which decides between
 terminating with `epic-complete', firing the pre-LLM gate, or
 scheduling a review iteration."
   (beads-agent-ralph--set-status controller 'running)
+  ;; Record the iter kind on the controller so `--build-iteration' can
+  ;; tag the history record correctly and `--on-stream-finish' can
+  ;; dispatch to the post-review check when MODE = `review' (bde-c95u.6).
+  (oset controller current-iter-kind
+        (if (eq mode 'review) 'review 'iteration))
   ;; Review iterations target the epic, not a specific child.  Normal
   ;; mode lets `--step-resolve-target' write `current-issue-id' inside
   ;; the step pump; review mode has no resolve-target step, so we set
@@ -3310,6 +3495,13 @@ scheduling a review iteration."
        (cond
         ((eq err 'epic-empty)
          (beads-agent-ralph--maybe-enter-review controller))
+        ((eq err 'spec-mutated)
+         (beads-agent-ralph--push-banner
+          controller 'warning
+          (format
+           "Epic %s description changed mid-loop; aborting (spec-mutated)"
+           (oref controller root-id)))
+         (beads-agent-ralph--terminate controller 'spec-mutated))
         ((eq err 'cancelled) nil)
         (t
          (beads-agent-ralph--push-banner

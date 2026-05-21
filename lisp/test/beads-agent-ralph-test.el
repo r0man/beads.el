@@ -1333,10 +1333,15 @@ extract-* helpers can run."
     (should (eq (oref c status) 'running))))
 
 (ert-deftest beads-agent-ralph-test-terminate-maps-reasons ()
-  "Each terminate reason maps to its terminal status."
+  "Each terminate reason maps to its terminal status.
+`review-overproduced' and `spec-mutated' (bde-c95u.6) are drift
+signals — the run is failed so the user investigates rather than
+reads the dashboard as a clean exit."
   (dolist (pair '((stop . stopped) (failed . failed) (budget . done)
                   (epic-empty . done) (epic-complete . done)
-                  (closed . done) (sentinel . done)))
+                  (closed . done) (sentinel . done)
+                  (review-overproduced . failed)
+                  (spec-mutated . failed)))
     (let ((c (beads-agent-ralph-test--make-controller :status 'running)))
       (beads-agent-ralph--terminate c (car pair))
       (should (eq (oref c status) (cdr pair)))
@@ -2068,13 +2073,20 @@ behaviour is one-shot)."
     ;; call twice with different ids.
     (should (= call-count 2))))
 
-(ert-deftest beads-agent-ralph-test-run-iteration-step-0b-preserves-cached-description ()
-  "Step 0b refreshes notes every iter but never rewrites the cached description."
+(ert-deftest beads-agent-ralph-test-run-iteration-step-0b-spec-mutation-aborts ()
+  "Description-immutability guard (bde-c95u.6) aborts on mid-loop description edit.
+A second fetch finding a description different from the cached
+`epic-description-snapshot' routes through `--then''s `:on-error' as
+`spec-mutated' and terminates the controller with `done-reason' =
+`spec-mutated' (mapped by `--terminate' to status `failed' — the run
+is treated as drift, not as a clean exit).  No spawn happens."
   (let* ((c (beads-agent-ralph-test--make-controller
              :status 'running :root-kind 'issue :root-id "bde-root"
              :prompt-template "X"
+             :banner-log nil
              :epic-description-snapshot "ORIGINAL GOAL"
-             :root-notes-snapshot "old notes")))
+             :root-notes-snapshot "old notes"))
+         (spawned nil))
     (cl-letf (((symbol-function 'beads-agent-ralph--bd-claim-async)
                (lambda (_id k) (funcall k t nil)))
               ((symbol-function 'beads-agent-ralph--bd-show-async)
@@ -2086,10 +2098,43 @@ behaviour is one-shot)."
               ((symbol-function 'beads-agent-ralph--bd-list-children-async)
                (lambda (_id k) (funcall k t nil)))
               ((symbol-function 'beads-agent-ralph--spawn-stream-for)
-               (lambda (_c _id _p) nil)))
+               (lambda (_c id _p) (setq spawned id))))
       (beads-agent-ralph--run-iteration c))
+    (should (eq (oref c status) 'failed))
+    (should (eq (oref c done-reason) 'spec-mutated))
     (should (equal (oref c epic-description-snapshot) "ORIGINAL GOAL"))
-    (should (equal (oref c root-notes-snapshot) "fresh notes"))))
+    (should-not spawned)))
+
+(ert-deftest beads-agent-ralph-test-run-iteration-step-0b-spec-match-refreshes-notes ()
+  "On a description match, Step 0b refreshes `root-notes-snapshot' and continues.
+The positive complement of the immutability guard: when the current
+root description equals the cached snapshot, the iteration proceeds
+normally and the only side-effect on the controller is the refresh
+of `root-notes-snapshot' so cross-iteration insights become visible
+in the next prompt render."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :root-kind 'issue :root-id "bde-root"
+             :prompt-template "X"
+             :epic-description-snapshot "STABLE GOAL"
+             :root-notes-snapshot "old notes"))
+         (spawned nil))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-claim-async)
+               (lambda (_id k) (funcall k t nil)))
+              ((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue
+                               :id id
+                               :description "STABLE GOAL"
+                               :notes "fresh notes"))))
+              ((symbol-function 'beads-agent-ralph--bd-list-children-async)
+               (lambda (_id k) (funcall k t nil)))
+              ((symbol-function 'beads-agent-ralph--spawn-stream-for)
+               (lambda (_c id _p) (setq spawned id))))
+      (beads-agent-ralph--run-iteration c))
+    (should (equal (oref c epic-description-snapshot) "STABLE GOAL"))
+    (should (equal (oref c root-notes-snapshot) "fresh notes"))
+    (should (equal spawned "bde-root"))
+    (should-not (eq (oref c status) 'failed))))
 
 (ert-deftest beads-agent-ralph-test-run-iteration-step-0b-failure-is-non-fatal ()
   "A failed root fetch in Step 0b banners and continues the iteration."
@@ -2901,6 +2946,302 @@ write the same buffer name)."
   (let ((iter (beads-agent-ralph--iteration
                :issue-id nil :status 'finished :kind 'review)))
     (should (eq 'review (oref iter kind)))))
+
+;;; bde-c95u.6: post-review checks, immutability guard, drift terminators
+
+(ert-deftest beads-agent-ralph-test-count-followup-creates ()
+  "`--count-followup-creates' counts only `bd create' entries.
+Other mutating subcommands (close, update, comment, …) MUST NOT be
+counted as follow-ups — only `bd create' against the root produces a
+new child issue, and over-production is about new children, not about
+the agent's other bd activity in the same iteration."
+  (let ((updates '(("bde-r" . "create")
+                   ("bde-r" . "create")
+                   ("bde-c1" . "close")
+                   ("bde-r" . "update")
+                   ("bde-c2" . "comment"))))
+    (should (= 2 (beads-agent-ralph--count-followup-creates updates))))
+  (should (= 0 (beads-agent-ralph--count-followup-creates nil))))
+
+(ert-deftest beads-agent-ralph-test-iter-closes-child-p ()
+  "`--iter-closes-child-p' detects any `bd close' entry."
+  (should (beads-agent-ralph--iter-closes-child-p
+           '(("bde-r" . "update") ("bde-c1" . "close"))))
+  (should-not (beads-agent-ralph--iter-closes-child-p
+               '(("bde-r" . "update") ("bde-c1" . "create"))))
+  (should-not (beads-agent-ralph--iter-closes-child-p nil)))
+
+(ert-deftest beads-agent-ralph-test-build-iteration-tags-kind-from-controller ()
+  "`--build-iteration' reads `current-iter-kind' to tag the history record.
+When the controller's `current-iter-kind' is `review', the produced
+iteration record carries `kind' = `review'; the default (`iteration')
+yields a normal record.  Without this thread, every record would be
+flagged `iteration' and the post-review dispatch could not key on
+the kind slot."
+  (let ((c (beads-agent-ralph-test--make-controller
+            :current-iter-kind 'review))
+        (stream (beads-agent-ralph-test--fake-stream
+                 :events nil :status 'finished)))
+    (let ((iter (beads-agent-ralph--build-iteration c stream)))
+      (should (eq (oref iter kind) 'review))))
+  (let ((c (beads-agent-ralph-test--make-controller
+            :current-iter-kind 'iteration))
+        (stream (beads-agent-ralph-test--fake-stream
+                 :events nil :status 'finished)))
+    (let ((iter (beads-agent-ralph--build-iteration c stream)))
+      (should (eq (oref iter kind) 'iteration)))))
+
+(ert-deftest beads-agent-ralph-test-run-iteration-sets-current-iter-kind ()
+  "`--run-iteration :mode 'review' writes `review' into `current-iter-kind'.
+The slot is the bridge between the iteration body and
+`--on-stream-finish' (which would otherwise have no way to know the
+mode the iteration ran under)."
+  (let ((c (beads-agent-ralph-test--make-controller
+            :root-kind 'epic :current-iter-kind 'iteration)))
+    (cl-letf (((symbol-function 'beads-agent-ralph--dashboard-rerender)
+               #'ignore)
+              ((symbol-function 'beads-agent-ralph--review-iteration-steps)
+               (lambda (_c) nil))
+              ((symbol-function 'beads-agent-ralph--then)
+               (lambda (&rest _args) nil)))
+      (beads-agent-ralph--run-iteration c :mode 'review))
+    (should (eq (oref c current-iter-kind) 'review)))
+  (let ((c (beads-agent-ralph-test--make-controller
+            :root-kind 'epic :current-iter-kind 'review)))
+    (cl-letf (((symbol-function 'beads-agent-ralph--dashboard-rerender)
+               #'ignore)
+              ((symbol-function 'beads-agent-ralph--normal-iteration-steps)
+               (lambda (_c) nil))
+              ((symbol-function 'beads-agent-ralph--then)
+               (lambda (&rest _args) nil)))
+      (beads-agent-ralph--run-iteration c))
+    (should (eq (oref c current-iter-kind) 'iteration))))
+
+(ert-deftest beads-agent-ralph-test-on-stream-finish-review-over-production ()
+  "Review iter filing > cap follow-ups terminates `failed(review-overproduced)'.
+The over-production guard counts only `bd create' calls (per the
+prompt contract — follow-ups are filed as `bd create --parent ROOT').
+With cap = 1 and two creates in the stream, the controller MUST
+terminate without re-querying bd ready."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :root-kind 'epic :history nil
+             :current-iter-kind 'review
+             :max-followups-per-review 1))
+         (creates
+          (beads-agent-ralph-test--assistant-event
+           (beads-agent-ralph-test--tool-use-block
+            "Bash" '(:command "bd create --parent bde-root --type task --title a"))
+           (beads-agent-ralph-test--tool-use-block
+            "Bash" '(:command "bd create --parent bde-root --type task --title b"))))
+         (stream (beads-agent-ralph-test--fake-stream
+                  :events (list creates) :status 'finished))
+         (ready-called nil))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (_id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue
+                               :id "bde-root" :status "in_progress"))))
+              ((symbol-function 'beads-agent-ralph--bd-ready-children-async)
+               (lambda (_id _k) (setq ready-called t))))
+      (beads-agent-ralph--on-stream-finish c stream))
+    (should (eq (oref c status) 'failed))
+    (should (eq (oref c done-reason) 'review-overproduced))
+    (should-not ready-called)))
+
+(ert-deftest beads-agent-ralph-test-on-stream-finish-review-non-empty-resets-counter ()
+  "Review iter producing ready children resets counter and continues normally.
+Path: review iter's stream included a `bd create' under cap, bd ready
+now returns a non-empty list, snapshot update succeeds, counter resets
+to 0, and `--continue-after-iteration' is called to drain the new work."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :root-kind 'epic :history nil
+             :current-iter-kind 'review
+             :consecutive-empty-reviews 1
+             :max-followups-per-review 3
+             :last-review-git-ref nil
+             :last-review-closed-count 4))
+         (ready-issue (beads-agent-ralph-test--make-issue
+                       :id "bde-followup" :status "open"))
+         (create-event
+          (beads-agent-ralph-test--assistant-event
+           (beads-agent-ralph-test--tool-use-block
+            "Bash" '(:command "bd create --parent bde-root --type task --title x"))))
+         (stream (beads-agent-ralph-test--fake-stream
+                  :events (list create-event) :status 'finished))
+         (continue-called nil))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (_id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue
+                               :id "bde-root" :status "in_progress"))))
+              ((symbol-function 'beads-agent-ralph--bd-ready-children-async)
+               (lambda (_id k) (funcall k t (list ready-issue))))
+              ((symbol-function 'beads-agent-ralph--bd-list-children-async)
+               (lambda (_id k)
+                 (funcall k t (list (beads-agent-ralph-test--make-issue
+                                     :status "closed")
+                                    (beads-agent-ralph-test--make-issue
+                                     :status "closed")
+                                    (beads-agent-ralph-test--make-issue
+                                     :status "open")))))
+              ((symbol-function 'beads-agent-ralph--current-git-head)
+               (lambda (_dir) "newsha"))
+              ((symbol-function 'beads-agent-ralph--continue-after-iteration)
+               (lambda (_c) (setq continue-called t))))
+      (beads-agent-ralph--on-stream-finish c stream))
+    (should (= 0 (oref c consecutive-empty-reviews)))
+    (should (equal "newsha" (oref c last-review-git-ref)))
+    (should (= 2 (oref c last-review-closed-count)))
+    (should continue-called)
+    (should-not (memq (oref c status) '(failed done stopped)))))
+
+(ert-deftest beads-agent-ralph-test-on-stream-finish-review-empty-recurses ()
+  "Review iter producing no ready children increments counter and re-enters review.
+Path: review iter filed nothing useful, bd ready returns empty,
+snapshots refresh, counter increments, `--maybe-enter-review' is
+scheduled via `run-at-time' 0 (cap check fires on the next pass)."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :root-kind 'epic :history nil
+             :current-iter-kind 'review
+             :consecutive-empty-reviews 0
+             :max-consecutive-empty-reviews 2
+             :max-followups-per-review 3
+             :last-review-git-ref nil
+             :last-review-closed-count 0))
+         (stream (beads-agent-ralph-test--fake-stream
+                  :events nil :status 'finished))
+         (scheduled nil))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (_id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue
+                               :id "bde-root" :status "in_progress"))))
+              ((symbol-function 'beads-agent-ralph--bd-ready-children-async)
+               (lambda (_id k) (funcall k t nil)))
+              ((symbol-function 'beads-agent-ralph--bd-list-children-async)
+               (lambda (_id k) (funcall k t nil)))
+              ((symbol-function 'beads-agent-ralph--current-git-head)
+               (lambda (_dir) "stillsha"))
+              ((symbol-function 'run-at-time)
+               (lambda (_d _r fn &rest _a) (setq scheduled fn) 'timer-stub))
+              ((symbol-function 'beads-agent-ralph--continue-after-iteration)
+               (lambda (_c) (error "should not continue normally"))))
+      (beads-agent-ralph--on-stream-finish c stream))
+    (should (= 1 (oref c consecutive-empty-reviews)))
+    (should (equal "stillsha" (oref c last-review-git-ref)))
+    (should (eq scheduled #'beads-agent-ralph--maybe-enter-review))))
+
+(ert-deftest beads-agent-ralph-test-on-stream-finish-review-ready-failure-transient ()
+  "On bd-ready failure during post-review check, snapshots are preserved
+and a normal iteration is scheduled anyway.  Banner records the
+fallback so the user can see the transient condition; the loop drains
+whatever it can and fails naturally if bd is really broken."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :root-kind 'epic :history nil
+             :banner-log nil
+             :current-iter-kind 'review
+             :consecutive-empty-reviews 1
+             :max-followups-per-review 3
+             :last-review-git-ref "oldsha"
+             :last-review-closed-count 9))
+         (stream (beads-agent-ralph-test--fake-stream
+                  :events nil :status 'finished))
+         (continue-called nil))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (_id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue
+                               :id "bde-root" :status "in_progress"))))
+              ((symbol-function 'beads-agent-ralph--bd-ready-children-async)
+               (lambda (_id k) (funcall k nil "bd unavailable")))
+              ((symbol-function 'beads-agent-ralph--bd-list-children-async)
+               (lambda (_id _k)
+                 (error "snapshot refresh must NOT run on bd-ready failure")))
+              ((symbol-function 'beads-agent-ralph--continue-after-iteration)
+               (lambda (_c) (setq continue-called t))))
+      (beads-agent-ralph--on-stream-finish c stream))
+    (should continue-called)
+    (should (= 1 (oref c consecutive-empty-reviews)))
+    (should (equal "oldsha" (oref c last-review-git-ref)))
+    (should (= 9 (oref c last-review-closed-count)))
+    (should (cl-some (lambda (b)
+                       (string-match-p "bd ready failed"
+                                       (plist-get b :text)))
+                     (oref c banner-log)))))
+
+(ert-deftest beads-agent-ralph-test-on-stream-finish-normal-close-resets-counter ()
+  "A normal iter that closes a child resets `consecutive-empty-reviews'.
+Counter-reset semantics (bde-c95u.6): only a normal iter with BOTH a
+positive `bd-updates-count' AND a `bd close' tool call counts as
+productive.  This case has both, so the counter goes from 2 -> 0
+before the cond ladder dispatches `--continue-after-iteration'."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :root-kind 'epic :history nil
+             :current-iter-kind 'iteration
+             :consecutive-empty-reviews 2
+             :max-consecutive-empty-reviews 2))
+         (event
+          (beads-agent-ralph-test--assistant-event
+           (beads-agent-ralph-test--tool-use-block
+            "Bash" '(:command "bd close bde-kid"))))
+         (stream (beads-agent-ralph-test--fake-stream
+                  :events (list event) :status 'finished)))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (_id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue
+                               :id "bde-root" :status "in_progress"))))
+              ((symbol-function 'beads-agent-ralph--continue-after-iteration)
+               #'ignore))
+      (beads-agent-ralph--on-stream-finish c stream))
+    (should (= 0 (oref c consecutive-empty-reviews)))))
+
+(ert-deftest beads-agent-ralph-test-on-stream-finish-normal-no-close-keeps-counter ()
+  "A normal iter without `bd close' does NOT reset the empty-review counter.
+Symmetric guard: a stalled normal iteration (or one that only ran
+`bd update' or `bd comment') must NOT reset the counter, or a
+never-closing loop would never terminate via the review cap."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :root-kind 'epic :history nil
+             :current-iter-kind 'iteration
+             :consecutive-empty-reviews 1
+             :max-consecutive-empty-reviews 2))
+         (event
+          (beads-agent-ralph-test--assistant-event
+           (beads-agent-ralph-test--tool-use-block
+            "Bash" '(:command "bd update bde-kid --notes hi"))))
+         (stream (beads-agent-ralph-test--fake-stream
+                  :events (list event) :status 'finished)))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (_id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue
+                               :id "bde-root" :status "in_progress"))))
+              ((symbol-function 'beads-agent-ralph--continue-after-iteration)
+               #'ignore))
+      (beads-agent-ralph--on-stream-finish c stream))
+    (should (= 1 (oref c consecutive-empty-reviews)))))
+
+(ert-deftest beads-agent-ralph-test-handle-review-iter-finish-under-cap-runs-ready ()
+  "Follow-up count at or below cap defers to the bd-ready re-check.
+The over-production guard only fires when the count strictly exceeds
+`max-followups-per-review'.  At the cap (e.g. cap=2, two creates) the
+controller proceeds normally and the post-review decision is driven
+by the bd-ready result, not the follow-up count alone."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :root-kind 'epic :history nil
+             :current-iter-kind 'review
+             :consecutive-empty-reviews 0
+             :max-followups-per-review 2))
+         (ready-called nil))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-ready-children-async)
+               (lambda (_id k)
+                 (setq ready-called t)
+                 (funcall k t nil)))
+              ((symbol-function 'beads-agent-ralph--bd-list-children-async)
+               (lambda (_id k) (funcall k t nil)))
+              ((symbol-function 'beads-agent-ralph--current-git-head)
+               (lambda (_dir) nil))
+              ((symbol-function 'run-at-time)
+               (lambda (_d _r _fn &rest _a) 'stub)))
+      (beads-agent-ralph--handle-review-iter-finish
+       c '(("bde-r" . "create") ("bde-r" . "create"))))
+    (should ready-called)
+    (should-not (eq (oref c done-reason) 'review-overproduced))))
 
 (provide 'beads-agent-ralph-test)
 
