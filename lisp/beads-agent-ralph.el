@@ -2600,7 +2600,12 @@ gate compares against THIS review's end-state, then dispatches:
     `run-at-time' 0 so the cap check / pre-LLM gate fires on the next
     pass.  We do NOT push a separate history record here -- the LLM-
     fired review iteration's record was already pushed by the
-    `--build-iteration' path in `--on-stream-finish'."
+    `--build-iteration' path in `--on-stream-finish'.
+
+A terminal status landing between the bd-list-children-async callback
+and the dispatch (e.g. user `--stop' during the callback wait) is
+respected by the inner guard so a queued thunk cannot resurrect a
+stopped loop."
   (let* ((work-dir (beads-agent-ralph--controller-work-dir controller))
          (head (beads-agent-ralph--current-git-head work-dir)))
     (when head
@@ -2616,15 +2621,17 @@ gate compares against THIS review's end-state, then dispatches:
      (when ok
        (oset controller last-review-closed-count
              (beads-agent-ralph--count-closed-children all-children)))
-     (cond
-      (ready-list
-       (oset controller consecutive-empty-reviews 0)
-       (beads-agent-ralph--continue-after-iteration controller))
-      (t
-       (cl-incf (oref controller consecutive-empty-reviews))
-       (run-at-time
-        0 nil
-        #'beads-agent-ralph--maybe-enter-review controller))))))
+     (unless (memq (oref controller status)
+                   '(stopped done failed auto-paused))
+       (cond
+        (ready-list
+         (oset controller consecutive-empty-reviews 0)
+         (beads-agent-ralph--continue-after-iteration controller))
+        (t
+         (cl-incf (oref controller consecutive-empty-reviews))
+         (run-at-time
+          0 nil
+          #'beads-agent-ralph--maybe-enter-review controller)))))))
 
 (defun beads-agent-ralph--apply-post-review-decision (controller ok result)
   "Apply the post-review decision for CONTROLLER from a bd-ready re-check.
@@ -2665,22 +2672,30 @@ Step 2 — re-run bd ready.  When the agent files follow-ups, those
 become ready children of root; an empty ready list means the review
 produced nothing.  Result drives the snapshot update + counter
 dispatch in `--finalize-post-review' (via
-`--apply-post-review-decision')."
-  (let ((followups (beads-agent-ralph--count-followup-creates bd-updates))
-        (cap (oref controller max-followups-per-review)))
-    (cond
-     ((and cap (> followups cap))
-      (beads-agent-ralph--push-banner
-       controller 'warning
-       (format "Review filed %d follow-ups (cap %d); aborting (review-overproduced)"
-               followups cap))
-      (beads-agent-ralph--terminate controller 'review-overproduced))
-     (t
-      (beads-agent-ralph--bd-ready-children-async
-       (oref controller root-id)
-       (lambda (ok result)
-         (beads-agent-ralph--apply-post-review-decision
-          controller ok result)))))))
+`--apply-post-review-decision').
+
+Defensive: returns without effect if CONTROLLER is already in a
+terminal state.  Called from `--on-stream-finish' after the cond
+ladder's stop/failed/closed branches, so the synchronous path is
+already guarded; the guard here is belt-and-braces for callers that
+might dispatch here from outside that ladder."
+  (unless (memq (oref controller status)
+                '(stopped done failed auto-paused))
+    (let ((followups (beads-agent-ralph--count-followup-creates bd-updates))
+          (cap (oref controller max-followups-per-review)))
+      (cond
+       ((and cap (> followups cap))
+        (beads-agent-ralph--push-banner
+         controller 'warning
+         (format "Review filed %d follow-ups (cap %d); aborting (review-overproduced)"
+                 followups cap))
+        (beads-agent-ralph--terminate controller 'review-overproduced))
+       (t
+        (beads-agent-ralph--bd-ready-children-async
+         (oref controller root-id)
+         (lambda (ok result)
+           (beads-agent-ralph--apply-post-review-decision
+            controller ok result))))))))
 
 (defun beads-agent-ralph--continue-after-iteration (controller)
   "Schedule the next iteration body on CONTROLLER unless terminating.

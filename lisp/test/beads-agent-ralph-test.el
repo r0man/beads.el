@@ -3216,6 +3216,58 @@ never-closing loop would never terminate via the review cap."
       (beads-agent-ralph--on-stream-finish c stream))
     (should (= 1 (oref c consecutive-empty-reviews)))))
 
+(ert-deftest beads-agent-ralph-test-handle-review-iter-finish-noop-when-terminal ()
+  "`--handle-review-iter-finish' is a no-op when CONTROLLER is already terminal.
+Guards against a queued stop landing between the stream-finish cond
+ladder and the post-review dispatch: even if the over-production
+guard would otherwise fire, a stopped/done/failed controller MUST not
+be transitioned again."
+  (let ((c (beads-agent-ralph-test--make-controller
+            :status 'stopped :done-reason 'stop :root-kind 'epic
+            :current-iter-kind 'review
+            :max-followups-per-review 1))
+        (ready-called nil))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-ready-children-async)
+               (lambda (_id _k) (setq ready-called t))))
+      (beads-agent-ralph--handle-review-iter-finish
+       c '(("bde-r" . "create") ("bde-r" . "create"))))
+    (should-not ready-called)
+    (should (eq (oref c status) 'stopped))
+    (should (eq (oref c done-reason) 'stop))))
+
+(ert-deftest beads-agent-ralph-test-finalize-post-review-stop-mid-callback-noop ()
+  "If the controller is stopped between the bd-list snapshot callback
+firing and the dispatch, `--finalize-post-review' must NOT schedule a
+next iteration or recurse into `--maybe-enter-review'."
+  (let ((c (beads-agent-ralph-test--make-controller
+            :status 'running :root-kind 'epic
+            :current-iter-kind 'review
+            :consecutive-empty-reviews 0
+            :max-consecutive-empty-reviews 2
+            :last-review-git-ref nil
+            :last-review-closed-count 0))
+        (continued nil)
+        (scheduled nil))
+    (cl-letf (((symbol-function 'beads-agent-ralph--current-git-head)
+               (lambda (_dir) "sha"))
+              ((symbol-function 'beads-agent-ralph--bd-list-children-async)
+               ;; Mid-callback the user stops the loop; the dispatch
+               ;; that follows MUST detect the terminal state and bail.
+               (lambda (_id k)
+                 (oset c status 'stopped)
+                 (oset c done-reason 'stop)
+                 (funcall k t nil)))
+              ((symbol-function 'beads-agent-ralph--continue-after-iteration)
+               (lambda (_c) (setq continued t)))
+              ((symbol-function 'run-at-time)
+               (lambda (_d _r _fn &rest _a) (setq scheduled t) 'stub)))
+      (beads-agent-ralph--finalize-post-review c nil))
+    (should-not continued)
+    (should-not scheduled)
+    ;; Counter was NOT incremented because the dispatch bailed before
+    ;; the increment.
+    (should (= 0 (oref c consecutive-empty-reviews)))))
+
 (ert-deftest beads-agent-ralph-test-handle-review-iter-finish-under-cap-runs-ready ()
   "Follow-up count at or below cap defers to the bd-ready re-check.
 The over-production guard only fires when the count strictly exceeds
