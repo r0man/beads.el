@@ -879,13 +879,13 @@ WHAT TO DO THIS ITERATION
    acceptance criteria are demonstrably satisfied; otherwise
    leave it open for the next iteration.
 
-4. When you learn something that future iterations need (cross-
-   issue insight, a constraint you discovered, a decision worth
-   preserving), append it to the ROOT NOTES with
-   `bd update <ROOT-ID> --append-notes \"…\"`.  This is the
-   `<ROOT-NOTES>' surface you see at the top of this prompt.
-   ALWAYS use --append-notes — `--notes` REPLACES the field and
-   destroys the running log.
+4. When you learn something future iterations need (cross-issue
+   insight, a constraint you discovered, a decision worth
+   preserving), append it to the root issue's notes with
+   `bd update <ROOT-ID> --append-notes \"…\"`.  It will surface
+   in the ROOT NOTES section above on the next iteration.  ALWAYS
+   use --append-notes; plain `--notes` REPLACES the field and
+   destroys prior entries.
 
 5. Before exiting, emit exactly one line of the form
 
@@ -2607,7 +2607,7 @@ Stream completion is handled by the subscriber installed in
              (progn
                (beads-agent-ralph--push-banner
                 controller 'notice
-                (format "Fetch root %s failed; reusing cached values"
+                (format "Root fetch failed for %s — keeping cached snapshot"
                         (oref controller root-id)))
                (funcall k nil nil))
            (let ((root (beads-agent-ralph--coerce-single-issue result)))

@@ -1456,7 +1456,7 @@ behaviour is one-shot)."
     (should (equal spawned "bde-root"))
     ;; Banner queued.
     (should (cl-some (lambda (b)
-                       (string-match-p "Fetch root"
+                       (string-match-p "Root fetch failed"
                                        (plist-get b :text)))
                      (oref c banner-log)))))
 
