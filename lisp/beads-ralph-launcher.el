@@ -551,11 +551,17 @@ number-or-marker-p nil')."
 
 ;;; Interactive commands
 
+(defun beads-ralph-launcher--ensure-mode ()
+  "Refuse interactive commands invoked outside a launcher buffer."
+  (unless (eq major-mode 'beads-ralph-launcher-mode)
+    (user-error "Not in a Ralph launcher buffer")))
+
 (defun beads-ralph-launcher-launch ()
   "Launch the loop with the current launcher params.
 Refuses with `user-error' when an incumbent loop is live or when the
 concurrent-loops cap is reached."
   (interactive)
+  (beads-ralph-launcher--ensure-mode)
   (when (beads-ralph-launcher--incumbent beads-ralph-launcher--root-id)
     (user-error
      "Already running for %s; use [F]orce relaunch or [S]witch"
@@ -584,6 +590,7 @@ concurrent-loops cap is reached."
 (defun beads-ralph-launcher-edit-prompt ()
   "Pop the prompt editor; on save, update `--prompt-override' and remount."
   (interactive)
+  (beads-ralph-launcher--ensure-mode)
   (let* ((root-id beads-ralph-launcher--root-id)
          (kind beads-ralph-launcher--kind)
          (override beads-ralph-launcher--prompt-override)
@@ -605,6 +612,7 @@ concurrent-loops cap is reached."
 (defun beads-ralph-launcher-save-template ()
   "Save the current params as the per-root template; reset baseline."
   (interactive)
+  (beads-ralph-launcher--ensure-mode)
   (let ((root-id beads-ralph-launcher--root-id)
         (params beads-ralph-launcher--params))
     (beads-ralph-launcher--save-template root-id params)
@@ -615,6 +623,7 @@ concurrent-loops cap is reached."
 (defun beads-ralph-launcher-quit ()
   "Bury the launcher; confirm when params differ from the baseline."
   (interactive)
+  (beads-ralph-launcher--ensure-mode)
   (if (beads-ralph-launcher--params-equal-p
        beads-ralph-launcher--params
        beads-ralph-launcher--baseline-params)
@@ -634,6 +643,7 @@ concurrent-loops cap is reached."
 (defun beads-ralph-launcher-switch-to-incumbent ()
   "Switch to the dashboard of the loop already running for this root."
   (interactive)
+  (beads-ralph-launcher--ensure-mode)
   (let* ((root-id beads-ralph-launcher--root-id)
          (ctrl (beads-ralph-launcher--incumbent root-id)))
     (unless ctrl
@@ -647,6 +657,7 @@ concurrent-loops cap is reached."
 Delegates to `beads-agent-ralph-force-relaunch'; on stop-timeout the
 launcher stays open with an error message."
   (interactive)
+  (beads-ralph-launcher--ensure-mode)
   (let* ((root-id beads-ralph-launcher--root-id)
          (kind beads-ralph-launcher--kind)
          (start-args (beads-ralph-launcher--params-to-start-args
@@ -706,9 +717,11 @@ ARGS is a plist; recognised keys:
 
 The launcher buffer is the singleton `beads-ralph-launcher-buffer-name';
 re-opening with a different ROOT-ID re-seeds the buffer-local state and
-re-renders."
+re-renders.  An empty or non-string ROOT-ID raises `user-error'."
   (interactive
    (list (read-string "Ralph root id: ")))
+  (unless (and (stringp root-id) (not (string-empty-p root-id)))
+    (user-error "beads-ralph-launcher: ROOT-ID must be a non-empty string"))
   (let ((buf (get-buffer-create beads-ralph-launcher-buffer-name)))
     (with-current-buffer buf
       (beads-ralph-launcher-mode)
