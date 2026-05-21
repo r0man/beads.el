@@ -412,6 +412,30 @@ expected token list (permission-mode + add-dir + budget honored)."
           (should (string-match-p "OVERRIDDEN_PROMPT_TOKEN"
                                   (buffer-string))))))))
 
+;;; Entry-point validation
+
+(ert-deftest beads-ralph-launcher-test-entry-rejects-empty-root-id ()
+  "`beads-ralph-launcher' refuses an empty ROOT-ID."
+  (should-error (beads-ralph-launcher "") :type 'user-error))
+
+(ert-deftest beads-ralph-launcher-test-entry-rejects-non-string-root-id ()
+  "`beads-ralph-launcher' refuses a non-string ROOT-ID."
+  (should-error (beads-ralph-launcher nil) :type 'user-error)
+  (should-error (beads-ralph-launcher 42) :type 'user-error))
+
+;;; Mode guard
+
+(ert-deftest beads-ralph-launcher-test-interactive-commands-refuse-outside-mode ()
+  "Interactive commands signal `user-error' when called outside a launcher buffer."
+  (with-temp-buffer
+    (should-error (beads-ralph-launcher-launch) :type 'user-error)
+    (should-error (beads-ralph-launcher-edit-prompt) :type 'user-error)
+    (should-error (beads-ralph-launcher-save-template) :type 'user-error)
+    (should-error (beads-ralph-launcher-quit) :type 'user-error)
+    (should-error (beads-ralph-launcher-refresh) :type 'user-error)
+    (should-error (beads-ralph-launcher-switch-to-incumbent) :type 'user-error)
+    (should-error (beads-ralph-launcher-force-relaunch) :type 'user-error)))
+
 ;;; Shell toggle
 
 (ert-deftest beads-ralph-launcher-test-shell-toggle-expands-argv ()
