@@ -448,8 +448,43 @@ expected token list (permission-mode + add-dir + budget honored)."
     (should-error (beads-ralph-launcher-save-template) :type 'user-error)
     (should-error (beads-ralph-launcher-quit) :type 'user-error)
     (should-error (beads-ralph-launcher-refresh) :type 'user-error)
+    (should-error (beads-ralph-launcher-help) :type 'user-error)
     (should-error (beads-ralph-launcher-switch-to-incumbent) :type 'user-error)
     (should-error (beads-ralph-launcher-force-relaunch) :type 'user-error)))
+
+;;; Header indicators (dirty / template-loaded)
+
+(ert-deftest beads-ralph-launcher-test-header-shows-dirty-star ()
+  "Editing params away from baseline prepends `*' to the title."
+  (beads-ralph-launcher-test--with-clean-registry
+    (beads-ralph-launcher-test--with-clean-templates
+      (beads-ralph-launcher-test--with-launcher-buffer buf "bde-dirty"
+        (with-current-buffer buf
+          ;; Mutate params; remount.
+          (setq-local beads-ralph-launcher--params
+                      (plist-put (copy-sequence beads-ralph-launcher--params)
+                                 :max-iterations 999))
+          (beads-ralph-launcher--render buf)
+          (should (string-match-p "\\*Launch Ralph on bde-dirty"
+                                  (buffer-string))))))))
+
+(ert-deftest beads-ralph-launcher-test-header-shows-template-suffix ()
+  "When a saved template exists for the root, header carries `[template]'."
+  (beads-ralph-launcher-test--with-clean-registry
+    (beads-ralph-launcher-test--with-clean-templates
+      (setq beads-agent-ralph-launch-templates
+            '(("bde-tmpl" :max-iterations 7)))
+      (beads-ralph-launcher-test--with-launcher-buffer buf "bde-tmpl"
+        (with-current-buffer buf
+          (should (string-match-p "\\[template\\]" (buffer-string))))))))
+
+(ert-deftest beads-ralph-launcher-test-header-no-template-suffix-without-saved ()
+  "Without a saved template for the root, `[template]' must NOT appear."
+  (beads-ralph-launcher-test--with-clean-registry
+    (beads-ralph-launcher-test--with-clean-templates
+      (beads-ralph-launcher-test--with-launcher-buffer buf "bde-no-tmpl"
+        (with-current-buffer buf
+          (should-not (string-match-p "\\[template\\]" (buffer-string))))))))
 
 ;;; Shell toggle
 
