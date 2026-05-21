@@ -403,7 +403,34 @@ reaches a terminal state; fires after
 controller from `beads-agent-ralph--controllers'.  Cancelled and
 replaced by an immediate unregister when the dashboard buffer is
 killed in terminal state.  Without this handle, terminal controllers
-would accumulate in the registry indefinitely (bde-deqx.3)."))
+would accumulate in the registry indefinitely (bde-deqx.3).")
+   (max-budget-usd-per-iter
+    :initarg :max-budget-usd-per-iter
+    :initform nil
+    :documentation "Per-iteration cost cap (USD) for this loop, or nil.
+Overrides `beads-agent-ralph-max-budget-usd-per-iter' for this
+controller only.  Threaded through by `beads-agent-ralph-start'
+from its `:max-budget-usd-per-iter' arg; consumed by
+`beads-agent-ralph--per-iter-budget' as the per-loop ceiling
+before falling back to the defcustom.  Lets the launcher
+\(bde-deqx.5) and other callers run two loops side-by-side with
+different budgets without mutating the global defcustom.")
+   (max-budget-usd
+    :initarg :max-budget-usd
+    :initform nil
+    :documentation "Cumulative cost cap (USD) for this loop, or nil.
+Per-loop override of `beads-agent-ralph-max-budget-usd'; mirrors
+`max-budget-usd-per-iter' both in plumbing and reason.  Read by
+`beads-agent-ralph--per-iter-budget' (for the cumulative remainder)
+and `beads-agent-ralph--budget-exhausted-p' (for the terminal-state
+check).")
+   (max-turns
+    :initarg :max-turns
+    :initform nil
+    :documentation "Max agent turns per iteration for this loop, or nil.
+Per-loop override of `beads-agent-ralph-max-turns'; threaded into
+`claude --max-turns' by `beads-agent-ralph--stream-spawn-for' via
+`(or (oref c max-turns) beads-agent-ralph-max-turns)'."))
   :documentation "Ralph loop controller: iteration state machine.
 
 One controller per running loop.  The dashboard buffer holds a
@@ -1437,18 +1464,28 @@ issue (a string).  Sentinel-hit without `closed' = false claim."
        (not (equal root-status "closed"))))
 
 (defun beads-agent-ralph--budget-exhausted-p (controller)
-  "Return non-nil when CONTROLLER has hit iteration or cost ceilings."
+  "Return non-nil when CONTROLLER has hit iteration or cost ceilings.
+The cumulative cost cap is read per-controller first (bde-deqx.5
+launcher per-loop override) then falls back to the defcustom."
   (or (>= (oref controller iteration) (oref controller max-iterations))
-      (when-let ((cap beads-agent-ralph-max-budget-usd))
+      (when-let ((cap (or (oref controller max-budget-usd)
+                          beads-agent-ralph-max-budget-usd)))
         (>= (oref controller cumulative-cost-usd) cap))))
 
 (defun beads-agent-ralph--effective-per-iter-budget (controller)
   "Return the per-iter `--max-budget-usd' for CONTROLLER's next spawn.
 Combines the per-iter cap with the remainder of the total cap so a
 nearly-spent total ratchets the per-iter cap down rather than letting
-one final iter overshoot."
-  (let ((per beads-agent-ralph-max-budget-usd-per-iter)
-        (total beads-agent-ralph-max-budget-usd)
+one final iter overshoot.
+
+Per-loop overrides on the controller (`max-budget-usd-per-iter',
+`max-budget-usd', set by `beads-agent-ralph-start' from its args
+\(bde-deqx.5)) shadow the defcustoms; nil on the slot means
+`use the defcustom'."
+  (let ((per (or (oref controller max-budget-usd-per-iter)
+                 beads-agent-ralph-max-budget-usd-per-iter))
+        (total (or (oref controller max-budget-usd)
+                   beads-agent-ralph-max-budget-usd))
         (spent (oref controller cumulative-cost-usd)))
     (cond
      ((and per total)
@@ -2346,7 +2383,10 @@ subscriber so iteration completion is observed."
                                    default-directory)
                   :permission-mode (oref controller permission-mode)
                   :max-budget-usd per-iter-budget
-                  :max-turns beads-agent-ralph-max-turns
+                  ;; Per-loop max-turns override (bde-deqx.5);
+                  ;; nil falls back to the defcustom.
+                  :max-turns (or (oref controller max-turns)
+                                 beads-agent-ralph-max-turns)
                   :extra-args
                   (beads-agent-ralph--effective-extra-args controller))))
     (oset controller current-stream stream)
@@ -2608,7 +2648,18 @@ is prompted to resume / stash / fresh / full-reset / cancel."
                               beads-agent-ralph-permission-mode))
          (model (or (plist-get args :model) beads-agent-ralph-model))
          (extra-args (or (plist-get args :extra-args)
-                         beads-agent-ralph-extra-args)))
+                         beads-agent-ralph-extra-args))
+         ;; Per-loop budget / turns overrides (bde-deqx.5).  nil
+         ;; preserves the historical defcustom-driven default; an
+         ;; explicit value lands on the controller and overrides the
+         ;; defcustom for this loop only.  Unlike the simpler defcustom
+         ;; fallbacks above, we keep nil here because the slot itself
+         ;; means "no override" and the spawn-time accessors
+         ;; \(`--per-iter-budget', `--stream-spawn-for') re-or against
+         ;; the defcustom each iteration.
+         (max-budget-usd-per-iter (plist-get args :max-budget-usd-per-iter))
+         (max-budget-usd (plist-get args :max-budget-usd))
+         (max-turns (plist-get args :max-turns)))
     ;; Resume detection: when a prior JSONL exists for this root, ask
     ;; the user before clobbering it.  Non-interactive callers can pass
     ;; :resume-action explicitly to skip the prompt (used by tests and
@@ -2637,6 +2688,9 @@ is prompted to resume / stash / fresh / full-reset / cancel."
                     :permission-mode permission-mode
                     :model model
                     :extra-args extra-args
+                    :max-budget-usd-per-iter max-budget-usd-per-iter
+                    :max-budget-usd max-budget-usd
+                    :max-turns max-turns
                     :started-at (current-time)
                     :status 'idle))
              (controller-args
