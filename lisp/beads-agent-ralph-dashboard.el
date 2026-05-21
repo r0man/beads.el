@@ -153,13 +153,17 @@ is t.  Otherwise preview is the full text and :truncated is nil."
    (or (beads-agent-ralph-dashboard--block-field block :text "text") "")))
 
 (defun beads-agent-ralph-dashboard--render-thinking-block (block)
-  "Return a collapsed vnode for an assistant thinking BLOCK."
-  (let* ((text (or (beads-agent-ralph-dashboard--block-field
-                    block :text "text") ""))
-         (preview (truncate-string-to-width
-                   (replace-regexp-in-string "\n" " " text)
-                   80 nil ?\s "…")))
-    (vui-text (format "  · thinking: %s" preview) :face 'shadow)))
+  "Return a collapsed vnode for an assistant thinking BLOCK.
+Returns nil when the thinking text is empty or whitespace-only so the
+caller can drop the vnode (avoids 80-space padded `thinking:' lines
+when claude streams an empty thinking delta)."
+  (let ((text (or (beads-agent-ralph-dashboard--block-field
+                   block :text "text") "")))
+    (unless (string-blank-p text)
+      (let ((preview (truncate-string-to-width
+                      (replace-regexp-in-string "\n" " " text)
+                      80 nil ?\s "…")))
+        (vui-text (format "  · thinking: %s" preview) :face 'shadow)))))
 
 (defun beads-agent-ralph-dashboard--render-tool-use-block (block)
   "Return a vnode card for a tool_use BLOCK."
@@ -262,17 +266,23 @@ is t.  Otherwise preview is the full text and :truncated is nil."
          (beads-agent-ralph-dashboard--subtype-eq event "api_retry"))
     (vui-text "⚠ API retry" :face 'warning))
    ((beads-agent-ralph-dashboard--type-eq event "assistant")
-    (let ((blocks (beads-agent-ralph-dashboard--assistant-blocks event)))
-      (if (null blocks)
-          (vui-text "(empty assistant message)" :face 'shadow)
-        (apply #'vui-vstack
-               (mapcar #'beads-agent-ralph-dashboard--render-block blocks)))))
+    (let* ((blocks (beads-agent-ralph-dashboard--assistant-blocks event))
+           (rendered (delq nil (mapcar
+                                #'beads-agent-ralph-dashboard--render-block
+                                blocks))))
+      (cond
+       ((null blocks)   (vui-text "(empty assistant message)" :face 'shadow))
+       ((null rendered) nil)
+       (t (apply #'vui-vstack rendered)))))
    ((beads-agent-ralph-dashboard--type-eq event "user")
-    (let ((blocks (beads-agent-ralph-dashboard--assistant-blocks event)))
-      (if (null blocks)
-          (vui-text "(empty user message)" :face 'shadow)
-        (apply #'vui-vstack
-               (mapcar #'beads-agent-ralph-dashboard--render-block blocks)))))
+    (let* ((blocks (beads-agent-ralph-dashboard--assistant-blocks event))
+           (rendered (delq nil (mapcar
+                                #'beads-agent-ralph-dashboard--render-block
+                                blocks))))
+      (cond
+       ((null blocks)   (vui-text "(empty user message)" :face 'shadow))
+       ((null rendered) nil)
+       (t (apply #'vui-vstack rendered)))))
    ((beads-agent-ralph-dashboard--type-eq event "result")
     (beads-agent-ralph-dashboard--render-result event))
    ((beads-agent-ralph-dashboard--type-eq event "error")
@@ -282,8 +292,10 @@ is t.  Otherwise preview is the full text and :truncated is nil."
                           event))
               :face 'error))
    ((and (not beads-agent-ralph-include-hook-events)
-         (let ((type (beads-agent-ralph-dashboard--event-type event)))
-           (and type (string-prefix-p "hook" (format "%s" type)))))
+         (let ((type (beads-agent-ralph-dashboard--event-type event))
+               (sub  (beads-agent-ralph-dashboard--event-subtype event)))
+           (or (and type (string-prefix-p "hook" (format "%s" type)))
+               (and sub  (string-prefix-p "hook" (format "%s" sub))))))
     nil)
    (t
     (vui-text (format "  · %S" event) :face 'shadow))))
@@ -407,9 +419,53 @@ Severity ordering: error > warning > notice > info."
     (when (and stream (slot-boundp stream 'events))
       (reverse (oref stream events)))))
 
+(defun beads-agent-ralph-dashboard--assistant-message-id (event)
+  "Return the message id of an `assistant'/`user' EVENT, or nil."
+  (let ((msg (or (plist-get event :message)
+                 (cdr (assoc "message" event)))))
+    (and (listp msg)
+         (or (plist-get msg :id) (cdr (assoc "id" msg))))))
+
+(defun beads-agent-ralph-dashboard--dedupe-assistant-events (events)
+  "Return EVENTS with redundant partial assistant events removed.
+With `--include-partial-messages', Claude's SDK emits one assistant
+event per content block as it streams in (each carrying the same
+`:message :id' but only a single block in `:content'), and our stream
+parser appends one synthesised assistant on message_stop that
+combines every block.  Rendering all of them shows each tool_use
+and thinking block twice or more.
+
+Policy: when any synthesised event exists for a given message id,
+keep only that synth event (it has the full block list); otherwise
+keep the first real assistant for the id and drop later ones."
+  (let ((has-synth (make-hash-table :test 'equal))
+        (seen-id   (make-hash-table :test 'equal)))
+    (dolist (event events)
+      (when (and (beads-agent-ralph-dashboard--type-eq event "assistant")
+                 (plist-get event :__synthesized-from-partials))
+        (when-let ((id (beads-agent-ralph-dashboard--assistant-message-id
+                        event)))
+          (puthash id t has-synth))))
+    (cl-loop for event in events
+             for is-asst = (beads-agent-ralph-dashboard--type-eq
+                            event "assistant")
+             for id = (and is-asst
+                           (beads-agent-ralph-dashboard--assistant-message-id
+                            event))
+             for synth = (and is-asst
+                              (plist-get event :__synthesized-from-partials))
+             for keep = (cond
+                         ((not is-asst) t)
+                         ((null id) t)
+                         ((gethash id has-synth) synth)
+                         ((gethash id seen-id) nil)
+                         (t (puthash id t seen-id) t))
+             when keep collect event)))
+
 (defun beads-agent-ralph-dashboard--live-stream (controller)
   "Return the live stream region vnode for CONTROLLER."
   (let* ((events (beads-agent-ralph-dashboard--live-stream-events controller))
+         (events (beads-agent-ralph-dashboard--dedupe-assistant-events events))
          (rendered (cl-loop for event in events
                             for vnode = (beads-agent-ralph-dashboard--render-event
                                          event)

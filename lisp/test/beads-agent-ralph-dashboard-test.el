@@ -188,6 +188,93 @@ Regression for a bug where both branches returned the same number of lines, so t
                 '(:type error :raw "not-json"))))
     (should vnode)))
 
+(ert-deftest beads-agent-ralph-dashboard-test-render-event-skips-hook-subtype ()
+  "system/hook_* events are dropped just like hook-typed events.
+The bd-prime SessionStart hook arrives as
+`(:type \"system\" :subtype \"hook_response\" :output ...)' and used to
+flood the dashboard with workflow context.  It must be filtered."
+  (let ((beads-agent-ralph-include-hook-events nil))
+    (should (null (beads-agent-ralph-dashboard--render-event
+                   '(:type "system" :subtype "hook_response"
+                           :output "...long bd prime dump..."))))
+    (should (null (beads-agent-ralph-dashboard--render-event
+                   '(:type "system" :subtype "hook_started"
+                           :hook_name "SessionStart:startup"))))))
+
+(ert-deftest beads-agent-ralph-dashboard-test-render-event-hook-included-when-opted-in ()
+  "With `beads-agent-ralph-include-hook-events' the hook events render."
+  (let ((beads-agent-ralph-include-hook-events t))
+    (should (beads-agent-ralph-dashboard--render-event
+             '(:type "system" :subtype "hook_response" :output "x")))))
+
+(ert-deftest beads-agent-ralph-dashboard-test-thinking-empty-is-dropped ()
+  "Empty/whitespace thinking blocks render as nil, not 80 spaces."
+  (should (null (beads-agent-ralph-dashboard--render-thinking-block
+                 '(:type "thinking" :text ""))))
+  (should (null (beads-agent-ralph-dashboard--render-thinking-block
+                 '(:type "thinking" :text "   \n  "))))
+  (should (beads-agent-ralph-dashboard--render-thinking-block
+           '(:type "thinking" :text "actually thinking"))))
+
+(ert-deftest beads-agent-ralph-dashboard-test-assistant-with-only-empty-thinking-yields-nil ()
+  "An assistant event whose only block is an empty thinking yields nil
+so the dispatcher can drop it instead of emitting a blank vstack."
+  (should (null (beads-agent-ralph-dashboard--render-event
+                 '(:type "assistant"
+                         :message (:content ((:type "thinking" :text ""))))))))
+
+(ert-deftest beads-agent-ralph-dashboard-test-dedupe-prefers-synth-over-partials ()
+  "When a synth assistant exists for an id, the per-block real partials drop.
+With `--include-partial-messages', Claude's SDK emits one assistant
+per content block (each carrying the same `:message :id' but only one
+block in `:content'), then our parser appends one synth with all
+blocks.  The dedupe pass keeps only the synth for that id."
+  (let* ((part1 '(:type "assistant"
+                        :message (:id "msg_a" :role "assistant"
+                                      :content ((:type "thinking" :text "")))))
+         (part2 '(:type "assistant"
+                        :message (:id "msg_a" :role "assistant"
+                                      :content ((:type "tool_use"
+                                                       :id "toolu_x"
+                                                       :name "Bash"
+                                                       :input (:command "ls"))))))
+         (synth '(:type "assistant"
+                        :message (:id "msg_a" :role "assistant"
+                                      :content ((:type "thinking" :text "")
+                                                (:type "tool_use"
+                                                       :id "toolu_x"
+                                                       :name "Bash"
+                                                       :input (:command "ls"))))
+                        :__synthesized-from-partials t))
+         (other '(:type "assistant"
+                        :message (:id "msg_other"
+                                      :content ((:type "text" :text "hi")))))
+         (result (beads-agent-ralph-dashboard--dedupe-assistant-events
+                  (list part1 part2 synth other))))
+    (should (= 2 (length result)))
+    (should (eq (car result) synth))
+    (should (eq (cadr result) other))))
+
+(ert-deftest beads-agent-ralph-dashboard-test-dedupe-no-synth-keeps-first ()
+  "When no synth exists for an id, keep the first real assistant for that id."
+  (let* ((p1 '(:type "assistant"
+                     :message (:id "msg_b" :content ((:type "text" :text "one")))))
+         (p2 '(:type "assistant"
+                     :message (:id "msg_b" :content ((:type "text" :text "two")))))
+         (result (beads-agent-ralph-dashboard--dedupe-assistant-events
+                  (list p1 p2))))
+    (should (= 1 (length result)))
+    (should (eq (car result) p1))))
+
+(ert-deftest beads-agent-ralph-dashboard-test-dedupe-passes-through-non-assistant ()
+  "Non-assistant events pass through unchanged."
+  (let* ((events '((:type "system" :subtype "init")
+                   (:type "result" :total_cost_usd 0.1)
+                   (:type "error" :raw "bad")))
+         (result (beads-agent-ralph-dashboard--dedupe-assistant-events
+                  events)))
+    (should (equal events result))))
+
 ;;; Buffer mount
 
 (ert-deftest beads-agent-ralph-dashboard-test-render-creates-buffer ()
