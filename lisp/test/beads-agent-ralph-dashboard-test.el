@@ -336,7 +336,9 @@ blocks.  The dedupe pass keeps only the synth for that id."
   (should (string= "1h2m" (beads-agent-ralph-dashboard--format-duration 3720000))))
 
 (ert-deftest beads-agent-ralph-dashboard-test-iter-table-shows-live-row-while-running ()
-  "When a stream is bound (iter in-flight), the table shows a live row."
+  "When a stream is bound (iter in-flight), the table shows a live row.
+The row is a `vui-hstack' of fixed-width cells; concatenate the
+cell contents to check the human-visible string."
   (let* ((c (beads-agent-ralph-dashboard-test--make-controller
              :root-id "bde-live"
              :iteration 3))
@@ -347,7 +349,10 @@ blocks.  The dedupe pass keeps only the synth for that id."
     (oset c current-issue-id "bde-live")
     (oset c status 'running)
     (let* ((row (beads-agent-ralph-dashboard--live-iter-row c))
-           (text (and row (vui-vnode-text-content row))))
+           (text (and row
+                      (mapconcat #'vui-vnode-text-content
+                                 (vui-vnode-hstack-children row)
+                                 " "))))
       (should row)
       (should (string-match-p "▶ live" text))
       (should (string-match-p "#3" text)))))
@@ -359,6 +364,80 @@ blocks.  The dedupe pass keeps only the synth for that id."
     (oset c status 'done)
     (oset c current-stream nil)
     (should-not (beads-agent-ralph-dashboard--live-iter-row c))))
+
+(ert-deftest beads-agent-ralph-dashboard-test-iter-row-cells-carry-issue-id ()
+  "Each cell in an iteration row carries `:beads-ralph-iter-issue-id'
+so RET on any column activates the same target."
+  (let* ((iter (beads-agent-ralph--iteration
+                :issue-id "bde-row-id"
+                :status 'finished
+                :summary "did stuff"
+                :cost-usd 0.42))
+         (row (beads-agent-ralph-dashboard--iter-row iter 2))
+         (cells (vui-vnode-hstack-children row)))
+    (should (cl-every
+             (lambda (cell)
+               (equal "bde-row-id"
+                      (plist-get (vui-vnode-text-properties cell)
+                                 :beads-ralph-iter-issue-id)))
+             cells))))
+
+(ert-deftest beads-agent-ralph-dashboard-test-iter-row-cost-precision-two-decimals ()
+  "Cost cell renders with two decimal places, not four."
+  (let* ((iter (beads-agent-ralph--iteration
+                :issue-id "bde-cost" :status 'finished :cost-usd 0.3290))
+         (row (beads-agent-ralph-dashboard--iter-row iter 1))
+         (text (mapconcat #'vui-vnode-text-content
+                          (vui-vnode-hstack-children row) " ")))
+    (should (string-match-p "\\$0\\.33" text))
+    (should-not (string-match-p "\\$0\\.3290" text))))
+
+(ert-deftest beads-agent-ralph-dashboard-test-live-stream-terminal-panel ()
+  "Terminal controllers show a `Loop terminated' panel, not the
+`waiting for first event' placeholder."
+  (let* ((c (beads-agent-ralph-dashboard-test--make-controller
+             :root-id "bde-term-panel")))
+    (oset c status 'done)
+    (oset c done-reason 'epic-empty)
+    (oset c current-stream nil)
+    (let* ((vnode (beads-agent-ralph-dashboard--live-stream c))
+           (rendered (format "%S" vnode)))
+      (should (string-match-p "Loop terminated: epic-empty" rendered))
+      (should-not (string-match-p "waiting for first event" rendered)))))
+
+(ert-deftest beads-agent-ralph-dashboard-test-action-bar-disables-stop-when-terminal ()
+  "When the controller is terminal, `[s]top' / `[p]ause' buttons are
+disabled and `[r]esume' is enabled iff the loop is recoverable."
+  (let* ((c (beads-agent-ralph-dashboard-test--make-controller
+             :root-id "bde-bar")))
+    (oset c status 'done)
+    (let* ((bar (beads-agent-ralph-dashboard--action-bar c))
+           (buttons (cl-remove-if-not
+                     #'vui-vnode-button-p
+                     (vui-vnode-hstack-children bar)))
+           (by-label (lambda (label)
+                       (cl-find label buttons
+                                :key #'vui-vnode-button-label
+                                :test #'string=))))
+      (should (vui-vnode-button-disabled-p (funcall by-label "[s]top")))
+      (should (vui-vnode-button-disabled-p (funcall by-label "[p]ause")))
+      ;; `done' is NOT in the resumable set; only `auto-paused' /
+      ;; `stopped' are.  So resume must be disabled here.
+      (should (vui-vnode-button-disabled-p (funcall by-label "[r]esume"))))))
+
+(ert-deftest beads-agent-ralph-dashboard-test-action-bar-resume-enabled-when-stopped ()
+  "`[r]esume' is enabled when the controller is in a recoverable state."
+  (let* ((c (beads-agent-ralph-dashboard-test--make-controller
+             :root-id "bde-bar-resume")))
+    (oset c status 'stopped)
+    (let* ((bar (beads-agent-ralph-dashboard--action-bar c))
+           (buttons (cl-remove-if-not
+                     #'vui-vnode-button-p
+                     (vui-vnode-hstack-children bar)))
+           (resume (cl-find "[r]esume" buttons
+                            :key #'vui-vnode-button-label
+                            :test #'string=)))
+      (should-not (vui-vnode-button-disabled-p resume)))))
 
 ;;; Buffer mount
 

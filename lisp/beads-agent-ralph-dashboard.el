@@ -416,8 +416,21 @@ Severity ordering: error > warning > notice > info."
             ((> m 0) (format "%dm%02ds" m s))
             (t       (format "%ds" s))))))
 
+(defun beads-agent-ralph-dashboard--iter-cell (text width face issue-id)
+  "Render one TEXT cell padded to WIDTH chars with FACE.
+ISSUE-ID is attached as the `:beads-ralph-iter-issue-id' text property
+so `beads-agent-ralph-dashboard-row-activate' can route RET on the row
+to the iteration's bd issue."
+  (vui-text (format (format "%%-%ds" width) text)
+            :face face
+            :beads-ralph-iter-issue-id issue-id))
+
 (defun beads-agent-ralph-dashboard--iter-row (iter idx)
-  "Return one row vnode for ITER (a `--iteration') at IDX."
+  "Return one row vnode for ITER (a `--iteration') at IDX.
+The row is a `vui-hstack' of fixed-width cells (glyph, index,
+issue-id, status, cost, wall-time, tools, summary).  Every cell
+carries the iteration's issue-id as a text property so a single
+`RET' anywhere on the row activates the right target."
   (let* ((status (oref iter status))
          (sentinel (oref iter sentinel-hit))
          (root-closed-mismatch
@@ -430,20 +443,32 @@ Severity ordering: error > warning > notice > info."
                         ('failed   "✗ failed")
                         ('stopped  "■ stopped")
                         (_         "▶ live")))
+         (status-face (pcase status
+                        ('finished 'success)
+                        ('failed   'error)
+                        ('stopped  'warning)
+                        (_         'shadow)))
          (cost (if (oref iter cost-usd)
-                   (format "$%.4f" (oref iter cost-usd))
+                   (format "$%.2f" (oref iter cost-usd))
                  "$—"))
          (wall (beads-agent-ralph-dashboard--format-duration
                 (oref iter duration-ms)))
          (tools (or (oref iter tool-call-count) 0))
-         (summary (or (oref iter summary) "")))
-    (vui-text
-     (format "  %s#%-3d %-12s %-10s %-9s %-7s %3dt %s"
-             glyph idx (or (oref iter issue-id) "?")
-             status-mark cost wall tools
-             (if (> (length summary) 60)
-                 (concat (substring summary 0 60) "…")
-               summary)))))
+         (summary (or (oref iter summary) ""))
+         (issue-id (or (oref iter issue-id) "?"))
+         (summary-cell (if (> (length summary) 60)
+                           (concat (substring summary 0 60) "…")
+                         summary)))
+    (vui-hstack
+     :spacing 1
+     (beads-agent-ralph-dashboard--iter-cell
+      (format "  %s#%d" glyph idx) 6 nil issue-id)
+     (beads-agent-ralph-dashboard--iter-cell issue-id 12 nil issue-id)
+     (beads-agent-ralph-dashboard--iter-cell status-mark 10 status-face issue-id)
+     (beads-agent-ralph-dashboard--iter-cell cost 8 nil issue-id)
+     (beads-agent-ralph-dashboard--iter-cell wall 7 nil issue-id)
+     (beads-agent-ralph-dashboard--iter-cell (format "%dt" tools) 5 nil issue-id)
+     (beads-agent-ralph-dashboard--iter-cell summary-cell 60 'shadow issue-id))))
 
 (defun beads-agent-ralph-dashboard--live-iter-row (controller)
   "Return a placeholder row for the in-flight iteration, or nil.
@@ -475,10 +500,16 @@ started."
              (idx (oref controller iteration))
              (issue (or (oref controller current-issue-id)
                         (oref controller root-id) "?")))
-        (vui-text
-         (format "  %s#%-3d %-12s %-10s %-9s %-7s %3dt (in-flight)"
-                 "▸" idx issue "▶ live" "$—" wall tools)
-         :face 'shadow)))))
+        (vui-hstack
+         :spacing 1
+         (beads-agent-ralph-dashboard--iter-cell
+          (format "  ▸#%d" idx) 6 'shadow issue)
+         (beads-agent-ralph-dashboard--iter-cell issue 12 'shadow issue)
+         (beads-agent-ralph-dashboard--iter-cell "▶ live" 10 'shadow issue)
+         (beads-agent-ralph-dashboard--iter-cell "$—" 8 'shadow issue)
+         (beads-agent-ralph-dashboard--iter-cell wall 7 'shadow issue)
+         (beads-agent-ralph-dashboard--iter-cell (format "%dt" tools) 5 'shadow issue)
+         (beads-agent-ralph-dashboard--iter-cell "(in-flight)" 60 'shadow issue))))))
 
 (defun beads-agent-ralph-dashboard--iter-table (controller)
   "Return the iterations table for CONTROLLER, newest-first.
@@ -493,10 +524,8 @@ the table is never empty during a run."
          (live (beads-agent-ralph-dashboard--live-iter-row controller))
          (all-rows (delq nil (cons live rows))))
     (apply #'vui-vstack
-           (if all-rows
-               (cons (vui-text "Iterations (newest first):" :face 'bold)
-                     all-rows)
-             (list (vui-text "Iterations: (none yet)" :face 'shadow))))))
+           (or all-rows
+               (list (vui-text "  (none yet)" :face 'shadow))))))
 
 ;;; Live stream region
 
@@ -549,19 +578,46 @@ keep the first real assistant for the id and drop later ones."
                          (t (puthash id t seen-id) t))
              when keep collect event)))
 
+(defun beads-agent-ralph-dashboard--terminal-panel (controller)
+  "Return the terminated-loop panel vnode for CONTROLLER.
+Replaces the live-stream feed once the controller is in a terminal
+status (`done', `stopped', `failed').  Surfaces the `done-reason'
+crumb so the user understands why the stream is empty, and offers a
+button that opens the last iteration's bd issue."
+  (let* ((reason (or (oref controller done-reason)
+                     (oref controller status)))
+         (last-id (or (oref controller current-issue-id)
+                      (oref controller root-id))))
+    (vui-vstack
+     (vui-text (format "  Loop terminated: %s" reason) :face 'bold)
+     (vui-hstack
+      :spacing 1
+      (vui-text "  ")
+      (vui-button "[v]iew last issue"
+        :no-decoration t
+        :on-click #'beads-agent-ralph-dashboard-view-issue
+        :help-echo (and last-id (format "Open %s in beads-show" last-id)))
+      (vui-button "[B]anners"
+        :no-decoration t
+        :on-click #'beads-agent-ralph-dashboard-banner-log
+        :help-echo "Open the banner history buffer")))))
+
 (defun beads-agent-ralph-dashboard--live-stream (controller)
-  "Return the live stream region vnode for CONTROLLER."
-  (let* ((events (beads-agent-ralph-dashboard--live-stream-events controller))
-         (events (beads-agent-ralph-dashboard--dedupe-assistant-events events))
-         (rendered (cl-loop for event in events
-                            for vnode = (beads-agent-ralph-dashboard--render-event
-                                         event)
-                            when vnode collect vnode)))
-    (apply #'vui-vstack
-           (vui-text "Live stream:" :face 'bold)
-           (or rendered
-               (list (vui-text "  (waiting for first event)"
-                               :face 'shadow))))))
+  "Return the live stream region vnode for CONTROLLER.
+When the controller is in a terminal status, shows a terminated panel
+instead of the misleading `waiting for first event' placeholder."
+  (if (beads-agent-ralph--terminal-p controller)
+      (beads-agent-ralph-dashboard--terminal-panel controller)
+    (let* ((events (beads-agent-ralph-dashboard--live-stream-events controller))
+           (events (beads-agent-ralph-dashboard--dedupe-assistant-events events))
+           (rendered (cl-loop for event in events
+                              for vnode = (beads-agent-ralph-dashboard--render-event
+                                           event)
+                              when vnode collect vnode)))
+      (apply #'vui-vstack
+             (or rendered
+                 (list (vui-text "  (waiting for first event)"
+                                 :face 'shadow)))))))
 
 ;;; Section divider
 
@@ -574,15 +630,57 @@ keep the first real assistant for the id and drop later ones."
 
 ;;; Action bar
 
-(defun beads-agent-ralph-dashboard--action-bar ()
-  "Return the action-bar legend vnode.
-The legend must match the keymap in `beads-agent-ralph-dashboard-mode-map'
-and the body of `beads-agent-ralph-dashboard-help'.  Capital letters in
-the legend mirror the bound key case so users know `B' is not the same
-as `b'."
-  (vui-text
-   "[s]top [k]ill [p]ause [r]esume [v]iew [P]rompt [B]anners [g]refresh [q]uit [?]"
-   :face 'shadow))
+(defun beads-agent-ralph-dashboard--action-bar (controller)
+  "Return the action-bar vnode for CONTROLLER.
+Each action is a `vui-button' so it is mouse-clickable and reflects
+disabled state directly (stop/pause grey out once the loop is
+terminal; kill greys out when there is no in-flight stream; resume
+greys out unless the loop is recoverable).  The button labels keep
+the bracketed-shortcut letter so they line up with the keymap in
+`beads-agent-ralph-dashboard-mode-map' and the body of
+`beads-agent-ralph-dashboard-help'."
+  (let* ((status (oref controller status))
+         (terminal-p (memq status beads-agent-ralph--terminal-statuses))
+         (resumable-p (memq status '(auto-paused stopped)))
+         (in-flight-p (and (oref controller current-stream)
+                           (not terminal-p))))
+    (vui-hstack
+     :spacing 1
+     (vui-text "  ")
+     (vui-button "[s]top"
+       :no-decoration t
+       :disabled terminal-p
+       :on-click #'beads-agent-ralph-dashboard-stop)
+     (vui-button "[k]ill"
+       :no-decoration t
+       :disabled (not in-flight-p)
+       :on-click #'beads-agent-ralph-dashboard-kill-iter)
+     (vui-button "[p]ause"
+       :no-decoration t
+       :disabled terminal-p
+       :on-click #'beads-agent-ralph-dashboard-pause)
+     (vui-button "[r]esume"
+       :no-decoration t
+       :disabled (not resumable-p)
+       :on-click #'beads-agent-ralph-dashboard-resume)
+     (vui-button "[v]iew"
+       :no-decoration t
+       :on-click #'beads-agent-ralph-dashboard-view-issue)
+     (vui-button "[P]rompt"
+       :no-decoration t
+       :on-click #'beads-agent-ralph-dashboard-view-prompt)
+     (vui-button "[B]anners"
+       :no-decoration t
+       :on-click #'beads-agent-ralph-dashboard-banner-log)
+     (vui-button "[g]refresh"
+       :no-decoration t
+       :on-click #'beads-agent-ralph-dashboard-refresh)
+     (vui-button "[q]uit"
+       :no-decoration t
+       :on-click (lambda () (quit-window)))
+     (vui-button "[?]"
+       :no-decoration t
+       :on-click #'beads-agent-ralph-dashboard-help))))
 
 ;;; Root composition
 
@@ -616,7 +714,7 @@ separated by labelled rulers so scrolled views stay oriented."
       (beads-agent-ralph-dashboard--divider "Live stream")
       (beads-agent-ralph-dashboard--live-stream controller)
       (beads-agent-ralph-dashboard--divider "Actions")
-      (beads-agent-ralph-dashboard--action-bar)))))
+      (beads-agent-ralph-dashboard--action-bar controller)))))
 
 ;;; Buffer + mode
 
@@ -635,6 +733,7 @@ separated by labelled rulers so scrolled views stay oriented."
     (define-key map (kbd "g") #'beads-agent-ralph-dashboard-refresh)
     (define-key map (kbd "q") #'quit-window)
     (define-key map (kbd "?") #'beads-agent-ralph-dashboard-help)
+    (define-key map (kbd "RET") #'beads-agent-ralph-dashboard-row-activate)
     map)
   "Keymap for `beads-agent-ralph-dashboard-mode'.")
 
@@ -717,6 +816,33 @@ iteration (bde-7943)."
     (let ((id (oref beads-agent-ralph-dashboard--controller current-issue-id)))
       (when (and id (fboundp 'beads-show))
         (funcall 'beads-show id)))))
+
+(defun beads-agent-ralph-dashboard--issue-id-at-point ()
+  "Return the iteration issue-id text-property somewhere on this line.
+Each iteration row cell carries `:beads-ralph-iter-issue-id'; the
+space gutter between cells does not, so scan the whole line."
+  (let ((p (line-beginning-position))
+        (eol (line-end-position))
+        (id nil))
+    (while (and (not id) (< p eol))
+      (setq id (get-text-property p :beads-ralph-iter-issue-id))
+      (setq p (or (next-single-property-change
+                   p :beads-ralph-iter-issue-id nil eol)
+                  eol)))
+    id))
+
+(defun beads-agent-ralph-dashboard-row-activate ()
+  "Open the bd issue for the iteration row at point.
+Reads `:beads-ralph-iter-issue-id' from the line and routes to
+`beads-show'.  Off a row this falls back to `view-issue', which
+opens the controller's current issue."
+  (interactive)
+  (let ((id (beads-agent-ralph-dashboard--issue-id-at-point)))
+    (cond
+     ((and id (fboundp 'beads-show))
+      (funcall 'beads-show id))
+     (t
+      (beads-agent-ralph-dashboard-view-issue)))))
 
 (defun beads-agent-ralph-dashboard-banner-log ()
   "Pop a buffer with the full banner history."
