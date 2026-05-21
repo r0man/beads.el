@@ -834,7 +834,7 @@ metadata.  An empty or non-string ROOT-ID raises `user-error'.
 When called interactively, the root id is resolved via
 `beads-read-issue-id', which prefers buffer context (list mode,
 show mode, Ralph epic browser, beads-section, the `*beads-show…*'
-buffer-name) and only prompts with completion as a fallback —
+buffer name) and only prompts with completion as a fallback —
 matching `beads-ralph-launch-at-point' so both entry points behave
 identically when invoked from a beads buffer."
   (interactive
@@ -882,7 +882,7 @@ Resolution order:
   1. Detect an id from the current buffer context via
      `beads-read-issue-id' (which inspects `beads-list-mode',
      `beads-show-mode', the Ralph epic browser, beads-section
-     buffers, and the `*beads-show…*' buffer-name format).
+     buffers, and the `*beads-show…*' buffer name format).
   2. If no context, prompt with completion.
   3. Fetch the issue via `bd show --json' to read its
      `issue_type'.  When the type is the literal string \"epic\",
@@ -894,7 +894,7 @@ its header populates without a second round trip to bd."
   (interactive)
   (let ((id (beads-read-issue-id)))
     (unless (and (stringp id) (not (string-empty-p id)))
-      (user-error "beads-ralph-launch-at-point: no issue id detected"))
+      (user-error "No issue id at point and no id entered at the prompt"))
     ;; `beads-issue-read' normally signals on a missing issue (because
     ;; `bd show' exits non-zero and `beads-execute' surfaces the
     ;; failure), but if the CLI ever returns an empty result set the
@@ -902,7 +902,7 @@ its header populates without a second round trip to bd."
     ;; letting `oref' fail with an opaque "wrong-type-argument".
     (let ((issue (beads-issue-read id)))
       (unless issue
-        (user-error "beads-ralph-launch-at-point: no such issue %S" id))
+        (user-error "No such issue: %s" id))
       (let ((kind (if (equal (oref issue issue-type) "epic")
                       'epic
                     'issue)))

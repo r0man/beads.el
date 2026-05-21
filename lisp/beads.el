@@ -858,11 +858,15 @@ which shows daemon status and database statistics."
 ;; cockpit.  Both anchor inside the `Views' column so they remain
 ;; co-located with the other read-only views even if the
 ;; surrounding groups are reshuffled later.
-(with-eval-after-load 'transient
-  (transient-append-suffix 'beads "E"
-    '("R" "Ralph cockpit" beads-ralph-cockpit))
-  (transient-append-suffix 'beads "R"
-    '("M-e" "Ralph epics" beads-ralph-epic-browser)))
+;;
+;; `transient' is required at the top of this file, so the
+;; suffixes can be appended at load time directly — no
+;; `with-eval-after-load' wrapper is needed (and `package-lint'
+;; flags that form in package code).
+(transient-append-suffix 'beads "E"
+  '("R" "Ralph cockpit" beads-ralph-cockpit))
+(transient-append-suffix 'beads "R"
+  '("M-e" "Ralph epics" beads-ralph-epic-browser))
 
 ;;; Footer
 
