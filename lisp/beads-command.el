@@ -1107,7 +1107,17 @@ fails.  Returns a process object, `coalesced', or `queued'."
          ((and queue
                (>= beads-command--in-flight
                    (beads-command--policy-max-concurrent)))
-          (beads-command--queue-push (lambda () (spawn)))
+          ;; Capture caller-buffer in the queued thunk so the deferred
+          ;; spawn inherits the caller's `default-directory'.  Without
+          ;; this, `pump-queue' fires the thunk in whatever buffer the
+          ;; previous command's cleanup happens to land in (often
+          ;; ` *server*'), so `bd' runs from the wrong project — see
+          ;; bde-21fu.
+          (beads-command--queue-push
+           (lambda ()
+             (if (buffer-live-p caller-buffer)
+                 (with-current-buffer caller-buffer (spawn))
+               (spawn))))
           'queued)
          (t (spawn)))))))
 

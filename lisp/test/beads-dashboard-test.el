@@ -115,13 +115,15 @@ and appends a `… and N more' line."
 ;;; Visibility Cache (collapse persistence)
 
 (ert-deftest beads-dashboard-test-visibility-cache-default ()
-  "Loading visibility for an unknown root returns the defaults."
+  "Loading visibility for an unknown root returns the defaults.
+Defaults expand every actionable section so the project pulse is
+visible at a glance; only Federation starts collapsed."
   :tags '(:unit)
   (let ((beads-dashboard--visibility-cache nil))
     (let ((collapsed (beads-dashboard--load-visibility "/tmp/no/such/root/")))
-      (should (equal (cdr (assq 'blocked collapsed)) t))
-      (should (equal (cdr (assq 'epics collapsed)) t))
-      (should (equal (cdr (assq 'closed collapsed)) t))
+      (should-not (cdr (assq 'blocked collapsed)))
+      (should-not (cdr (assq 'epics collapsed)))
+      (should-not (cdr (assq 'closed collapsed)))
       (should (equal (cdr (assq 'federation collapsed)) t)))))
 
 (ert-deftest beads-dashboard-test-visibility-cache-roundtrip ()
@@ -147,6 +149,87 @@ and appends a `… and N more' line."
     ;; since we only mutate via save-visibility.
     (should (equal (beads-dashboard--load-visibility root)
                    '((blocked . nil) (epics . t) (closed . t) (federation . t))))))
+
+;;; Agent State Hook Integration
+
+(ert-deftest beads-dashboard-test-agent-state-change-hook-registered ()
+  "The dashboard registers a handler on `beads-agent-state-change-hook'.
+This is what makes newly-started agents appear in the In-progress
+section without the user having to press `g'."
+  :tags '(:unit)
+  (require 'beads-agent-backend)
+  (should (memq 'beads-dashboard--on-agent-state-change
+                beads-agent-state-change-hook)))
+
+(ert-deftest beads-dashboard-test-agent-state-change-refreshes-dashboard-buffers ()
+  "Handler refreshes every live dashboard buffer, ignores other buffers."
+  :tags '(:unit)
+  (let* ((dash-buf (generate-new-buffer "*beads-dashboard-test*"))
+         (other-buf (generate-new-buffer "*not-a-dashboard*"))
+         (refreshed nil))
+    (unwind-protect
+        (progn
+          (with-current-buffer dash-buf (beads-dashboard-mode))
+          (cl-letf (((symbol-function 'beads-dashboard-refresh)
+                     (lambda () (push (current-buffer) refreshed))))
+            (beads-dashboard--on-agent-state-change 'started nil))
+          (should (memq dash-buf refreshed))
+          (should-not (memq other-buf refreshed)))
+      (kill-buffer dash-buf)
+      (kill-buffer other-buf))))
+
+;;; Stale-While-Revalidate
+
+(ert-deftest beads-dashboard-test-mode-inits-last-good-data-cache ()
+  "Entering `beads-dashboard-mode' installs an empty buffer-local cache."
+  :tags '(:unit)
+  (with-temp-buffer
+    (beads-dashboard-mode)
+    (should (hash-table-p beads-dashboard--last-good-data))
+    (should (zerop (hash-table-count beads-dashboard--last-good-data)))))
+
+(ert-deftest beads-dashboard-test-hard-refresh-clears-last-good-data ()
+  "Hard refresh drops the stale-while-revalidate cache.
+After a hard refresh, the next pending tick must show `Loading…'
+again so the user has a visible affordance for the forced re-fetch."
+  :tags '(:unit)
+  (with-temp-buffer
+    (beads-dashboard-mode)
+    (puthash 'closed '(a b c) beads-dashboard--last-good-data)
+    (should (= 1 (hash-table-count beads-dashboard--last-good-data)))
+    (cl-letf (((symbol-function 'beads-command--policy-probe)
+               (lambda (cb) (funcall cb nil)))
+              ((symbol-function 'beads-dashboard-refresh) #'ignore)
+              ((symbol-function 'beads-dashboard--save-extra) #'ignore)
+              ((symbol-function 'beads-dashboard--bump) #'ignore))
+      (beads-dashboard-hard-refresh))
+    (should (zerop (hash-table-count beads-dashboard--last-good-data)))))
+
+;;; Section Ordering
+
+(ert-deftest beads-dashboard-test-depth-order-matches-render-order ()
+  "`beads-dashboard--set-depth' order list mirrors the render order.
+A drift here means M-1..M-4 expand the wrong sections — Closed
+should sit right under Stats as the user-facing pulse."
+  :tags '(:unit)
+  (let ((captured nil))
+    (cl-letf* ((beads-dashboard--visibility-cache nil)
+               ((symbol-function 'beads-dashboard--save-visibility)
+                (lambda (_root collapsed) (setq captured collapsed)))
+               ((symbol-function 'beads-dashboard--project-root)
+                (lambda () "/tmp/proj/"))
+               ((symbol-function 'beads-dashboard--bump)
+                (lambda (_key _value) nil)))
+      (beads-dashboard--set-depth 1)
+      (should (equal (mapcar #'car captured)
+                     '(stats closed in-flight ready blocked epics
+                             stale orphans federation)))
+      ;; Depth 1 expands only the first key — Stats.  Closed must be
+      ;; collapsed at depth 1 (it's #2), but expanded at depth 2.
+      (should-not (cdr (assq 'stats captured)))
+      (should (cdr (assq 'closed captured)))
+      (beads-dashboard--set-depth 2)
+      (should-not (cdr (assq 'closed captured))))))
 
 ;;; Section Construction (`:key' stability)
 

@@ -43,7 +43,7 @@
 
 ;;; Customisation
 
-(defcustom beads-dashboard-section-limit 10
+(defcustom beads-dashboard-section-limit 5
   "Maximum number of issues rendered per dashboard section.
 
 When a section has more issues than this limit, only the first N are
@@ -232,21 +232,47 @@ failure in one section never blanks the dashboard."
            (status (plist-get async :status))
            (data   (plist-get async :data))
            (err    (plist-get async :error))
+           ;; Stale-while-revalidate: when the loader is `pending and
+           ;; the section was rendered successfully before, keep the
+           ;; previous payload on screen so the dashboard does not
+           ;; flicker on agent state changes (see bde-xpbt).  The
+           ;; cache lives in the dashboard buffer; nil outside it
+           ;; (e.g. in `vui-mount-component' unit tests).
+           (cache (and (boundp 'beads-dashboard--last-good-data)
+                       beads-dashboard--last-good-data))
+           (cached-data (and cache (gethash section-key cache 'absent)))
+           (has-cache (not (eq cached-data 'absent)))
+           ;; Effective payload: prefer fresh `ready' data; otherwise
+           ;; fall back to the cached payload during `pending'.  We
+           ;; intentionally do NOT mask errors with stale data — a
+           ;; failed refresh should surface as an error line.
+           (effective-data
+            (cond ((eq status 'ready) data)
+                  ((and (eq status 'pending) has-cache) cached-data)
+                  (t nil)))
+           (effective-status
+            (cond ((eq status 'ready) 'ready)
+                  ((and (eq status 'pending) has-cache) 'ready)
+                  (t status)))
            ;; Collapsed sections install a no-op loader returning nil,
            ;; so their length would be 0 — suppress the count until expanded.
            (count  (cond
                     (hide-count nil)
                     (collapsed nil)
-                    ((eq status 'ready)
-                     (cond ((listp data) (length data))
-                           ((vectorp data) (length data))
+                    ((eq effective-status 'ready)
+                     (cond ((listp effective-data) (length effective-data))
+                           ((vectorp effective-data) (length effective-data))
                            (t nil)))
                     (t nil))))
+      ;; Persist successful fetches so the next refresh has something
+      ;; to render during its pending tick.
+      (when (and cache (eq status 'ready))
+        (puthash section-key data cache))
       (vui-vstack
         (beads-dashboard--section-header
          title icon collapsed count on-toggle section-key)
         (unless collapsed
-          (pcase status
+          (pcase effective-status
             ('pending (beads-dashboard--loading-line section-key))
             ('error
              (if render-error
@@ -255,15 +281,15 @@ failure in one section never blanks the dashboard."
             ('ready
              (cond
               ((and (not force-render)
-                    (beads-dashboard--data-empty-p data))
+                    (beads-dashboard--data-empty-p effective-data))
                (if render-empty
                    (funcall render-empty section-key)
                  (beads-dashboard--empty-line nil section-key)))
               (t (if render-ready
-                     (funcall render-ready data)
+                     (funcall render-ready effective-data)
                    (vui-text
                     (beads-dashboard--maybe-stamp
-                     (format "  %S" data) section-key)
+                     (format "  %S" effective-data) section-key)
                     :face 'shadow))))))))))))
 
 ;;; Section Spec Helpers
