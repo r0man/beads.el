@@ -129,6 +129,39 @@ bd close <id>         # Complete work
 bd dolt push          # Push beads data to remote
 ```
 
+### Ralph Loop: epic notes, review iterations, safe close
+
+When the Ralph loop is driving an epic (`beads-agent-ralph-start` with
+`:root-id`), the following protocol is in force:
+
+- **Per-epic learnings — use `--append-notes`, NEVER plain `--notes`.** Append
+  durable lessons to the epic root with `bd update <ROOT-ID> --append-notes
+  "…"`. The next iteration's prompt re-injects those notes via the
+  `<ROOT-NOTES>` placeholder so context survives across iterations. Plain
+  `--notes` REPLACES the field and silently destroys prior learnings —
+  never use it on the root.
+- **Review iteration mode.** When `bd ready --parent ROOT` returns empty, the
+  loop does NOT terminate immediately. It runs up to
+  `beads-agent-ralph-max-consecutive-empty-reviews` review iterations
+  (default `2`), each asking the agent to file the most material follow-up
+  children before declaring done. Reaching that cap terminates the loop
+  with `done-reason` = `epic-complete`.
+- **Pre-LLM gate.** Before each review iteration the controller checks two
+  preconditions: (a) no additional children of `ROOT` have closed since the
+  last review, and (b) `git diff` since the last review's HEAD is empty.
+  If both hold, the iteration is *gated*: no LLM call is made, the
+  consecutive-empty counter is incremented anyway, and the dashboard shows
+  `[gated]`. This stops the loop from burning tokens when nothing has
+  changed.
+- **Follow-up cap.** A single review iteration may file at most
+  `beads-agent-ralph-max-followups-per-review` new ready children of `ROOT`
+  (default `3`). Exceeding the cap is treated as drift / makework and
+  terminates the loop with `done-reason` = `review-overproduced`.
+- **Closing an epic — use `bd epic close-eligible`.** This is the only safe
+  way to close an epic root: plain `bd close <ROOT-ID>` fails if any child
+  is still open. The review-iteration prompt instructs the agent to call
+  `bd epic close-eligible` once it believes the epic is done.
+
 ## Non-Interactive Shell Commands
 
 **ALWAYS use non-interactive flags** with file operations to avoid hanging on confirmation prompts.
