@@ -53,6 +53,7 @@
 ;; Forward declarations
 (declare-function org-link-set-parameters "org" (type &rest parameters))
 (declare-function org-link-store-props "org" (&rest args))
+(declare-function beads-ralph-launch-at-point "beads-ralph-launcher")
 
 ;;; Show Command
 
@@ -478,6 +479,10 @@ Called from `kill-buffer-hook' to clean up session state."
 
     ;; AI Agent commands (a prefix)
     (define-key map (kbd "a") beads-agent-prefix-map)
+
+    ;; Ralph Wiggum UX — launch the configure-and-launch panel on the
+    ;; issue being shown.  Autoloaded from `beads-ralph-launcher'.
+    (define-key map (kbd "L") #'beads-ralph-launch-at-point)
 
     ;; Sesman session management (CIDER/ESS convention)
     (define-key map (kbd "C-c C-s") beads-sesman-map)

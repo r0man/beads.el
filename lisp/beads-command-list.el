@@ -66,6 +66,7 @@
 (declare-function beads-show-update-buffer "beads-command-show"
                   (issue-id buffer))
 (declare-function beads-command-update "beads-command-update" (&rest args))
+(declare-function beads-ralph-launch-at-point "beads-ralph-launcher")
 (defvar beads-show--issue-id)
 
 ;;; List Command
@@ -1801,6 +1802,10 @@ Uses an idle timer to debounce rapid navigation, similar to
 
     ;; AI Agent commands (a prefix)
     (define-key map (kbd "a") beads-agent-prefix-map)
+
+    ;; Ralph Wiggum UX — launch the configure-and-launch panel on the
+    ;; issue at point.  Autoloaded from `beads-ralph-launcher'.
+    (define-key map (kbd "L") #'beads-ralph-launch-at-point)
 
     ;; Pagination (beads-pager-mode provides these; also here for discoverability)
     (define-key map (kbd "]") #'beads-pager-next-page)

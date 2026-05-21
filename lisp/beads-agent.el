@@ -373,22 +373,33 @@ ISSUE is a beads-issue instance."
 
 ;;; Context Detection
 
-(defun beads-agent--detect-issue-id ()
-  "Detect issue ID from current context.
-Returns issue ID string or nil if not found.
+;;;###autoload
+(defun beads-detect-issue-id ()
+  "Detect a beads issue ID from the current buffer context.
+Returns an issue ID string or nil when no context is available.
 
 Looks in this order:
   1. `beads-list-mode' — issue id at the tabulated-list point;
   2. `beads-show-mode' — the buffer's local `beads-show--issue-id';
-  3. Any buffer honouring the `beads-section' text-property contract
+  3. `beads-ralph-epic-browser-mode' — the epic id at point (this
+     clause is `fboundp'-guarded so `beads-agent' need not require
+     the Ralph epic browser at load time);
+  4. Any buffer honouring the `beads-section' text-property contract
      (dashboard and other `beads-section-mode'-derived views) — the
      id stamped on the line at point via `beads-section-issue-id-at-point';
-  4. The buffer name, parsed as a `*beads-show[PROJECT]/ID*' buffer."
+  5. The buffer name, parsed as a `*beads-show[PROJECT]/ID*' buffer."
   (or
    (when (derived-mode-p 'beads-list-mode)
      (beads-list--current-issue-id))
    (when (derived-mode-p 'beads-show-mode)
      beads-show--issue-id)
+   ;; `fboundp' guard: `beads-agent' does not require the Ralph epic
+   ;; browser, so this clause is only active when a caller has loaded
+   ;; it.  The `derived-mode-p' guard scopes the line-parsing detector
+   ;; to the epic browser only.
+   (when (and (fboundp 'beads-ralph-epic-browser--epic-id-at-point)
+              (derived-mode-p 'beads-ralph-epic-browser-mode))
+     (beads-ralph-epic-browser--epic-id-at-point))
    ;; `fboundp' guard: `beads-agent' does not require `beads-section',
    ;; so this clause is only active when a caller has loaded it.
    ;;
@@ -405,11 +416,21 @@ Looks in this order:
    (when-let ((parsed (beads-buffer-parse-show (buffer-name))))
      (plist-get parsed :issue-id))))
 
-(defun beads-agent--read-issue-id ()
-  "Read issue ID with completion, using context if available."
-  (or (beads-agent--detect-issue-id)
+;;;###autoload
+(defun beads-read-issue-id ()
+  "Read a beads issue ID, preferring buffer context to a prompt.
+First calls `beads-detect-issue-id'; on nil, prompts via
+`beads-completion-read-issue' with `beads--issue-id-history' as the
+history list."
+  (or (beads-detect-issue-id)
       (beads-completion-read-issue
        "Issue: " nil t nil 'beads--issue-id-history)))
+
+;; Backwards-compatible private aliases — preserve all existing call sites.
+(defalias 'beads-agent--detect-issue-id #'beads-detect-issue-id
+  "Obsolete alias for `beads-detect-issue-id'.")
+(defalias 'beads-agent--read-issue-id #'beads-read-issue-id
+  "Obsolete alias for `beads-read-issue-id'.")
 
 ;;; Public API Functions
 

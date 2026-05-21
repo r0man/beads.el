@@ -857,6 +857,39 @@ metadata.  An empty or non-string ROOT-ID raises `user-error'."
     (pop-to-buffer buf)
     buf))
 
+;;; Context-sensitive launch entry point
+
+(declare-function beads-read-issue-id "beads-agent")
+(declare-function beads-issue-read "beads-command-list" (issue-id))
+
+;;;###autoload
+(defun beads-ralph-launch-at-point ()
+  "Open the Ralph launcher for the issue or epic at point.
+
+Resolution order:
+
+  1. Detect an id from the current buffer context via
+     `beads-read-issue-id' (which inspects `beads-list-mode',
+     `beads-show-mode', the Ralph epic browser, beads-section
+     buffers, and the `*beads-show…*' buffer-name format).
+  2. If no context, prompt with completion.
+  3. Fetch the issue via `bd show --json' to read its
+     `issue_type'.  When the type is the literal string \"epic\",
+     the launcher opens with `:kind 'epic'; otherwise with
+     `:kind 'issue'.
+
+The resolved `beads-issue' object is forwarded to the launcher so
+its header populates without a second round trip to bd."
+  (interactive)
+  (let* ((id (beads-read-issue-id))
+         (issue (beads-issue-read id))
+         (kind (if (and issue
+                        (stringp (oref issue issue-type))
+                        (string= (oref issue issue-type) "epic"))
+                   'epic
+                 'issue)))
+    (beads-ralph-launcher id :kind kind :issue issue)))
+
 (provide 'beads-ralph-launcher)
 
 ;;; beads-ralph-launcher.el ends here

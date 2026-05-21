@@ -49,6 +49,7 @@
 ;; with the same root-id and kind so behaviour is consistent before
 ;; and after deqx.5 lands.
 (declare-function beads-ralph-launcher "beads-ralph-launcher" (root-id &rest args))
+(declare-function beads-ralph-launch-at-point "beads-ralph-launcher")
 
 ;;; Customization
 
@@ -403,6 +404,12 @@ the controller registry afresh."
 (defvar beads-ralph-epic-browser-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "R") #'beads-ralph-epic-browser-launch)
+    ;; Aliased to `beads-ralph-launch-at-point' for consistency with
+    ;; `beads-list-mode' and `beads-show-mode', which both bind `L'
+    ;; to the same context-sensitive entry point.  Here it routes
+    ;; through the public launcher resolver so the kind is computed
+    ;; from `issue_type' rather than hard-coded to `'epic.
+    (define-key map (kbd "L") #'beads-ralph-launch-at-point)
     (define-key map (kbd "d") #'beads-ralph-epic-browser-show)
     (define-key map (kbd "RET") #'beads-ralph-epic-browser-show)
     (define-key map (kbd "g") #'beads-ralph-epic-browser-refresh)
