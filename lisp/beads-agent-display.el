@@ -90,10 +90,35 @@ show #N in those tight surfaces."
 Resolves `beads-agent-display-use-icons':
 - `auto' (default): non-nil in GUI frames, nil in TTY
 - t: always non-nil
-- nil: always nil"
+- nil: always nil
+
+Calls `display-graphic-p' on each invocation in the `auto' branch.
+The function is a cheap C primitive (it inspects the frame's
+window-system frame parameter), and per-frame caching has shown
+no observable benefit at the issue-list sizes this package
+targets — see the design doc under `.designs/agent-icon-display/'
+for the deferred-optimisation note."
   (pcase beads-agent-display-use-icons
     ('auto (display-graphic-p))
     (val val)))
+
+(defun beads-agent-type-icon (type)
+  "Return the configured icon string for TYPE, or nil.
+
+Resolution order:
+1. `beads-agent-display-type-icons' override (alist lookup by lowercase
+   name).  A cons cell present in the alist wins even when its cdr
+   is nil, so a user can explicitly clear the icon for a type
+   without subclassing.
+2. `icon' slot of TYPE.
+3. nil.
+
+Does NOT apply the terminal-supported-p gate; callers wanting the
+user-visible identifier should use `beads-agent-type-icon-or-letter'."
+  (let ((entry (assoc (downcase (oref type name)) beads-agent-display-type-icons)))
+    (if entry
+        (cdr entry)
+      (and (slot-boundp type 'icon) (oref type icon)))))
 
 (defun beads-agent-type-icon-or-letter (type)
   "Return the user-visible identifier string for TYPE.
@@ -221,7 +246,7 @@ non-nil AND SESSION has an integer `instance-number'.
 
 The returned string carries two text properties:
   `face'      — the state's face (see the matrix in commentary)
-  `help-echo' — \"<Type> agent[ #N]: <state-in-words>\""
+  `help-echo' — \"<Type> agent[ #N]: <state-in-words>\" (literal)."
   (beads-agent-display--format
    (beads-agent-session-type-name session)
    (beads-agent-session-instance-number session)

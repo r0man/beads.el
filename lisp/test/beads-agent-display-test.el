@@ -208,11 +208,22 @@ The mock session itself is a symbol, since the accessors are mocked."
          ,@body))))
 
 (defun beads-agent-display-test--ensure-task-registered ()
-  "Ensure the built-in Task agent type is registered.
-Required because tests run with the icon \"🦅\" and letter \"T\"."
+  "Ensure the built-in `beads-agent-type-task' is registered as \"Task\".
+
+Always (re-)registers the built-in type, regardless of what may be
+currently registered under the name.  This protects tests that
+assume the shipped icon (\"🦅\") and letter (\"T\") from earlier
+tests that registered a *different* class under the same name (e.g.
+the mock `beads-agent-display-test--task' with icon \"👷\") — the
+naive `unless (beads-agent-type-get \"task\")' guard would silently
+keep the mock, causing icon assertions to compare against the wrong
+value.
+
+`beads-agent-type-register' is idempotent for the same class: it
+replaces an existing same-name entry and rewrites the letter
+registry, so calling this in every test is safe and cheap."
   (require 'beads-agent-types)
-  (unless (beads-agent-type-get "task")
-    (beads-agent-type-register (beads-agent-type-task))))
+  (beads-agent-type-register (beads-agent-type-task)))
 
 ;;;; Running state (default — icons mode)
 
@@ -497,7 +508,14 @@ type as \"T\", colliding with Task."
 FOCUSED-LIST is the list returned by
 `beads-agent--get-sessions-focused-on-issue', TOUCHED-LIST the list
 returned by `beads-agent--get-sessions-touching-issue', and OUTCOME
-the value returned by `beads-agent--get-issue-outcome'."
+the value returned by `beads-agent--get-issue-outcome'.
+
+`beads-agent--get-sessions-for-issue' (the legacy unsegmented
+accessor) is stubbed to return nil here.  Tests that need to
+exercise the `legacy-sessions' branch of
+`beads-agent-display-format-issue-agents' should rebind it via a
+nested `cl-letf' inside BODY (FOCUSED-LIST and TOUCHED-LIST should
+both be nil in that case so the legacy branch is reached)."
   (declare (indent 3) (debug t))
   `(cl-letf (((symbol-function 'beads-agent--get-sessions-focused-on-issue)
               (lambda (_id) ,focused-list))
@@ -567,6 +585,52 @@ the value returned by `beads-agent--get-issue-outcome'."
         (should (string= (substring-no-properties result) "✗R"))
         (should (eq (get-text-property 0 'face result)
                     'beads-list-agent-failed))))))
+
+(ert-deftest beads-agent-display-test-format-issue-agents-legacy-sessions ()
+  "Legacy (unsegmented) sessions render when no focused/touched sessions exist.
+
+Covers the fallback branch in `beads-agent-display-format-issue-agents'
+that fires when both `beads-agent--get-sessions-focused-on-issue' and
+`beads-agent--get-sessions-touching-issue' return nil but
+`beads-agent--get-sessions-for-issue' returns a non-empty list.  This
+preserves backward compatibility with backends that have not adopted
+the focused/touched session segmentation."
+  (beads-agent-display-test--ensure-task-registered)
+  (let ((beads-agent-display-use-icons nil)
+        (beads-agent-display-type-icons nil))
+    (cl-letf (((symbol-function 'beads-agent-session-type-name)
+               (lambda (_s) "Task"))
+              ((symbol-function 'beads-agent-session-instance-number)
+               (lambda (_s) 1)))
+      (beads-agent-display-test--with-issue-agents nil nil nil
+        (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+                   (lambda (_id) '(legacy-sess1 legacy-sess2))))
+          (let* ((result (beads-agent-display-format-issue-agents "bd-x"))
+                 (plain (substring-no-properties result)))
+            (should (string= plain "T T"))
+            (should-not (string-match-p "#" plain))
+            (should (string-match-p "2 agents working"
+                                    (get-text-property 0 'help-echo result)))))))))
+
+(ert-deftest beads-agent-display-test-format-issue-agents-legacy-singular ()
+  "Legacy-sessions branch uses singular `agent working' for a single session."
+  (beads-agent-display-test--ensure-task-registered)
+  (let ((beads-agent-display-use-icons nil)
+        (beads-agent-display-type-icons nil))
+    (cl-letf (((symbol-function 'beads-agent-session-type-name)
+               (lambda (_s) "Task"))
+              ((symbol-function 'beads-agent-session-instance-number)
+               (lambda (_s) 1)))
+      (beads-agent-display-test--with-issue-agents nil nil nil
+        (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+                   (lambda (_id) '(legacy-sess1))))
+          (let ((result (beads-agent-display-format-issue-agents "bd-x")))
+            (should (string= (substring-no-properties result) "T"))
+            (should (string-match-p "1 agent working"
+                                    (get-text-property 0 'help-echo result)))
+            ;; Make sure plural form does not leak.
+            (should-not (string-match-p "agents working"
+                                        (get-text-property 0 'help-echo result)))))))))
 
 (ert-deftest beads-agent-display-test-format-issue-agents-focused-wins-outcome ()
   "When both focused sessions and an outcome exist, focused agents win.

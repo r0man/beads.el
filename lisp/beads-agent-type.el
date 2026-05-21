@@ -71,13 +71,6 @@
 (require 'cl-lib)
 (require 'beads-types)
 
-;; Display-layer defcustoms live in `beads-agent-display.el'.  The
-;; `beads-agent-type-icon' cl-defmethod below reads
-;; `beads-agent-display-type-icons' to honour user overrides; declare
-;; it here to keep byte-compilation clean when this module is loaded
-;; in isolation (e.g. from pure type tests).
-(defvar beads-agent-display-type-icons)
-
 ;;; EIEIO Classes
 
 (defclass beads-agent-type ()
@@ -220,30 +213,12 @@ Returns a string suitable for display in list columns.")
   "Return the single-letter display string for TYPE from the letter slot."
   (oref type letter))
 
-(cl-defgeneric beads-agent-type-icon (type)
-  "Return the icon string for TYPE, or nil if no icon is configured.
-
-Resolution order:
-1. `beads-agent-display-type-icons' override (alist lookup by lowercase
-   name).  A cons cell present in the alist wins even when its
-   cdr is nil, so a user can explicitly clear the icon for a
-   type without subclassing.
-2. `icon' slot of TYPE.
-3. nil.
-
-Does NOT apply the terminal-supported-p gate; callers wanting the
-user-visible identifier should use `beads-agent-type-icon-or-letter'.")
-
-(cl-defmethod beads-agent-type-icon ((type beads-agent-type))
-  "Return the configured icon string for TYPE, or nil.
-Follows the resolution order documented on the generic."
-  (let ((entry (assoc (downcase (oref type name)) beads-agent-display-type-icons)))
-    (if entry
-        (cdr entry)
-      (and (slot-boundp type 'icon) (oref type icon)))))
-
-;; `beads-agent-icons-supported-p' and `beads-agent-type-icon-or-letter'
-;; are display-layer helpers; they live in `beads-agent-display.el'.
+;; `beads-agent-type-icon', `beads-agent-icons-supported-p' and
+;; `beads-agent-type-icon-or-letter' are display-layer helpers; they
+;; live in `beads-agent-display.el'.  Keeping them there lets this
+;; module load without pulling in the display-layer defcustom
+;; `beads-agent-display-type-icons' that the override-aware resolver
+;; consults.
 
 (cl-defgeneric beads-agent-type-name-display (type)
   "Return the display name for TYPE.

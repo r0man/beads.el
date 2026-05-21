@@ -1,10 +1,10 @@
 # Design: Agent visual identity — icons across all UI surfaces
 
-## Status: shipped (bde-npte) — icon set superseded by bde-e9nt
+## Status: shipped (`bde-npte`) — icon set superseded by `bde-e9nt`
 
 This document is the original design that landed under epic
-[bde-npte](https://github.com/) (closed 2026-05-21, 9/9 children
-complete). All mechanism — `:icon` slot on `beads-agent-type`,
+`bde-npte` (closed 2026-05-21, 9/9 children complete). All mechanism
+— `:icon` slot on `beads-agent-type`,
 `beads-agent-type-icon-or-letter` accessor, GUI/TTY auto-detection via
 `beads-agent-display-use-icons`, `beads-agent-display-type-icons` user
 overrides, propagation across the seven UI surfaces (issue list,
@@ -12,12 +12,17 @@ dashboard, `*beads-agents*` list, show buffer Agent Sessions, mode-line,
 per-issue transient header, prompt-edit header line) — is as designed
 below.
 
-**The built-in icon set was swapped under [bde-e9nt] from the
+**The built-in icon set was swapped under `bde-e9nt` from the
 human/tool metaphor in this doc to an animal set.** A second swap
-under PR #63 review (see [bde-f573]) aligned the shipped icons with
-the PR description's eagle/deer/raccoon/chipmunk/fox set. The rest of
-the design (slot mechanics, accessor contract, fallback rules, outcome
-glyphs, override surface) is unchanged.
+under PR #63 review (tracked as `bde-f573`) aligned the shipped icons
+with the PR description's eagle/deer/raccoon/chipmunk/fox set. The
+rest of the design (slot mechanics, accessor contract, fallback
+rules, outcome glyphs, override surface) is unchanged.
+
+> All `bde-*` identifiers above are local beads issue IDs in this
+> repository's `.beads/` Dolt database; resolve with `bd show
+> <id>` (e.g. `bd show bde-npte`). They are intentionally not
+> hyperlinked — beads issues are not addressable via a public URL.
 
 | Type   | Letter | Original design | **As shipped**   | Codepoint        |
 |--------|--------|-----------------|------------------|------------------|
@@ -415,6 +420,18 @@ Single small change set:
 18. Screen reader: emit `'help-echo` plus `'aria-label`-equivalent
     (Emacs `'speech` property if available) carrying the type name in words.
 19. Theme-aware icons: light/dark variants if requested.
+
+### Deferred optimisations
+
+- **Per-frame caching of `display-graphic-p`** — this design originally
+  proposed memoising the result per frame, since `beads-agent-icons-supported-p`
+  is called per tabulated-list cell. As shipped, the function calls
+  `display-graphic-p` on every invocation: the call is a cheap C
+  primitive that inspects the selected frame's `window-system' parameter,
+  and at the issue-list sizes this package targets (typically under a
+  few hundred rows) no observable cost has been measured. Added back
+  iff a profile shows it matters; the contract of
+  `beads-agent-icons-supported-p` does not change.
 
 ## Appendix: Dimension Analyses (inline summary)
 

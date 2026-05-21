@@ -805,7 +805,7 @@ Section header is uppercase without underline, matching DEPENDS ON style."
       ;; Make issue references clickable
       (beads-show--buttonize-references start (point)))))
 
-(defun beads-show--agent-session-state (active issue-outcome &rest _session)
+(defun beads-show--agent-session-state (active issue-outcome)
   "Return the display state symbol for an agent session.
 ACTIVE is the result of `beads-agent--session-active-p'.
 ISSUE-OUTCOME is the value from `beads-agent--get-issue-outcome' for
@@ -819,17 +819,12 @@ Returns one of:
   - `failed'     when the issue carries a `failed' outcome,
   - `stopped'    for inactive sessions with no recorded outcome.
 
-_SESSION is reserved for forward compatibility (e.g. resolving
-state from per-session metadata once the backend stores it); current
-resolution depends only on ACTIVE and ISSUE-OUTCOME.  It is accepted
-as `&rest' so the parameter order reflects what the function
-actually consumes.
-
-TODO: resolve outcomes from per-session metadata once the backend
-stores it.  Today an issue carries a single issue-level outcome, so
-if a previous session finished and a second session is now stopped,
-both lines render with the `finished' state instead of the second
-one as `stopped'.  See PR #63 review note (4507173336) for details."
+Known limitation tracked in bde-hjji: today an issue carries a
+single issue-level outcome, so if a previous session finished and
+a second session is now stopped, both lines render with the
+`finished' state instead of the second one as `stopped'.
+Resolving per-session state requires the agent backend to store
+outcomes per-session; deferred until that change lands."
   (let ((outcome-sym (cond
                       ((symbolp issue-outcome) issue-outcome)
                       ((consp issue-outcome) (cdr issue-outcome)))))
@@ -847,7 +842,7 @@ ISSUE-OUTCOME is the issue-level outcome value (see
                       "unknown"))
          (started (beads-agent-session-started-at session))
          (active (beads-agent--session-active-p session))
-         (state (beads-show--agent-session-state active issue-outcome session))
+         (state (beads-show--agent-session-state active issue-outcome))
          (icon (beads-agent-display-format-session session state t))
          (status-str (if active
                          (propertize "active" 'face 'success)
