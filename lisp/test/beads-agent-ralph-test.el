@@ -363,7 +363,92 @@ the (a)-(g) instructions on the parent issue."
     (should (string-match-p "bd close <ISSUE-ID>" tmpl))
     (should (string-match-p "<summary>" tmpl))
     (should (string-match-p "<SENTINEL>" tmpl))
-    (should (string-match-p "<PLAN-VIEW>" tmpl))))
+    (should (string-match-p "<PLAN-VIEW>" tmpl))
+    ;; bde-c95u.1: epic-context placeholders + --append-notes guidance.
+    (should (string-match-p "<EPIC-DESCRIPTION>" tmpl))
+    (should (string-match-p "<ROOT-NOTES>" tmpl))
+    (should (string-match-p "--append-notes" tmpl))))
+
+;;; bde-c95u.1: epic-context placeholders + description cache
+
+(ert-deftest beads-agent-ralph-test-placeholder-regexp-covers-review-tokens ()
+  "The placeholder regexp recognises all six bde-c95u.1 tokens.
+Tokens recognised but absent from the substitution alist collapse to
+the empty string -- which is the desired \"no review iteration yet\"
+state for the four review-mode tokens populated by bde-c95u.5/.6."
+  (dolist (tag '("EPIC-DESCRIPTION" "ROOT-NOTES" "CLOSED-CHILDREN-SUMMARY"
+                 "REVIEW-NUMBER" "MAX-REVIEWS" "DIFF-SINCE-LAST-REVIEW"))
+    (should (string-match-p beads-agent-ralph--placeholder-regexp
+                            (format "<%s>" tag)))))
+
+(ert-deftest beads-agent-ralph-test-render-prompt-injects-epic-description ()
+  "EPIC-DESCRIPTION placeholder renders from `epic-description-snapshot'."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :prompt-template "GOAL:\n<EPIC-DESCRIPTION>"
+             :epic-description-snapshot "Ship review-iteration mode."))
+         (out (beads-agent-ralph--render-prompt c nil nil)))
+    (should (equal out "GOAL:\nShip review-iteration mode."))))
+
+(ert-deftest beads-agent-ralph-test-render-prompt-injects-root-notes-multiline ()
+  "ROOT-NOTES placeholder renders multi-line notes verbatim (newlines preserved)."
+  (let* ((notes "line one\nline two\nline three")
+         (c (beads-agent-ralph-test--make-controller
+             :prompt-template "NOTES:\n<ROOT-NOTES>\nEND"
+             :root-notes-snapshot notes))
+         (out (beads-agent-ralph--render-prompt c nil nil)))
+    (should (equal out (format "NOTES:\n%s\nEND" notes)))))
+
+(ert-deftest beads-agent-ralph-test-render-prompt-epic-description-nil-empties ()
+  "Nil `epic-description-snapshot' collapses <EPIC-DESCRIPTION> to empty."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :prompt-template "[<EPIC-DESCRIPTION>]"
+             :epic-description-snapshot nil))
+         (out (beads-agent-ralph--render-prompt c nil nil)))
+    (should (equal out "[]"))))
+
+(ert-deftest beads-agent-ralph-test-render-prompt-root-notes-nil-empties ()
+  "Nil `root-notes-snapshot' collapses <ROOT-NOTES> to empty."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :prompt-template "[<ROOT-NOTES>]"
+             :root-notes-snapshot nil))
+         (out (beads-agent-ralph--render-prompt c nil nil)))
+    (should (equal out "[]"))))
+
+(ert-deftest beads-agent-ralph-test-render-prompt-review-tokens-collapse ()
+  "Review-mode tokens with no alist entry collapse to empty in normal iterations.
+Recognised by the regex (so user content with literal `<TAG>' lookalikes
+is not mangled by accident) but absent from `--prompt-substitutions'."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :prompt-template
+             "a:<CLOSED-CHILDREN-SUMMARY> b:<REVIEW-NUMBER> c:<MAX-REVIEWS> d:<DIFF-SINCE-LAST-REVIEW>"))
+         (out (beads-agent-ralph--render-prompt c nil nil)))
+    (should (equal out "a: b: c: d:"))))
+
+(ert-deftest beads-agent-ralph-test-render-prompt-root-notes-no-re-expansion ()
+  "ROOT-NOTES containing literal `<TAG>' lookalikes is not re-substituted.
+Apply-substitutions is single-pass: a `<ISSUE-ID>' written into the
+agent-appended root notes must NOT be re-expanded as if it were a
+template placeholder."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :prompt-template "NOTES:<ROOT-NOTES>;ID:<ISSUE-ID>"
+             :root-notes-snapshot "see <ISSUE-ID> for context"
+             :current-issue-id "bde-aaa"))
+         (issue (beads-agent-ralph-test--make-issue :id "bde-aaa"))
+         (out (beads-agent-ralph--render-prompt c issue nil)))
+    ;; The literal "<ISSUE-ID>" inside ROOT-NOTES survives; only the
+    ;; standalone <ISSUE-ID> placeholder at the end is replaced.
+    (should (equal out "NOTES:see <ISSUE-ID> for context;ID:bde-aaa"))))
+
+(ert-deftest beads-agent-ralph-test-controller-has-root-notes-slot ()
+  "Controller class exposes `root-notes-snapshot' as a writable slot.
+Companion to the existing `epic-description-snapshot' slot (set once,
+immutable) -- `root-notes-snapshot' is overwritten every iteration by
+the fetch-root step."
+  (let ((c (beads-agent-ralph-test--make-controller)))
+    (should (slot-exists-p c 'root-notes-snapshot))
+    (should (null (oref c root-notes-snapshot)))
+    (oset c root-notes-snapshot "hello")
+    (should (equal (oref c root-notes-snapshot) "hello"))))
 
 ;;; Controller state-machine tests (bde-t9is)
 ;;
@@ -1230,7 +1315,14 @@ sentinel must terminate the loop instead of scheduling the next iter."
   (let ((c (beads-agent-ralph-test--make-controller
             :status 'running :root-kind 'epic :history nil)))
     (cl-letf (((symbol-function 'beads-agent-ralph--bd-ready-children-async)
-               (lambda (_id k) (funcall k t nil))))
+               (lambda (_id k) (funcall k t nil)))
+              ;; Step 0b (bde-c95u.1) fetches root for description-cache
+              ;; + notes before the ready-children resolve step.  Stub it
+              ;; so the test stays synchronous; the values it caches are
+              ;; not asserted here -- this test guards epic-empty only.
+              ((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue :id id)))))
       (beads-agent-ralph--run-iteration c))
     (should (eq (oref c status) 'done))
     (should (eq (oref c done-reason) 'epic-empty))))
@@ -1276,6 +1368,97 @@ sentinel must terminate the loop instead of scheduling the next iter."
       (beads-agent-ralph--run-iteration c))
     (should (equal spawned "bde-kid1"))
     (should (equal (oref c current-issue-id) "bde-kid1"))))
+
+(ert-deftest beads-agent-ralph-test-run-iteration-step-0b-caches-root-description ()
+  "Step 0b caches `epic-description-snapshot' on the first iteration only.
+The cache slot is set when nil and never overwritten on subsequent
+iterations — that's the description-immutability surface (bde-c95u.6
+will add the active mismatch guard; for now we just verify the cache
+behaviour is one-shot)."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :root-kind 'issue :root-id "bde-root"
+             :prompt-template "X"
+             :epic-description-snapshot nil
+             :root-notes-snapshot nil))
+         (call-count 0))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-claim-async)
+               (lambda (_id k) (funcall k t nil)))
+              ((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (id k)
+                 (cl-incf call-count)
+                 (funcall k t (beads-agent-ralph-test--make-issue
+                               :id id
+                               :description "epic goal here"
+                               :notes "running insights"))))
+              ((symbol-function 'beads-agent-ralph--bd-list-children-async)
+               (lambda (_id k) (funcall k t nil)))
+              ((symbol-function 'beads-agent-ralph--spawn-stream-for)
+               (lambda (_c _id _p) nil)))
+      (beads-agent-ralph--run-iteration c))
+    (should (equal (oref c epic-description-snapshot) "epic goal here"))
+    (should (equal (oref c root-notes-snapshot) "running insights"))
+    ;; Issue-mode root == target, so bd-show is called for both Step 0b
+    ;; (root) and Step 3 (target): two calls total.  Epic-mode would
+    ;; call twice with different ids.
+    (should (= call-count 2))))
+
+(ert-deftest beads-agent-ralph-test-run-iteration-step-0b-preserves-cached-description ()
+  "Step 0b refreshes notes every iter but never rewrites the cached description."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :root-kind 'issue :root-id "bde-root"
+             :prompt-template "X"
+             :epic-description-snapshot "ORIGINAL GOAL"
+             :root-notes-snapshot "old notes")))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-claim-async)
+               (lambda (_id k) (funcall k t nil)))
+              ((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue
+                               :id id
+                               :description "MUTATED GOAL"
+                               :notes "fresh notes"))))
+              ((symbol-function 'beads-agent-ralph--bd-list-children-async)
+               (lambda (_id k) (funcall k t nil)))
+              ((symbol-function 'beads-agent-ralph--spawn-stream-for)
+               (lambda (_c _id _p) nil)))
+      (beads-agent-ralph--run-iteration c))
+    (should (equal (oref c epic-description-snapshot) "ORIGINAL GOAL"))
+    (should (equal (oref c root-notes-snapshot) "fresh notes"))))
+
+(ert-deftest beads-agent-ralph-test-run-iteration-step-0b-failure-is-non-fatal ()
+  "A failed root fetch in Step 0b banners and continues the iteration."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :root-kind 'issue :root-id "bde-root"
+             :banner-log nil :prompt-template "X"
+             :epic-description-snapshot "PRIOR GOAL"
+             :root-notes-snapshot "prior notes"))
+         (spawned nil)
+         (show-calls 0))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-claim-async)
+               (lambda (_id k) (funcall k t nil)))
+              ((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (id k)
+                 (cl-incf show-calls)
+                 ;; Fail the root fetch (call 1); succeed the target
+                 ;; fetch (call 2) so the rest of the iter proceeds.
+                 (if (= show-calls 1)
+                     (funcall k nil "boom")
+                   (funcall k t (beads-agent-ralph-test--make-issue :id id)))))
+              ((symbol-function 'beads-agent-ralph--bd-list-children-async)
+               (lambda (_id k) (funcall k t nil)))
+              ((symbol-function 'beads-agent-ralph--spawn-stream-for)
+               (lambda (_c id _p) (setq spawned id))))
+      (beads-agent-ralph--run-iteration c))
+    ;; Cached values survive the transient bd error.
+    (should (equal (oref c epic-description-snapshot) "PRIOR GOAL"))
+    (should (equal (oref c root-notes-snapshot) "prior notes"))
+    ;; Iteration still spawned.
+    (should (equal spawned "bde-root"))
+    ;; Banner queued.
+    (should (cl-some (lambda (b)
+                       (string-match-p "Fetch root"
+                                       (plist-get b :text)))
+                     (oref c banner-log)))))
 
 (ert-deftest beads-agent-ralph-test-run-iteration-claim-failure-is-non-fatal ()
   "A failed bd claim is recorded as a banner but does not abort the iter."

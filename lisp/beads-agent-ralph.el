@@ -388,6 +388,17 @@ description at the start of each iteration — a mismatch terminates the
 loop with `done-reason' = `spec-mutated' rather than continuing under a
 moved goalpost (the description-immutability guard).  Nil until the
 first iteration fetches root.")
+   (root-notes-snapshot
+    :initarg :root-notes-snapshot
+    :initform nil
+    :type (or null string)
+    :documentation "Most recent notes payload on the root issue, refreshed each iteration.
+Unlike `epic-description-snapshot' (which is immutable after the first
+fetch), this slot is overwritten every iteration by the fetch-root step.
+Rendered into the iteration prompt as `<ROOT-NOTES>' so the agent sees
+cross-iteration insights it (or earlier sessions) wrote with
+`bd update <ROOT-ID> --append-notes'.  Nil until the first iteration
+fetches root; nil when the root has no notes.")
    (last-review-git-ref
     :initarg :last-review-git-ref
     :initform nil
@@ -826,6 +837,12 @@ ITERATION       <ITERATION> / <MAX-ITERATIONS>
 ROOT            <ROOT-ID>
 CURRENT TARGET  <ISSUE-ID> -- <ISSUE-TITLE>
 
+EPIC DESCRIPTION (immutable goal of <ROOT-ID>)
+<EPIC-DESCRIPTION>
+
+ROOT NOTES (cross-iteration insights on <ROOT-ID>)
+<ROOT-NOTES>
+
 DESCRIPTION
 <ISSUE-DESCRIPTION>
 
@@ -853,21 +870,30 @@ WHAT TO DO THIS ITERATION
 2. Make ONE focused unit of progress on <ISSUE-ID>.  Do not start
    side quests.  If you notice work for a different issue listed
    in PLAN VIEW, append a short note to it with
-   `bd update <other-id> --notes \"…\"` and keep moving.  Those
-   notes flow back into the next iteration's PLAN VIEW.
+   `bd update <other-id> --append-notes \"…\"` and keep moving.
+   Those notes flow back into the next iteration's PLAN VIEW.
 
-3. Record your progress with `bd update <ISSUE-ID> --notes \"…\"`.
+3. Record your progress with
+   `bd update <ISSUE-ID> --append-notes \"…\"`.
    Move the issue to `bd close <ISSUE-ID>` only when its
    acceptance criteria are demonstrably satisfied; otherwise
    leave it open for the next iteration.
 
-4. Before exiting, emit exactly one line of the form
+4. When you learn something that future iterations need (cross-
+   issue insight, a constraint you discovered, a decision worth
+   preserving), append it to the ROOT NOTES with
+   `bd update <ROOT-ID> --append-notes \"…\"`.  This is the
+   `<ROOT-NOTES>' surface you see at the top of this prompt.
+   ALWAYS use --append-notes — `--notes` REPLACES the field and
+   destroys the running log.
+
+5. Before exiting, emit exactly one line of the form
 
        <summary>one short paragraph recapping this iteration</summary>
 
    This is the dashboard's summary column for this iteration.
 
-5. Emit the completion sentinel <SENTINEL> ONLY when both of the
+6. Emit the completion sentinel <SENTINEL> ONLY when both of the
    following hold in THIS iteration:
 
      a) you just ran `bd show <ROOT-ID> --json`, and
@@ -1610,10 +1636,19 @@ Per-loop overrides on the controller (`max-budget-usd-per-iter',
   "<\\(ISSUE-ID\\|ISSUE-TITLE\\|ISSUE-DESCRIPTION\\|ACCEPTANCE\\|\
 ROOT-ID\\|ITERATION\\|MAX-ITERATIONS\\|SENTINEL\\|\
 PLAN-VIEW\\|PRIOR-FALSE-CLAIMS\\|PRIOR-STALL-COUNT\\|\
-VERIFY-TAIL\\|GIT-DIFF-STAT\\)>"
+VERIFY-TAIL\\|GIT-DIFF-STAT\\|\
+EPIC-DESCRIPTION\\|ROOT-NOTES\\|CLOSED-CHILDREN-SUMMARY\\|\
+REVIEW-NUMBER\\|MAX-REVIEWS\\|DIFF-SINCE-LAST-REVIEW\\)>"
   "Regexp matching the placeholder set understood by the prompt renderer.
 Tokens outside this set survive verbatim, so issue descriptions that
-happen to contain HTML-looking tags are not mangled.")
+happen to contain HTML-looking tags are not mangled.
+
+The review-mode tokens (`CLOSED-CHILDREN-SUMMARY', `REVIEW-NUMBER',
+`MAX-REVIEWS', `DIFF-SINCE-LAST-REVIEW') are recognised here so the
+review-iteration body (bde-c95u.5/.6) can populate them; until then
+they have no substitution alist entry and collapse to the empty string
+during rendering — which is the desired \"no review iteration yet\"
+state.")
 
 (defun beads-agent-ralph--effective-template (controller)
   "Return the prompt template CONTROLLER should render this iteration.
@@ -1817,7 +1852,11 @@ strings; literal substitution applies."
            (beads-agent-ralph--render-verify-tail
             (oref controller last-verify)))
      (cons "GIT-DIFF-STAT"
-           (or (oref controller last-git-diff-stat) "")))))
+           (or (oref controller last-git-diff-stat) ""))
+     (cons "EPIC-DESCRIPTION"
+           (or (oref controller epic-description-snapshot) ""))
+     (cons "ROOT-NOTES"
+           (or (oref controller root-notes-snapshot) "")))))
 
 (defun beads-agent-ralph--apply-substitutions (template substitutions)
   "Apply SUBSTITUTIONS (an alist) to TEMPLATE.
@@ -1850,6 +1889,12 @@ Placeholders supported (literal, single-pass substitution):
   <ROOT-ID>, <ITERATION>, <MAX-ITERATIONS>, <SENTINEL>
   <PLAN-VIEW>, <PRIOR-FALSE-CLAIMS>, <PRIOR-STALL-COUNT>
   <VERIFY-TAIL>, <GIT-DIFF-STAT>
+  <EPIC-DESCRIPTION>, <ROOT-NOTES>
+
+The review-mode tokens <CLOSED-CHILDREN-SUMMARY>, <REVIEW-NUMBER>,
+<MAX-REVIEWS>, <DIFF-SINCE-LAST-REVIEW> are reserved by the renderer
+(see `beads-agent-ralph--placeholder-regexp') and collapse to the
+empty string in normal iterations.
 
 Returns the rendered prompt as a single string."
   (let ((template (beads-agent-ralph--effective-template controller))
@@ -2547,6 +2592,32 @@ Stream completion is handled by the subscriber installed in
     (lambda (_acc k)
       (beads-agent-ralph--maybe-bd-reset-async
        controller (lambda () (funcall k nil nil))))
+    ;; Step 0b: fetch the root issue for description-cache + notes.
+    ;; Caches `epic-description-snapshot' the first time (immutable
+    ;; thereafter — bde-c95u.6 enforces the immutability guard).  Always
+    ;; overwrites `root-notes-snapshot' so the next iteration's prompt
+    ;; reflects insights the agent or earlier sessions appended via
+    ;; `bd update <ROOT-ID> --append-notes'.  Non-fatal on failure: a
+    ;; transient bd error must not break the loop; we banner and continue.
+    (lambda (_acc k)
+      (beads-agent-ralph--bd-show-async
+       (oref controller root-id)
+       (lambda (ok result)
+         (if (not ok)
+             (progn
+               (beads-agent-ralph--push-banner
+                controller 'notice
+                (format "Fetch root %s failed; reusing cached values"
+                        (oref controller root-id)))
+               (funcall k nil nil))
+           (let ((root (beads-agent-ralph--coerce-single-issue result)))
+             (when root
+               (when (null (oref controller epic-description-snapshot))
+                 (oset controller epic-description-snapshot
+                       (or (oref root description) "")))
+               (oset controller root-notes-snapshot
+                     (or (oref root notes) "")))
+             (funcall k nil nil))))))
     ;; Step 1: resolve target issue.
     (lambda (_acc k)
       (let ((kind (oref controller root-kind)))
