@@ -1321,22 +1321,133 @@ sentinel must terminate the loop instead of scheduling the next iter."
 
 ;;; run-iteration: target resolution
 
-(ert-deftest beads-agent-ralph-test-run-iteration-epic-empty-terminates ()
-  "Epic mode with no ready children terminates `done(epic-empty)'."
+(ert-deftest beads-agent-ralph-test-run-iteration-epic-empty-enters-review ()
+  "Epic-empty routes to `--maybe-enter-review' rather than direct terminate.
+After bde-c95u.4 the `epic-empty' on-error branch hands control to
+`--maybe-enter-review' so the controller can decide between
+terminating with `epic-complete', firing the pre-LLM gate, or
+scheduling a review iteration."
   (let ((c (beads-agent-ralph-test--make-controller
-            :status 'running :root-kind 'epic :history nil)))
+            :status 'running :root-kind 'epic :history nil))
+        (entered nil))
     (cl-letf (((symbol-function 'beads-agent-ralph--bd-ready-children-async)
                (lambda (_id k) (funcall k t nil)))
-              ;; Step 0b (bde-c95u.1) fetches root for description-cache
-              ;; + notes before the ready-children resolve step.  Stub it
-              ;; so the test stays synchronous; the values it caches are
-              ;; not asserted here -- this test guards epic-empty only.
               ((symbol-function 'beads-agent-ralph--bd-show-async)
                (lambda (id k)
-                 (funcall k t (beads-agent-ralph-test--make-issue :id id)))))
+                 (funcall k t (beads-agent-ralph-test--make-issue :id id))))
+              ((symbol-function 'beads-agent-ralph--maybe-enter-review)
+               (lambda (controller) (setq entered controller))))
       (beads-agent-ralph--run-iteration c))
+    (should (eq entered c))))
+
+(ert-deftest beads-agent-ralph-test-maybe-enter-review-terminates-at-cap ()
+  "When `consecutive-empty-reviews' has reached the cap, terminate with `epic-complete'.
+Short-circuits before any bd call so the cap path is cheap.  Maps via
+`--terminate' to status `done' (not `failed') so `epic-complete' is
+treated as a clean finish."
+  (let ((c (beads-agent-ralph-test--make-controller
+            :status 'running :root-kind 'epic
+            :consecutive-empty-reviews 2 :max-consecutive-empty-reviews 2
+            :history nil))
+        (listed nil))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-list-children-async)
+               (lambda (_id _k) (setq listed t))))
+      (beads-agent-ralph--maybe-enter-review c))
     (should (eq (oref c status) 'done))
-    (should (eq (oref c done-reason) 'epic-empty))))
+    (should (eq (oref c done-reason) 'epic-complete))
+    (should-not listed)))
+
+(ert-deftest beads-agent-ralph-test-maybe-enter-review-pre-llm-gate-fires ()
+  "Gate fires when no closed children since last review AND empty diff.
+The gate increments `consecutive-empty-reviews', refreshes the
+`last-review-*' snapshots, pushes a `kind' = `review' + `gated' = t
+iteration record into `history', and recursively re-enters via
+`run-at-time' so the cap check fires on the next pass."
+  (let* ((closed (beads-agent-ralph-test--make-issue :id "k1" :status "closed"))
+         (c (beads-agent-ralph-test--make-controller
+             :status 'running :root-kind 'epic
+             :consecutive-empty-reviews 0 :max-consecutive-empty-reviews 2
+             :last-review-git-ref nil :last-review-closed-count 1
+             :history nil)))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-list-children-async)
+               (lambda (_id k) (funcall k t (list closed))))
+              ((symbol-function 'beads-agent-ralph--current-git-head)
+               (lambda (_dir) "deadbeef"))
+              ((symbol-function 'beads-agent-ralph--git-diff-since)
+               (lambda (_dir _ref) ""))
+              ;; Intercept the recursion so the test stays synchronous
+              ;; and verifies that re-entry was scheduled exactly once.
+              ((symbol-function 'run-at-time)
+               (lambda (delay repeat fn &rest args)
+                 (ignore delay repeat)
+                 (cons 'scheduled (cons fn args)))))
+      (beads-agent-ralph--maybe-enter-review c))
+    (should (= (oref c consecutive-empty-reviews) 1))
+    (should (equal (oref c last-review-git-ref) "deadbeef"))
+    (should (= (oref c last-review-closed-count) 1))
+    (let ((rec (car (oref c history))))
+      (should rec)
+      (should (eq (oref rec kind) 'review))
+      (should (eq (oref rec gated) t)))))
+
+(ert-deftest beads-agent-ralph-test-maybe-enter-review-schedules-when-children-closed ()
+  "Gate does NOT skip when closed-children delta is positive.
+A non-zero delta means real work was finished since the last review,
+so the controller schedules a review iteration (LLM-fired)."
+  (let* ((closed-a (beads-agent-ralph-test--make-issue :id "ka" :status "closed"))
+         (closed-b (beads-agent-ralph-test--make-issue :id "kb" :status "closed"))
+         (c (beads-agent-ralph-test--make-controller
+             :status 'running :root-kind 'epic
+             :consecutive-empty-reviews 0 :max-consecutive-empty-reviews 2
+             :last-review-git-ref nil :last-review-closed-count 0
+             :history nil))
+         (scheduled-thunk nil))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-list-children-async)
+               (lambda (_id k) (funcall k t (list closed-a closed-b))))
+              ((symbol-function 'beads-agent-ralph--current-git-head)
+               (lambda (_dir) "headsha"))
+              ((symbol-function 'beads-agent-ralph--git-diff-since)
+               (lambda (_dir _ref) ""))
+              ((symbol-function 'beads-agent-ralph--schedule-next-iteration)
+               (lambda (_c thunk) (setq scheduled-thunk thunk))))
+      (beads-agent-ralph--maybe-enter-review c))
+    (should (= (oref c consecutive-empty-reviews) 0))
+    (should (eq (oref c status) 'cooling-down))
+    (should (functionp scheduled-thunk))
+    (should (null (oref c history)))))
+
+(ert-deftest beads-agent-ralph-test-maybe-enter-review-schedules-when-diff-non-empty ()
+  "Gate does NOT skip when the git diff since last review is non-empty.
+Even with zero closed-children delta, a non-empty diff means there is
+committed work for the agent to review, so the controller schedules a
+review iteration rather than firing the gate."
+  (let ((c (beads-agent-ralph-test--make-controller
+            :status 'running :root-kind 'epic
+            :consecutive-empty-reviews 0 :max-consecutive-empty-reviews 2
+            :last-review-git-ref "oldsha" :last-review-closed-count 0
+            :history nil))
+        (scheduled-thunk nil))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-list-children-async)
+               (lambda (_id k) (funcall k t nil)))
+              ((symbol-function 'beads-agent-ralph--current-git-head)
+               (lambda (_dir) "newsha"))
+              ((symbol-function 'beads-agent-ralph--git-diff-since)
+               (lambda (_dir _ref) " lisp/foo.el | 3 +++\n"))
+              ((symbol-function 'beads-agent-ralph--schedule-next-iteration)
+               (lambda (_c thunk) (setq scheduled-thunk thunk))))
+      (beads-agent-ralph--maybe-enter-review c))
+    (should (= (oref c consecutive-empty-reviews) 0))
+    (should (eq (oref c status) 'cooling-down))
+    (should (functionp scheduled-thunk))
+    (should (null (oref c history)))))
+
+(ert-deftest beads-agent-ralph-test-terminate-maps-epic-complete-to-done ()
+  "`--terminate' with `epic-complete' transitions to `done', not `failed'."
+  (let ((c (beads-agent-ralph-test--make-controller
+            :status 'running :history nil)))
+    (beads-agent-ralph--terminate c 'epic-complete)
+    (should (eq (oref c status) 'done))
+    (should (eq (oref c done-reason) 'epic-complete))))
 
 (ert-deftest beads-agent-ralph-test-run-iteration-issue-mode-uses-root-id ()
   "Issue mode sets `current-issue-id' to the root and spawns a stream."

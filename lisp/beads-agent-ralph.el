@@ -177,7 +177,20 @@ Normal iterations work a claimed child issue; review iterations run
 when `bd ready --parent ROOT-ID' is empty and ask the agent to file
 follow-up children or close the epic before the controller terminates.
 Persisted to JSONL as the string \"iteration\" or \"review\".  The
-dashboard row renderer and `--on-stream-finish' branch on this slot."))
+dashboard row renderer and `--on-stream-finish' branch on this slot.")
+   (gated
+    :initarg :gated
+    :initform nil
+    :type boolean
+    :documentation "Non-nil when this review iteration was decided pre-LLM.
+A gated record marks a review whose precondition (`closed-children-
+since-last-review' = 0 AND `diff-since-last-review' = empty) proved
+there was nothing to review, so the controller incremented
+`consecutive-empty-reviews' and pushed this record without spawning a
+claude stream.  The dashboard renders gated rows with a `[gated]'
+marker (bde-c95u.7) so users can see why the loop wound down quickly.
+Always paired with `kind' = `review'; ignored on `kind' = `iteration'
+records."))
   :documentation "One completed Ralph iteration.
 
 The controller pushes one of these into `history' when an iteration
@@ -1565,6 +1578,61 @@ the tree in an unexpected state."
         (when (and trimmed (not (string-empty-p trimmed)))
           trimmed)))))
 
+(defun beads-agent-ralph--controller-work-dir (controller)
+  "Return CONTROLLER's effective working directory (worktree or project root).
+Falls back to `default-directory' if both slots are nil.  Centralised so
+the git-helpers below share the same precedence rule as the existing
+`--protected-paths-modified' and `--git-dirty-state' helpers."
+  (or (oref controller worktree-dir)
+      (oref controller project-dir)
+      default-directory))
+
+(defun beads-agent-ralph--current-git-head (dir)
+  "Return the HEAD commit SHA under DIR, or nil on failure.
+Runs `git rev-parse HEAD' synchronously via `call-process'.  Returns nil
+when DIR is not a directory, when git is missing, when the working tree
+has no HEAD yet, or on any other non-zero exit.  Used by the pre-LLM
+gate to snapshot a stable reference for diff-since-last-review."
+  (when (and dir (file-directory-p dir))
+    (let* ((default-directory (file-name-as-directory dir))
+           (output
+            (condition-case _err
+                (with-output-to-string
+                  (with-current-buffer standard-output
+                    (let ((exit (call-process "git" nil
+                                              (list (current-buffer) nil)
+                                              nil "rev-parse" "HEAD")))
+                      (unless (zerop exit)
+                        (erase-buffer)))))
+              (error nil)))
+           (trimmed (and output (string-trim output))))
+      (and trimmed (not (string-empty-p trimmed)) trimmed))))
+
+(defun beads-agent-ralph--git-diff-since (dir ref)
+  "Return `git diff --stat REF..HEAD' output under DIR, or nil.
+Returns nil when DIR is not a directory, when REF is nil, when git is
+missing, or on any non-zero exit.  Returns the trimmed stdout otherwise
+\(possibly the empty string when REF == HEAD).  Used by the pre-LLM gate
+to detect whether any committed work appeared since the last review.
+The gate also treats a nil return as \"no diff\" so a transient git
+failure errs on the safe side (counter increments, the loop will retry
+the gate next time rather than firing a wasted LLM call)."
+  (when (and dir (file-directory-p dir) ref)
+    (let* ((default-directory (file-name-as-directory dir))
+           (output
+            (condition-case _err
+                (with-output-to-string
+                  (with-current-buffer standard-output
+                    (let ((exit (call-process "git" nil
+                                              (list (current-buffer) nil)
+                                              nil
+                                              "diff" "--stat"
+                                              (concat ref "..HEAD"))))
+                      (unless (zerop exit)
+                        (erase-buffer)))))
+              (error nil))))
+      (and output (string-trim output)))))
+
 (defun beads-agent-ralph--maybe-banner-dirty-state (controller)
   "Push a notice banner when CONTROLLER's worktree has uncommitted change.
 Lower severity than `protected-paths' — dirty state is informational
@@ -2090,9 +2158,10 @@ instead of silently mutating `done-reason' (bde-rx4u)."
     (beads-agent-ralph--set-status
      controller
      (pcase reason
-       ('stop    'stopped)
-       ('failed  'failed)
-       (_        'done)))
+       ('stop          'stopped)
+       ('failed        'failed)
+       ('epic-complete 'done)
+       (_              'done)))
     ;; Schedule passive eviction from the public registry after the
     ;; configured retention window (bde-deqx.3).  The dashboard's
     ;; kill-buffer hook cancels this timer and unregisters immediately
@@ -2114,6 +2183,96 @@ re-entering `--run-iteration' (bde-82a7)."
     (oset controller next-iter-timer nil))
   (beads-agent-ralph--push-banner controller 'warning reason)
   (beads-agent-ralph--set-status controller 'auto-paused))
+
+(defun beads-agent-ralph--count-closed-children (issues)
+  "Return the count of ISSUES whose status equals `beads-status-closed'.
+ISSUES is the list returned by `--bd-list-children-async' (possibly
+nil).  Used by the pre-LLM gate to compare against
+`last-review-closed-count' on CONTROLLER."
+  (cl-count-if (lambda (i) (equal (oref i status) beads-status-closed))
+               (or issues nil)))
+
+(defun beads-agent-ralph--maybe-enter-review (controller)
+  "Intercept epic-empty on CONTROLLER and decide whether to review.
+Called from `--run-iteration' when an epic mode iteration's
+resolve-target step emits `epic-empty'.  Three outcomes:
+
+1. `consecutive-empty-reviews' has reached
+   `max-consecutive-empty-reviews' -> terminate with `epic-complete'
+   (the epic is done; the loop did its job).
+2. Pre-LLM gate fires: no children of `root-id' were closed since the
+   last review AND `git diff --stat <last-ref>..HEAD' is empty.  In
+   that case the controller increments the counter, refreshes the
+   `last-review-*' snapshots, pushes a `kind' = `review' + `gated' = t
+   iteration record into `history', and recursively re-enters this
+   function so the cap check in (1) can fire on the next pass.  No
+   LLM call is made.
+3. Otherwise (some child closed or diff is non-empty since last
+   review): schedule a review-mode iteration via
+   `--schedule-next-iteration' so the agent gets a chance to file
+   follow-up work.
+
+Child-list and closed-count come from `--bd-list-children-async'.
+HEAD SHA and diff are computed synchronously via
+`--current-git-head' / `--git-diff-since' in the controller's working
+directory.  The first review (when `last-review-git-ref' is nil)
+treats the diff as empty -- the gate decision then turns solely on
+the closed-count delta."
+  (cond
+   ((>= (oref controller consecutive-empty-reviews)
+        (oref controller max-consecutive-empty-reviews))
+    (beads-agent-ralph--terminate controller 'epic-complete))
+   (t
+    (beads-agent-ralph--bd-list-children-async
+     (oref controller root-id)
+     (lambda (ok result)
+       (let* ((issues (and ok result))
+              (closed-count
+               (beads-agent-ralph--count-closed-children issues))
+              (delta (- closed-count
+                        (oref controller last-review-closed-count)))
+              (work-dir (beads-agent-ralph--controller-work-dir controller))
+              (head (beads-agent-ralph--current-git-head work-dir))
+              (prior-ref (oref controller last-review-git-ref))
+              (diff (and prior-ref
+                         (beads-agent-ralph--git-diff-since
+                          work-dir prior-ref)))
+              (empty-diff (or (null prior-ref)
+                              (null diff)
+                              (string-empty-p diff)))
+              (no-new-work (and (<= delta 0) empty-diff)))
+         (cond
+          (no-new-work
+           (cl-incf (oref controller consecutive-empty-reviews))
+           (when head
+             (oset controller last-review-git-ref head))
+           (oset controller last-review-closed-count closed-count)
+           (push (beads-agent-ralph--iteration
+                  :issue-id (oref controller root-id)
+                  :status 'finished
+                  :iter-number (oref controller iteration)
+                  :kind 'review
+                  :gated t)
+                 (oref controller history))
+           (beads-agent-ralph--push-banner
+            controller 'notice
+            (format "Review %d/%d gated: no work since last review"
+                    (oref controller consecutive-empty-reviews)
+                    (oref controller max-consecutive-empty-reviews)))
+           (beads-agent-ralph--dashboard-rerender controller)
+           ;; Break the stack across the recursion so a deep cap
+           ;; cannot blow the call stack and `--terminate' state
+           ;; transitions interleave with the dashboard render.
+           (run-at-time 0 nil
+                        #'beads-agent-ralph--maybe-enter-review controller))
+          (t
+           (beads-agent-ralph--set-status controller 'cooling-down)
+           (beads-agent-ralph--schedule-next-iteration
+            controller
+            (lambda ()
+              (beads-agent-ralph--set-status controller 'running)
+              (beads-agent-ralph--run-iteration
+               controller :mode 'review)))))))))))
 
 (defun beads-agent-ralph--continue-after-iteration (controller)
   "Schedule the next iteration body on CONTROLLER unless terminating.
@@ -2742,35 +2901,58 @@ steps, without ever branching on mode inside a step body."
    (lambda (acc k) (beads-agent-ralph--step-render-prompt controller acc k))
    (lambda (acc k) (beads-agent-ralph--step-spawn-stream controller acc k))))
 
-(defun beads-agent-ralph--run-iteration (controller)
-  "Run one iteration body for CONTROLLER.
-Resolves the target issue (issue or epic mode), claims it, snapshots
-acceptance-before, renders the prompt, and spawns the stream.
+(cl-defun beads-agent-ralph--run-iteration (controller &key (mode 'normal))
+  "Run one iteration body for CONTROLLER in MODE (`normal' or `review').
+Normal mode resolves the target issue (issue or epic), claims it,
+snapshots acceptance-before, renders the standard prompt, and spawns
+the stream.  Review mode (bde-c95u.5) will run a different step list
+that omits resolve-target/claim/snapshot and renders the review
+prompt; until that lands, `mode' = `review' falls through to the
+normal step composer with the seam in place.
+
 Stream completion is handled by the subscriber installed in
 `beads-agent-ralph--spawn-stream-for'.
 
 The step sequence is composed by
-`beads-agent-ralph--normal-iteration-steps'; see the docstrings of
-the individual `beads-agent-ralph--step-*' helpers for what each
-contributes."
+`beads-agent-ralph--normal-iteration-steps' (normal) or
+`beads-agent-ralph--review-iteration-steps' (review, once bde-c95u.5
+defines it); see the docstrings of the individual
+`beads-agent-ralph--step-*' helpers for what each contributes.
+
+Epic mode resolves-target to nil when the parent has no ready
+children, raising `epic-empty' through `--then''s on-error.  That
+branch routes to `--maybe-enter-review', which decides between
+terminating with `epic-complete', firing the pre-LLM gate, or
+scheduling a review iteration."
   (beads-agent-ralph--set-status controller 'running)
   (beads-agent-ralph--dashboard-rerender controller)
-  (beads-agent-ralph--then
-   :cancelled (lambda ()
-                (memq (oref controller status)
-                      '(stopped done failed auto-paused)))
-   :on-error
-   (lambda (err _idx)
-     (cond
-      ((eq err 'epic-empty)
-       (beads-agent-ralph--terminate controller 'epic-empty))
-      ((eq err 'cancelled) nil)
-      (t
-       (beads-agent-ralph--push-banner
-        controller 'error
-        (format "Iteration setup failed: %S" err))
-       (beads-agent-ralph--terminate controller 'failed))))
-   :steps (beads-agent-ralph--normal-iteration-steps controller)))
+  (let ((steps
+         (pcase mode
+           ('review
+            ;; bde-c95u.5 will define `--review-iteration-steps'.  Until
+            ;; then the seam exists so `--maybe-enter-review' can pass
+            ;; the mode flag through without a second refactor.
+            (if (fboundp 'beads-agent-ralph--review-iteration-steps)
+                (beads-agent-ralph--review-iteration-steps controller)
+              (beads-agent-ralph--normal-iteration-steps controller)))
+           (_
+            (beads-agent-ralph--normal-iteration-steps controller)))))
+    (beads-agent-ralph--then
+     :cancelled (lambda ()
+                  (memq (oref controller status)
+                        '(stopped done failed auto-paused)))
+     :on-error
+     (lambda (err _idx)
+       (cond
+        ((eq err 'epic-empty)
+         (beads-agent-ralph--maybe-enter-review controller))
+        ((eq err 'cancelled) nil)
+        (t
+         (beads-agent-ralph--push-banner
+          controller 'error
+          (format "Iteration setup failed: %S" err))
+         (beads-agent-ralph--terminate controller 'failed))))
+     :steps steps)))
 
 ;;; Entry points
 
