@@ -2554,12 +2554,205 @@ subscriber so iteration completion is observed."
     (beads-agent-ralph--dashboard-rerender controller)
     stream))
 
+;;; Iteration step helpers
+;;
+;; Each `beads-agent-ralph--step-*' helper is one async step of the
+;; per-iteration sequence run by `beads-agent-ralph--then'.  They are
+;; named top-level functions (rather than inline lambdas inside
+;; `--run-iteration') so the upcoming review-iteration mode (bde-c95u.5)
+;; can compose a different ordered list of these same building blocks
+;; without an `(if mode 'review)' ladder inside each step.
+;;
+;; Step protocol (mirrors `--then' :steps):
+;;
+;;   (defun beads-agent-ralph--step-FOO (controller acc k) ...)
+;;
+;; - CONTROLLER is the active `--controller' instance.
+;; - ACC is the merged accumulator plist threaded by `--then'.
+;; - K is the continuation; the step MUST call (funcall K ERR RESULT)
+;;   exactly once.  ERR is nil on success or a symbol naming the
+;;   failure; RESULT, when a plist, is merged into the next step's ACC.
+;;
+;; The composer `--normal-iteration-steps' wraps each helper in a thin
+;; `(lambda (acc k) (helper controller acc k))' closure so `--then'
+;; sees the 2-arg shape it expects while keeping CONTROLLER visible to
+;; each helper without resorting to dynamic binding.
+
+(defun beads-agent-ralph--step-ensure-worktree (controller _acc k)
+  "Step: ensure CONTROLLER's worktree is resolved (one-shot per controller).
+Both single-issue and epic loops route through here; for epic mode
+the worktree is keyed on the root id and shared across all child
+iterations."
+  (beads-agent-ralph--maybe-resolve-worktree-async
+   controller (lambda () (funcall k nil nil))))
+
+(defun beads-agent-ralph--step-maybe-bd-reset (controller _acc k)
+  "Step: run CONTROLLER's full-reset cascade if pending (one-shot).
+Reopens closed scope and clears claims after a destructive resume.
+No-op when `pending-full-reset' is nil."
+  (beads-agent-ralph--maybe-bd-reset-async
+   controller (lambda () (funcall k nil nil))))
+
+(defun beads-agent-ralph--step-fetch-root (controller _acc k)
+  "Step: fetch CONTROLLER's root issue for description-cache + notes.
+Caches `epic-description-snapshot' the first time (immutable
+thereafter — bde-c95u.6 enforces the immutability guard).  Always
+overwrites `root-notes-snapshot' so the next iteration's prompt
+reflects insights the agent or earlier sessions appended via
+`bd update <ROOT-ID> --append-notes'.  Non-fatal on failure: a
+transient bd error must not break the loop; we banner and continue."
+  (beads-agent-ralph--bd-show-async
+   (oref controller root-id)
+   (lambda (ok result)
+     (if (not ok)
+         (progn
+           (beads-agent-ralph--push-banner
+            controller 'notice
+            (format "Root fetch failed for %s — keeping cached snapshot"
+                    (oref controller root-id)))
+           (funcall k nil nil))
+       (let ((root (beads-agent-ralph--coerce-single-issue result)))
+         (when root
+           (when (null (oref controller epic-description-snapshot))
+             (oset controller epic-description-snapshot
+                   (or (oref root description) "")))
+           (oset controller root-notes-snapshot
+                 (or (oref root notes) "")))
+         (funcall k nil nil))))))
+
+(defun beads-agent-ralph--step-resolve-target (controller _acc k)
+  "Step: resolve the target issue id for CONTROLLER.
+For issue mode, uses `root-id'.  For epic mode, fetches the first
+ready child via `--bd-ready-children-async' and uses its id.
+
+Emits `:issue-id' into ACC for downstream steps.  Errors out with
+`epic-empty' when an epic has no ready children and with
+`bd-list-failed' on a bd error."
+  (let ((kind (oref controller root-kind)))
+    (pcase kind
+      ('issue
+       (let ((id (oref controller root-id)))
+         (oset controller current-issue-id id)
+         (funcall k nil (list :issue-id id))))
+      ('epic
+       (beads-agent-ralph--bd-ready-children-async
+        (oref controller root-id)
+        (lambda (ok result)
+          (cond
+           ((not ok) (funcall k 'bd-list-failed nil))
+           ((null result) (funcall k 'epic-empty nil))
+           (t
+            (let ((first-id (oref (car result) id)))
+              (oset controller current-issue-id first-id)
+              (funcall k nil (list :issue-id first-id))))))))
+      (_ (funcall k 'unknown-root-kind nil)))))
+
+(defun beads-agent-ralph--step-claim (controller acc k)
+  "Step: claim ACC's `:issue-id' on CONTROLLER (non-fatal on failure).
+A `bd update --claim' against an already-claimed-by-someone-else
+issue is rare but recoverable, so we log a banner and continue."
+  (beads-agent-ralph--bd-claim-async
+   (plist-get acc :issue-id)
+   (lambda (ok _result)
+     (if ok (funcall k nil nil)
+       (beads-agent-ralph--push-banner
+        controller 'notice
+        (format "Claim failed for %s; continuing"
+                (plist-get acc :issue-id)))
+       (funcall k nil nil)))))
+
+(defun beads-agent-ralph--step-fetch-issue (_controller acc k)
+  "Step: fetch the full record for ACC's `:issue-id' as `:issue'.
+Non-fatal: on bd failure or empty result `:issue' is nil and the
+iteration still proceeds (downstream steps tolerate nil)."
+  (beads-agent-ralph--bd-show-async
+   (plist-get acc :issue-id)
+   (lambda (ok result)
+     (if (not ok) (funcall k nil (list :issue nil))
+       (let ((issue (beads-agent-ralph--coerce-single-issue result)))
+         (funcall k nil (list :issue issue)))))))
+
+(defun beads-agent-ralph--step-snapshot-acceptance (_controller acc k)
+  "Step: snapshot acceptance-criteria of ACC's `:issue' as `:acceptance-before'.
+Synchronous read of the issue's slot.  Yields nil when `:issue' is
+nil (the upstream fetch failed) — same shape as the pre-refactor
+combined fetch+snapshot step."
+  (let ((issue (plist-get acc :issue)))
+    (funcall k nil
+             (list :acceptance-before
+                   (and issue (oref issue acceptance-criteria))))))
+
+(defun beads-agent-ralph--step-fetch-plan-view (controller _acc k)
+  "Step: fetch CONTROLLER's plan-view children of root as `:plan-view'.
+Best-effort: a bd error or empty result still renders, so we emit
+`:plan-view nil' on failure rather than aborting the iteration."
+  (beads-agent-ralph--bd-list-children-async
+   (oref controller root-id)
+   (lambda (ok result)
+     (funcall k nil (list :plan-view (if ok result nil))))))
+
+(defun beads-agent-ralph--step-render-prompt (controller acc k)
+  "Step: render the iteration prompt and emit it as ACC's `:prompt'.
+Reads `:issue' and `:plan-view' from ACC and calls
+`--render-prompt' on CONTROLLER.  Wraps the synchronous renderer
+in `condition-case' so a template error short-circuits via
+`spawn-failed' rather than escaping `--then'."
+  (condition-case err
+      (let* ((issue (plist-get acc :issue))
+             (plan-view (plist-get acc :plan-view))
+             (prompt (beads-agent-ralph--render-prompt
+                      controller issue plan-view)))
+        (funcall k nil (list :prompt prompt)))
+    (error
+     (funcall k (or (car-safe err) 'spawn-failed) nil))))
+
+(defun beads-agent-ralph--step-spawn-stream (controller acc k)
+  "Step: spawn the claude stream for ACC's `:issue-id' and `:prompt'.
+The spawn itself is synchronous from `--then''s perspective —
+stream completion is delivered later via the subscriber installed
+inside `--spawn-stream-for'."
+  (condition-case err
+      (let ((id (plist-get acc :issue-id))
+            (prompt (plist-get acc :prompt)))
+        (beads-agent-ralph--spawn-stream-for controller id prompt)
+        (funcall k nil nil))
+    (error
+     (funcall k (or (car-safe err) 'spawn-failed) nil))))
+
+(defun beads-agent-ralph--normal-iteration-steps (controller)
+  "Return the ordered step list for a normal iteration on CONTROLLER.
+Each entry is a `(lambda (acc k) ...)' suitable as a `--then'
+`:steps' member; the lambda closes over CONTROLLER and forwards to
+the matching `beads-agent-ralph--step-*' helper.
+
+This composer is the seam the upcoming review-iteration mode
+\(bde-c95u.5) extends: review iterations will build their own
+ordered list from the same building blocks plus review-specific
+steps, without ever branching on mode inside a step body."
+  (list
+   (lambda (acc k) (beads-agent-ralph--step-ensure-worktree controller acc k))
+   (lambda (acc k) (beads-agent-ralph--step-maybe-bd-reset controller acc k))
+   (lambda (acc k) (beads-agent-ralph--step-fetch-root controller acc k))
+   (lambda (acc k) (beads-agent-ralph--step-resolve-target controller acc k))
+   (lambda (acc k) (beads-agent-ralph--step-claim controller acc k))
+   (lambda (acc k) (beads-agent-ralph--step-fetch-issue controller acc k))
+   (lambda (acc k)
+     (beads-agent-ralph--step-snapshot-acceptance controller acc k))
+   (lambda (acc k) (beads-agent-ralph--step-fetch-plan-view controller acc k))
+   (lambda (acc k) (beads-agent-ralph--step-render-prompt controller acc k))
+   (lambda (acc k) (beads-agent-ralph--step-spawn-stream controller acc k))))
+
 (defun beads-agent-ralph--run-iteration (controller)
   "Run one iteration body for CONTROLLER.
 Resolves the target issue (issue or epic mode), claims it, snapshots
 acceptance-before, renders the prompt, and spawns the stream.
 Stream completion is handled by the subscriber installed in
-`beads-agent-ralph--spawn-stream-for'."
+`beads-agent-ralph--spawn-stream-for'.
+
+The step sequence is composed by
+`beads-agent-ralph--normal-iteration-steps'; see the docstrings of
+the individual `beads-agent-ralph--step-*' helpers for what each
+contributes."
   (beads-agent-ralph--set-status controller 'running)
   (beads-agent-ralph--dashboard-rerender controller)
   (beads-agent-ralph--then
@@ -2577,113 +2770,7 @@ Stream completion is handled by the subscriber installed in
         controller 'error
         (format "Iteration setup failed: %S" err))
        (beads-agent-ralph--terminate controller 'failed))))
-   :steps
-   (list
-    ;; Step 0: ensure worktree if requested (one-shot per controller).
-    ;; Both single-issue and epic loops route through here; for epic
-    ;; mode this means the worktree is keyed on the root id and shared
-    ;; across all child iterations.
-    (lambda (_acc k)
-      (beads-agent-ralph--maybe-resolve-worktree-async
-       controller (lambda () (funcall k nil nil))))
-    ;; Step 0a: full-reset cascade if pending (one-shot per controller).
-    ;; Reopens closed scope and clears claims after a destructive resume.
-    ;; No-op when `pending-full-reset' is nil.
-    (lambda (_acc k)
-      (beads-agent-ralph--maybe-bd-reset-async
-       controller (lambda () (funcall k nil nil))))
-    ;; Step 0b: fetch the root issue for description-cache + notes.
-    ;; Caches `epic-description-snapshot' the first time (immutable
-    ;; thereafter — bde-c95u.6 enforces the immutability guard).  Always
-    ;; overwrites `root-notes-snapshot' so the next iteration's prompt
-    ;; reflects insights the agent or earlier sessions appended via
-    ;; `bd update <ROOT-ID> --append-notes'.  Non-fatal on failure: a
-    ;; transient bd error must not break the loop; we banner and continue.
-    (lambda (_acc k)
-      (beads-agent-ralph--bd-show-async
-       (oref controller root-id)
-       (lambda (ok result)
-         (if (not ok)
-             (progn
-               (beads-agent-ralph--push-banner
-                controller 'notice
-                (format "Root fetch failed for %s — keeping cached snapshot"
-                        (oref controller root-id)))
-               (funcall k nil nil))
-           (let ((root (beads-agent-ralph--coerce-single-issue result)))
-             (when root
-               (when (null (oref controller epic-description-snapshot))
-                 (oset controller epic-description-snapshot
-                       (or (oref root description) "")))
-               (oset controller root-notes-snapshot
-                     (or (oref root notes) "")))
-             (funcall k nil nil))))))
-    ;; Step 1: resolve target issue.
-    (lambda (_acc k)
-      (let ((kind (oref controller root-kind)))
-        (pcase kind
-          ('issue
-           (let ((id (oref controller root-id)))
-             (oset controller current-issue-id id)
-             (funcall k nil (list :issue-id id))))
-          ('epic
-           (beads-agent-ralph--bd-ready-children-async
-            (oref controller root-id)
-            (lambda (ok result)
-              (cond
-               ((not ok) (funcall k 'bd-list-failed nil))
-               ((null result) (funcall k 'epic-empty nil))
-               (t
-                (let ((first-id (oref (car result) id)))
-                  (oset controller current-issue-id first-id)
-                  (funcall k nil (list :issue-id first-id))))))))
-          (_ (funcall k 'unknown-root-kind nil)))))
-    ;; Step 2: claim.
-    (lambda (acc k)
-      (beads-agent-ralph--bd-claim-async
-       (plist-get acc :issue-id)
-       (lambda (ok _result)
-         (if ok (funcall k nil nil)
-           ;; Claim failure is non-fatal: bd update --claim on an
-           ;; already-claimed-by-someone-else issue is rare but
-           ;; recoverable.  Log a banner and continue.
-           (beads-agent-ralph--push-banner
-            controller 'notice
-            (format "Claim failed for %s; continuing"
-                    (plist-get acc :issue-id)))
-           (funcall k nil nil)))))
-    ;; Step 3: fetch the current target issue (full record).
-    (lambda (acc k)
-      (beads-agent-ralph--bd-show-async
-       (plist-get acc :issue-id)
-       (lambda (ok result)
-         (if (not ok) (funcall k nil (list :issue nil
-                                           :acceptance-before nil))
-           (let ((issue (beads-agent-ralph--coerce-single-issue result)))
-             (funcall k nil
-                      (list :issue issue
-                            :acceptance-before
-                            (and issue
-                                 (oref issue acceptance-criteria)))))))))
-    ;; Step 3b: fetch plan-view children of root (best-effort).
-    (lambda (_acc k)
-      (beads-agent-ralph--bd-list-children-async
-       (oref controller root-id)
-       (lambda (ok result)
-         ;; Non-fatal: an empty plan-view still renders.
-         (funcall k nil (list :plan-view (if ok result nil))))))
-    ;; Step 4: render prompt + spawn.
-    (lambda (acc k)
-      (condition-case err
-          (let* ((id (plist-get acc :issue-id))
-                 (issue (plist-get acc :issue))
-                 (plan-view (plist-get acc :plan-view))
-                 (prompt (beads-agent-ralph--render-prompt
-                          controller issue plan-view)))
-            (beads-agent-ralph--spawn-stream-for controller id prompt)
-            (funcall k nil nil))
-        (error
-         (funcall k (or (car-safe err) 'spawn-failed) nil)))))))
+   :steps (beads-agent-ralph--normal-iteration-steps controller)))
 
 ;;; Entry points
 
