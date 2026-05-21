@@ -875,13 +875,15 @@ Resolution order:
   2. If no context, prompt with completion.
   3. Fetch the issue via `bd show --json' to read its
      `issue_type'.  When the type is the literal string \"epic\",
-     the launcher opens with `:kind 'epic'; otherwise with
-     `:kind 'issue'.
+     the launcher opens with kind \\='epic; otherwise with
+     kind \\='issue.
 
 The resolved `beads-issue' object is forwarded to the launcher so
 its header populates without a second round trip to bd."
   (interactive)
   (let* ((id (beads-read-issue-id))
+         (_ (unless (and (stringp id) (not (string-empty-p id)))
+              (user-error "beads-ralph-launch-at-point: no issue id detected")))
          (issue (beads-issue-read id))
          (kind (if (and issue
                         (stringp (oref issue issue-type))
