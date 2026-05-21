@@ -1361,17 +1361,22 @@ treated as a clean finish."
 (ert-deftest beads-agent-ralph-test-maybe-enter-review-pre-llm-gate-fires ()
   "Gate fires when no closed children since last review AND empty diff.
 The gate increments `consecutive-empty-reviews', refreshes the
-`last-review-*' snapshots, pushes a `kind' = `review' + `gated' = t
-iteration record into `history', and recursively re-enters via
-`run-at-time' so the cap check fires on the next pass."
-  (let* ((closed (beads-agent-ralph-test--make-issue :id "k1" :status "closed"))
+`last-review-*' snapshots (HEAD + closed-count), pushes a
+`kind' = `review' + `gated' = t iteration record into `history', and
+recursively re-enters via `run-at-time' so the cap check fires on the
+next pass.  Initial snapshot is intentionally 5 with a current count
+of 3 so the snapshot rewrite is observable (a regression scenario)."
+  (let* ((closed-a (beads-agent-ralph-test--make-issue :id "k1" :status "closed"))
+         (closed-b (beads-agent-ralph-test--make-issue :id "k2" :status "closed"))
+         (closed-c (beads-agent-ralph-test--make-issue :id "k3" :status "closed"))
          (c (beads-agent-ralph-test--make-controller
              :status 'running :root-kind 'epic
              :consecutive-empty-reviews 0 :max-consecutive-empty-reviews 2
-             :last-review-git-ref nil :last-review-closed-count 1
+             :last-review-git-ref nil :last-review-closed-count 5
              :history nil)))
     (cl-letf (((symbol-function 'beads-agent-ralph--bd-list-children-async)
-               (lambda (_id k) (funcall k t (list closed))))
+               (lambda (_id k)
+                 (funcall k t (list closed-a closed-b closed-c))))
               ((symbol-function 'beads-agent-ralph--current-git-head)
                (lambda (_dir) "deadbeef"))
               ((symbol-function 'beads-agent-ralph--git-diff-since)
@@ -1385,11 +1390,12 @@ iteration record into `history', and recursively re-enters via
       (beads-agent-ralph--maybe-enter-review c))
     (should (= (oref c consecutive-empty-reviews) 1))
     (should (equal (oref c last-review-git-ref) "deadbeef"))
-    (should (= (oref c last-review-closed-count) 1))
+    (should (= (oref c last-review-closed-count) 3))
     (let ((rec (car (oref c history))))
       (should rec)
       (should (eq (oref rec kind) 'review))
-      (should (eq (oref rec gated) t)))))
+      (should (eq (oref rec gated) t))
+      (should (equal (oref rec issue-id) (oref c root-id))))))
 
 (ert-deftest beads-agent-ralph-test-maybe-enter-review-schedules-when-children-closed ()
   "Gate does NOT skip when closed-children delta is positive.
