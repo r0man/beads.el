@@ -1879,6 +1879,104 @@ behavior is to always prompt unless a default is configured."
             (should (functionp (caddr suffix))))))
     (beads-agent-test--teardown)))
 
+(ert-deftest beads-agent-test-issue-make-jump-suffix-icon-prefix ()
+  "Jump suffix description is prefixed with the role icon under GUI."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (let* ((session (beads-agent--create-session
+                         "bd-jump" "mock" "/tmp" 'handle
+                         nil "Task"))
+               (type (beads-agent-type-get "Task"))
+               (icon (and type (slot-boundp type 'icon) (oref type icon))))
+          (skip-unless icon)
+          (let ((beads-agent-display-use-icons t)
+                (beads-agent-type-icons nil))
+            (let* ((suffix (beads-agent-issue--make-jump-suffix session 1))
+                   (desc (cadr suffix)))
+              (should (string-match-p (regexp-quote icon) desc))
+              ;; Description still includes the existing "Task#" display name.
+              (should (string-match-p "Task#" desc))))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-issue-make-jump-suffix-letter-fallback ()
+  "Jump suffix description uses the type letter when icons are disabled."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (let* ((session (beads-agent--create-session
+                         "bd-jump" "mock" "/tmp" 'handle
+                         nil "Task"))
+               (type (beads-agent-type-get "Task"))
+               (icon (and type (slot-boundp type 'icon) (oref type icon)))
+               (letter (and type (oref type letter))))
+          (skip-unless icon)
+          (let ((beads-agent-display-use-icons nil)
+                (beads-agent-type-icons nil))
+            (let* ((suffix (beads-agent-issue--make-jump-suffix session 1))
+                   (desc (cadr suffix)))
+              (should-not (string-match-p (regexp-quote icon) desc))
+              ;; Description begins with the single-letter glyph then type name.
+              (should (string-match-p
+                       (concat "\\`" (regexp-quote letter) " Task#") desc))))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-issue-format-header-icon-prefix ()
+  "Issue transient header prefixes the title with role icon(s) under GUI."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let* ((session (beads-agent-session
+                       :id "task#1" :issue-id "bd-icon"
+                       :backend-name "mock"
+                       :project-dir "/tmp"
+                       :started-at "2026-01-01T00:00:00Z"
+                       :agent-type-name "Task"))
+             (type (beads-agent-type-get "Task"))
+             (icon (and type (slot-boundp type 'icon) (oref type icon)))
+             (beads-agent-issue--current-issue-id "bd-icon"))
+        (skip-unless icon)
+        (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+                   (lambda (_) (list session))))
+          (let ((beads-agent-display-use-icons t)
+                (beads-agent-type-icons nil))
+            (let ((header (beads-agent-issue--format-header)))
+              (should (string-match-p (regexp-quote icon) header))
+              ;; Icon precedes the "Agents for" body.
+              (should (< (string-match-p (regexp-quote icon) header)
+                         (string-match-p "Agents for" header)))
+              (should (string-match-p "bd-icon" header))
+              (should (string-match-p "1 active" header))))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-issue-format-header-letter-fallback ()
+  "Issue transient header uses letter fallback when icons are disabled."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let* ((session (beads-agent-session
+                       :id "task#1" :issue-id "bd-tty"
+                       :backend-name "mock"
+                       :project-dir "/tmp"
+                       :started-at "2026-01-01T00:00:00Z"
+                       :agent-type-name "Task"))
+             (type (beads-agent-type-get "Task"))
+             (icon (and type (slot-boundp type 'icon) (oref type icon)))
+             (letter (and type (oref type letter)))
+             (beads-agent-issue--current-issue-id "bd-tty"))
+        (skip-unless icon)
+        (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+                   (lambda (_) (list session))))
+          (let ((beads-agent-display-use-icons nil)
+                (beads-agent-type-icons nil))
+            (let ((header (beads-agent-issue--format-header)))
+              (should-not (string-match-p (regexp-quote icon) header))
+              ;; Header starts with the letter glyph then space then "Agents".
+              (should (string-match-p
+                       (concat "\\`" (regexp-quote letter) " Agents")
+                       header))))))
+    (beads-agent-test--teardown)))
+
 ;;; =========================================================================
 ;;; Context-Sensitive Start Tests (beads-agent-start-at-point)
 ;;; =========================================================================

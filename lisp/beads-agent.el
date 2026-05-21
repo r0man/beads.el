@@ -809,11 +809,23 @@ and N is the instance number."
     (format "%s#%d (%s)" type-name instance-n backend)))
 
 (defun beads-agent-issue--format-header ()
-  "Format header for per-issue agent menu."
+  "Format header for per-issue agent menu.
+Prefixes the header with one role icon (or single-letter fallback
+under TTY) per active session, summarizing the active agent types
+on the issue.  Each glyph is rendered via
+`beads-agent-display-format-session' (with BRIEF=t so `#N' is
+suppressed) so the same face/help-echo contract is shared with the
+issue list and dashboard."
   (let* ((issue-id beads-agent-issue--current-issue-id)
          (sessions (beads-agent--get-sessions-for-issue issue-id))
-         (count (length sessions)))
-    (format "Agents for %s [%d active]" issue-id count)))
+         (count (length sessions))
+         (badges (mapconcat
+                  (lambda (session)
+                    (beads-agent-display-format-session session nil t))
+                  sessions
+                  (propertize " " 'face 'shadow)))
+         (prefix (if (string-empty-p badges) "" (concat badges " "))))
+    (format "%sAgents for %s [%d active]" prefix issue-id count)))
 
 (defun beads-agent-issue--get-sessions ()
   "Get sessions for current issue, sorted by session number."
@@ -873,10 +885,18 @@ and N is the instance number."
   (transient--redisplay))
 
 (defun beads-agent-issue--make-jump-suffix (session index)
-  "Create a jump suffix for SESSION at INDEX (1-based)."
-  (let ((key (format "j%d" index))
-        (desc (beads-agent--session-display-name session))
-        (session-id (oref session id)))
+  "Create a jump suffix for SESSION at INDEX (1-based).
+The suffix description is prefixed with the role icon (or
+single-letter fallback under TTY) via
+`beads-agent-display-format-session' so the agent type stays
+visible alongside the existing \"Type#N (backend)\" display name."
+  (let* ((key (format "j%d" index))
+         (glyph (beads-agent-display-format-session session nil t))
+         (name (beads-agent--session-display-name session))
+         (desc (if (string-empty-p glyph)
+                   name
+                 (format "%s %s" glyph name)))
+         (session-id (oref session id)))
     `(,key ,desc
            (lambda ()
              (interactive)

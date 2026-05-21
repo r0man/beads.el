@@ -33,6 +33,7 @@
 
 ;;; Code:
 
+(require 'beads-agent-type)
 (require 'beads-buffer)
 (require 'subr-x)
 
@@ -77,10 +78,20 @@ Press \\[beads-agent-prompt-edit-cancel] to cancel without launching."
               '(:eval (beads-agent-prompt-edit--header-line))))
 
 (defun beads-agent-prompt-edit--header-line ()
-  "Generate header line for prompt edit buffer."
-  (format " %s prompt for %s  |  C-c C-c: Confirm  |  C-c C-k: Cancel"
-          (or beads-agent-prompt-edit--agent-type "Agent")
-          (or beads-agent-prompt-edit--issue-id "issue")))
+  "Generate header line for prompt edit buffer.
+Prefixes the agent type name with its role icon (or single-letter
+fallback under TTY) when the type is registered, per
+`beads-agent-type-icon-or-letter'."
+  (let* ((type-name (or beads-agent-prompt-edit--agent-type "Agent"))
+         (type (beads-agent-type-get type-name))
+         (glyph (and type (beads-agent-type-icon-or-letter type)))
+         (prefix (if (and glyph (not (string= glyph type-name)))
+                     (concat glyph " ")
+                   "")))
+    (format " %s%s prompt for %s  |  C-c C-c: Confirm  |  C-c C-k: Cancel"
+            prefix
+            type-name
+            (or beads-agent-prompt-edit--issue-id "issue"))))
 
 ;;; Buffer Management
 
