@@ -2105,6 +2105,36 @@ is treated as drift, not as a clean exit).  No spawn happens."
     (should (equal (oref c epic-description-snapshot) "ORIGINAL GOAL"))
     (should-not spawned)))
 
+(ert-deftest beads-agent-ralph-test-run-iteration-step-0b-spec-deletion-aborts ()
+  "A nil/empty root description against a non-empty snapshot is spec mutation.
+The immutability guard treats `description: nil' on the root the
+same as a mismatched value — both express that the cached goal is no
+longer the source of truth.  This catches the case where the agent
+\(or an external editor) clears the description with
+`bd update <ROOT> --description \"\"' mid-loop."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :root-kind 'issue :root-id "bde-root"
+             :prompt-template "X"
+             :epic-description-snapshot "ORIGINAL GOAL"
+             :root-notes-snapshot "notes"))
+         (spawned nil))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-claim-async)
+               (lambda (_id k) (funcall k t nil)))
+              ((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue
+                               :id id
+                               :description nil
+                               :notes "notes"))))
+              ((symbol-function 'beads-agent-ralph--bd-list-children-async)
+               (lambda (_id k) (funcall k t nil)))
+              ((symbol-function 'beads-agent-ralph--spawn-stream-for)
+               (lambda (_c id _p) (setq spawned id))))
+      (beads-agent-ralph--run-iteration c))
+    (should (eq (oref c status) 'failed))
+    (should (eq (oref c done-reason) 'spec-mutated))
+    (should-not spawned)))
+
 (ert-deftest beads-agent-ralph-test-run-iteration-step-0b-spec-match-refreshes-notes ()
   "On a description match, Step 0b refreshes `root-notes-snapshot' and continues.
 The positive complement of the immutability guard: when the current
@@ -3159,6 +3189,34 @@ scheduled via `run-at-time' 0 (cap check fires on the next pass)."
       (beads-agent-ralph--on-stream-finish c stream))
     (should (= 1 (oref c consecutive-empty-reviews)))
     (should (equal "stillsha" (oref c last-review-git-ref)))
+    (should (eq scheduled #'beads-agent-ralph--maybe-enter-review))))
+
+(ert-deftest beads-agent-ralph-test-finalize-post-review-snapshot-failure-preserves-closed-count ()
+  "When bd-list-children-async fails during snapshot, closed-count is preserved.
+The HEAD snapshot still updates (the git read succeeded); the
+closed-count slot retains its prior value rather than being clobbered
+with garbage from the failed bd response.  Dispatch still fires —
+snapshot-failure is non-fatal for the post-review path."
+  (let ((c (beads-agent-ralph-test--make-controller
+            :status 'running :root-kind 'epic
+            :current-iter-kind 'review
+            :consecutive-empty-reviews 0
+            :max-consecutive-empty-reviews 2
+            :last-review-git-ref "oldsha"
+            :last-review-closed-count 7))
+        (scheduled nil))
+    (cl-letf (((symbol-function 'beads-agent-ralph--current-git-head)
+               (lambda (_dir) "newsha"))
+              ((symbol-function 'beads-agent-ralph--bd-list-children-async)
+               (lambda (_id k) (funcall k nil 'bd-broke)))
+              ((symbol-function 'beads-agent-ralph--continue-after-iteration)
+               (lambda (_c) (error "should not continue (empty ready)")))
+              ((symbol-function 'run-at-time)
+               (lambda (_d _r fn &rest _a) (setq scheduled fn) 'stub)))
+      (beads-agent-ralph--finalize-post-review c nil))
+    (should (equal "newsha" (oref c last-review-git-ref)))
+    (should (= 7 (oref c last-review-closed-count)))
+    (should (= 1 (oref c consecutive-empty-reviews)))
     (should (eq scheduled #'beads-agent-ralph--maybe-enter-review))))
 
 (ert-deftest beads-agent-ralph-test-on-stream-finish-review-ready-failure-transient ()
