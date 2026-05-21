@@ -392,7 +392,18 @@ across `iteration-delay'; cleared when the thunk fires or when
 `--terminate' aborts the loop.  Without this handle, a stop or budget
 hit during the cooling-down window would let the queued thunk fire
 and unconditionally flip status back to `running' -- spawning an
-iteration the user expected to be cancelled."))
+iteration the user expected to be cancelled.")
+   (eviction-timer
+    :initarg :eviction-timer
+    :initform nil
+    :documentation "Pending `run-at-time' timer for delayed registry eviction, or nil.
+Scheduled by `beads-agent-ralph--terminate' once the controller
+reaches a terminal state; fires after
+`beads-agent-ralph-terminal-retention-seconds' and removes the
+controller from `beads-agent-ralph--controllers'.  Cancelled and
+replaced by an immediate unregister when the dashboard buffer is
+killed in terminal state.  Without this handle, terminal controllers
+would accumulate in the registry indefinitely (bde-deqx.3)."))
   :documentation "Ralph loop controller: iteration state machine.
 
 One controller per running loop.  The dashboard buffer holds a
@@ -609,6 +620,48 @@ Older entries are dropped from `banner-log' once this bound is
 exceeded.  The dashboard renders only the most severe recent banner;
 the rest accumulate for the history toggle."
   :type 'integer
+  :group 'beads-agent-ralph)
+
+(defcustom beads-agent-ralph-terminal-retention-seconds 1800
+  "Seconds a terminal-state controller is retained in the public registry.
+Each transition into a terminal state (`done' / `stopped' / `failed')
+through `beads-agent-ralph--terminate' schedules a delayed
+`beads-agent-ralph--unregister-controller' call after this many
+seconds.  The retention lets the cockpit (`bde-deqx.4'), the
+dashboard, and the epic browser still introspect post-run state for a
+while; after the timeout the controller is auto-evicted so the
+registry does not grow without bound.
+
+Killing the dashboard buffer of a terminal controller evicts it
+immediately and cancels this timer; this defcustom only bounds the
+worst-case retention when the user never returns to the dashboard."
+  :type 'number
+  :group 'beads-agent-ralph)
+
+(defcustom beads-agent-ralph-stop-timeout-seconds 5
+  "Seconds to wait for a stop to drive the controller into a terminal state.
+`beads-agent-ralph-stop' signals SIGINT (escalating to SIGKILL after
+`beads-agent-ralph-stop-grace-ms') and then needs a moment for the
+sentinel cascade or the `--terminate' short-circuit to mark the
+controller terminal.  Force-relaunch (`beads-agent-ralph-force-relaunch')
+blocks for up to this many seconds waiting for that transition; on
+timeout it refuses to launch the replacement so a money-spending
+process is never silently orphaned."
+  :type 'number
+  :group 'beads-agent-ralph)
+
+(defcustom beads-agent-ralph-max-concurrent-loops nil
+  "Hard cap on the number of non-terminal Ralph loops, or nil for unlimited.
+A controller is non-terminal when `status' is not in `(done stopped
+failed)' -- this includes `idle', `running', `cooling-down', and
+`auto-paused'.  When the cap is reached, `beads-agent-ralph-start'
+signals a `user-error' with a remediation message; the launcher panel
+\(`bde-deqx.5') consumes `beads-agent-ralph-cap-reached-p' to render
+its red banner pre-emptively, and the cockpit (`bde-deqx.4') consumes
+`beads-agent-ralph-total-in-flight-cost' for its header.  Default nil
+means \"don't enforce a cap\"; the recommended value when running
+overnight is 3 (paying claude $$$/iter compounds fast)."
+  :type '(choice (const :tag "Unlimited" nil) integer)
   :group 'beads-agent-ralph)
 
 (defcustom beads-agent-ralph-sentinel "<promise>COMPLETE</promise>"
@@ -851,6 +904,74 @@ A no-op when CONTROLLER is not in the registry, so callers
   (setq beads-agent-ralph--controllers
         (delq controller beads-agent-ralph--controllers))
   controller)
+
+(defconst beads-agent-ralph--terminal-statuses '(done stopped failed)
+  "Statuses considered terminal for lifecycle decisions.
+`auto-paused' is deliberately excluded: it is recoverable and a
+resume can drive the controller back into `running'.")
+
+(defun beads-agent-ralph--terminal-p (controller)
+  "Return non-nil when CONTROLLER's status is one of the terminal values."
+  (memq (oref controller status) beads-agent-ralph--terminal-statuses))
+
+(defun beads-agent-ralph-running-controllers ()
+  "Return the registered controllers that are not in a terminal state.
+Includes `idle', `running', `cooling-down', and `auto-paused'.  The
+list is most-recently-started first (the registry's natural order)
+and is a fresh copy, safe to mutate.  Consumed by the launcher cap
+banner (`bde-deqx.5'), the cockpit budget header (`bde-deqx.4'), and
+by `beads-agent-ralph-cap-reached-p'."
+  (cl-remove-if #'beads-agent-ralph--terminal-p
+                (beads-agent-ralph-controllers)))
+
+(defun beads-agent-ralph-cap-reached-p ()
+  "Return non-nil when launching another loop would exceed the configured cap.
+Returns nil unconditionally when `beads-agent-ralph-max-concurrent-loops'
+is nil (the default; the cap is disabled).  Otherwise returns t iff
+the count of non-terminal registered controllers is greater than or
+equal to the cap.  `beads-agent-ralph-start' uses this to refuse a
+launch with a `user-error'; UI surfaces use it to pre-render a
+\"max loops reached\" banner."
+  (and beads-agent-ralph-max-concurrent-loops
+       (>= (length (beads-agent-ralph-running-controllers))
+           beads-agent-ralph-max-concurrent-loops)))
+
+(defun beads-agent-ralph-total-in-flight-cost ()
+  "Return the sum of `cumulative-cost-usd' across non-terminal controllers.
+Always a number (zero when the registry is empty or holds only
+terminal controllers).  Consumed by the cockpit header (`bde-deqx.4')
+to surface the total outstanding budget at a glance."
+  (apply #'+ 0.0
+         (mapcar (lambda (c) (or (oref c cumulative-cost-usd) 0.0))
+                 (beads-agent-ralph-running-controllers))))
+
+(defun beads-agent-ralph--cancel-eviction-timer (controller)
+  "Cancel CONTROLLER's pending eviction timer if any; clear the slot.
+A no-op when the slot is nil or holds a non-timer value (defensive).
+Called by the dashboard's `kill-buffer' cleanup when the user closes
+a terminal-state dashboard buffer (immediate eviction overtakes the
+delayed eviction); also called defensively from
+`beads-agent-ralph--schedule-eviction' before scheduling a new timer."
+  (let ((timer (oref controller eviction-timer)))
+    (when (timerp timer)
+      (cancel-timer timer)))
+  (oset controller eviction-timer nil))
+
+(defun beads-agent-ralph--schedule-eviction (controller)
+  "Schedule CONTROLLER for delayed unregistration after the retention timeout.
+The thunk fires after `beads-agent-ralph-terminal-retention-seconds'
+and calls `beads-agent-ralph--unregister-controller' (eq-based, so a
+relaunch that already displaced CONTROLLER in the registry leaves the
+no-op semantics intact).  Any prior eviction timer on CONTROLLER is
+cancelled first; this should not occur in practice because
+`--terminate' is guarded against re-entry, but guards against drift."
+  (beads-agent-ralph--cancel-eviction-timer controller)
+  (let ((timer
+         (run-at-time beads-agent-ralph-terminal-retention-seconds nil
+                      (lambda ()
+                        (beads-agent-ralph--unregister-controller controller)
+                        (oset controller eviction-timer nil)))))
+    (oset controller eviction-timer timer)))
 
 ;;; Host buffer
 ;;
@@ -1779,7 +1900,13 @@ instead of silently mutating `done-reason' (bde-rx4u)."
      (pcase reason
        ('stop    'stopped)
        ('failed  'failed)
-       (_        'done)))))
+       (_        'done)))
+    ;; Schedule passive eviction from the public registry after the
+    ;; configured retention window (bde-deqx.3).  The dashboard's
+    ;; kill-buffer hook cancels this timer and unregisters immediately
+    ;; if the user closes the dashboard sooner; the timer is the
+    ;; worst-case backstop so terminal controllers do not accumulate.
+    (beads-agent-ralph--schedule-eviction controller)))
 
 (defun beads-agent-ralph--pause (controller reason)
   "Transition CONTROLLER to `auto-paused' with banner REASON (a string).
@@ -2453,6 +2580,15 @@ is dispatched via `run-at-time' so this function returns immediately.
 When a prior JSONL log for ISSUE-ID exists under PROJECT-DIR's
 `.beads/scratch/ralph/' and `:resume-action' is not supplied, the user
 is prompted to resume / stash / fresh / full-reset / cancel."
+  ;; Concurrency cap (bde-deqx.3): refuse the launch up-front so the
+  ;; user is not prompted through the resume dialog only to be denied.
+  ;; Force-relaunch (`beads-agent-ralph-force-relaunch') stops the
+  ;; incumbent first, so by the time it gets here the incumbent is
+  ;; terminal and no longer counts against the cap.
+  (when (beads-agent-ralph-cap-reached-p)
+    (user-error
+     "Max concurrent Ralph loops (%d) reached.  Stop a running loop first"
+     beads-agent-ralph-max-concurrent-loops))
   (let* ((issue (plist-get args :issue))
          (issue-id (cond ((stringp issue) issue)
                          ((and issue (eieio-object-p issue)
@@ -2537,6 +2673,63 @@ back to `running'."
         (beads-agent-ralph--stream-stop stream)
       (beads-agent-ralph--terminate controller 'stop)))
   controller)
+
+;;;###autoload
+(defun beads-agent-ralph-stop-and-wait (controller &optional timeout-seconds)
+  "Stop CONTROLLER and block until it reaches a terminal state.
+Calls `beads-agent-ralph-stop' (asynchronous internally: signals
+SIGINT, escalates to SIGKILL after `beads-agent-ralph-stop-grace-ms')
+and then polls via `accept-process-output' until the controller's
+`status' is in (`done' / `stopped' / `failed') or until the deadline
+passes.
+
+TIMEOUT-SECONDS defaults to `beads-agent-ralph-stop-timeout-seconds';
+return t when CONTROLLER reaches terminal in time, nil on timeout.
+This is the supported way to synchronously join a stop, and the
+backbone of `beads-agent-ralph-force-relaunch' (bde-deqx.3) -- a
+relaunch must never leave a cost-spending orphan."
+  (let* ((deadline (+ (float-time)
+                      (or timeout-seconds
+                          beads-agent-ralph-stop-timeout-seconds))))
+    (beads-agent-ralph-stop controller)
+    (while (and (not (beads-agent-ralph--terminal-p controller))
+                (< (float-time) deadline))
+      (accept-process-output nil 0.1))
+    (beads-agent-ralph--terminal-p controller)))
+
+;;;###autoload
+(defun beads-agent-ralph-force-relaunch (&rest args)
+  "Stop any running loop for the same root, then launch a new one.
+ARGS is the plist accepted by `beads-agent-ralph-start' (which see).
+The root is extracted from `:issue' (string id or `beads-issue'
+object), looked up in the registry, and:
+
+- If no incumbent exists, or the incumbent is already terminal, the
+  call is forwarded straight to `beads-agent-ralph-start' -- there is
+  nothing to stop first.
+
+- If an incumbent is live (`running' / `cooling-down' /
+  `auto-paused'), it is stopped synchronously via
+  `beads-agent-ralph-stop-and-wait'.  On timeout the relaunch is
+  aborted with a `user-error' carrying a concrete remediation
+  message; the registry is left untouched.  This is the replacement
+  for the design's R3 \"detach\" mitigation: detach would have
+  orphaned a money-spending claude process, so we refuse to launch
+  the replacement until the incumbent is actually dead."
+  (let* ((issue (plist-get args :issue))
+         (issue-id (cond ((stringp issue) issue)
+                         ((and issue (eieio-object-p issue)
+                               (beads-issue-p issue))
+                          (oref issue id))
+                         (t (error "beads-agent-ralph-force-relaunch: :issue required"))))
+         (incumbent (beads-agent-ralph-controller-for-root issue-id)))
+    (when (and incumbent
+               (not (beads-agent-ralph--terminal-p incumbent)))
+      (unless (beads-agent-ralph-stop-and-wait incumbent)
+        (user-error
+         "Ralph loop for %s did not stop within %s s; kill the iteration first with [k] on the dashboard, then retry"
+         issue-id beads-agent-ralph-stop-timeout-seconds)))
+    (apply #'beads-agent-ralph-start args)))
 
 ;;;###autoload
 (defun beads-agent-ralph-kill-iter (controller)

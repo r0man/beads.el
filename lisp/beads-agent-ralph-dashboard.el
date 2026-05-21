@@ -661,20 +661,26 @@ driving the controller to a terminal state afterwards (see
 
 (defun beads-agent-ralph-dashboard--kill-buffer-cleanup ()
   "Buffer-kill hook for `beads-agent-ralph-dashboard-mode' buffers.
-Cancels any pending re-render and, when the controller is still in
-flight, detaches its current stream AND drives the controller to a
-terminal `stopped' state.  Without the terminal transition, killing
-the dashboard would leave a zombie controller pointing at a dead
-stream: `--detach-stream' neutralises the sentinel so `on-stream-finish'
-never fires, so without an explicit `--terminate' here `status' would
-remain `running' forever.
+Behaviour splits on controller status (bde-deqx.3):
 
-Finally, drops the controller from the public registry
-\(`beads-agent-ralph--controllers').  Killing the dashboard is the
-user's signal that they are done with this loop, so the registry
-should not retain it indefinitely; downstream UIs (cockpit,
-epic browser) read the registry and would otherwise show a
-controller with no live surface."
+- Terminal (`done' / `stopped' / `failed'): the user closing a
+  finished loop's dashboard is the natural signal to evict.  Cancel
+  the controller's pending eviction timer (scheduled by `--terminate'
+  on the way into the terminal state) and unregister immediately, so
+  the registry-retention timeout becomes the worst-case fallback, not
+  the common path.
+
+- Live (`running' / `cooling-down' / `auto-paused' / `idle'): leave
+  the controller alive in the registry and let the loop continue
+  headless.  The user can re-mount the dashboard later through the
+  cockpit (`bde-deqx.4').  This is the behavioural change in
+  bde-deqx.3 -- previously kill-buffer drove the loop to terminal,
+  which orphaned a money-spending claude process whenever the user
+  merely wanted to reclaim screen real-estate.  Stopping a loop is
+  done through `[s]' on the dashboard, not by killing the buffer.
+
+Pending re-render timers are cancelled in both branches: the buffer
+is going away and there is nothing left to render into."
   (when beads-agent-ralph-dashboard--controller
     (let* ((controller beads-agent-ralph-dashboard--controller)
            (entry (assq controller
@@ -685,12 +691,9 @@ controller with no live surface."
         (setq beads-agent-ralph-dashboard--pending-rerender
               (assq-delete-all controller
                                beads-agent-ralph-dashboard--pending-rerender)))
-      ;; Only act when the controller is still in flight; a terminal
-      ;; controller has nothing to clean up.
-      (when (memq (oref controller status) '(running cooling-down))
-        (beads-agent-ralph-dashboard--detach-stream controller)
-        (beads-agent-ralph--terminate controller 'stop))
-      (beads-agent-ralph--unregister-controller controller))))
+      (when (beads-agent-ralph--terminal-p controller)
+        (beads-agent-ralph--cancel-eviction-timer controller)
+        (beads-agent-ralph--unregister-controller controller)))))
 
 (defun beads-agent-ralph-dashboard-render (controller)
   "Render CONTROLLER into its dashboard buffer (sync)."
