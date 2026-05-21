@@ -156,6 +156,15 @@ default; the prompt preview is the headline pane.")
 
 ;;; Pure helpers
 
+(defconst beads-ralph-launcher--param-keys
+  '(:max-iterations :max-budget-usd-per-iter :max-budget-usd
+    :max-turns :permission-mode :worktree :sentinel)
+  "Canonical ordered list of the seven launcher param keys.
+Single source of truth: `--default-params' seeds them in order,
+`--params-equal-p' walks them for dirty detection,
+`--params-to-start-args' iterates them when projecting to start
+args, and the parameter-rows block renders them in this order.")
+
 (defconst beads-ralph-launcher--permission-modes
   '("bypassPermissions" "acceptEdits" "plan" "default")
   "Choices for the permission-mode row.  Matches the `claude --permission-mode'
@@ -164,7 +173,9 @@ options Ralph supports.")
 (defun beads-ralph-launcher--default-params ()
   "Return the effective default params plist.
 Per-key defcustoms in `beads-agent-ralph' provide the base;
-`beads-ralph-launcher-default-params' overrides per-key."
+`beads-ralph-launcher-default-params' overrides per-key.  The seven
+keys in the result match `beads-ralph-launcher--param-keys' and
+appear in that order."
   (let ((base
          (list :max-iterations beads-agent-ralph-max-iterations
                :max-budget-usd-per-iter beads-agent-ralph-max-budget-usd-per-iter
@@ -177,9 +188,10 @@ Per-key defcustoms in `beads-agent-ralph' provide the base;
      base beads-ralph-launcher-default-params)))
 
 (defun beads-ralph-launcher--merge-params (base override)
-  "Return a new plist: BASE with each key from OVERRIDE applied.
+  "Return a fresh plist: BASE with each key from OVERRIDE applied.
 A key present in OVERRIDE wins even when its value is nil; a key
-absent from OVERRIDE keeps BASE's value."
+absent from OVERRIDE keeps BASE's value.  Neither input is mutated;
+the caller may continue using BASE after the call."
   (let ((result (copy-sequence base))
         (tail override))
     (while tail
@@ -188,11 +200,12 @@ absent from OVERRIDE keeps BASE's value."
     result))
 
 (defun beads-ralph-launcher--params-equal-p (a b)
-  "Return non-nil when plists A and B carry equal values for the
-seven launcher param keys."
+  "Return non-nil when plists A and B agree on every key in
+`beads-ralph-launcher--param-keys'.  Extra keys in A or B are
+ignored — only the seven canonical launcher keys matter for the
+dirty-state comparison."
   (cl-every (lambda (k) (equal (plist-get a k) (plist-get b k)))
-            '(:max-iterations :max-budget-usd-per-iter :max-budget-usd
-              :max-turns :permission-mode :worktree :sentinel)))
+            beads-ralph-launcher--param-keys))
 
 (defun beads-ralph-launcher--params-for (root-id)
   "Return the params plist to use when opening the launcher on ROOT-ID.
@@ -231,6 +244,9 @@ neither forces nor suppresses a worktree because `-start' delegates
 the decision to `beads-git-should-use-worktree-p'.  Threading
 worktree intent through `-start' is a follow-up."
   (let ((args (list :issue root-id :kind kind)))
+    ;; Project only the keys `beads-agent-ralph-start' understands.
+    ;; `:worktree' and `:sentinel' are intentionally not threaded;
+    ;; see the docstring's "currently informational" note.
     (dolist (k '(:max-iterations :max-budget-usd-per-iter
                  :max-budget-usd :max-turns :permission-mode))
       (when-let* ((v (plist-get params k)))
