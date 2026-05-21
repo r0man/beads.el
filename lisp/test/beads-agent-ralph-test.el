@@ -887,7 +887,8 @@ extract-* helpers can run."
 (ert-deftest beads-agent-ralph-test-terminate-maps-reasons ()
   "Each terminate reason maps to its terminal status."
   (dolist (pair '((stop . stopped) (failed . failed) (budget . done)
-                  (epic-empty . done) (closed . done) (sentinel . done)))
+                  (epic-empty . done) (epic-complete . done)
+                  (closed . done) (sentinel . done)))
     (let ((c (beads-agent-ralph-test--make-controller :status 'running)))
       (beads-agent-ralph--terminate c (car pair))
       (should (eq (oref c status) (cdr pair)))
@@ -1440,14 +1441,6 @@ review iteration rather than firing the gate."
     (should (eq (oref c status) 'cooling-down))
     (should (functionp scheduled-thunk))
     (should (null (oref c history)))))
-
-(ert-deftest beads-agent-ralph-test-terminate-maps-epic-complete-to-done ()
-  "`--terminate' with `epic-complete' transitions to `done', not `failed'."
-  (let ((c (beads-agent-ralph-test--make-controller
-            :status 'running :history nil)))
-    (beads-agent-ralph--terminate c 'epic-complete)
-    (should (eq (oref c status) 'done))
-    (should (eq (oref c done-reason) 'epic-complete))))
 
 (ert-deftest beads-agent-ralph-test-maybe-enter-review-noop-when-terminal ()
   "`--maybe-enter-review' is a no-op when CONTROLLER is already terminal.

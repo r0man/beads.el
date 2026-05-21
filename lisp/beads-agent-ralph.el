@@ -1592,7 +1592,7 @@ the git-helpers below share the same precedence rule as the existing
 Returns nil when DIR is not a directory, when git is missing, or on
 any non-zero exit (stderr is discarded).  The empty string is a valid
 non-nil return (e.g. `git diff --stat A..A' produces empty stdout).
-Centralises the call-process plumbing for the pre-LLM gate helpers."
+Centralises the `call-process' plumbing for the pre-LLM gate helpers."
   (when (and dir (file-directory-p dir))
     (let ((default-directory (file-name-as-directory dir)))
       (with-temp-buffer
