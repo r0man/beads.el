@@ -2585,6 +2585,28 @@ not detected here; the canonical close path is `bd close <id>' and
 matches the bd prime guidance."
   (cl-some (lambda (p) (equal (cdr p) "close")) bd-updates))
 
+(defun beads-agent-ralph--maybe-reset-empty-reviews-counter
+    (controller iter bd-updates)
+  "Reset CONTROLLER's `consecutive-empty-reviews' on a productive normal ITER.
+A productive iteration is a NORMAL one (ITER's `kind' = `iteration')
+that recorded at least one bd mutation AND included a `bd close' tool
+call.  The two conditions together rule out stalled iterations: a
+stalled iter has zero bd updates, and a normal iter that ran
+`bd update <id> --notes ...' but never closed anything is not
+progress toward draining the epic.
+
+Without this guard a never-closing loop would reset the counter on
+every iteration and never terminate via the review cap — which is
+exactly the drift the bde-c95u plan is trying to detect.
+
+BD-UPDATES is the (ID . SUB) list from `--extract-bd-updates' for the
+just-finished stream; it is threaded in rather than re-extracted so
+`--on-stream-finish' computes it exactly once per iter."
+  (when (and (eq (oref iter kind) 'iteration)
+             (> (oref iter bd-updates-count) 0)
+             (beads-agent-ralph--iter-closes-child-p bd-updates))
+    (oset controller consecutive-empty-reviews 0)))
+
 (defun beads-agent-ralph--finalize-post-review (controller ready-list)
   "Finalize post-review state on CONTROLLER given READY-LIST (possibly nil).
 Updates HEAD and closed-count snapshots so the next review's pre-LLM
@@ -2766,14 +2788,11 @@ Steps:
                  (oset controller consecutive-stalls 0))
                ;; Counter-reset semantics (bde-c95u.6): only a normal
                ;; iteration that actually closed a child resets the
-               ;; empty-review counter.  A stalled normal iteration
-               ;; must NOT reset, or a never-closing loop would never
-               ;; terminate via the review cap.
-               (when (and (eq iter-kind 'iteration)
-                          (> (oref iter bd-updates-count) 0)
-                          (beads-agent-ralph--iter-closes-child-p
-                           bd-updates))
-                 (oset controller consecutive-empty-reviews 0))
+               ;; empty-review counter.  Factored helper so the
+               ;; semantics are testable in isolation and the cond
+               ;; ladder below stays focused on dispatch.
+               (beads-agent-ralph--maybe-reset-empty-reviews-counter
+                controller iter bd-updates)
                (when lying
                  (cl-incf (oref controller false-claim-count))
                  (beads-agent-ralph--push-banner

@@ -2971,6 +2971,39 @@ the agent's other bd activity in the same iteration."
                '(("bde-r" . "update") ("bde-c1" . "create"))))
   (should-not (beads-agent-ralph--iter-closes-child-p nil)))
 
+(ert-deftest beads-agent-ralph-test-maybe-reset-empty-reviews-counter ()
+  "Counter-reset helper is precise: normal+close+activity zeroes; rest don't.
+Table-driven test of the three conditions: ITER's `kind' = `iteration',
+`bd-updates-count' > 0, AND a `bd close' in BD-UPDATES.  Anything
+weaker leaves `consecutive-empty-reviews' alone."
+  (dolist (case
+           ;; (NAME KIND BD-UPDATES-COUNT BD-UPDATES EXPECT-RESET)
+           '(("normal+close+activity zeroes counter"
+              iteration 1 (("bde-kid" . "close")) t)
+             ("review iter never resets" review 1 (("bde-kid" . "close")) nil)
+             ("zero updates never resets" iteration 0 nil nil)
+             ("update-only does not reset"
+              iteration 1 (("bde-kid" . "update")) nil)
+             ("create-only does not reset"
+              iteration 1 (("bde-r" . "create")) nil)
+             ("mixed update+close DOES reset"
+              iteration 2 (("bde-kid" . "close") ("bde-r" . "update")) t)))
+    (let* ((name (nth 0 case))
+           (kind (nth 1 case))
+           (updates-count (nth 2 case))
+           (bd-updates (nth 3 case))
+           (expect-reset (nth 4 case))
+           (c (beads-agent-ralph-test--make-controller
+               :consecutive-empty-reviews 2))
+           (iter (beads-agent-ralph--iteration
+                  :issue-id "bde-x" :status 'finished
+                  :kind kind :bd-updates-count updates-count)))
+      (beads-agent-ralph--maybe-reset-empty-reviews-counter
+       c iter bd-updates)
+      (should (= (if expect-reset 0 2)
+                 (oref c consecutive-empty-reviews)))
+      (ignore name))))
+
 (ert-deftest beads-agent-ralph-test-build-iteration-tags-kind-from-controller ()
   "`--build-iteration' reads `current-iter-kind' to tag the history record.
 When the controller's `current-iter-kind' is `review', the produced
