@@ -361,29 +361,35 @@ non-epic kinds or when CHILDREN is empty."
   (vui-text (format "  %-26s" label)
             :face 'beads-ralph-launcher-row-label-face))
 
-(defun beads-ralph-launcher--integer-row (key label value)
-  "Editable integer row for params KEY with current VALUE."
+(defun beads-ralph-launcher--integer-row (key label value &optional min)
+  "Editable integer row for params KEY with current VALUE.
+Optional MIN bounds the parser so e.g. a max-iterations cannot be
+set negative through the launcher; nil leaves the parser
+unbounded."
   (vui-hstack
    :spacing 2
    (beads-ralph-launcher--row-label label)
-   (vui-integer-field
-    :value (or value 0)
-    :size 10
-    :on-change (lambda (new)
-                 (beads-ralph-launcher--set-param key new)))))
+   (apply #'vui-integer-field
+          :value (or value 0)
+          :size 10
+          :on-change (lambda (new)
+                       (beads-ralph-launcher--set-param key new))
+          (when min (list :min min)))))
 
-(defun beads-ralph-launcher--number-row (key label value)
+(defun beads-ralph-launcher--number-row (key label value &optional min)
   "Editable number (float-or-int) row for params KEY with current VALUE.
 A nil current value is shown as 0; the `--params-to-start-args'
-serializer drops zero / nil values so `-start' picks its defcustom."
+serializer drops zero / nil values so `-start' picks its defcustom.
+Optional MIN bounds the parser (e.g. budgets cannot be negative)."
   (vui-hstack
    :spacing 2
    (beads-ralph-launcher--row-label label)
-   (vui-number-field
-    :value (or value 0)
-    :size 10
-    :on-change (lambda (new)
-                 (beads-ralph-launcher--set-param key new)))))
+   (apply #'vui-number-field
+          :value (or value 0)
+          :size 10
+          :on-change (lambda (new)
+                       (beads-ralph-launcher--set-param key new))
+          (when min (list :min min)))))
 
 (defun beads-ralph-launcher--select-row (key label options value)
   "Select row: OPTIONS is a list of strings; VALUE is the current selection."
@@ -422,15 +428,17 @@ serializer drops zero / nil values so `-start' picks its defcustom."
   (vui-vstack
    (vui-text "Parameters" :face 'beads-ralph-launcher-section-face)
    (beads-ralph-launcher--integer-row
-    :max-iterations "max-iterations" (plist-get params :max-iterations))
+    :max-iterations "max-iterations"
+    (plist-get params :max-iterations) 1)
    (beads-ralph-launcher--number-row
     :max-budget-usd-per-iter "max-budget-usd-per-iter"
-    (plist-get params :max-budget-usd-per-iter))
+    (plist-get params :max-budget-usd-per-iter) 0)
    (beads-ralph-launcher--number-row
     :max-budget-usd "max-budget-usd (total)"
-    (plist-get params :max-budget-usd))
+    (plist-get params :max-budget-usd) 0)
    (beads-ralph-launcher--integer-row
-    :max-turns "max-turns" (plist-get params :max-turns))
+    :max-turns "max-turns"
+    (plist-get params :max-turns) 1)
    (beads-ralph-launcher--select-row
     :permission-mode "permission-mode"
     beads-ralph-launcher--permission-modes
@@ -469,10 +477,17 @@ serializer drops zero / nil values so `-start' picks its defcustom."
      :on-change (lambda (new)
                   (beads-ralph-launcher--set-shell-expanded new))))
    (when shell-expanded
-     (let* ((args (beads-ralph-launcher--params-to-preview-args
-                   root-id kind params prompt-override))
-            (argv (beads-agent-ralph--preview-argv args))
-            (text (beads-agent-ralph--argv-to-shell-string argv)))
+     ;; The argv preview chain (params → preview-args → preview-argv
+     ;; → shell-string) reaches into `beads-agent-ralph' internals;
+     ;; any breakage there should degrade the pane rather than
+     ;; bubble up to the launcher-wide error boundary.
+     (let* ((text
+             (condition-case err
+                 (let* ((args (beads-ralph-launcher--params-to-preview-args
+                               root-id kind params prompt-override))
+                        (argv (beads-agent-ralph--preview-argv args)))
+                   (beads-agent-ralph--argv-to-shell-string argv))
+               (error (format "<argv preview unavailable: %S>" err)))))
        (vui-text (beads-ralph-launcher--quote-block text)
                  :face 'beads-ralph-launcher-preview-face)))))
 
@@ -620,9 +635,15 @@ concurrent-loops cap is reached."
      current
      "Ralph"
      (lambda (_sys user)
-       (when (and user (buffer-live-p launcher-buf))
+       ;; Treat empty / whitespace-only USER as "clear the override"
+       ;; (revert to the template-rendered prompt) so the user can
+       ;; back out of an override by deleting the region content.
+       (when (buffer-live-p launcher-buf)
          (with-current-buffer launcher-buf
-           (setq-local beads-ralph-launcher--prompt-override user)
+           (setq-local beads-ralph-launcher--prompt-override
+                       (when (and user (not (string-empty-p
+                                             (string-trim user))))
+                         user))
            (beads-ralph-launcher--render launcher-buf)))))))
 
 (defun beads-ralph-launcher-save-template ()

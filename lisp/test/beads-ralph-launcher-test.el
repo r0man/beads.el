@@ -398,6 +398,21 @@ expected token list (permission-mode + add-dir + budget honored)."
             (should-error (beads-ralph-launcher-launch)
                           :type 'user-error)))))))
 
+;;; --param-keys
+
+(ert-deftest beads-ralph-launcher-test-param-keys-has-seven-keys ()
+  "The canonical list holds the seven documented launcher keys."
+  (should (= 7 (length beads-ralph-launcher--param-keys)))
+  (dolist (k '(:max-iterations :max-budget-usd-per-iter :max-budget-usd
+               :max-turns :permission-mode :worktree :sentinel))
+    (should (memq k beads-ralph-launcher--param-keys))))
+
+(ert-deftest beads-ralph-launcher-test-default-params-uses-all-canonical-keys ()
+  "`--default-params' returns a plist containing every canonical key."
+  (let ((p (beads-ralph-launcher--default-params)))
+    (dolist (k beads-ralph-launcher--param-keys)
+      (should (plist-member p k)))))
+
 ;;; Prompt-override roundtrip
 
 (ert-deftest beads-ralph-launcher-test-prompt-override-renders ()
