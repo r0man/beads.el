@@ -94,6 +94,7 @@
 (require 'beads-completion)
 (require 'beads-git)
 (require 'beads-agent-backend)
+(require 'beads-agent-display)
 (require 'beads-agent-prompt-edit)
 (require 'beads-agent-type)
 (require 'beads-agent-types)
@@ -1597,25 +1598,44 @@ Git branch and worktree status are cached for performance."
           :agent-type agent-type
           :agent-instance agent-instance)))
 
+(defun beads-agent--mode-line-agent-glyph (agent-type)
+  "Return the icon-or-letter glyph for AGENT-TYPE, or nil.
+Returns the result of `beads-agent-type-icon-or-letter' when
+`beads-agent--icons-supported-p' is non-nil and the type is
+registered.  Returns nil when icons are disabled (so callers
+preserve their original full type-name behavior) or when the
+type is not registered."
+  (when (and agent-type (beads-agent--icons-supported-p))
+    (when-let ((type (beads-agent-type-get agent-type)))
+      (beads-agent-type-icon-or-letter type))))
+
 (defun beads-agent--mode-line-format-default (ctx)
   "Format mode-line using default format from context CTX.
 CTX is a plist from `beads-agent--mode-line-context'.
-Returns a string like [beads.el:Task#1@wt] or [beads.el:main]."
+Returns a string like [beads.el:Task#1@wt] or [beads.el:main].
+
+When `beads-agent-display-use-icons' resolves to non-nil and the
+agent's type has an icon, the type-name+`#' is replaced by the icon
+\(e.g. `[beads.el:\\=👷1@wt]') so the icon visually anchors the
+instance number."
   (let* ((project-name (plist-get ctx :project-name))
          (branch (plist-get ctx :branch))
          (in-worktree (plist-get ctx :in-worktree))
          (agent-type (plist-get ctx :agent-type))
          (agent-instance (plist-get ctx :agent-instance))
-         (use-faces beads-agent-mode-line-faces))
+         (use-faces beads-agent-mode-line-faces)
+         (icon (beads-agent--mode-line-agent-glyph agent-type)))
     (when project-name
       (let* ((proj-str (if use-faces
                            (propertize project-name
                                        'face 'beads-agent-mode-line-project)
                          project-name))
              (agent-str (when agent-type
-                          (let ((str (format "%s#%d"
-                                             agent-type
-                                             (or agent-instance 1))))
+                          (let ((str (if icon
+                                         (format "%s%d" icon
+                                                 (or agent-instance 1))
+                                       (format "%s#%d" agent-type
+                                               (or agent-instance 1)))))
                             (if use-faces
                                 (propertize str
                                             'face 'beads-agent-mode-line-agent)
@@ -1637,17 +1657,24 @@ Returns a string like [beads.el:Task#1@wt] or [beads.el:main]."
 (defun beads-agent--mode-line-format-compact (ctx)
   "Format mode-line using compact format from context CTX.
 CTX is a plist from `beads-agent--mode-line-context'.
-Returns a string like [P:T#1] where P is first char of project."
+Returns a string like [P:T#1] where P is first char of project.
+
+When `beads-agent-display-use-icons' resolves to non-nil and the
+agent's type has an icon, the single letter+`#' is replaced by the
+icon \(e.g. `[b:\\=👷1*]')."
   (let* ((project-name (plist-get ctx :project-name))
          (agent-type (plist-get ctx :agent-type))
          (agent-instance (plist-get ctx :agent-instance))
-         (in-worktree (plist-get ctx :in-worktree)))
+         (in-worktree (plist-get ctx :in-worktree))
+         (icon (beads-agent--mode-line-agent-glyph agent-type)))
     (when (and project-name (> (length project-name) 0))
       (let* ((p-char (substring project-name 0 1))
              (agent-str (when (and agent-type (> (length agent-type) 0))
-                          (format "%s#%d"
-                                  (substring agent-type 0 1)
-                                  (or agent-instance 1))))
+                          (if icon
+                              (format "%s%d" icon (or agent-instance 1))
+                            (format "%s#%d"
+                                    (substring agent-type 0 1)
+                                    (or agent-instance 1)))))
              (wt-str (if in-worktree "*" "")))
         (concat "[" p-char
                 (when agent-str (concat ":" agent-str))
@@ -1656,14 +1683,20 @@ Returns a string like [P:T#1] where P is first char of project."
 (defun beads-agent--mode-line-format-full (ctx)
   "Format mode-line using full format from context CTX.
 CTX is a plist from `beads-agent--mode-line-context'.
-Returns a string with full project path and agent details."
+Returns a string with full project path and agent details.
+
+When `beads-agent-display-use-icons' resolves to non-nil and the
+agent's type has an icon, the icon prefixes the existing
+type-name+`#N' string \(e.g. `... \\=👷 Task#1 (issue-123)]') so the
+full identifier is retained — the full format has the budget."
   (let* ((project-name (plist-get ctx :project-name))
          (branch (plist-get ctx :branch))
          (in-worktree (plist-get ctx :in-worktree))
          (session (plist-get ctx :agent-session))
          (agent-type (plist-get ctx :agent-type))
          (agent-instance (plist-get ctx :agent-instance))
-         (use-faces beads-agent-mode-line-faces))
+         (use-faces beads-agent-mode-line-faces)
+         (icon (beads-agent--mode-line-agent-glyph agent-type)))
     (when project-name
       (let* ((proj-str (if use-faces
                            (propertize project-name
@@ -1679,7 +1712,10 @@ Returns a string with full project path and agent details."
              (agent-str (when session
                           (let* ((current-issue
                                   (beads-agent-session-current-issue session))
-                                 (str (format " %s#%d%s"
+                                 (str (format " %s%s#%d%s"
+                                              (if icon
+                                                  (concat icon " ")
+                                                "")
                                               agent-type
                                               (or agent-instance 1)
                                               (if current-issue
