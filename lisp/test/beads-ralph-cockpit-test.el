@@ -388,6 +388,101 @@ pending timer — that is the coalescing behaviour."
 
 ;;; GC
 
+;;; Filter chip at point
+
+(ert-deftest beads-ralph-cockpit-test-filter-group-at-point ()
+  "Pointing at a chip in the filter bar recovers its group.
+Verifies the parse-the-line-text approach (custom text properties
+do not survive `vui-mount')."
+  (beads-ralph-cockpit-test--with-clean-registry
+    (beads-ralph-cockpit-test--with-buffer buf
+      (beads-ralph-cockpit--render buf)
+      (goto-char (point-min))
+      (when (re-search-forward "\\[active " nil t)
+        (goto-char (1+ (match-beginning 0)))
+        (should (eq 'active
+                    (beads-ralph-cockpit--filter-group-at-point))))
+      (goto-char (point-min))
+      (when (re-search-forward "\\[paused " nil t)
+        (goto-char (1+ (match-beginning 0)))
+        (should (eq 'paused
+                    (beads-ralph-cockpit--filter-group-at-point))))
+      (goto-char (point-min))
+      (when (re-search-forward "\\[failed " nil t)
+        (goto-char (1+ (match-beginning 0)))
+        (should (eq 'failed
+                    (beads-ralph-cockpit--filter-group-at-point)))))))
+
+(ert-deftest beads-ralph-cockpit-test-filter-group-at-point-off-chip ()
+  "Pointing somewhere not inside a chip returns nil."
+  (beads-ralph-cockpit-test--with-clean-registry
+    (beads-ralph-cockpit-test--with-buffer buf
+      (beads-ralph-cockpit--render buf)
+      ;; Header is on line 1, far above the filter bar.
+      (goto-char (point-min))
+      (should (null (beads-ralph-cockpit--filter-group-at-point))))))
+
+(ert-deftest beads-ralph-cockpit-test-toggle-filter-flips-membership ()
+  "Toggling a chip moves the group in/out of `--filters'."
+  (beads-ralph-cockpit-test--with-clean-registry
+    (beads-ralph-cockpit-test--with-buffer buf
+      (beads-ralph-cockpit--render buf)
+      (goto-char (point-min))
+      (re-search-forward "\\[active " nil t)
+      (goto-char (1+ (match-beginning 0)))
+      (should (memq 'active beads-ralph-cockpit--filters))
+      (beads-ralph-cockpit-toggle-filter)
+      (should-not (memq 'active beads-ralph-cockpit--filters))
+      ;; The re-render re-shaped the buffer; find the chip again.
+      (goto-char (point-min))
+      (re-search-forward "\\[active " nil t)
+      (goto-char (1+ (match-beginning 0)))
+      (beads-ralph-cockpit-toggle-filter)
+      (should (memq 'active beads-ralph-cockpit--filters)))))
+
+;;; Action-command guards
+
+(ert-deftest beads-ralph-cockpit-test-stop-on-terminal-errors ()
+  "Stopping an already-terminal controller signals a user-error."
+  (beads-ralph-cockpit-test--with-clean-registry
+    (beads-ralph-cockpit-test--with-buffer buf
+      (let ((c (beads-ralph-cockpit-test--make-controller
+                :root-id "bde-gt1" :status 'done)))
+        (beads-agent-ralph--register-controller c)
+        (beads-ralph-cockpit--render buf)
+        (goto-char (point-min))
+        (re-search-forward "bde-gt1")
+        (beginning-of-line)
+        (should-error (beads-ralph-cockpit-stop) :type 'user-error)))))
+
+(ert-deftest beads-ralph-cockpit-test-pause-on-terminal-errors ()
+  "Pausing an already-terminal controller signals a user-error."
+  (beads-ralph-cockpit-test--with-clean-registry
+    (beads-ralph-cockpit-test--with-buffer buf
+      (let ((c (beads-ralph-cockpit-test--make-controller
+                :root-id "bde-gt2" :status 'failed)))
+        (beads-agent-ralph--register-controller c)
+        (beads-ralph-cockpit--render buf)
+        (goto-char (point-min))
+        (re-search-forward "bde-gt2")
+        (beginning-of-line)
+        (should-error (beads-ralph-cockpit-pause) :type 'user-error)))))
+
+(ert-deftest beads-ralph-cockpit-test-resume-on-running-errors ()
+  "Resuming a running controller signals a user-error."
+  (beads-ralph-cockpit-test--with-clean-registry
+    (beads-ralph-cockpit-test--with-buffer buf
+      (let ((c (beads-ralph-cockpit-test--make-controller
+                :root-id "bde-gt3" :status 'running)))
+        (beads-agent-ralph--register-controller c)
+        (beads-ralph-cockpit--render buf)
+        (goto-char (point-min))
+        (re-search-forward "bde-gt3")
+        (beginning-of-line)
+        (should-error (beads-ralph-cockpit-resume) :type 'user-error)))))
+
+;;; GC
+
 (ert-deftest beads-ralph-cockpit-test-gc-drops-terminal-controllers ()
   "GC removes done/stopped/failed controllers but keeps live ones."
   (beads-ralph-cockpit-test--with-clean-registry

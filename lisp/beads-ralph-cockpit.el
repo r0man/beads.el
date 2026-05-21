@@ -289,18 +289,28 @@ header line shows zeros for empty groups instead of dropping them."
 (defun beads-ralph-cockpit--filter-chip (group included)
   "Return a string for one filter chip.
 GROUP is one of `beads-ralph-cockpit--badge-groups'; INCLUDED is
-non-nil when the chip is currently in `--filters'."
+non-nil when the chip is currently in `--filters'.
+
+Each chip renders as \"[GROUP ✓]\" or \"[GROUP ✗]\".  The chip
+group is recovered at point by parsing the line text in
+`--filter-group-at-point' rather than via a text property,
+because `vui-text' does not preserve custom text properties
+across mounts (`face' survives; arbitrary keys do not)."
   (propertize (format "[%s %s]" (symbol-name group) (if included "✓" "✗"))
               'face (if included
                         'beads-ralph-cockpit-filter-on-face
-                      'beads-ralph-cockpit-filter-off-face)
-              'beads-ralph-cockpit-filter-group group))
+                      'beads-ralph-cockpit-filter-off-face)))
+
+(defconst beads-ralph-cockpit--filter-bar-prefix "Filter: "
+  "Literal prefix used to identify the filter-bar line at point.")
 
 (defun beads-ralph-cockpit--filter-bar (filters)
-  "Return the filter-bar vnode rendered from FILTERS."
+  "Return the filter-bar vnode rendered from FILTERS.
+The line is `Filter: [active ✓] [paused ✓] …'; the prefix is
+matched by `--filter-group-at-point' to detect the bar."
   (vui-text
    (concat
-    "Filter: "
+    beads-ralph-cockpit--filter-bar-prefix
     (mapconcat
      (lambda (group)
        (beads-ralph-cockpit--filter-chip group (memq group filters)))
@@ -442,10 +452,28 @@ Cockpit rows start with a two-space indent then the id."
 ;;; Filter chip at point
 
 (defun beads-ralph-cockpit--filter-group-at-point ()
-  "Return the filter group at point, or nil.
-Reads the `beads-ralph-cockpit-filter-group' text property planted by
-`--filter-chip'."
-  (get-text-property (point) 'beads-ralph-cockpit-filter-group))
+  "Return the filter group symbol the column at point lies inside, or nil.
+Parses the filter-bar line text (not text properties — see the
+note in `--filter-chip') for chips of the form \"[GROUP ✓/✗]\"
+and returns the GROUP whose column range covers point."
+  (save-excursion
+    (let* ((bol (line-beginning-position))
+           (eol (line-end-position))
+           (line (buffer-substring-no-properties bol eol))
+           (col (- (point) bol)))
+      (when (string-prefix-p beads-ralph-cockpit--filter-bar-prefix line)
+        (let ((start 0)
+              (hit nil))
+          (while (and (not hit)
+                      (string-match "\\[\\([a-z]+\\) [✓✗]\\]" line start))
+            (let ((cs (match-beginning 0))
+                  (ce (match-end 0)))
+              (if (and (>= col cs) (< col ce))
+                  (setq hit (intern (match-string 1 line)))
+                (setq start ce))))
+          (and hit
+               (memq hit beads-ralph-cockpit--badge-groups)
+               hit))))))
 
 ;;; Interactive commands
 
@@ -461,36 +489,62 @@ Reads the `beads-ralph-cockpit-filter-group' text property planted by
     (beads-agent-ralph-dashboard-mount ctrl)))
 
 (defun beads-ralph-cockpit-stop ()
-  "Stop the loop at point."
+  "Stop the loop at point.
+Refuses with a `user-error' when the controller is already in a
+terminal state — calling `beads-agent-ralph-stop' on a terminal
+controller would re-arm its eviction timer and extend retention."
   (interactive)
   (let ((ctrl (beads-ralph-cockpit--controller-at-point)))
+    (when (beads-agent-ralph--terminal-p ctrl)
+      (user-error "%s is already %s; nothing to stop"
+                  (oref ctrl root-id) (oref ctrl status)))
     (beads-agent-ralph-stop ctrl)
     (beads-ralph-cockpit-refresh)))
 
 (defun beads-ralph-cockpit-pause ()
-  "Pause the loop at point."
+  "Pause the loop at point.
+Refuses on terminal controllers — pausing `done' / `stopped' /
+`failed' would incorrectly resurrect them into `auto-paused'."
   (interactive)
   (let ((ctrl (beads-ralph-cockpit--controller-at-point)))
+    (when (beads-agent-ralph--terminal-p ctrl)
+      (user-error "%s is %s; cannot pause a terminal controller"
+                  (oref ctrl root-id) (oref ctrl status)))
     (beads-agent-ralph--pause ctrl "Paused by user")
     (beads-ralph-cockpit-refresh)))
 
 (defun beads-ralph-cockpit-resume ()
-  "Resume the loop at point from auto-paused / paused / stopped."
+  "Resume the loop at point from `auto-paused' or `stopped'.
+Mirrors the dashboard's resume contract (`auto-paused' and the
+user-initiated `stopped' are the only resumable states; the
+controller never enters a separate `paused' status)."
   (interactive)
   (let ((ctrl (beads-ralph-cockpit--controller-at-point)))
-    (when (memq (oref ctrl status) '(auto-paused stopped paused))
-      (oset ctrl done-reason nil)
-      (beads-agent-ralph--set-status ctrl 'cooling-down)
-      (beads-agent-ralph--schedule-next-iteration
-       ctrl (lambda ()
-              (beads-agent-ralph--set-status ctrl 'running)
-              (beads-agent-ralph--run-iteration ctrl))))
+    (unless (memq (oref ctrl status) '(auto-paused stopped))
+      (user-error "%s is %s; only auto-paused or stopped can be resumed"
+                  (oref ctrl root-id) (oref ctrl status)))
+    ;; A resumed-from-stopped controller has an eviction timer armed
+    ;; by `--terminate'; cancel it so the resumed loop is not silently
+    ;; unregistered partway through.
+    (beads-agent-ralph--cancel-eviction-timer ctrl)
+    (oset ctrl done-reason nil)
+    (beads-agent-ralph--set-status ctrl 'cooling-down)
+    (beads-agent-ralph--schedule-next-iteration
+     ctrl (lambda ()
+            (beads-agent-ralph--set-status ctrl 'running)
+            (beads-agent-ralph--run-iteration ctrl)))
     (beads-ralph-cockpit-refresh)))
 
 (defun beads-ralph-cockpit-kill-iter ()
-  "Kill the in-flight iteration of the loop at point."
+  "Kill the in-flight iteration of the loop at point.
+A no-op (in `beads-agent-ralph-kill-iter') when no stream is in
+flight, so calling on cooling-down / paused is safe; refuses on
+terminal controllers to avoid confusing the user."
   (interactive)
   (let ((ctrl (beads-ralph-cockpit--controller-at-point)))
+    (when (beads-agent-ralph--terminal-p ctrl)
+      (user-error "%s is %s; no iteration to kill"
+                  (oref ctrl root-id) (oref ctrl status)))
     (beads-agent-ralph-kill-iter ctrl)
     (beads-ralph-cockpit-refresh)))
 
@@ -503,11 +557,15 @@ Reads the `beads-ralph-cockpit-filter-group' text property planted by
      "`beads-ralph-epic-browser' not available; require it first")))
 
 (defun beads-ralph-cockpit-gc-done ()
-  "Remove terminal (done / stopped / failed) controllers from the registry."
+  "Remove terminal (done / stopped / failed) controllers from the registry.
+Cancels each evicted controller's pending eviction timer first
+(set by `--terminate' on the way into the terminal state) so a
+late tick cannot fire against an already-unregistered controller."
   (interactive)
   (let ((removed 0))
     (dolist (c (beads-agent-ralph-controllers))
       (when (beads-agent-ralph--terminal-p c)
+        (beads-agent-ralph--cancel-eviction-timer c)
         (beads-agent-ralph--unregister-controller c)
         (cl-incf removed)))
     (message "Cockpit GC: dropped %d terminal controller(s)" removed)
@@ -574,10 +632,12 @@ Reads the `beads-ralph-cockpit-filter-group' text property planted by
 ;;; 1s refresh timer
 
 (defun beads-ralph-cockpit--any-active-p ()
-  "Return non-nil when at least one controller is running or cooling-down."
+  "Return non-nil when at least one controller is running or cooling-down.
+Read through the public accessor so this module does not depend on
+the registry's internal representation."
   (cl-some (lambda (c)
              (memq (oref c status) '(running cooling-down)))
-           beads-agent-ralph--controllers))
+           (beads-agent-ralph-controllers)))
 
 (defun beads-ralph-cockpit--reconcile-refresh-timer (buffer)
   "Start or stop the 1s refresh timer based on registry activity."
@@ -596,12 +656,12 @@ Reads the `beads-ralph-cockpit-filter-group' text property planted by
       (setq-local beads-ralph-cockpit--refresh-timer nil)))))
 
 (defun beads-ralph-cockpit--refresh-tick (buffer)
-  "Timer callback: re-render BUFFER unless dead."
+  "Timer callback: re-render BUFFER unless dead.
+On a dead buffer cancels every timer pointing at this function so a
+late tick after a kill-buffer that bypassed `kill-buffer-hook'
+\(e.g. `kill-emacs') cannot keep firing."
   (if (not (buffer-live-p buffer))
-      ;; Buffer died; the timer in the buffer-local is unreachable, but
-      ;; some other reference may have kept it; cancel by symbol.
-      (when (timerp beads-ralph-cockpit--refresh-timer)
-        (cancel-timer beads-ralph-cockpit--refresh-timer))
+      (cancel-function-timers #'beads-ralph-cockpit--refresh-tick)
     (with-current-buffer buffer
       (when (eq major-mode 'beads-ralph-cockpit-mode)
         (condition-case err
