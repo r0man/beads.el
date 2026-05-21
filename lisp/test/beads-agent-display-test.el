@@ -551,20 +551,24 @@ both be nil in that case so the legacy branch is reached)."
   "Multiple focused agents render joined by a space separator, no `#N'."
   (beads-agent-display-test--ensure-task-registered)
   (require 'beads-agent-types)
-  (unless (beads-agent-type-get "review")
-    (beads-agent-type-register (beads-agent-type-review)))
-  (let* ((beads-agent-display-use-icons nil)
-         (beads-agent-display-type-icons nil)
-         (types '((s1 . "Task") (s2 . "Review"))))
-    (cl-letf (((symbol-function 'beads-agent-session-type-name)
-               (lambda (s) (cdr (assoc s types))))
-              ((symbol-function 'beads-agent-session-instance-number)
-               (lambda (_s) 1)))
-      (beads-agent-display-test--with-issue-agents '(s1 s2) nil nil
-        (let* ((result (beads-agent-display-format-issue-agents "bd-x"))
-               (plain (substring-no-properties result)))
-          (should (string= plain "T R"))
-          (should-not (string-match-p "#" plain)))))))
+  (let ((we-registered-review (null (beads-agent-type-get "review"))))
+    (when we-registered-review
+      (beads-agent-type-register (beads-agent-type-review)))
+    (unwind-protect
+        (let* ((beads-agent-display-use-icons nil)
+               (beads-agent-display-type-icons nil)
+               (types '((s1 . "Task") (s2 . "Review"))))
+          (cl-letf (((symbol-function 'beads-agent-session-type-name)
+                     (lambda (s) (cdr (assoc s types))))
+                    ((symbol-function 'beads-agent-session-instance-number)
+                     (lambda (_s) 1)))
+            (beads-agent-display-test--with-issue-agents '(s1 s2) nil nil
+              (let* ((result (beads-agent-display-format-issue-agents "bd-x"))
+                     (plain (substring-no-properties result)))
+                (should (string= plain "T R"))
+                (should-not (string-match-p "#" plain))))))
+      (when we-registered-review
+        (beads-agent-type--unregister "Review")))))
 
 (ert-deftest beads-agent-display-test-format-issue-agents-finished-outcome ()
   "Finished outcome with no live sessions renders `✓T' (letter mode)."

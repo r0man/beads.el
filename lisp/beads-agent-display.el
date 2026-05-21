@@ -79,7 +79,13 @@ Example:
 By default the instance number is shown only in mode-line, the
 agent list buffer, and help-echo tooltips, freeing space in the
 issue list column and dashboard badges.  Set this to t to also
-show #N in those tight surfaces."
+show #N in those tight surfaces.
+
+Note: the agent list buffer (`*beads-agents*') always shows
+instance numbers regardless of this setting — that buffer is the
+canonical place to disambiguate parallel sessions and dedicates
+column width specifically to the `#N' suffix.  See
+`beads-agent-list--format-type'."
   :type 'boolean
   :group 'beads-agent)
 
@@ -149,8 +155,11 @@ returns the single-letter abbreviation from TYPE's `letter' slot."
 (declare-function beads-agent--get-issue-outcome
                   "beads-agent-backend" (issue-id))
 
-;; Faces are defined in `beads-command-list.el'; we reference them by
-;; symbol here without requiring their definition module.
+;; Forward refs; the faces themselves are defined in
+;; `beads-command-list.el'.  We declare them here only to silence the
+;; byte-compiler — at runtime callers of this module load
+;; `beads-command-list' (directly or transitively) before any render,
+;; so the face symbols are bound by the time we reference them.
 (defvar beads-list-agent-working)
 (defvar beads-list-agent-finished)
 (defvar beads-list-agent-failed)
@@ -164,13 +173,17 @@ Single-cell, ASCII-adjacent — renders in TTY too.")
 Single-cell, ASCII-adjacent — renders in TTY too.")
 
 (defun beads-agent-display--unknown-state (state context)
-  "Warn once about an unknown STATE in CONTEXT and return the working fallback.
+  "Warn about an unknown STATE in CONTEXT and return the working fallback.
 STATE is the unrecognised symbol, CONTEXT names the helper for the
 diagnostic message.  Used as the catch-all fallback in the state
-pcase helpers so a future state symbol is logged loudly rather
-than silently treated as `running'."
-  (message "beads-agent-display: unknown state %S in %s, treating as running"
-           state context)
+pcase helpers so a future state symbol is recorded for debugging
+rather than silently treated as `running'.  Uses `lwarn' at level
+`debug' so the message reaches the *Warnings* buffer when the user
+has raised `warning-minimum-log-level' but does not pollute
+`*Messages*' during normal tabulated-list redraws."
+  (lwarn 'beads-agent-display :debug
+         "unknown state %S in %s, treating as running"
+         state context)
   nil)
 
 (defun beads-agent-display--state-face (state)
@@ -242,7 +255,6 @@ BRIEF when non-nil forces the `#N' suffix off."
                             state-words)))
     (propertize body 'face face 'help-echo help-echo)))
 
-;;;###autoload
 (defun beads-agent-display-format-session (session &optional outcome brief)
   "Format SESSION's identifier as icon (or letter) with optional outcome mark.
 
