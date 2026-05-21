@@ -1465,6 +1465,63 @@ the user has stopped or `--terminate' has run for another reason."
     (should (eq (oref c status) 'stopped))
     (should (null (oref c history)))))
 
+(ert-deftest beads-agent-ralph-test-maybe-enter-review-recursion-terminates-at-cap ()
+  "Successive gated fires recurse until cap is reached, then terminate.
+With `max-consecutive-empty-reviews' = 1 and counter = 0, the first
+call fires the gate (counter -> 1) and schedules a recursion; when
+the recursion runs it sees counter >= max and terminates with
+`epic-complete'.  Verifies the run-at-time recursion bridges cleanly
+from `--fire-gate' back into the cap branch."
+  (let ((c (beads-agent-ralph-test--make-controller
+            :status 'running :root-kind 'epic
+            :consecutive-empty-reviews 0 :max-consecutive-empty-reviews 1
+            :last-review-git-ref nil :last-review-closed-count 0
+            :history nil))
+        (pending-thunks nil))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-list-children-async)
+               (lambda (_id k) (funcall k t nil)))
+              ((symbol-function 'beads-agent-ralph--current-git-head)
+               (lambda (_dir) "sha0"))
+              ((symbol-function 'beads-agent-ralph--git-diff-since)
+               (lambda (_dir _ref) ""))
+              ;; Capture the scheduled recursion and run it inline so
+              ;; the test stays synchronous.  One drain step suffices
+              ;; because the cap is 1.
+              ((symbol-function 'run-at-time)
+               (lambda (_d _r fn &rest args)
+                 (push (cons fn args) pending-thunks)
+                 'stub)))
+      (beads-agent-ralph--maybe-enter-review c)
+      (while pending-thunks
+        (let ((entry (pop pending-thunks)))
+          (apply (car entry) (cdr entry)))))
+    (should (eq (oref c status) 'done))
+    (should (eq (oref c done-reason) 'epic-complete))
+    (should (= (oref c consecutive-empty-reviews) 1))
+    (should (= (length (oref c history)) 1))))
+
+(ert-deftest beads-agent-ralph-test-maybe-enter-review-head-nil-preserves-prior-ref ()
+  "When git HEAD is unavailable, the prior `last-review-git-ref' is preserved.
+The HEAD snapshot update is conditional on a non-nil SHA so a worktree
+without git (e.g. unit-test temp dir) does not overwrite a previously
+captured ref with nil."
+  (let ((c (beads-agent-ralph-test--make-controller
+            :status 'running :root-kind 'epic
+            :consecutive-empty-reviews 0 :max-consecutive-empty-reviews 2
+            :last-review-git-ref "old-sha" :last-review-closed-count 0
+            :history nil)))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-list-children-async)
+               (lambda (_id k) (funcall k t nil)))
+              ((symbol-function 'beads-agent-ralph--current-git-head)
+               (lambda (_dir) nil))
+              ((symbol-function 'beads-agent-ralph--git-diff-since)
+               (lambda (_dir _ref) ""))
+              ((symbol-function 'run-at-time)
+               (lambda (_d _r _fn &rest _a) 'stub)))
+      (beads-agent-ralph--maybe-enter-review c))
+    (should (equal (oref c last-review-git-ref) "old-sha"))
+    (should (= (oref c consecutive-empty-reviews) 1))))
+
 (ert-deftest beads-agent-ralph-test-maybe-enter-review-bd-list-failure-falls-back ()
   "On bd-list failure the closed-count snapshot is preserved.
 With prior snapshot 4 and a failed bd-list, delta is treated as 0;
