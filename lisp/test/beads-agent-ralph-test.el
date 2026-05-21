@@ -472,12 +472,13 @@ to the empty string."
                           "<MAX-FOLLOWUPS>")))
 
 (ert-deftest beads-agent-ralph-test-bd-list-closed-children-async-shape ()
-  "`--bd-list-closed-children-async' issues `bd list --parent ... --status closed --json'.
+  "`--bd-list-closed-children-async' issues `bd list --status closed --sort closed -r --json'.
 Captures the `beads-command-list' instance passed to
-`beads-command-execute-async' and asserts its `parent', `status', and
-`json' slots match the documented contract.  No bd subprocess runs:
-the async dispatcher is stubbed.  Sibling-shape check for
-`--bd-ready-children-async' lives elsewhere in this file."
+`beads-command-execute-async' and asserts its `parent', `status',
+`sort', `reverse', and `json' slots match the documented contract.
+Sort is pinned to `closed' descending so the renderer's
+truncate-oldest behaviour drops the right entries.  No bd subprocess
+runs: the async dispatcher is stubbed."
   (let ((captured-cmd nil)
         (callback-result nil))
     (cl-letf (((symbol-function 'beads-command-execute-async)
@@ -491,6 +492,8 @@ the async dispatcher is stubbed.  Sibling-shape check for
     (should captured-cmd)
     (should (equal (oref captured-cmd parent) "bde-root"))
     (should (equal (oref captured-cmd status) beads-status-closed))
+    (should (equal (oref captured-cmd sort) "closed"))
+    (should (eq (oref captured-cmd reverse) t))
     (should (eq (oref captured-cmd json) t))
     (should (equal callback-result (list t nil)))))
 
@@ -825,6 +828,56 @@ is the inaugural review; bare empty would look like a render bug."
                 (oref c last-review-git-ref)))
          (out (beads-agent-ralph--render-review-prompt c nil diff)))
     (should (equal out "DIFF:(no prior review reference)"))))
+
+(ert-deftest beads-agent-ralph-test-run-iteration-review-targets-root-id ()
+  "`--run-iteration :mode 'review' writes root-id into `current-issue-id' BEFORE the steps pump.
+Normal mode lets `--step-resolve-target' set the slot; review mode
+has no such step, and the in-flight dashboard / iteration record
+both read `current-issue-id' before the spawn step runs.  Without
+this write the review row would show the LAST WORKING CHILD's id
+during the pump and in the final history record.
+
+We stub everything past the slot-write so the test stays
+synchronous and only asserts the pre-pump invariant."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :root-kind 'epic
+             :root-id "bde-epic"
+             :current-issue-id "bde-last-child"
+             :consecutive-empty-reviews 0
+             :max-consecutive-empty-reviews 2
+             :max-followups-per-review 3))
+         (steps-called nil))
+    (cl-letf (((symbol-function 'beads-agent-ralph--dashboard-rerender)
+               #'ignore)
+              ((symbol-function 'beads-agent-ralph--review-iteration-steps)
+               (lambda (_c) (setq steps-called t) nil))
+              ((symbol-function 'beads-agent-ralph--then)
+               (lambda (&rest _args) nil)))
+      (beads-agent-ralph--run-iteration c :mode 'review))
+    (should steps-called)
+    (should (equal (oref c current-issue-id) "bde-epic"))))
+
+(ert-deftest beads-agent-ralph-test-run-iteration-normal-leaves-current-issue-id ()
+  "Normal mode does NOT preemptively rewrite `current-issue-id' to root-id.
+Symmetric guard: the new review-mode write must NOT leak into the
+normal path, where `--step-resolve-target' owns the slot.  A stub
+review composer is irrelevant here; the assertion is on the
+side-effect of `--run-iteration' itself in `mode = normal'."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :root-kind 'epic
+             :root-id "bde-epic"
+             :current-issue-id "bde-prev-child"
+             :consecutive-empty-reviews 0
+             :max-consecutive-empty-reviews 2
+             :max-followups-per-review 3)))
+    (cl-letf (((symbol-function 'beads-agent-ralph--dashboard-rerender)
+               #'ignore)
+              ((symbol-function 'beads-agent-ralph--normal-iteration-steps)
+               (lambda (_c) nil))
+              ((symbol-function 'beads-agent-ralph--then)
+               (lambda (&rest _args) nil)))
+      (beads-agent-ralph--run-iteration c))
+    (should (equal (oref c current-issue-id) "bde-prev-child"))))
 
 (ert-deftest beads-agent-ralph-test-review-iteration-steps-tolerates-bd-failure ()
   "A bd-list failure on closed-children renders an empty summary, not an abort.

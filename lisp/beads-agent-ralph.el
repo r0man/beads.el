@@ -1462,11 +1462,18 @@ CALLBACK receives (success ISSUES-OR-ERROR).  ISSUES is a list of
 `beads-issue' objects, possibly empty.  Sibling of
 `beads-agent-ralph--bd-ready-children-async'; used by review
 iterations (bde-c95u.5) to render `<CLOSED-CHILDREN-SUMMARY>' so the
-agent can compare delivered work against the epic goal."
+agent can compare delivered work against the epic goal.
+
+Sort is pinned to `closed' descending (`--sort closed --reverse')
+so the rendered summary surfaces the most recently completed work
+first -- the same ordering the renderer's truncation marker
+assumes when it drops oldest entries past the cap."
   (beads-agent-ralph--in-host
     (beads-command-execute-async
      (beads-command-list :parent parent-id
                          :status beads-status-closed
+                         :sort "closed"
+                         :reverse t
                          :json t)
      (lambda (result)
        (funcall callback t (if (listp result) result (list result))))
@@ -3279,6 +3286,14 @@ branch routes to `--maybe-enter-review', which decides between
 terminating with `epic-complete', firing the pre-LLM gate, or
 scheduling a review iteration."
   (beads-agent-ralph--set-status controller 'running)
+  ;; Review iterations target the epic, not a specific child.  Normal
+  ;; mode lets `--step-resolve-target' write `current-issue-id' inside
+  ;; the step pump; review mode has no resolve-target step, so we set
+  ;; it here BEFORE the first dashboard render so the in-flight row
+  ;; shows root-id, and so `--build-iteration' (which reads this slot
+  ;; at end of stream) tags the history record correctly.
+  (when (eq mode 'review)
+    (oset controller current-issue-id (oref controller root-id)))
   (beads-agent-ralph--dashboard-rerender controller)
   (let ((steps
          (pcase mode
