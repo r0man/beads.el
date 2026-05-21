@@ -1621,11 +1621,11 @@ Git branch and worktree status are cached for performance."
 (defun beads-agent--mode-line-agent-glyph (agent-type)
   "Return the icon-or-letter glyph for AGENT-TYPE, or nil.
 Returns the result of `beads-agent-type-icon-or-letter' when
-`beads-agent--icons-supported-p' is non-nil and the type is
+`beads-agent-icons-supported-p' is non-nil and the type is
 registered.  Returns nil when icons are disabled (so callers
 preserve their original full type-name behavior) or when the
 type is not registered."
-  (when (and agent-type (beads-agent--icons-supported-p))
+  (when (and agent-type (beads-agent-icons-supported-p))
     (when-let ((type (beads-agent-type-get agent-type)))
       (beads-agent-type-icon-or-letter type))))
 

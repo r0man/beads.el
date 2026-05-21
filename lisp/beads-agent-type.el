@@ -242,7 +242,7 @@ Follows the resolution order documented on the generic."
         (cdr entry)
       (and (slot-boundp type 'icon) (oref type icon)))))
 
-;; `beads-agent--icons-supported-p' and `beads-agent-type-icon-or-letter'
+;; `beads-agent-icons-supported-p' and `beads-agent-type-icon-or-letter'
 ;; are display-layer helpers; they live in `beads-agent-display.el'.
 
 (cl-defgeneric beads-agent-type-name-display (type)
@@ -361,7 +361,12 @@ This function is intended for testing purposes only."
 
 (defun beads-agent-type--unregister (name)
   "Unregister the type with NAME from all registries.
-NAME is case-insensitive.  Does nothing if type is not registered."
+NAME is case-insensitive.  Does nothing if type is not registered.
+
+This function is intended for testing purposes only — production
+code should leave registrations in place for the life of the
+session.  Test files reach into this internal entry point
+deliberately to undo per-test registrations in teardown."
   (beads-agent-type--ensure-registry)
   (let ((lower-name (downcase name)))
     (when-let ((type (gethash lower-name beads-agent-type--registry)))

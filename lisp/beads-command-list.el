@@ -578,6 +578,7 @@ When using a custom icon set that includes wider glyphs (or in
 GUI frames where your font renders emoji wider than two columns),
 increase this value via \\[customize-variable]."
   :type 'integer
+  :version "0.1.0"
   :group 'beads-list)
 
 (defcustom beads-list-date-format 'absolute

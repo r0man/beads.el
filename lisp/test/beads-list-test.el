@@ -1812,7 +1812,7 @@ surfaces in help-echo."
       (let ((result (beads-list--format-agent "bd-1")))
         ;; Only the focused Task agent ("T") renders.
         (should (string= "T" (substring-no-properties result)))
-        (should (string-match-p "Focused: 1, Touched: 1"
+        (should (string-match-p "1 focused agent, 1 touched"
                                 (get-text-property 0 'help-echo result)))))))
 
 ;;; Bulk Operation State Tests

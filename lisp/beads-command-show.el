@@ -823,7 +823,13 @@ _SESSION is reserved for forward compatibility (e.g. resolving
 state from per-session metadata once the backend stores it); current
 resolution depends only on ACTIVE and ISSUE-OUTCOME.  It is accepted
 as `&rest' so the parameter order reflects what the function
-actually consumes."
+actually consumes.
+
+TODO: resolve outcomes from per-session metadata once the backend
+stores it.  Today an issue carries a single issue-level outcome, so
+if a previous session finished and a second session is now stopped,
+both lines render with the `finished' state instead of the second
+one as `stopped'.  See PR #63 review note (4507173336) for details."
   (let ((outcome-sym (cond
                       ((symbolp issue-outcome) issue-outcome)
                       ((consp issue-outcome) (cdr issue-outcome)))))

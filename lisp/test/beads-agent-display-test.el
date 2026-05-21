@@ -13,7 +13,7 @@
 ;;   - `beads-agent-display-type-icons'
 ;;   - `beads-agent-display-show-instance'
 ;;   - `beads-agent-type-icon' (generic + method)
-;;   - `beads-agent--icons-supported-p'
+;;   - `beads-agent-icons-supported-p'
 ;;   - `beads-agent-type-icon-or-letter'
 ;;
 ;; Tests cover the override > slot > nil resolution order, gating
@@ -101,35 +101,35 @@
         (type (beads-agent-display-test--task)))
     (should (equal (beads-agent-type-icon type) "👷"))))
 
-;;; beads-agent--icons-supported-p - gating
+;;; beads-agent-icons-supported-p - gating
 
 (ert-deftest beads-agent-display-test-supported-p-always-t ()
   "`use-icons' = t returns non-nil regardless of frame."
   (let ((beads-agent-display-use-icons t))
     (cl-letf (((symbol-function 'display-graphic-p) (lambda (&rest _) nil)))
-      (should (beads-agent--icons-supported-p)))
+      (should (beads-agent-icons-supported-p)))
     (cl-letf (((symbol-function 'display-graphic-p) (lambda (&rest _) t)))
-      (should (beads-agent--icons-supported-p)))))
+      (should (beads-agent-icons-supported-p)))))
 
 (ert-deftest beads-agent-display-test-supported-p-always-nil ()
   "`use-icons' = nil returns nil regardless of frame."
   (let ((beads-agent-display-use-icons nil))
     (cl-letf (((symbol-function 'display-graphic-p) (lambda (&rest _) t)))
-      (should-not (beads-agent--icons-supported-p)))
+      (should-not (beads-agent-icons-supported-p)))
     (cl-letf (((symbol-function 'display-graphic-p) (lambda (&rest _) nil)))
-      (should-not (beads-agent--icons-supported-p)))))
+      (should-not (beads-agent-icons-supported-p)))))
 
 (ert-deftest beads-agent-display-test-supported-p-auto-gui ()
   "`use-icons' = `auto' returns t under a GUI frame."
   (let ((beads-agent-display-use-icons 'auto))
     (cl-letf (((symbol-function 'display-graphic-p) (lambda (&rest _) t)))
-      (should (beads-agent--icons-supported-p)))))
+      (should (beads-agent-icons-supported-p)))))
 
 (ert-deftest beads-agent-display-test-supported-p-auto-tty ()
   "`use-icons' = `auto' returns nil under a TTY frame."
   (let ((beads-agent-display-use-icons 'auto))
     (cl-letf (((symbol-function 'display-graphic-p) (lambda (&rest _) nil)))
-      (should-not (beads-agent--icons-supported-p)))))
+      (should-not (beads-agent-icons-supported-p)))))
 
 ;;; beads-agent-type-icon-or-letter - integration
 
@@ -526,7 +526,7 @@ the value returned by `beads-agent--get-issue-outcome'."
       (beads-agent-display-test--with-issue-agents '(sess1) nil nil
         (let ((result (beads-agent-display-format-issue-agents "bd-x")))
           (should (string= (substring-no-properties result) "T"))
-          (should (string-match-p "Focused: 1, Touched: 0"
+          (should (string-match-p "1 focused agent, 0 touched"
                                   (get-text-property 0 'help-echo result))))))))
 
 (ert-deftest beads-agent-display-test-format-issue-agents-multiple-focused ()

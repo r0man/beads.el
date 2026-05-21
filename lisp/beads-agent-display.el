@@ -85,7 +85,7 @@ show #N in those tight surfaces."
 
 ;;; Icon resolution
 
-(defun beads-agent--icons-supported-p ()
+(defun beads-agent-icons-supported-p ()
   "Return non-nil when emoji icons should be rendered.
 Resolves `beads-agent-display-use-icons':
 - `auto' (default): non-nil in GUI frames, nil in TTY
@@ -103,7 +103,7 @@ Returns the configured icon when icons are enabled by
 non-nil icon is configured for TYPE (via
 `beads-agent-display-type-icons' override or the `icon' slot).  Otherwise
 returns the single-letter abbreviation from TYPE's `letter' slot."
-  (or (and (beads-agent--icons-supported-p)
+  (or (and (beads-agent-icons-supported-p)
            (beads-agent-type-icon type))
       (oref type letter)))
 
@@ -291,7 +291,7 @@ backend has not been required."
       ;; glyph.  The trade-off is deliberate: in a column-sized cell the
       ;; user cannot reliably hover a single glyph (mouse positioning is
       ;; ambiguous with adjacent emoji), so a single aggregate summary
-      ;; ("Focused: N, Touched: M") is more useful than per-glyph
+      ;; ("N focused agent(s), M touched") is more useful than per-glyph
       ;; tooltips that are effectively unreachable.  Surfaces that need
       ;; per-glyph tooltips (agent list, show buffer) call
       ;; `beads-agent-display-format-session' directly without this
@@ -302,8 +302,9 @@ backend has not been required."
                       focused))
              (body (mapconcat #'identity indicators separator)))
         (propertize body
-                    'help-echo (format "Focused: %d, Touched: %d"
+                    'help-echo (format "%d focused agent%s, %d touched"
                                        (length focused)
+                                       (if (= (length focused) 1) "" "s")
                                        (length touched-only)))))
      (legacy-sessions
       ;; Same per-glyph vs aggregate help-echo trade-off as the focused
