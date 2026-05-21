@@ -398,6 +398,17 @@ state for the four review-mode tokens populated by bde-c95u.5/.6."
          (out (beads-agent-ralph--render-prompt c nil nil)))
     (should (equal out (format "NOTES:\n%s\nEND" notes)))))
 
+(ert-deftest beads-agent-ralph-test-render-prompt-epic-description-multiline ()
+  "EPIC-DESCRIPTION renders multi-paragraph descriptions verbatim.
+The literal flag on `replace-regexp-in-string' preserves newlines
+and any regex-metacharacters embedded in the description."
+  (let* ((desc "Goal paragraph one.\n\nGoal paragraph two with \\1 backref.\n")
+         (c (beads-agent-ralph-test--make-controller
+             :prompt-template "<EPIC-DESCRIPTION>"
+             :epic-description-snapshot desc))
+         (out (beads-agent-ralph--render-prompt c nil nil)))
+    (should (equal out desc))))
+
 (ert-deftest beads-agent-ralph-test-render-prompt-epic-description-nil-empties ()
   "Nil `epic-description-snapshot' collapses <EPIC-DESCRIPTION> to empty."
   (let* ((c (beads-agent-ralph-test--make-controller
