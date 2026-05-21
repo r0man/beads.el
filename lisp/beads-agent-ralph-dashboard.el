@@ -674,7 +674,7 @@ Behaviour splits on controller status (bde-deqx.3):
   the controller alive in the registry and let the loop continue
   headless.  The user can re-mount the dashboard later through the
   cockpit (`bde-deqx.4').  This is the behavioural change in
-  bde-deqx.3 -- previously kill-buffer drove the loop to terminal,
+  bde-deqx.3 -- previously `kill-buffer' drove the loop to terminal,
   which orphaned a money-spending claude process whenever the user
   merely wanted to reclaim screen real-estate.  Stopping a loop is
   done through `[s]' on the dashboard, not by killing the buffer.

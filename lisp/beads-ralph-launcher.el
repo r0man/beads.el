@@ -175,8 +175,8 @@ args, and the parameter-rows block renders them in this order.")
 
 (defconst beads-ralph-launcher--permission-modes
   '("bypassPermissions" "acceptEdits" "plan" "default")
-  "Choices for the permission-mode row.  Matches the `claude --permission-mode'
-options Ralph supports.")
+  "Choices for the permission-mode row.
+Matches the `claude --permission-mode' options Ralph supports.")
 
 (defun beads-ralph-launcher--default-params ()
   "Return the effective default params plist.
@@ -208,8 +208,8 @@ the caller may continue using BASE after the call."
     result))
 
 (defun beads-ralph-launcher--params-equal-p (a b)
-  "Return non-nil when plists A and B agree on every key in
-`beads-ralph-launcher--param-keys'.  Extra keys in A or B are
+  "Return non-nil when plists A and B agree on every canonical key.
+Walks `beads-ralph-launcher--param-keys'; extra keys in A or B are
 ignored — only the seven canonical launcher keys matter for the
 dirty-state comparison."
   (cl-every (lambda (k) (equal (plist-get a k) (plist-get b k)))
@@ -266,9 +266,10 @@ worktree intent through `-start' is a follow-up."
 (defun beads-ralph-launcher--params-to-preview-args
     (root-id kind params prompt-override)
   "Build the args plist the argv preview ingests for ROOT-ID/KIND.
-Returns a plist matching `beads-agent-ralph--preview-argv's contract
+Return a plist matching `beads-agent-ralph--preview-argv's contract
 \(`:prompt', `:project-dir', `:permission-mode', `:max-budget-usd',
-`:max-turns', `:extra-args')."
+`:max-turns', `:extra-args').  PARAMS is the launcher's params plist;
+PROMPT-OVERRIDE replaces the rendered iter-1 prompt when non-nil."
   (let* ((effective-budget
           (or (plist-get params :max-budget-usd-per-iter)
               (plist-get params :max-budget-usd)))
@@ -282,8 +283,8 @@ Returns a plist matching `beads-agent-ralph--preview-argv's contract
           :max-turns (plist-get params :max-turns))))
 
 (defun beads-ralph-launcher--quote-block (text)
-  "Indent TEXT two spaces and trim a trailing newline.  Used for the
-prompt and argv preview blocks."
+  "Indent TEXT two spaces and trim a trailing newline.
+Used for the prompt and argv preview blocks."
   (let* ((trimmed (string-trim-right text))
          (lines (split-string trimmed "\n")))
     (mapconcat (lambda (l) (concat "  " l)) lines "\n")))
@@ -292,7 +293,7 @@ prompt and argv preview blocks."
 
 (defun beads-ralph-launcher--header-block
     (root-id kind issue dirty-p template-loaded-p)
-  "Render the launcher header.
+  "Render the launcher header for ROOT-ID.
 KIND is `issue' or `epic'; ISSUE is an optional `beads-issue' whose
 title / priority / status are folded into a subtitle line.
 
@@ -343,7 +344,8 @@ Returns nil when INCUMBENT is nil so the parent `vui-vstack' skips it."
         :on-click (lambda () (beads-ralph-launcher-quit)))))))
 
 (defun beads-ralph-launcher--cap-reached-block (cap-reached-p)
-  "Banner shown when launching another loop would exceed the cap."
+  "Banner shown when CAP-REACHED-P indicates the loop cap was hit.
+A nil CAP-REACHED-P renders nothing."
   (when cap-reached-p
     (vui-text
      (format "  Max concurrent Ralph loops (%d) reached.  Stop a running loop first."
@@ -351,8 +353,8 @@ Returns nil when INCUMBENT is nil so the parent `vui-vstack' skips it."
      :face 'beads-ralph-launcher-banner-error-face)))
 
 (defun beads-ralph-launcher--ready-children-block (kind children)
-  "Optional ready-children listing for an epic root.  Returns nil for
-non-epic kinds or when CHILDREN is empty."
+  "Optional ready-children listing for an epic root.
+Returns nil for non-epic KIND or when CHILDREN is empty."
   (when (and (eq kind 'epic) children)
     (vui-vstack
      (vui-text (format "Ready children (%d shown)" (length children))
@@ -374,12 +376,12 @@ non-epic kinds or when CHILDREN is empty."
              children)))))
 
 (defun beads-ralph-launcher--row-label (label)
-  "Render the left-hand label column of a parameter row."
+  "Render the left-hand LABEL column of a parameter row."
   (vui-text (format "  %-26s" label)
             :face 'beads-ralph-launcher-row-label-face))
 
 (defun beads-ralph-launcher--integer-row (key label value &optional min)
-  "Editable integer row for params KEY with current VALUE.
+  "Editable integer row labelled LABEL for params KEY with current VALUE.
 Optional MIN bounds the parser so e.g. a max-iterations cannot be
 set negative through the launcher; nil leaves the parser
 unbounded."
@@ -394,7 +396,7 @@ unbounded."
           (when min (list :min min)))))
 
 (defun beads-ralph-launcher--number-row (key label value &optional min)
-  "Editable number (float-or-int) row for params KEY with current VALUE.
+  "Editable number (int/float) row labelled LABEL for params KEY, current VALUE.
 A nil current value is shown as 0; the `--params-to-start-args'
 serializer drops zero / nil values so `-start' picks its defcustom.
 Optional MIN bounds the parser (e.g. budgets cannot be negative)."
@@ -409,7 +411,8 @@ Optional MIN bounds the parser (e.g. budgets cannot be negative)."
           (when min (list :min min)))))
 
 (defun beads-ralph-launcher--select-row (key label options value)
-  "Select row: OPTIONS is a list of strings; VALUE is the current selection."
+  "Select row for params KEY labelled LABEL.
+OPTIONS is a list of strings; VALUE is the current selection."
   (vui-hstack
    :spacing 2
    (beads-ralph-launcher--row-label label)
@@ -420,7 +423,8 @@ Optional MIN bounds the parser (e.g. budgets cannot be negative)."
                  (beads-ralph-launcher--set-param key new)))))
 
 (defun beads-ralph-launcher--checkbox-row (key label checked)
-  "Checkbox row: CHECKED is the current boolean."
+  "Checkbox row for params KEY labelled LABEL.
+CHECKED is the current boolean."
   (vui-hstack
    :spacing 2
    (beads-ralph-launcher--row-label label)
@@ -430,7 +434,8 @@ Optional MIN bounds the parser (e.g. budgets cannot be negative)."
                  (beads-ralph-launcher--set-param key new)))))
 
 (defun beads-ralph-launcher--field-row (key label value)
-  "Plain text field row for params KEY (e.g. sentinel)."
+  "Plain text field row for params KEY labelled LABEL with current VALUE.
+Used for free-form strings like the sentinel."
   (vui-hstack
    :spacing 2
    (beads-ralph-launcher--row-label label)
@@ -466,7 +471,10 @@ Optional MIN bounds the parser (e.g. budgets cannot be negative)."
     :sentinel "sentinel" (plist-get params :sentinel))))
 
 (defun beads-ralph-launcher--prompt-preview-block (root-id kind prompt-override)
-  "Iter-1 prompt preview pane, with an inline [E]dit button."
+  "Iter-1 prompt preview pane for ROOT-ID/KIND.
+Inline `[E]dit' button delegates to `beads-ralph-launcher-edit-prompt'.
+PROMPT-OVERRIDE displays in place of the rendered template when
+non-nil."
   (let* ((text
           (condition-case err
               (or prompt-override
@@ -483,7 +491,10 @@ Optional MIN bounds the parser (e.g. budgets cannot be negative)."
 
 (defun beads-ralph-launcher--argv-preview-block
     (root-id kind params prompt-override shell-expanded)
-  "Spawn argv preview pane, collapsed under a [shell] checkbox."
+  "Spawn argv preview pane for ROOT-ID/KIND.
+Collapsed under a `[shell]' checkbox; reveals when SHELL-EXPANDED.
+PARAMS feeds into argv assembly; PROMPT-OVERRIDE replaces the
+rendered iter-1 prompt when non-nil."
   (vui-vstack
    (vui-hstack
     :spacing 2
@@ -573,7 +584,7 @@ embeds `vui-field' / `vui-integer-field' / etc., which install
 buffer-local widget overlays whose `after-change-functions' would
 fire against an `erase-buffer' inside `vui-mount' and look up
 already-invalidated field markers (`wrong-type-argument
-number-or-marker-p nil')."
+`number-or-marker-p' nil')."
   (with-current-buffer buffer
     (unless (eq major-mode 'beads-ralph-launcher-mode)
       (beads-ralph-launcher-mode))
@@ -604,14 +615,14 @@ number-or-marker-p nil')."
        (buffer-name buffer)))))
 
 (defun beads-ralph-launcher--set-param (key value)
-  "Mutate buffer-local --params: KEY → VALUE; remount."
+  "Set buffer-local `--params' KEY to VALUE; remount."
   (setq-local beads-ralph-launcher--params
               (plist-put (copy-sequence beads-ralph-launcher--params)
                          key value))
   (beads-ralph-launcher--render (current-buffer)))
 
 (defun beads-ralph-launcher--set-shell-expanded (value)
-  "Toggle the shell preview; remount."
+  "Set the shell-preview toggle to VALUE (coerced to boolean); remount."
   (setq-local beads-ralph-launcher--shell-expanded (not (null value)))
   (beads-ralph-launcher--render (current-buffer)))
 
@@ -720,8 +731,8 @@ concurrent-loops cap is reached."
   (beads-ralph-launcher--render (current-buffer)))
 
 (defun beads-ralph-launcher-help ()
-  "Echo the launcher's keymap legend.  Mirrors the action-bar legend
-so `?' and the buffer footer agree."
+  "Echo the launcher's keymap legend.
+Mirrors the action-bar legend so `?' and the buffer footer agree."
   (interactive)
   (beads-ralph-launcher--ensure-mode)
   (message
