@@ -1721,7 +1721,7 @@ Distinct from `beads-agent-ralph--git-diff-since' (the gate-side
 helper that returns nil on missing input or git failure): this one
 always returns a string suitable for embedding in the
 `<DIFF-SINCE-LAST-REVIEW>' placeholder, so the agent never sees a
-bare `nil' rendered as `nil' or an empty section it cannot interpret.
+bare nil printed verbatim or an empty section it cannot interpret.
 
 Branches:
  - REF is nil (no prior review yet) -> the marker string
