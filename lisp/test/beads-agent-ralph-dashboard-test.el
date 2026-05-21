@@ -275,6 +275,91 @@ blocks.  The dedupe pass keeps only the synth for that id."
                   events)))
     (should (equal events result))))
 
+(ert-deftest beads-agent-ralph-dashboard-test-render-event-skips-status-partial ()
+  "system/status `requesting' partials between turns are dropped."
+  (should (null (beads-agent-ralph-dashboard--render-event
+                 '(:type "system" :subtype "status"
+                         :status "requesting"
+                         :uuid "x" :session_id "y")))))
+
+(ert-deftest beads-agent-ralph-dashboard-test-render-event-skips-allowed-rate-limit ()
+  "Rate-limit pings with status=allowed are dropped; throttled keep rendering."
+  (should (null (beads-agent-ralph-dashboard--render-event
+                 '(:type "rate_limit_event"
+                         :rate_limit_info (:status "allowed")))))
+  ;; A non-allowed status still falls through to the generic shadow render,
+  ;; which is intentional — we want to *see* throttles.
+  (should (beads-agent-ralph-dashboard--render-event
+           '(:type "rate_limit_event"
+                   :rate_limit_info (:status "throttled")))))
+
+(ert-deftest beads-agent-ralph-dashboard-test-tool-input-summary-bash-keeps-first-command ()
+  "Multi-step Bash commands collapse to just the first segment."
+  (should (string= "ls -la"
+                   (beads-agent-ralph-dashboard--tool-input-summary
+                    '(:command "ls -la && echo done && rm -rf /tmp/x"))))
+  ;; Pipelines (`|') stay intact — they're one command — but a `;'
+  ;; terminator still ends the visible preview at the first segment.
+  (should (string= "curl -sI https://github.com/r0man | head -3"
+                   (beads-agent-ralph-dashboard--tool-input-summary
+                    '(:command "curl -sI https://github.com/r0man | head -3; echo done"))))
+  ;; Single-command input stays intact (until the 80-char truncation cap).
+  (should (string= "echo hello"
+                   (beads-agent-ralph-dashboard--tool-input-summary
+                    '(:command "echo hello")))))
+
+(ert-deftest beads-agent-ralph-dashboard-test-tool-input-summary-prefers-path ()
+  "Read/Edit tool input shows `file_path' or `path' rather than %S."
+  (should (string= "/etc/hosts"
+                   (beads-agent-ralph-dashboard--tool-input-summary
+                    '(:file_path "/etc/hosts" :offset 0))))
+  (should (string= "src/main.el"
+                   (beads-agent-ralph-dashboard--tool-input-summary
+                    '(:path "src/main.el")))))
+
+(ert-deftest beads-agent-ralph-dashboard-test-tool-result-strips-ansi ()
+  "Raw VT100 CSI sequences in tool_result are filtered before display."
+  (let* ((block `(:type "tool_result"
+                        :content ,(concat "\e[Klooking for substitutes…"
+                                          "\n\e[31mred\e[0mtext")))
+         (vnode (beads-agent-ralph-dashboard--render-tool-result-block block))
+         (text (when vnode
+                 (format-mode-line vnode))))
+    (should vnode)))
+
+(ert-deftest beads-agent-ralph-dashboard-test-format-duration ()
+  "Duration formatter handles nil / seconds / minutes / hours."
+  (should (string= "—" (beads-agent-ralph-dashboard--format-duration nil)))
+  (should (string= "—" (beads-agent-ralph-dashboard--format-duration 0)))
+  (should (string= "5s" (beads-agent-ralph-dashboard--format-duration 5000)))
+  (should (string= "1m05s" (beads-agent-ralph-dashboard--format-duration 65000)))
+  (should (string= "1h2m" (beads-agent-ralph-dashboard--format-duration 3720000))))
+
+(ert-deftest beads-agent-ralph-dashboard-test-iter-table-shows-live-row-while-running ()
+  "When a stream is bound (iter in-flight), the table shows a live row."
+  (let* ((c (beads-agent-ralph-dashboard-test--make-controller
+             :root-id "bde-live"
+             :iteration 3))
+         (stream (beads-agent-ralph--stream
+                  :events nil
+                  :started-at (current-time))))
+    (oset c current-stream stream)
+    (oset c current-issue-id "bde-live")
+    (oset c status 'running)
+    (let* ((row (beads-agent-ralph-dashboard--live-iter-row c))
+           (text (and row (vui-vnode-text-content row))))
+      (should row)
+      (should (string-match-p "▶ live" text))
+      (should (string-match-p "#3" text)))))
+
+(ert-deftest beads-agent-ralph-dashboard-test-iter-table-no-live-row-when-terminal ()
+  "Terminal controllers don't get a synthetic live row (no stream bound)."
+  (let* ((c (beads-agent-ralph-dashboard-test--make-controller
+             :root-id "bde-term-no-live")))
+    (oset c status 'done)
+    (oset c current-stream nil)
+    (should-not (beads-agent-ralph-dashboard--live-iter-row c))))
+
 ;;; Buffer mount
 
 (ert-deftest beads-agent-ralph-dashboard-test-render-creates-buffer ()
@@ -291,7 +376,11 @@ blocks.  The dedupe pass keeps only the synth for that id."
       (when (buffer-live-p buf) (kill-buffer buf)))))
 
 (ert-deftest beads-agent-ralph-dashboard-test-render-includes-header ()
-  "The rendered buffer contains the header's iteration count."
+  "The dashboard surfaces the iteration count via the sticky header.
+The dense status line lives in `header-line-format' (so it stays
+visible when the live stream scrolls), not in the buffer body, so we
+verify both that the line itself contains the iter info and that the
+mode wired `header-line-format' to a non-nil `:eval' construct."
   (let* ((c (beads-agent-ralph-dashboard-test--make-controller
              :root-id "bde-h"
              :iteration 7
@@ -299,7 +388,11 @@ blocks.  The dedupe pass keeps only the synth for that id."
          (buf (beads-agent-ralph-dashboard-render c)))
     (unwind-protect
         (with-current-buffer buf
-          (should (string-match-p "iter 7/20" (buffer-string))))
+          (should header-line-format)
+          (should (eq :eval (car-safe header-line-format)))
+          (should (string-match-p
+                   "iter 7/20"
+                   (beads-agent-ralph-dashboard--header-line c))))
       (when (buffer-live-p buf) (kill-buffer buf)))))
 
 ;;; Buffer-kill cleanup hook (bde-3i7u)

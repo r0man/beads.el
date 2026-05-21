@@ -26,6 +26,7 @@
 
 ;;; Code:
 
+(require 'ansi-color)
 (require 'cl-lib)
 (require 'subr-x)
 (require 'vui)
@@ -34,13 +35,15 @@
 
 ;;; Customization
 
-(defcustom beads-agent-ralph-render-debounce 0.05
+(defcustom beads-agent-ralph-render-debounce 0.15
   "Idle seconds before the dashboard flushes pending stream events.
 The filter never dispatches synchronously; it sets
 `pending-render' on the stream and the flush coalesces all events
-within this idle window.  0.05 keeps the dashboard reactive without
-re-rendering for every NDJSON line.  Increase if rendering is the
-bottleneck on a particularly chatty run."
+within this idle window.  0.15 keeps the dashboard reactive without
+re-rendering for every NDJSON line; on a chatty run, 50ms caused
+constant flicker and lost cursor position.  Drop to ~0.05 for
+real-time debugging, or raise further if rendering is the
+bottleneck."
   :type 'number
   :group 'beads-agent-ralph)
 
@@ -165,43 +168,57 @@ when claude streams an empty thinking delta)."
                       80 nil ?\s "…")))
         (vui-text (format "  · thinking: %s" preview) :face 'shadow)))))
 
+(defun beads-agent-ralph-dashboard--tool-input-summary (input)
+  "Return a short, semantically-useful one-line summary of tool INPUT.
+For Bash-style :command strings, keep only the first command (split on
+`;', `&&', `||', or newline) so multi-step pipelines don't get cut off
+mid-second-step at the character cap.  For Read/Edit/Write tools, prefer
+the path field over the verbose plist printer."
+  (cond
+   ((null input) "")
+   ((stringp input)
+    (truncate-string-to-width input 80 nil nil "…"))
+   ((listp input)
+    (let* ((cmd (or (plist-get input :command)
+                    (plist-get input :file_path)
+                    (plist-get input :path)
+                    (format "%S" input)))
+           (first (car (split-string cmd
+                                     "\n\\|;\\|&&\\|||"
+                                     t "[ \t]+"))))
+      (truncate-string-to-width
+       (replace-regexp-in-string "[ \t]+" " " (or first cmd))
+       80 nil nil "…")))
+   (t "")))
+
 (defun beads-agent-ralph-dashboard--render-tool-use-block (block)
   "Return a vnode card for a tool_use BLOCK."
-  (let* ((name (or (beads-agent-ralph-dashboard--block-field
-                    block :name "name") "?"))
-         (input (or (beads-agent-ralph-dashboard--block-field
-                     block :input "input") nil))
-         (input-preview
-          (cond
-           ((null input) "")
-           ((stringp input)
-            (truncate-string-to-width input 80 nil nil "…"))
-           ((listp input)
-            (truncate-string-to-width
-             (replace-regexp-in-string
-              "\n" " "
-              (or (plist-get input :command)
-                  (plist-get input :file_path)
-                  (plist-get input :path)
-                  (format "%S" input)))
-             80 nil nil "…"))
-           (t ""))))
-    (vui-text (format "  ▶ %s(%s)" name input-preview))))
+  (let ((name (or (beads-agent-ralph-dashboard--block-field
+                   block :name "name") "?"))
+        (input (or (beads-agent-ralph-dashboard--block-field
+                    block :input "input") nil)))
+    (vui-text (format "  ▶ %s(%s)"
+                      name
+                      (beads-agent-ralph-dashboard--tool-input-summary input)))))
 
 (defun beads-agent-ralph-dashboard--render-tool-result-block (block)
-  "Return a vnode card for a tool_result BLOCK with cap+expand affordance."
+  "Return a vnode card for a tool_result BLOCK with cap+expand affordance.
+Strips ANSI/VT100 escape sequences from the text first so raw CSI
+codes (e.g. `\\[K' from `guix substitute' progress lines) don't leak
+into the dashboard."
   (let* ((content (beads-agent-ralph-dashboard--block-field
                    block :content "content"))
-         (text (cond
-                ((stringp content) content)
-                ((listp content)
-                 (mapconcat
-                  (lambda (sub)
-                    (or (beads-agent-ralph-dashboard--block-field
-                         sub :text "text")
-                        ""))
-                  content "\n"))
-                (t "")))
+         (raw-text (cond
+                    ((stringp content) content)
+                    ((listp content)
+                     (mapconcat
+                      (lambda (sub)
+                        (or (beads-agent-ralph-dashboard--block-field
+                             sub :text "text")
+                            ""))
+                      content "\n"))
+                    (t "")))
+         (text (ansi-color-filter-apply raw-text))
          (cap (beads-agent-ralph-dashboard--cap-text-lines text)))
     (apply
      #'vui-vstack
@@ -265,6 +282,22 @@ when claude streams an empty thinking delta)."
    ((and (beads-agent-ralph-dashboard--type-eq event "system")
          (beads-agent-ralph-dashboard--subtype-eq event "api_retry"))
     (vui-text "⚠ API retry" :face 'warning))
+   ;; Per-turn pacing partials from claude (`system/status status=requesting'
+   ;; arrive between every tool call) carry no information beyond `the
+   ;; agent is about to do something' — drop them to cut stream noise.
+   ((and (beads-agent-ralph-dashboard--type-eq event "system")
+         (beads-agent-ralph-dashboard--subtype-eq event "status"))
+    nil)
+   ;; Per-turn rate-limit pings are pacing partials.  Keep them only when
+   ;; their status is anything other than `allowed' (i.e. throttle warnings).
+   ((and (beads-agent-ralph-dashboard--type-eq event "rate_limit_event")
+         (let ((info (or (plist-get event :rate_limit_info)
+                         (cdr (assoc "rate_limit_info" event)))))
+           (and (listp info)
+                (member (or (plist-get info :status)
+                            (cdr (assoc "status" info)))
+                        '("allowed" allowed)))))
+    nil)
    ((beads-agent-ralph-dashboard--type-eq event "assistant")
     (let* ((blocks (beads-agent-ralph-dashboard--assistant-blocks event))
            (rendered (delq nil (mapcar
@@ -371,6 +404,18 @@ Severity ordering: error > warning > notice > info."
 
 ;;; Iterations table
 
+(defun beads-agent-ralph-dashboard--format-duration (millis)
+  "Format MILLIS as a compact wall-clock (`12s', `3m12s', `1h2m')."
+  (if (or (null millis) (not (numberp millis)) (<= millis 0))
+      "—"
+    (let* ((secs (truncate (/ millis 1000.0)))
+           (h (/ secs 3600))
+           (m (% (/ secs 60) 60))
+           (s (% secs 60)))
+      (cond ((> h 0) (format "%dh%dm" h m))
+            ((> m 0) (format "%dm%02ds" m s))
+            (t       (format "%ds" s))))))
+
 (defun beads-agent-ralph-dashboard--iter-row (iter idx)
   "Return one row vnode for ITER (a `--iteration') at IDX."
   (let* ((status (oref iter status))
@@ -388,27 +433,69 @@ Severity ordering: error > warning > notice > info."
          (cost (if (oref iter cost-usd)
                    (format "$%.4f" (oref iter cost-usd))
                  "$—"))
+         (wall (beads-agent-ralph-dashboard--format-duration
+                (oref iter duration-ms)))
+         (tools (or (oref iter tool-call-count) 0))
          (summary (or (oref iter summary) "")))
     (vui-text
-     (format "  %s#%-3d %-12s %-10s %-9s %s"
+     (format "  %s#%-3d %-12s %-10s %-9s %-7s %3dt %s"
              glyph idx (or (oref iter issue-id) "?")
-             status-mark cost
+             status-mark cost wall tools
              (if (> (length summary) 60)
                  (concat (substring summary 0 60) "…")
                summary)))))
 
+(defun beads-agent-ralph-dashboard--live-iter-row (controller)
+  "Return a placeholder row for the in-flight iteration, or nil.
+Shown while CONTROLLER's `current-stream' is bound — i.e. an iteration
+is mid-spawn — so the table is never empty during a live run.  Counts
+tool_use events seen so far and shows wall-clock since the stream
+started."
+  (let ((stream (oref controller current-stream))
+        (status (oref controller status)))
+    (when (and stream
+               (memq status '(running idle))
+               (slot-boundp stream 'events))
+      (let* ((events (oref stream events))
+             ;; Count tool_use BLOCKS across deduped assistant events so
+             ;; per-block partials (which the renderer drops) don't inflate
+             ;; the live-row tool count beyond what the user actually sees.
+             (tools (cl-loop
+                     for e in (beads-agent-ralph-dashboard--dedupe-assistant-events
+                               (reverse events))
+                     sum (cl-count-if
+                          (lambda (b)
+                            (string= "tool_use"
+                                     (beads-agent-ralph-dashboard--block-type
+                                      b)))
+                          (beads-agent-ralph-dashboard--assistant-blocks e))))
+             (started (and (slot-boundp stream 'started-at)
+                           (oref stream started-at)))
+             (wall (beads-agent-ralph-dashboard--format-elapsed started))
+             (idx (oref controller iteration))
+             (issue (or (oref controller current-issue-id)
+                        (oref controller root-id) "?")))
+        (vui-text
+         (format "  %s#%-3d %-12s %-10s %-9s %-7s %3dt (in-flight)"
+                 "▸" idx issue "▶ live" "$—" wall tools)
+         :face 'shadow)))))
+
 (defun beads-agent-ralph-dashboard--iter-table (controller)
-  "Return the iterations table for CONTROLLER, newest-first."
+  "Return the iterations table for CONTROLLER, newest-first.
+Synthesises a placeholder live row when an iteration is in-flight so
+the table is never empty during a run."
   (let* ((history (oref controller history))
          (len (length history))
          (rows (cl-loop for iter in history
                         for i downfrom len
                         collect (beads-agent-ralph-dashboard--iter-row
-                                 iter i))))
+                                 iter i)))
+         (live (beads-agent-ralph-dashboard--live-iter-row controller))
+         (all-rows (delq nil (cons live rows))))
     (apply #'vui-vstack
-           (if rows
+           (if all-rows
                (cons (vui-text "Iterations (newest first):" :face 'bold)
-                     rows)
+                     all-rows)
              (list (vui-text "Iterations: (none yet)" :face 'shadow))))))
 
 ;;; Live stream region
@@ -476,21 +563,37 @@ keep the first real assistant for the id and drop later ones."
                (list (vui-text "  (waiting for first event)"
                                :face 'shadow))))))
 
+;;; Section divider
+
+(defun beads-agent-ralph-dashboard--divider (label)
+  "Return a `── LABEL ───' divider vnode roughly 78 chars wide."
+  (let* ((prefix (format "── %s " label))
+         (fill (max 0 (- 78 (string-width prefix)))))
+    (vui-text (concat prefix (make-string fill ?─))
+              :face 'shadow)))
+
 ;;; Action bar
 
 (defun beads-agent-ralph-dashboard--action-bar ()
   "Return the action-bar legend vnode.
 The legend must match the keymap in `beads-agent-ralph-dashboard-mode-map'
-and the body of `beads-agent-ralph-dashboard-help'."
-  (vui-text "[s]top [k]ill [p]ause [r]esume [v]iew [B]anners [g]refresh [q]uit [?]"
-            :face 'shadow))
+and the body of `beads-agent-ralph-dashboard-help'.  Capital letters in
+the legend mirror the bound key case so users know `B' is not the same
+as `b'."
+  (vui-text
+   "[s]top [k]ill [p]ause [r]esume [v]iew [P]rompt [B]anners [g]refresh [q]uit [?]"
+   :face 'shadow))
 
 ;;; Root composition
 
 (vui-defcomponent beads-agent-ralph-dashboard--root
     (controller)
   "Top-level Ralph dashboard composition.
-CONTROLLER is the live `beads-agent-ralph--controller' object."
+CONTROLLER is the live `beads-agent-ralph--controller' object.
+The dense header line is pinned via `header-line-format' (see
+`beads-agent-ralph-dashboard-mode'); the body keeps the secondary
+detail line, banner, iteration table, live stream, and action bar
+separated by labelled rulers so scrolled views stay oriented."
   :render
   (vui-error-boundary
    :id (list 'beads-agent-ralph-dashboard (oref controller root-id))
@@ -504,17 +607,15 @@ CONTROLLER is the live `beads-agent-ralph--controller' object."
    :children
    (list
     (vui-vstack
-      (vui-text (beads-agent-ralph-dashboard--header-line controller))
       (vui-text (beads-agent-ralph-dashboard--secondary-line controller)
                 :face 'shadow)
-      (vui-text "")
       (or (beads-agent-ralph-dashboard--banner-line controller)
           (vui-text ""))
-      (vui-text "")
+      (beads-agent-ralph-dashboard--divider "Iterations")
       (beads-agent-ralph-dashboard--iter-table controller)
-      (vui-text "")
+      (beads-agent-ralph-dashboard--divider "Live stream")
       (beads-agent-ralph-dashboard--live-stream controller)
-      (vui-text "")
+      (beads-agent-ralph-dashboard--divider "Actions")
       (beads-agent-ralph-dashboard--action-bar)))))
 
 ;;; Buffer + mode
@@ -529,6 +630,7 @@ CONTROLLER is the live `beads-agent-ralph--controller' object."
     (define-key map (kbd "p") #'beads-agent-ralph-dashboard-pause)
     (define-key map (kbd "r") #'beads-agent-ralph-dashboard-resume)
     (define-key map (kbd "v") #'beads-agent-ralph-dashboard-view-issue)
+    (define-key map (kbd "P") #'beads-agent-ralph-dashboard-view-prompt)
     (define-key map (kbd "B") #'beads-agent-ralph-dashboard-banner-log)
     (define-key map (kbd "g") #'beads-agent-ralph-dashboard-refresh)
     (define-key map (kbd "q") #'quit-window)
@@ -542,7 +644,16 @@ CONTROLLER is the live `beads-agent-ralph--controller' object."
 Derived from `vui-mode' so `vui-mount' preserves our keymap and
 text-property contract; otherwise vui would switch the buffer back
 to `vui-mode' on every re-render.
-Keybindings reflect the action bar legend at the foot of the buffer.")
+Keybindings reflect the action bar legend at the foot of the buffer.
+The dense status line is pinned via `header-line-format' so it stays
+visible when the live stream scrolls off-screen."
+  (setq-local
+   header-line-format
+   '(:eval
+     (when (and (boundp 'beads-agent-ralph-dashboard--controller)
+                beads-agent-ralph-dashboard--controller)
+       (beads-agent-ralph-dashboard--header-line
+        beads-agent-ralph-dashboard--controller)))))
 
 (defun beads-agent-ralph-dashboard-refresh ()
   "Force a re-render of the current dashboard buffer."
@@ -626,6 +737,40 @@ iteration (bde-7943)."
           (setq-local buffer-read-only t)))
       (pop-to-buffer buf))))
 
+(defun beads-agent-ralph-dashboard-view-prompt ()
+  "Pop a buffer showing the resolved iteration prompt template.
+Resolves the controller's effective template the same way the spawn
+path does (slot → `beads-agent-ralph-prompt-file' → defcustom) so the
+user sees the exact source that drives each iteration's prompt.  Not
+the rendered prompt for one specific iteration — that view would
+require re-fetching bd state and is the kind of thing a future
+`P i' (per-iter prompt) command should grow into."
+  (interactive)
+  (when beads-agent-ralph-dashboard--controller
+    (let* ((c beads-agent-ralph-dashboard--controller)
+           (template (or (and (fboundp 'beads-agent-ralph--effective-template)
+                              (beads-agent-ralph--effective-template c))
+                         (oref c prompt-template)
+                         "(no template resolved)"))
+           (buf (get-buffer-create
+                 (format "*beads-agent-ralph prompt: %s*"
+                         (oref c root-id)))))
+      (with-current-buffer buf
+        (let ((inhibit-read-only t))
+          (erase-buffer)
+          (insert (format "Iteration prompt template for %s\n"
+                          (oref c root-id)))
+          (insert (format "Source: %s\n\n"
+                          (cond ((oref c prompt-template) "controller slot")
+                                (beads-agent-ralph-prompt-file
+                                 (format "file %s"
+                                         beads-agent-ralph-prompt-file))
+                                (t "defcustom `beads-agent-ralph-prompt'"))))
+          (insert template))
+        (goto-char (point-min))
+        (setq-local buffer-read-only t))
+      (pop-to-buffer buf))))
+
 (defun beads-agent-ralph-dashboard-help ()
   "Show the full key legend in the echo area.
 Keep the message in sync with the action-bar legend rendered by
@@ -633,7 +778,7 @@ Keep the message in sync with the action-bar legend rendered by
 and see the same set of keys advertised at the bottom of the buffer."
   (interactive)
   (message
-   "Ralph keys: [s]top [k]ill [p]ause [r]esume [v]iew issue [B]anners [g]refresh [?]help [q]uit"))
+   "Ralph keys: [s]top [k]ill [p]ause [r]esume [v]iew issue [P]rompt [B]anners [g]refresh [?]help [q]uit"))
 
 ;;; Mount + re-render machinery
 
