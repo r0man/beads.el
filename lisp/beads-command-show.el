@@ -118,7 +118,18 @@
     :type boolean
     :short-option "w"
     :group "Options"
-    :level 3))
+    :level 3)
+   (include-dependents
+    :type boolean
+    :long-option "include-dependents"
+    :group "Options"
+    :level 3
+    :documentation "Include downstream relationship data in the result.
+Passes --include-dependents so the JSON adds dependents[] (CHILDREN
+via parent-child, BLOCKS via blocks) plus epic_total_children,
+epic_closed_children, and epic_closeable.  Plain `bd show --json'
+omits dependents[] (only dependent_count), so this flag is required
+to render the CHILDREN and BLOCKS sections in the show buffer."))
   :documentation "Represents bd show command.
 Shows detailed information about one or more issues.
 When executed with :json t, returns beads-issue instance (or list
@@ -386,7 +397,8 @@ navigating in beads-list.  Returns BUFFER."
       (beads-show-mode))
     (setq beads-show--issue-id issue-id)
     (condition-case err
-        (let ((issue (beads-execute 'beads-command-show :issue-ids (list issue-id))))
+        (let ((issue (beads-execute 'beads-command-show :issue-ids (list issue-id)
+                                    :include-dependents t)))
           (setq beads-show--issue-data issue)
           ;; Rename buffer to include title
           (let* ((title (oref issue title))
@@ -1579,7 +1591,8 @@ correct project detection (important for git worktrees)."
       (condition-case err
           ;; Execute command in caller's directory context
           (let ((default-directory caller-dir)
-                (issue (beads-execute 'beads-command-show :issue-ids (list issue-id))))
+                (issue (beads-execute 'beads-command-show :issue-ids (list issue-id)
+                                      :include-dependents t)))
             (setq beads-show--issue-data issue)
             ;; Rename buffer to include title now that we have it
             (let* ((title (oref issue title))
@@ -1630,7 +1643,8 @@ Uses the stored project directory for command execution."
         (project-dir (or beads-show--project-dir default-directory)))
     (condition-case err
         (let* ((default-directory project-dir)
-               (issue (beads-execute 'beads-command-show :issue-ids (list beads-show--issue-id))))
+               (issue (beads-execute 'beads-command-show :issue-ids (list beads-show--issue-id)
+                                     :include-dependents t)))
           (setq beads-show--issue-data issue)
           (beads-show--render-issue beads-show--issue-data)
           (goto-char (min pos (point-max)))
