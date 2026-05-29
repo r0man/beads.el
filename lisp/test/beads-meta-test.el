@@ -1168,13 +1168,15 @@ like flags) rather than a positional slot."
   (let ((slots (beads-meta-transient-slots 'beads-command-show)))
     ;; Should have issue-ids slot with transient key
     (should (memq 'issue-ids slots))
-    ;; Should have 10 slots with transient keys
+    ;; Should have 11 slots with transient keys
     ;; (beads--normalize-slot infers :transient-key for all command options)
-    (should (= 10 (length slots)))))
+    ;; 11 = 10 base slots + include-dependents (bde-gi7o)
+    (should (= 11 (length slots)))))
 
 (ert-deftest beads-meta-show-option-slots ()
   "Test that option slots are identified correctly.
-In bd 1.0.3 issue-ids is a --id flag, so all 10 own slots are options."
+In bd 1.0.3 issue-ids is a --id flag, so all 11 own slots are options
+\(10 base + include-dependents, bde-gi7o)."
   (let ((options (beads-meta-option-slots 'beads-command-show)))
     ;; Should include the new --id flag for issue-ids
     (should (memq 'issue-ids options))
@@ -1183,15 +1185,15 @@ In bd 1.0.3 issue-ids is a --id flag, so all 10 own slots are options."
     ;; Should include global options inherited from beads-command-global-options
     (should (memq 'actor options))
     (should (memq 'verbose options))
-    ;; Should have 10 command-show + 11 inherited option slots = 21
-    (should (= 21 (length options)))))
+    ;; Should have 11 command-show + 11 inherited option slots = 22
+    (should (= 22 (length options)))))
 
 (ert-deftest beads-meta-show-generate-infix-specs ()
   "Test that infix specs can be generated from beads-command-show."
   (let ((specs (beads-meta-generate-infix-specs
                 'beads-command-show "beads-show")))
-    ;; Should have 10 infix specs
-    (should (= 10 (length specs)))
+    ;; Should have 11 infix specs (10 base + include-dependents, bde-gi7o)
+    (should (= 11 (length specs)))
     ;; Check for specific infix
     (let ((issue-ids-spec (cl-find-if
                            (lambda (s)
