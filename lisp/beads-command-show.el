@@ -338,7 +338,7 @@ PROJECT-DIR defaults to the current project root.
 Return buffer or nil if not found."
   (let ((normalized-dir (beads-show--normalize-directory
                          (or project-dir
-                             (beads-git-find-project-root)
+                             (beads--project-root)
                              default-directory))))
     (cl-find-if
      (lambda (buf)
@@ -357,7 +357,7 @@ If PROJECT-DIR is nil, use current project.
 Returns the buffer or nil if none is visible."
   (let* ((proj-dir (beads-show--normalize-directory
                     (or project-dir
-                        (beads-git-find-project-root)
+                        (beads--project-root)
                         default-directory))))
     (seq-find (lambda (buf)
                 (and (buffer-live-p buf)
@@ -375,10 +375,10 @@ Returns the buffer or nil if none is visible."
 TITLE is used for buffer name display (truncated if too long).
 Reuses existing buffer for same (project-dir, issue-id) pair.
 Buffer is named *beads-show[PROJECT]/ISSUE-ID TITLE*."
-  (let* ((project-dir (or (beads-git-find-project-root) default-directory))
+  (let* ((project-dir (or (beads--project-root) default-directory))
          (existing (beads-show--find-buffer-for-issue issue-id project-dir)))
     (or existing
-        (let* ((proj-name (beads-git-get-project-name))
+        (let* ((proj-name (beads--project-name-for-root project-dir))
                (buf-name (beads-buffer-name-show issue-id title proj-name))
                (buffer (get-buffer-create buf-name)))
           (with-current-buffer buffer
@@ -1574,7 +1574,7 @@ correct project detection (important for git worktrees)."
                                       'beads--issue-id-history)))
   ;; Capture caller's directory for command execution context
   (let* ((caller-dir default-directory)
-         (project-dir (or (beads-git-find-project-root) default-directory))
+         (project-dir (or (beads--project-root) default-directory))
          ;; Get or create buffer keyed by (project-dir, issue-id)
          (buffer (beads-show--get-or-create-buffer issue-id)))
     (with-current-buffer buffer
@@ -1585,7 +1585,7 @@ correct project detection (important for git worktrees)."
       (setq beads-show--issue-id issue-id
             beads-show--project-dir project-dir
             beads-show--branch (beads-git-get-branch)
-            beads-show--proj-name (beads-git-get-project-name))
+            beads-show--proj-name (beads--project-name-for-root project-dir))
       ;; Register with worktree session for lifecycle management
       (beads-show--register-with-session)
       (condition-case err
