@@ -231,7 +231,7 @@ Return buffer or nil if not found."
 (defun beads-formula-list--get-or-create-buffer ()
   "Get or create formula list buffer for current project.
 Reuses existing buffer for same project-dir (directory is identity)."
-  (let* ((project-dir (or (beads-git-find-project-root) default-directory))
+  (let* ((project-dir (or (beads--project-root) default-directory))
          (existing (beads-formula-list--find-buffer-for-project project-dir)))
     (or existing
         (let* ((proj-name (beads-git-get-project-name))
@@ -395,7 +395,7 @@ Return buffer if found in a visible window, nil otherwise.
 Uses `beads-formula-list--normalize-directory' for path comparison."
   (let ((normalized-dir (beads-formula-list--normalize-directory
                          (or project-dir
-                             (beads-git-find-project-root)
+                             (beads--project-root)
                              default-directory))))
     (cl-find-if
      (lambda (buf)
@@ -566,7 +566,7 @@ When called interactively with a prefix argument, prompts for TYPE."
                             '("workflow" "expansion" "aspect")
                             nil t))))
   (beads-check-executable)
-  (let* ((project-dir (or (beads-git-find-project-root) default-directory))
+  (let* ((project-dir (or (beads--project-root) default-directory))
          (buffer (beads-formula-list--get-or-create-buffer))
          (command (beads-command-formula-list
                    :json t
@@ -600,7 +600,7 @@ When called interactively with a prefix argument, prompts for TYPE."
                               (mapcar (lambda (f) (oref f name))
                                       (beads-execute 'beads-command-formula-list :json t)))
                             nil t))))
-  (let* ((project-dir (or (beads-git-find-project-root) default-directory))
+  (let* ((project-dir (or (beads--project-root) default-directory))
          (command (beads-command-formula-show
                    :formula-name formula-name
                    :json t))

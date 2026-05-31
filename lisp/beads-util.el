@@ -137,6 +137,58 @@ Search order:
             (puthash start-dir full-path beads--project-cache)
             full-path))))))
 
+(defconst beads--project-root-markers
+  '(".beads" "city.toml" ".gc" "pack.toml")
+  "Filenames marking a non-git beads project root.
+Includes plain beads projects (\".beads\") and Gas City workspaces
+\(\"city.toml\", \".gc\", \"pack.toml\"), none of which require a
+\".git\" directory at the project root.")
+
+(defun beads--find-project-root (&optional directory)
+  "Return the project root at or above DIRECTORY, or nil.
+If DIRECTORY is nil, uses `default-directory'.
+
+Walks up looking for the nearest ancestor that holds any marker in
+`beads--project-root-markers'.  Recognizes plain beads projects and
+non-git Gas City workspaces.  Git repositories are intentionally not
+probed here — callers that prefer VC detection should try
+`beads-git-find-project-root' first and fall back to this."
+  (let* ((start (or directory default-directory))
+         (root (locate-dominating-file
+                start
+                (lambda (dir)
+                  (seq-some (lambda (marker)
+                              (file-exists-p (expand-file-name marker dir)))
+                            beads--project-root-markers)))))
+    (when root
+      (file-name-as-directory (expand-file-name root)))))
+
+(defun beads--project-root ()
+  "Return the canonical project root, or nil if not in a project.
+Tries VC/git detection first via `beads-git-find-project-root'
+\(correct for normal repos and Gas City rigs), then falls back to
+`beads--find-project-root' so non-git beads projects and Gas City
+workspaces are recognized.
+
+The git result is returned verbatim (`project-root' already yields a
+directory name); the marker fallback is normalized by
+`beads--find-project-root'.  This makes the resolver a drop-in for a
+bare `beads-git-find-project-root' call.
+
+This is the package-wide resolver: prefer it over calling
+`beads-git-find-project-root' directly, except where an operation
+genuinely requires git (worktrees, branches, sesman sessions)."
+  (or (ignore-errors (beads-git-find-project-root))
+      (beads--find-project-root)))
+
+(defun beads--project-name ()
+  "Return the basename of the canonical project root, or nil.
+Resolves the root via `beads--project-root' (git first, then the
+non-git marker walk), so Gas City and other non-git beads projects get
+a real name instead of \"unknown\"."
+  (when-let* ((root (beads--project-root)))
+    (file-name-nondirectory (directory-file-name root))))
+
 (defun beads--resolve-beads-dir (beads-dir)
   "Resolve BEADS-DIR, following a redirect file if present.
 If BEADS-DIR contains a `redirect' file, reads its content as a

@@ -342,10 +342,14 @@
     (should (equal (beads-git-get-project-name) "myproject"))))
 
 (ert-deftest beads-git-test-get-project-name-no-project ()
-  "Test beads-git-get-project-name returns nil when no project."
+  "Test beads-git-get-project-name returns nil when no project.
+Neutralizes both git and the non-git marker walk so the surrounding
+filesystem (which may itself be a beads project) cannot leak in."
   :tags '(:unit)
   (cl-letf (((symbol-function 'beads-git-find-project-root)
-             (lambda () nil)))
+             (lambda () nil))
+            ((symbol-function 'beads--find-project-root)
+             (lambda (&optional _d) nil)))
     (should-not (beads-git-get-project-name))))
 
 (ert-deftest beads-git-test-get-project-name-nested-path ()
@@ -636,13 +640,6 @@
   :tags '(:unit)
   (should (fboundp 'beads-git-command)))
 
-(ert-deftest beads-git-test-get-project-name-nil-root ()
-  "Test get-project-name returns nil when no root."
-  :tags '(:unit)
-  (cl-letf (((symbol-function 'beads-git-find-project-root)
-             (lambda () nil)))
-    (should-not (beads-git-get-project-name))))
-
 ;;; Async Worktree Tests
 
 (ert-deftest beads-git-test-create-worktree-async-success ()
@@ -722,6 +719,18 @@
        "beads-123"
        (lambda (_success _path) nil))
       (should create-called))))
+
+;;; Test beads-git-get-project-name (non-git marker fallback)
+
+(ert-deftest beads-git-test-get-project-name-falls-back-to-marker ()
+  "Without git, the name comes from the non-git marker root.
+Regression: Gas City workspaces must not show up as \"unknown\"."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-git-find-project-root)
+             (lambda () nil))
+            ((symbol-function 'beads--find-project-root)
+             (lambda (&optional _d) "/home/u/bright-lights/")))
+    (should (equal (beads-git-get-project-name) "bright-lights"))))
 
 (provide 'beads-git-test)
 

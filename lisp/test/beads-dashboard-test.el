@@ -236,6 +236,17 @@ string because mode-line constructs need the full template."
     (should (string-match-p "No beads project found" rendered))
     (should (string-match-p "beads-init" rendered))))
 
+(ert-deftest beads-dashboard-test-project-root-falls-back-to-markers ()
+  "The dashboard root wrapper forwards to the non-git marker resolver.
+Regression for Gas City workspaces (city.toml/.gc/.beads, no .git);
+the resolver's own branches are covered in beads-core-test."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-git-find-project-root)
+             (lambda () nil))
+            ((symbol-function 'beads--find-project-root)
+             (lambda (&optional _dir) "/tmp/gascity/")))
+    (should (equal (beads-dashboard--project-root) "/tmp/gascity/"))))
+
 ;;; Stale-While-Revalidate
 
 (ert-deftest beads-dashboard-test-mode-inits-last-good-data-cache ()

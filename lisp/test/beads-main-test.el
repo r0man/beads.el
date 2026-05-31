@@ -140,6 +140,8 @@
   (beads-main-test-with-clean-cache
     (cl-letf (((symbol-function 'beads-git-find-project-root)
                (lambda () nil))
+              ((symbol-function 'beads--find-project-root)
+               (lambda (&optional _d) nil))
               ((symbol-function 'beads--get-database-path)
                (lambda () nil)))
       (let ((info (beads-main--get-project-info)))
@@ -222,6 +224,8 @@
   (beads-main-test-with-clean-cache
     (cl-letf (((symbol-function 'beads-git-find-project-root)
                (lambda () nil))
+              ((symbol-function 'beads--find-project-root)
+               (lambda (&optional _d) nil))
               ((symbol-function 'beads--get-database-path)
                (lambda () nil)))
       (let ((header (beads-main--format-project-header)))

@@ -295,6 +295,92 @@
               (should (null result)))))
       (delete-directory temp-dir t))))
 
+;;; Tests for Find Project Root (non-git markers)
+
+(ert-deftest beads-core-test-find-project-root-beads ()
+  "A plain beads project (.beads/) is recognized without git."
+  (let ((temp-dir (make-temp-file "beads-test-" t)))
+    (unwind-protect
+        (progn
+          (make-directory (expand-file-name ".beads" temp-dir))
+          (let ((result (beads--find-project-root temp-dir)))
+            (should (stringp result))
+            (should (equal (file-truename result)
+                           (file-name-as-directory (file-truename temp-dir))))))
+      (delete-directory temp-dir t))))
+
+(ert-deftest beads-core-test-find-project-root-gascity ()
+  "A Gas City workspace (city.toml/.gc) is recognized without .git."
+  (let ((temp-dir (make-temp-file "beads-test-" t)))
+    (unwind-protect
+        (progn
+          ;; Gas City markers only: no .git, no .beads at this level.
+          (write-region "[workspace]\n" nil
+                         (expand-file-name "city.toml" temp-dir))
+          (make-directory (expand-file-name ".gc" temp-dir))
+          (let ((result (beads--find-project-root temp-dir)))
+            (should (stringp result))
+            (should (equal (file-truename result)
+                           (file-name-as-directory (file-truename temp-dir))))))
+      (delete-directory temp-dir t))))
+
+(ert-deftest beads-core-test-find-project-root-from-subdir ()
+  "Detection walks up from a subdirectory to the marker-bearing root."
+  (let ((temp-dir (make-temp-file "beads-test-" t)))
+    (unwind-protect
+        (let ((subdir (expand-file-name "rigs/inner" temp-dir)))
+          (write-region "[workspace]\n" nil
+                         (expand-file-name "city.toml" temp-dir))
+          (make-directory subdir t)
+          (let ((result (beads--find-project-root subdir)))
+            (should (stringp result))
+            (should (equal (file-truename result)
+                           (file-name-as-directory (file-truename temp-dir))))))
+      (delete-directory temp-dir t))))
+
+(ert-deftest beads-core-test-find-project-root-none ()
+  "With no markers anywhere, detection returns nil."
+  (let ((temp-dir (make-temp-file "beads-test-" t)))
+    (unwind-protect
+        (cl-letf (((symbol-function 'locate-dominating-file)
+                   (lambda (_file _pred) nil)))
+          (should (null (beads--find-project-root temp-dir))))
+      (delete-directory temp-dir t))))
+
+;;; Tests for the canonical project-root resolver
+
+(ert-deftest beads-core-test-project-root-prefers-git ()
+  "`beads--project-root' uses git detection when available, verbatim."
+  (cl-letf (((symbol-function 'beads-git-find-project-root)
+             (lambda () "/tmp/gitrepo/"))
+            ((symbol-function 'beads--find-project-root)
+             (lambda (&optional _d) "/tmp/marker/")))
+    (should (equal (beads--project-root) "/tmp/gitrepo/"))))
+
+(ert-deftest beads-core-test-project-root-falls-back-to-marker ()
+  "`beads--project-root' falls back to the marker walk without git."
+  (cl-letf (((symbol-function 'beads-git-find-project-root)
+             (lambda () nil))
+            ((symbol-function 'beads--find-project-root)
+             (lambda (&optional _d) "/tmp/gascity/")))
+    (should (equal (beads--project-root) "/tmp/gascity/"))))
+
+(ert-deftest beads-core-test-project-root-none ()
+  "`beads--project-root' is nil when neither git nor markers match."
+  (cl-letf (((symbol-function 'beads-git-find-project-root)
+             (lambda () nil))
+            ((symbol-function 'beads--find-project-root)
+             (lambda (&optional _d) nil)))
+    (should (null (beads--project-root)))))
+
+(ert-deftest beads-core-test-project-root-tolerates-git-error ()
+  "A signal from git detection is swallowed; marker fallback still wins."
+  (cl-letf (((symbol-function 'beads-git-find-project-root)
+             (lambda () (error "no VC backend")))
+            ((symbol-function 'beads--find-project-root)
+             (lambda (&optional _d) "/tmp/gascity/")))
+    (should (equal (beads--project-root) "/tmp/gascity/"))))
+
 ;;; Tests for Customization Group
 
 (ert-deftest beads-core-test-customization-group-exists ()

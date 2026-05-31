@@ -212,7 +212,7 @@ Cache is keyed by directory to avoid stale data when switching projects."
            (equal default-directory
                   (car beads-main--cached-project-info)))
       (cdr beads-main--cached-project-info)
-    (let ((root (beads-git-find-project-root))
+    (let ((root (beads--project-root))
           (db (beads--get-database-path)))
       (when root
         (let ((info (cons root db)))

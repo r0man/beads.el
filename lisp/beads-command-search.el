@@ -245,7 +245,7 @@ then displays them in a tabulated list buffer."
   (oset cmd json t)
   (condition-case err
       (let* ((caller-dir default-directory)
-             (project-dir (or (beads-git-find-project-root)
+             (project-dir (or (beads--project-root)
                               default-directory))
              (issue-objects (beads-command-execute cmd))
              (buffer (beads-list--get-or-create-buffer 'search)))
