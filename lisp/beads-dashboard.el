@@ -76,10 +76,8 @@ force the loading skeleton back on demand.")
 
 (defun beads-dashboard--project-root ()
   "Return the canonical project root or nil.
-Thin wrapper over `beads--project-root', which prefers VC/git
-detection and falls back to a marker walk so non-git beads projects
-and Gas City workspaces (`.beads'/`city.toml'/`.gc'/`pack.toml') are
-recognized.  See `beads--project-root-markers' for the marker set."
+Thin wrapper over `beads--project-root'; see it and
+`beads-project-root-markers' for the detection details."
   (beads--project-root))
 
 (defun beads-dashboard--buffer-name-for (root)

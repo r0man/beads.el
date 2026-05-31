@@ -234,7 +234,7 @@ Reuses existing buffer for same project-dir (directory is identity)."
   (let* ((project-dir (or (beads--project-root) default-directory))
          (existing (beads-formula-list--find-buffer-for-project project-dir)))
     (or existing
-        (let* ((proj-name (beads-git-get-project-name))
+        (let* ((proj-name (beads--project-name-for-root project-dir))
                (buf-name (format "*beads-formula-list[%s]*" proj-name)))
           (get-buffer-create buf-name)))))
 
@@ -606,7 +606,7 @@ When called interactively with a prefix argument, prompts for TYPE."
                    :json t))
          (formula (beads-command-execute command))
          (buf-name (format "*beads-formula[%s]/%s*"
-                           (beads-git-get-project-name)
+                           (beads--project-name-for-root project-dir)
                            formula-name))
          (buffer (get-buffer-create buf-name)))
     (with-current-buffer buffer

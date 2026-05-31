@@ -378,7 +378,7 @@ Buffer is named *beads-show[PROJECT]/ISSUE-ID TITLE*."
   (let* ((project-dir (or (beads--project-root) default-directory))
          (existing (beads-show--find-buffer-for-issue issue-id project-dir)))
     (or existing
-        (let* ((proj-name (beads-git-get-project-name))
+        (let* ((proj-name (beads--project-name-for-root project-dir))
                (buf-name (beads-buffer-name-show issue-id title proj-name))
                (buffer (get-buffer-create buf-name)))
           (with-current-buffer buffer
@@ -1585,7 +1585,7 @@ correct project detection (important for git worktrees)."
       (setq beads-show--issue-id issue-id
             beads-show--project-dir project-dir
             beads-show--branch (beads-git-get-branch)
-            beads-show--proj-name (beads-git-get-project-name))
+            beads-show--proj-name (beads--project-name-for-root project-dir))
       ;; Register with worktree session for lifecycle management
       (beads-show--register-with-session)
       (condition-case err

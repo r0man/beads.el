@@ -93,6 +93,10 @@ ISSUES should be a list of alists (test data format)."
                (beads-test--mock-command-result (vector))))
             ((symbol-function 'beads-check-executable)
              (lambda () t))
+            ;; Buffer names derive from the resolved root's basename,
+            ;; so pin the root to a dir named "testproj".
+            ((symbol-function 'beads-git-find-project-root)
+             (lambda () "/tmp/testproj"))
             ((symbol-function 'beads-git-get-project-name)
              (lambda () "testproj"))
             ((symbol-function 'beads-git-get-branch)
@@ -422,6 +426,10 @@ ISSUES should be a list of alists (test data format)."
                            :created-at (alist-get 'created-at alist)))))))
             ((symbol-function 'beads-check-executable)
              (lambda () t))
+            ;; Buffer names derive from the resolved root's basename,
+            ;; so pin the root to a dir named "testproj".
+            ((symbol-function 'beads-git-find-project-root)
+             (lambda () "/tmp/testproj"))
             ((symbol-function 'beads-git-get-project-name)
              (lambda () "testproj"))
             ((symbol-function 'beads-git-get-branch)
@@ -451,6 +459,10 @@ ISSUES should be a list of alists (test data format)."
                            :created-at (alist-get 'created-at alist)))))))
             ((symbol-function 'beads-check-executable)
              (lambda () t))
+            ;; Buffer names derive from the resolved root's basename,
+            ;; so pin the root to a dir named "testproj".
+            ((symbol-function 'beads-git-find-project-root)
+             (lambda () "/tmp/testproj"))
             ((symbol-function 'beads-git-get-project-name)
              (lambda () "testproj"))
             ((symbol-function 'beads-git-get-branch)
@@ -1197,6 +1209,10 @@ Tests that executing with mocked transient-args creates a list buffer."
                           (mapcar #'beads-list-test--alist-to-issue
                                   beads-list-test--sample-issues))
                  nil)))
+            ;; Buffer names derive from the resolved root's basename,
+            ;; so pin the root to a dir named "testproj".
+            ((symbol-function 'beads-git-find-project-root)
+             (lambda () "/tmp/testproj"))
             ((symbol-function 'beads-git-get-project-name)
              (lambda () "testproj"))
             ((symbol-function 'beads-git-get-branch)

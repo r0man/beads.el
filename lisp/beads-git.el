@@ -43,7 +43,8 @@
 
 ;; Soft dependency on beads-util's project-name resolver (Gas City etc.).
 ;; beads-util requires beads-git, so this stays a declaration to avoid a
-;; load cycle; beads-util is always loaded by the time these run.
+;; load cycle; the function below pulls beads-util in at call time so it
+;; works even when beads-git is loaded in isolation.
 (declare-function beads--project-name "beads-util")
 
 ;;; Forward Declarations
@@ -72,6 +73,10 @@ Compatibility wrapper over `beads--project-name': the basename of the
 project root resolved via git or the non-git marker walk (so Gas City
 and other non-git beads projects get a real name instead of
 \"unknown\").  Returns nil if not in a project."
+  ;; Loaded at call time so this works even if beads-git was required in
+  ;; isolation (e.g. a test that only does (require 'beads-git)); a no-op
+  ;; once beads-util is already in memory, which is the normal case.
+  (require 'beads-util)
   (beads--project-name))
 
 (defun beads-git-get-branch ()

@@ -255,7 +255,7 @@ then displays them in a tabulated list buffer."
           ;; Update directory-aware state
           (setq beads-list--project-dir project-dir)
           (setq beads-list--branch (beads-git-get-branch))
-          (setq beads-list--proj-name (beads-git-get-project-name))
+          (setq beads-list--proj-name (beads--project-name-for-root project-dir))
           (setq beads-search--command-obj cmd)
           (setq default-directory caller-dir)
           (if (not issue-objects)

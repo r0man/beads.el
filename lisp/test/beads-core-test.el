@@ -310,7 +310,7 @@
       (delete-directory temp-dir t))))
 
 (ert-deftest beads-core-test-find-project-root-gascity ()
-  "A Gas City workspace (city.toml/.gc) is recognized without .git."
+  "A Gas City workspace (city.toml + .gc together) is recognized without .git."
   (let ((temp-dir (make-temp-file "beads-test-" t)))
     (unwind-protect
         (progn
@@ -318,6 +318,44 @@
           (write-region "[workspace]\n" nil
                          (expand-file-name "city.toml" temp-dir))
           (make-directory (expand-file-name ".gc" temp-dir))
+          (let ((result (beads--find-project-root temp-dir)))
+            (should (stringp result))
+            (should (equal (file-truename result)
+                           (file-name-as-directory (file-truename temp-dir))))))
+      (delete-directory temp-dir t))))
+
+(ert-deftest beads-core-test-find-project-root-city-toml ()
+  "A Gas City `city.toml' alone (no .git/.beads/.gc) is recognized."
+  (let ((temp-dir (make-temp-file "beads-test-" t)))
+    (unwind-protect
+        (progn
+          (write-region "[workspace]\n" nil
+                         (expand-file-name "city.toml" temp-dir))
+          (let ((result (beads--find-project-root temp-dir)))
+            (should (stringp result))
+            (should (equal (file-truename result)
+                           (file-name-as-directory (file-truename temp-dir))))))
+      (delete-directory temp-dir t))))
+
+(ert-deftest beads-core-test-find-project-root-gc ()
+  "A Gas City `.gc' directory alone (no .git/.beads/city.toml) is recognized."
+  (let ((temp-dir (make-temp-file "beads-test-" t)))
+    (unwind-protect
+        (progn
+          (make-directory (expand-file-name ".gc" temp-dir))
+          (let ((result (beads--find-project-root temp-dir)))
+            (should (stringp result))
+            (should (equal (file-truename result)
+                           (file-name-as-directory (file-truename temp-dir))))))
+      (delete-directory temp-dir t))))
+
+(ert-deftest beads-core-test-find-project-root-pack-toml ()
+  "A Gas City `pack.toml' alone (no .git/.beads) is recognized."
+  (let ((temp-dir (make-temp-file "beads-test-" t)))
+    (unwind-protect
+        (progn
+          (write-region "[pack]\n" nil
+                         (expand-file-name "pack.toml" temp-dir))
           (let ((result (beads--find-project-root temp-dir)))
             (should (stringp result))
             (should (equal (file-truename result)
@@ -391,6 +429,21 @@ canonical form (the normalization the old dashboard wrapper did)."
             ((symbol-function 'beads--find-project-root)
              (lambda (&optional _d) "/tmp/gascity/")))
     (should (equal (beads--project-root) "/tmp/gascity/"))))
+
+;;; Tests for the project-name-from-root helper
+
+(ert-deftest beads-core-test-project-name-for-root ()
+  "`beads--project-name-for-root' is the basename, trailing slash or not."
+  (should (equal (beads--project-name-for-root "/tmp/my-project/") "my-project"))
+  (should (equal (beads--project-name-for-root "/tmp/my-project") "my-project")))
+
+(ert-deftest beads-core-test-project-root-markers-customizable ()
+  "The marker set is a user option, defaulting to the documented markers."
+  (should (custom-variable-p 'beads-project-root-markers))
+  (should (member ".beads" beads-project-root-markers))
+  (should (member "city.toml" beads-project-root-markers))
+  (should (member ".gc" beads-project-root-markers))
+  (should (member "pack.toml" beads-project-root-markers)))
 
 ;;; Tests for Customization Group
 
