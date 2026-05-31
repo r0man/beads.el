@@ -245,7 +245,7 @@ then displays them in a tabulated list buffer."
   (oset cmd json t)
   (condition-case err
       (let* ((caller-dir default-directory)
-             (project-dir (or (beads-git-find-project-root)
+             (project-dir (or (beads--project-root)
                               default-directory))
              (issue-objects (beads-command-execute cmd))
              (buffer (beads-list--get-or-create-buffer 'search)))
@@ -255,7 +255,7 @@ then displays them in a tabulated list buffer."
           ;; Update directory-aware state
           (setq beads-list--project-dir project-dir)
           (setq beads-list--branch (beads-git-get-branch))
-          (setq beads-list--proj-name (beads-git-get-project-name))
+          (setq beads-list--proj-name (beads--project-name-for-root project-dir))
           (setq beads-search--command-obj cmd)
           (setq default-directory caller-dir)
           (if (not issue-objects)

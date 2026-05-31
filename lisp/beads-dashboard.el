@@ -28,8 +28,8 @@
 
 (declare-function beads-actions-claim "beads-actions")
 (declare-function beads-show "beads-command-show")
-(declare-function beads-git-find-project-root "beads-git")
 (declare-function beads--get-database-path "beads-util")
+(declare-function beads--project-root "beads-util")
 (declare-function transient--prefix "transient")
 
 ;;; Variables
@@ -75,9 +75,10 @@ force the loading skeleton back on demand.")
 ;;; Project Identity
 
 (defun beads-dashboard--project-root ()
-  "Return the canonical project root or nil."
-  (let ((root (ignore-errors (beads-git-find-project-root))))
-    (when root (file-name-as-directory (expand-file-name root)))))
+  "Return the canonical project root or nil.
+Thin wrapper over `beads--project-root'; see it and
+`beads-project-root-markers' for the detection details."
+  (beads--project-root))
 
 (defun beads-dashboard--buffer-name-for (root)
   "Return the dashboard buffer name for project ROOT."

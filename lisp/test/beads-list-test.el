@@ -93,6 +93,10 @@ ISSUES should be a list of alists (test data format)."
                (beads-test--mock-command-result (vector))))
             ((symbol-function 'beads-check-executable)
              (lambda () t))
+            ;; Buffer names derive from the resolved root's basename,
+            ;; so pin the root to a dir named "testproj".
+            ((symbol-function 'beads-git-find-project-root)
+             (lambda () "/tmp/testproj"))
             ((symbol-function 'beads-git-get-project-name)
              (lambda () "testproj"))
             ((symbol-function 'beads-git-get-branch)
@@ -422,6 +426,10 @@ ISSUES should be a list of alists (test data format)."
                            :created-at (alist-get 'created-at alist)))))))
             ((symbol-function 'beads-check-executable)
              (lambda () t))
+            ;; Buffer names derive from the resolved root's basename,
+            ;; so pin the root to a dir named "testproj".
+            ((symbol-function 'beads-git-find-project-root)
+             (lambda () "/tmp/testproj"))
             ((symbol-function 'beads-git-get-project-name)
              (lambda () "testproj"))
             ((symbol-function 'beads-git-get-branch)
@@ -451,6 +459,10 @@ ISSUES should be a list of alists (test data format)."
                            :created-at (alist-get 'created-at alist)))))))
             ((symbol-function 'beads-check-executable)
              (lambda () t))
+            ;; Buffer names derive from the resolved root's basename,
+            ;; so pin the root to a dir named "testproj".
+            ((symbol-function 'beads-git-find-project-root)
+             (lambda () "/tmp/testproj"))
             ((symbol-function 'beads-git-get-project-name)
              (lambda () "testproj"))
             ((symbol-function 'beads-git-get-branch)
@@ -1197,6 +1209,10 @@ Tests that executing with mocked transient-args creates a list buffer."
                           (mapcar #'beads-list-test--alist-to-issue
                                   beads-list-test--sample-issues))
                  nil)))
+            ;; Buffer names derive from the resolved root's basename,
+            ;; so pin the root to a dir named "testproj".
+            ((symbol-function 'beads-git-find-project-root)
+             (lambda () "/tmp/testproj"))
             ((symbol-function 'beads-git-get-project-name)
              (lambda () "testproj"))
             ((symbol-function 'beads-git-get-branch)
@@ -1305,7 +1321,8 @@ Tests that the preview command shows the bd command that would be executed."
           (setq created-buffer (beads-list--get-or-create-buffer 'list))
           (should (bufferp created-buffer))
           (with-current-buffer created-buffer
-            (should (equal beads-list--project-dir "/tmp/new-project"))
+            ;; `beads--project-root' normalizes to a trailing-slash dir.
+            (should (equal beads-list--project-dir "/tmp/new-project/"))
             (should (equal beads-list--branch "main"))
             (should (equal beads-list--proj-name "new-project"))))
       (when (and created-buffer (buffer-live-p created-buffer))
@@ -1416,8 +1433,8 @@ Even if they have the same branch name."
                    (lambda () "my-project")))
           (setq created-buffer (beads-list--get-or-create-buffer 'ready))
           (with-current-buffer created-buffer
-            ;; Verify all variables set
-            (should (equal beads-list--project-dir "/home/user/code/my-project"))
+            ;; Verify all variables set; project-dir is normalized.
+            (should (equal beads-list--project-dir "/home/user/code/my-project/"))
             (should (equal beads-list--branch "feature-branch"))
             (should (equal beads-list--proj-name "my-project"))))
       (when (and created-buffer (buffer-live-p created-buffer))

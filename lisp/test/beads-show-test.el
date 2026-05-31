@@ -2678,7 +2678,8 @@ buffer text or interrogate text properties."
           (should (string-match-p "bd-42" (buffer-name created-buffer)))
           (should (string-match-p "Fix bug" (buffer-name created-buffer)))
           (with-current-buffer created-buffer
-            (should (equal beads-show--project-dir "/tmp/new-project"))
+            ;; `beads--project-root' normalizes to a trailing-slash dir.
+            (should (equal beads-show--project-dir "/tmp/new-project/"))
             (should (equal beads-show--issue-id "bd-42"))
             (should (equal beads-show--branch "main"))
             (should (equal beads-show--proj-name "new-project"))))
@@ -2764,8 +2765,8 @@ This is the CRITICAL behavioral test for directory-as-identity."
                    (lambda () "my-project")))
           (setq created-buffer (beads-show--get-or-create-buffer "bd-99" "Test issue"))
           (with-current-buffer created-buffer
-            ;; Verify all variables set
-            (should (equal beads-show--project-dir "/home/user/code/my-project"))
+            ;; Verify all variables set; project-dir is normalized.
+            (should (equal beads-show--project-dir "/home/user/code/my-project/"))
             (should (equal beads-show--issue-id "bd-99"))
             (should (equal beads-show--branch "feature-branch"))
             (should (equal beads-show--proj-name "my-project"))))
