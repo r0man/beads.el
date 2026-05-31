@@ -131,7 +131,8 @@
                (lambda () "/home/user/project/.beads/issues.db")))
       (let ((info (beads-main--get-project-info)))
         (should (consp info))
-        (should (string= (car info) "/home/user/project"))
+        ;; `beads--project-root' normalizes to a trailing-slash dir.
+        (should (string= (car info) "/home/user/project/"))
         (should (string= (cdr info)
                         "/home/user/project/.beads/issues.db"))))))
 
@@ -173,7 +174,8 @@
                (lambda () nil)))
       (let ((info (beads-main--get-project-info)))
         (should (consp info))
-        (should (string= (car info) "/home/user/project"))
+        ;; `beads--project-root' normalizes to a trailing-slash dir.
+        (should (string= (car info) "/home/user/project/"))
         (should (null (cdr info)))))))
 
 ;;; Tests for Cache Management
@@ -458,7 +460,7 @@ by checking if the function is available after requiring beads."
                (lambda () "/home/user/my project/.beads/issues.db")))
       (let ((info (beads-main--get-project-info)))
         (should (consp info))
-        (should (string= (car info) "/home/user/my project"))))))
+        (should (string= (car info) "/home/user/my project/"))))))
 
 (ert-deftest beads-main-test-project-path-with-unicode ()
   "Test project info with unicode in path."
@@ -469,7 +471,7 @@ by checking if the function is available after requiring beads."
                (lambda () "/home/user/проект/.beads/issues.db")))
       (let ((info (beads-main--get-project-info)))
         (should (consp info))
-        (should (string= (car info) "/home/user/проект"))))))
+        (should (string= (car info) "/home/user/проект/"))))))
 
 (ert-deftest beads-main-test-header-format-long-paths ()
   "Test header formatting with very long paths."

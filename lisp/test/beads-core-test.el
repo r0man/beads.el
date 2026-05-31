@@ -350,12 +350,23 @@
 ;;; Tests for the canonical project-root resolver
 
 (ert-deftest beads-core-test-project-root-prefers-git ()
-  "`beads--project-root' uses git detection when available, verbatim."
+  "`beads--project-root' uses git detection when available."
   (cl-letf (((symbol-function 'beads-git-find-project-root)
              (lambda () "/tmp/gitrepo/"))
             ((symbol-function 'beads--find-project-root)
              (lambda (&optional _d) "/tmp/marker/")))
     (should (equal (beads--project-root) "/tmp/gitrepo/"))))
+
+(ert-deftest beads-core-test-project-root-normalizes-git-result ()
+  "The git branch is normalized to an absolute, trailing-slash path.
+`project-root' usually returns a canonical directory, but if it ever
+yields a bare or relative path the resolver must still hand callers a
+canonical form (the normalization the old dashboard wrapper did)."
+  (let ((default-directory "/tmp/"))
+    (cl-letf (((symbol-function 'beads-git-find-project-root)
+               ;; No trailing slash, not fully expanded.
+               (lambda () "gitrepo")))
+      (should (equal (beads--project-root) "/tmp/gitrepo/")))))
 
 (ert-deftest beads-core-test-project-root-falls-back-to-marker ()
   "`beads--project-root' falls back to the marker walk without git."

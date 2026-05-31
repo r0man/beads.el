@@ -1305,7 +1305,8 @@ Tests that the preview command shows the bd command that would be executed."
           (setq created-buffer (beads-list--get-or-create-buffer 'list))
           (should (bufferp created-buffer))
           (with-current-buffer created-buffer
-            (should (equal beads-list--project-dir "/tmp/new-project"))
+            ;; `beads--project-root' normalizes to a trailing-slash dir.
+            (should (equal beads-list--project-dir "/tmp/new-project/"))
             (should (equal beads-list--branch "main"))
             (should (equal beads-list--proj-name "new-project"))))
       (when (and created-buffer (buffer-live-p created-buffer))
@@ -1416,8 +1417,8 @@ Even if they have the same branch name."
                    (lambda () "my-project")))
           (setq created-buffer (beads-list--get-or-create-buffer 'ready))
           (with-current-buffer created-buffer
-            ;; Verify all variables set
-            (should (equal beads-list--project-dir "/home/user/code/my-project"))
+            ;; Verify all variables set; project-dir is normalized.
+            (should (equal beads-list--project-dir "/home/user/code/my-project/"))
             (should (equal beads-list--branch "feature-branch"))
             (should (equal beads-list--proj-name "my-project"))))
       (when (and created-buffer (buffer-live-p created-buffer))
