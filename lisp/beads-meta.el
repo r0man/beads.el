@@ -94,12 +94,24 @@
 (declare-function beads-command-validate "beads-command")
 (declare-function beads-command-execute-interactive "beads-command")
 (declare-function beads-command-preview "beads-command")
-(declare-function beads--derive-transient-name "beads-command")
 
-;; Used at macroexpansion time by beads-meta-define-transient and
-;; beads-defcommand to derive the feature name for autoload forms.
+;;; ============================================================
+;;; Public macro-expansion helpers
+;;; ============================================================
+;;
+;; These four pure utilities are the supported extension points for
+;; libraries that build their own command-definition macro on top of
+;; beads.el's codegen (e.g. a `gascity-defcommand' that reuses the same
+;; transient/CLI machinery).  They are called at macro-expansion time by
+;; `beads-defcommand' and `beads-meta-define-transient', so they live in
+;; `eval-and-compile' to be available during byte compilation, autoload
+;; generation, and normal loading.  Their former private names
+;; (`beads--current-feature-name', `beads--extract-first-sentence',
+;; `beads--derive-transient-name', `beads--extract-option') remain as
+;; obsolete aliases below so existing callers keep working.
+
 (eval-and-compile
-(defun beads--current-feature-name ()
+(defun beads-meta-current-feature-name ()
   "Return the feature name of the file currently being processed.
 Works during byte compilation, autoload generation, and normal loading.
 Returns a string like \"beads-command-close\" suitable for `autoload'."
@@ -110,7 +122,7 @@ Returns a string like \"beads-command-close\" suitable for `autoload'."
       (file-name-sans-extension
        (file-name-nondirectory file)))))
 
-(defun beads--extract-first-sentence (docstring)
+(defun beads-meta-first-sentence (docstring)
   "Extract the first sentence from DOCSTRING.
 Returns the text up to the first period followed by whitespace or end.
 If no sentence ending is found, returns the first line.
@@ -120,7 +132,37 @@ Returns nil if DOCSTRING is nil or empty."
       (if (string-match "\\([^.]*\\.\\)\\(?:[ \t\n]\\|$\\)" trimmed)
           (string-trim (match-string 1 trimmed))
         ;; No sentence ending found, return first line
-        (car (split-string trimmed "\n")))))))
+        (car (split-string trimmed "\n"))))))
+
+(defun beads-meta-derive-transient-name (class-name)
+  "Derive transient menu name from CLASS-NAME.
+Strips \"-command-\" from class name to get the transient name.
+Example: beads-command-close -> beads-close"
+  (let ((name-str (symbol-name class-name)))
+    (intern (replace-regexp-in-string "-command-" "-" name-str))))
+
+(defun beads-meta-extract-option (keyword options)
+  "Extract value for KEYWORD from OPTIONS plist and return (VALUE . REST).
+Returns (nil . OPTIONS) if KEYWORD is not found."
+  (let ((pos (cl-position keyword options)))
+    (if pos
+        (let ((val (nth (1+ pos) options))
+              (rest (append (cl-subseq options 0 pos)
+                            (cl-subseq options (+ pos 2)))))
+          (cons val rest))
+      (cons nil options)))))
+
+;; Backward-compatible aliases for the promoted helpers.  The `beads--'
+;; names were private; consumers that referenced them keep working but
+;; get a deprecation warning pointing at the public `beads-meta-' name.
+(define-obsolete-function-alias 'beads--current-feature-name
+  'beads-meta-current-feature-name "1.x")
+(define-obsolete-function-alias 'beads--extract-first-sentence
+  'beads-meta-first-sentence "1.x")
+(define-obsolete-function-alias 'beads--derive-transient-name
+  'beads-meta-derive-transient-name "1.x")
+(define-obsolete-function-alias 'beads--extract-option
+  'beads-meta-extract-option "1.x")
 
 ;;; ============================================================
 ;;; Custom Slot Properties List
@@ -548,7 +590,7 @@ falls back to humanizing the slot name.
 Returns nil if :transient-description is already set."
   (when (not (plist-get slot-options :transient-description))
     (or (when-let ((doc (plist-get slot-options :documentation)))
-          (beads--extract-first-sentence doc))
+          (beads-meta-first-sentence doc))
         (beads-meta--humanize-slot-name slot-name))))
 
 (defun beads-meta--infer-class (slot-options)
@@ -1543,7 +1585,7 @@ This replaces ~100 lines of manual infix/group/suffix definitions
 with a single macro call."
   (let* ((prefix-val (eval prefix))
          (prefix-sym (intern prefix-val))
-         (autoload-file (beads--current-feature-name))
+         (autoload-file (beads-meta-current-feature-name))
          ;; Try to evaluate class — may fail during autoload generation
          (class-val (condition-case nil (eval class) (error nil))))
     (if class-val
@@ -1649,9 +1691,9 @@ Returns a list of (KEY DESCRIPTION TRANSIENT-NAME) lists."
                             (documentation child)))
              ;; Try to get docstring from the class
              (desc (or (when (and docstring (stringp docstring))
-                         (beads--extract-first-sentence docstring))
+                         (beads-meta-first-sentence docstring))
                        (symbol-name child)))
-             (transient-name (beads--derive-transient-name child)))
+             (transient-name (beads-meta-derive-transient-name child)))
         (push (list key desc transient-name) specs)))
     (beads-meta--check-key-collisions
      (nreverse specs) parent)))
@@ -1671,7 +1713,7 @@ Returns a list of (KEY DESCRIPTION TRANSIENT-NAME) lists.")
   "Define a transient prefix for CLASS with CHILDREN as suffixes.
 CLASS is an abstract parent; CHILDREN are its direct sub-commands.
 Generates a `transient-define-prefix' form and evaluates it."
-  (let* ((transient-name (beads--derive-transient-name class))
+  (let* ((transient-name (beads-meta-derive-transient-name class))
          (suffixes (beads-meta-transient-suffixes class))
          (docstring (or (condition-case nil
                             (documentation class)
@@ -1741,7 +1783,7 @@ Example:
     (beads-meta-infix-group \\='beads-command-list \"Filters\")
     [\"List\"
      (\"l\" \"All issues\" beads-list-all)])"
-  (let* ((prefix (symbol-name (beads--derive-transient-name class)))
+  (let* ((prefix (symbol-name (beads-meta-derive-transient-name class)))
          (infix-specs (beads-meta-generate-infix-specs class prefix))
          (entries nil))
     (dolist (spec infix-specs)
