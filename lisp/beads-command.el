@@ -65,29 +65,12 @@
 ;;; Command Definition Macro
 ;;; ============================================================
 
-;; These helpers are used at macro-expansion time by beads-defcommand,
-;; so they must be available during compilation.
-;; beads--extract-first-sentence is defined in beads-meta.el (loaded first).
-(eval-and-compile
-(defun beads--derive-transient-name (class-name)
-  "Derive transient menu name from CLASS-NAME.
-Strips \"-command-\" from class name to get the transient name.
-Example: beads-command-close -> beads-close"
-  (let ((name-str (symbol-name class-name)))
-    (intern (replace-regexp-in-string "-command-" "-" name-str))))
-
-(defun beads--extract-option (keyword options)
-  "Extract value for KEYWORD from OPTIONS plist and return (VALUE . REST).
-Returns (nil . OPTIONS) if KEYWORD is not found."
-  (let ((pos (cl-position keyword options)))
-    (if pos
-        (let ((val (nth (1+ pos) options))
-              (rest (append (cl-subseq options 0 pos)
-                            (cl-subseq options (+ pos 2)))))
-          (cons val rest))
-      (cons nil options)))))
-
-;; beads--current-feature-name is defined in beads-meta.el (loaded first)
+;; The macro-expansion helpers used by `beads-defcommand' below
+;; (`beads-meta-extract-option', `beads-meta-derive-transient-name',
+;; `beads-meta-first-sentence', `beads-meta-current-feature-name') live
+;; in beads-meta.el, which is required above and loaded first so they are
+;; available during compilation.  Their former `beads--' names remain as
+;; obsolete aliases there for backward compatibility.
 
 (defmacro beads-defcommand (name superclasses slots &rest options)
   "Define a beads command class with all generated artifacts.
@@ -151,17 +134,17 @@ Example (hand-written transient):
     :transient :manual)"
   (declare (indent 2))
   ;; Extract custom keywords from options before passing to defclass
-  (let* ((result-1 (beads--extract-option :cli-command options))
+  (let* ((result-1 (beads-meta-extract-option :cli-command options))
          (cli-command (car result-1))
          (options-2 (cdr result-1))
-         (result-2 (beads--extract-option :result options-2))
+         (result-2 (beads-meta-extract-option :result options-2))
          (result-type (car result-2))
          (options-3 (cdr result-2))
-         (result-3 (beads--extract-option :json options-3))
+         (result-3 (beads-meta-extract-option :json options-3))
          (json-val (car result-3))
          (json-specified (cl-position :json options-2))
          (options-4 (cdr result-3))
-         (result-4 (beads--extract-option :transient options-4))
+         (result-4 (beads-meta-extract-option :transient options-4))
          (transient-val (car result-4))
          (transient-specified (cl-position :transient options-3))
          (defclass-options (cdr result-4))
@@ -185,14 +168,14 @@ Example (hand-written transient):
                                t))
          ;; Transient-related names (only needed when generating a menu)
          (transient-name (when generate-transient
-                           (beads--derive-transient-name name)))
+                           (beads-meta-derive-transient-name name)))
          (transient-prefix (when transient-name
                              (symbol-name transient-name)))
          ;; Extract docstring for transient
          (doc-pos (cl-position :documentation defclass-options))
          (docstring (when doc-pos (nth (1+ doc-pos) defclass-options)))
          (short-doc (when generate-transient
-                      (beads--extract-first-sentence docstring))))
+                      (beads-meta-first-sentence docstring))))
     ;; Defensive superclass check at macro-expansion time
     (dolist (super superclasses)
       (unless (or (find-class super nil)

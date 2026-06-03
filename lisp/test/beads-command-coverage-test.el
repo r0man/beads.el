@@ -36,18 +36,18 @@
                             'beads-json)))
 
 ;;; ============================================================
-;;; beads--extract-option Tests
+;;; beads-meta-extract-option Tests
 ;;; ============================================================
 
 (ert-deftest beads-command-coverage-test-extract-option-present ()
-  "Test beads--extract-option extracts a present keyword."
-  (let ((result (beads--extract-option :cli-command '(:cli-command "show" :doc "Test"))))
+  "Test beads-meta-extract-option extracts a present keyword."
+  (let ((result (beads-meta-extract-option :cli-command '(:cli-command "show" :doc "Test"))))
     (should (equal (car result) "show"))
     (should (equal (cdr result) '(:doc "Test")))))
 
 (ert-deftest beads-command-coverage-test-extract-option-missing ()
-  "Test beads--extract-option returns nil when keyword is missing."
-  (let ((result (beads--extract-option :cli-command '(:doc "Test"))))
+  "Test beads-meta-extract-option returns nil when keyword is missing."
+  (let ((result (beads-meta-extract-option :cli-command '(:doc "Test"))))
     (should (null (car result)))
     (should (equal (cdr result) '(:doc "Test")))))
 
@@ -400,27 +400,27 @@ never hang waiting for a response that never arrives."
           (should terminal-called))))))
 
 ;;; ============================================================
-;;; beads--derive-transient-name Tests
+;;; beads-meta-derive-transient-name Tests
 ;;; ============================================================
 
 (ert-deftest beads-command-coverage-test-derive-transient-name ()
-  "Test beads--derive-transient-name extracts transient name."
-  (should (eq (beads--derive-transient-name 'beads-command-close)
+  "Test beads-meta-derive-transient-name extracts transient name."
+  (should (eq (beads-meta-derive-transient-name 'beads-command-close)
               'beads-close))
-  (should (eq (beads--derive-transient-name 'beads-command-worktree-create)
+  (should (eq (beads-meta-derive-transient-name 'beads-command-worktree-create)
               'beads-worktree-create)))
 
 ;;; ============================================================
-;;; beads--extract-first-sentence Tests
+;;; beads-meta-first-sentence Tests
 ;;; ============================================================
 
 (ert-deftest beads-command-coverage-test-extract-first-sentence ()
-  "Test beads--extract-first-sentence extracts first sentence."
-  (should (string= (beads--extract-first-sentence "First sentence. Second sentence.")
+  "Test beads-meta-first-sentence extracts first sentence."
+  (should (string= (beads-meta-first-sentence "First sentence. Second sentence.")
                     "First sentence."))
-  (should (string= (beads--extract-first-sentence "Only one sentence")
+  (should (string= (beads-meta-first-sentence "Only one sentence")
                     "Only one sentence"))
-  (should (null (beads--extract-first-sentence nil))))
+  (should (null (beads-meta-first-sentence nil))))
 
 ;;; ============================================================
 ;;; beads-defcommand macro expansion Tests

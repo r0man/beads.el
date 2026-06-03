@@ -1685,45 +1685,63 @@ should emit only the autoload form."
     (should (equal "beads-command-phantom" (caddr expansion)))))
 
 (ert-deftest beads-meta-current-feature-name ()
-  "Test that beads--current-feature-name derives the feature name."
+  "Test that beads-meta-current-feature-name derives the feature name."
   ;; With load-file-name
   (let ((load-file-name "/home/user/project/lisp/beads-command-close.el"))
     (should (equal "beads-command-close"
-                   (beads--current-feature-name))))
+                   (beads-meta-current-feature-name))))
   ;; With byte-compile-current-file
   (let ((load-file-name nil)
         (byte-compile-current-file "/home/user/project/lisp/beads-foo.el"))
     (should (equal "beads-foo"
-                   (beads--current-feature-name))))
+                   (beads-meta-current-feature-name))))
   ;; With no file context
   (let ((load-file-name nil)
         (byte-compile-current-file nil)
         (buffer-file-name nil))
-    (should (null (beads--current-feature-name)))))
+    (should (null (beads-meta-current-feature-name)))))
 
 ;;; ============================================================
-;;; Tests for beads--extract-first-sentence
+;;; Tests for beads-meta-first-sentence
 ;;; ============================================================
 
 (ert-deftest beads-meta-extract-first-sentence-with-period ()
-  "Test beads--extract-first-sentence extracts up to first period."
+  "Test beads-meta-first-sentence extracts up to first period."
   (should (string= "First sentence."
-                   (beads--extract-first-sentence
+                   (beads-meta-first-sentence
                     "First sentence. Second sentence."))))
 
 (ert-deftest beads-meta-extract-first-sentence-no-period ()
-  "Test beads--extract-first-sentence returns first line when no period."
+  "Test beads-meta-first-sentence returns first line when no period."
   (should (string= "Only one sentence"
-                   (beads--extract-first-sentence "Only one sentence"))))
+                   (beads-meta-first-sentence "Only one sentence"))))
 
 (ert-deftest beads-meta-extract-first-sentence-multiline-no-period ()
-  "Test beads--extract-first-sentence returns first line for multiline."
+  "Test beads-meta-first-sentence returns first line for multiline."
   (should (string= "First line"
-                   (beads--extract-first-sentence "First line\nSecond line"))))
+                   (beads-meta-first-sentence "First line\nSecond line"))))
 
 (ert-deftest beads-meta-extract-first-sentence-nil ()
-  "Test beads--extract-first-sentence returns nil for nil input."
-  (should (null (beads--extract-first-sentence nil))))
+  "Test beads-meta-first-sentence returns nil for nil input."
+  (should (null (beads-meta-first-sentence nil))))
+
+;;; ============================================================
+;;; Backward-compatibility: promoted helpers keep their old names
+;;; ============================================================
+
+(ert-deftest beads-meta-promoted-helper-aliases-resolve ()
+  "The four promoted macro-helpers keep their old `beads--' names.
+Each private name must still be `fboundp' and resolve to the public
+`beads-meta-' function (via the obsolete alias).  Verified through
+`indirect-function' so the check itself does not trigger an
+obsolete-function byte-compile warning."
+  (dolist (pair '((beads--extract-option        . beads-meta-extract-option)
+                  (beads--derive-transient-name . beads-meta-derive-transient-name)
+                  (beads--extract-first-sentence . beads-meta-first-sentence)
+                  (beads--current-feature-name  . beads-meta-current-feature-name)))
+    (should (fboundp (car pair)))
+    (should (eq (indirect-function (car pair))
+                (indirect-function (cdr pair))))))
 
 ;;; ============================================================
 ;;; Tests for beads-meta--infer-description with :documentation
