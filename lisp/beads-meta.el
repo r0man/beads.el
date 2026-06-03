@@ -1442,8 +1442,13 @@ Generates three transient suffixes:
 - PREFIX--preview: Validates and calls `beads-command-preview'
 - PREFIX--reset: Calls `transient-reset'
 
-These suffixes use the generic methods from beads-command.el,
-which can be overridden per command class for custom behavior."
+The execute and preview suffixes call exactly three generic methods
+from beads-command.el, which together form beads.el's supported, stable
+command-bridge extension contract: `beads-command-validate' (must
+return nil for the suffix to proceed), then either
+`beads-command-execute-interactive' or `beads-command-preview'.
+Override these per command class for custom behavior.  See the manual
+node \"Extending beads.el\"."
   (let* ((prefix-val (eval prefix))
          (prefix-sym (intern prefix-val))
          (execute-sym (intern (format "%s--execute" prefix-val)))
@@ -1564,9 +1569,13 @@ This macro generates everything needed for a transient menu:
 4. The prefix combining all groups plus actions
 5. An `autoload' form for the prefix command
 
-The generated suffixes call generic methods from beads-command.el:
-- Execute calls `beads-command-execute-interactive' (override per class)
-- Preview calls `beads-command-preview' (override per class)
+The generated suffixes call the three generic methods that form
+beads.el's supported, stable command-bridge extension contract (see
+the manual node \"Extending beads.el\"):
+- Execute calls `beads-command-validate', then
+  `beads-command-execute-interactive' (override per class)
+- Preview calls `beads-command-validate', then
+  `beads-command-preview' (override per class)
 - Reset calls `transient-reset'
 
 The macro automatically generates an `autoload' form for the

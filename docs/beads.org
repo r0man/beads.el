@@ -866,6 +866,123 @@ Commands are executed via =process-file= for Tramp compatibility.
 The =beads-command-execute= method handles CLI argument building,
 JSON parsing, and error reporting.
 
+* Extending beads.el
+:PROPERTIES:
+:DESCRIPTION: Public, stable extension points for libraries built on beads.el.
+:END:
+
+beads.el is meant to be reused as a library.  A consumer package --- for
+example a porcelain for a related =bd=-style CLI --- can build its own
+command set, section buffers, and list views on top of beads.el's
+infrastructure.  The extension points below are *supported* and their
+signatures are kept stable; building on them avoids the private
+(=beads--=) symbols, which may be renamed without notice.
+
+** The command bridge protocol
+
+=beads-defcommand= and =beads-meta-define-transient= generate transient
+menus whose execute and preview suffixes call exactly three generic
+functions.  These three generics are the supported extension contract:
+a consumer that defines its own command base class specializes them to
+hook its behavior into the generated menus.
+
+- =beads-command-validate (command)= --- return an error string (or a
+  list of error strings) when COMMAND is invalid, or nil when it is
+  valid.  The generated execute and preview suffixes call this first and
+  refuse to run on a non-nil result.
+- =beads-command-execute-interactive (command)= --- run COMMAND and
+  present its result to the user (display a buffer, message, refresh a
+  list, ...).  This is what the menu's "Execute" suffix invokes.
+- =beads-command-preview (command)= --- return a string describing the
+  command line that would run, without running it.  This is what the
+  menu's "Preview" suffix invokes.
+
+A consumer typically defines an abstract base class, overrides the three
+generics on it, and defines concrete commands against that base:
+
+#+BEGIN_SRC emacs-lisp
+(defclass my-command (beads-command-global-options) ()
+  :abstract t
+  :documentation "Base class for my-tool commands.")
+
+(cl-defmethod beads-command-validate ((cmd my-command)) ...)
+(cl-defmethod beads-command-execute-interactive ((cmd my-command)) ...)
+(cl-defmethod beads-command-preview ((cmd my-command)) ...)
+#+END_SRC
+
+** The macro-expansion helpers
+
+The pure helpers that =beads-defcommand= uses at macro-expansion time are
+public, so a consumer can write a parallel command-definition macro
+without referencing private symbols:
+
+- =beads-meta-extract-option= --- pull a keyword's value out of a
+  =defclass= options plist.
+- =beads-meta-derive-transient-name= --- derive a transient menu name
+  from a class name.
+- =beads-meta-first-sentence= --- first sentence of a docstring, for a
+  transient short-doc.
+- =beads-meta-current-feature-name= --- feature name of the file being
+  processed, for =autoload= forms.
+
+Their former =beads--= names remain as obsolete aliases.
+
+** Section buffers and the mode-inheritance idiom
+
+beads.el renders its detail and section buffers with vui.el.  The blessed
+way to reuse this is to derive a major mode from =beads-section-mode= and
+parent its keymap, forming the inheritance chain:
+
+: vui-mode --> beads-section-mode --> your-consumer-mode
+
+#+BEGIN_SRC emacs-lisp
+(defvar-keymap my-section-mode-map
+  :parent beads-section-mode-map
+  "RET" #'my-visit-thing-at-point)
+
+(define-derived-mode my-section-mode beads-section-mode "My"
+  "Major mode for my-tool section buffers."
+  :interactive nil)
+#+END_SRC
+
+Deriving from =beads-section-mode= inherits its vui machinery and
+navigation behavior; the =:parent= keymap inherits beads.el's section
+bindings, so the consumer only adds its own.
+
+** Store scoping with :directory
+
+The high-level entry points =beads-show= and =beads-dashboard= accept an
+optional =:directory= keyword.  When non-nil it scopes the operation to
+the bead store at that directory instead of resolving from
+=default-directory=.  This is the supported way to act on a specific
+project's store --- important when a shared Dolt server could otherwise
+misroute the working directory to another project's database:
+
+#+BEGIN_SRC emacs-lisp
+(beads-show "bd-42" :directory "/path/to/project")
+(beads-dashboard :directory "/path/to/project")
+#+END_SRC
+
+=beads-show= passes the directory to =bd= as =--directory= / =-C= (via
+the =beads-command-show= =:directory= slot); =beads-dashboard= scopes
+both project-root and database-path resolution to the directory.
+Existing zero- and one-argument calls are unaffected.
+
+** Reusable pagination
+
+=beads-pager= exposes a pure, buffer-agnostic pagination core that any
+=tabulated-list-mode= buffer can reuse without copying the arithmetic:
+
+- =beads-pager-window-page-size (&optional window)= --- the number of
+  rows that fit a window, with a floor of 5.
+- =beads-pager-page-count (total page-size)= --- the number of pages.
+- =beads-pager-page-bounds (page page-size total)= --- =(START . END)=
+  half-open indices, clamped to TOTAL.
+- =beads-pager-slice (entries page page-size)= --- the sublist for a page.
+
+These take all inputs as arguments and read no buffer-local state.
+=beads-pager-mode= is built on this same core.
+
 * FAQ
 
 ** Why does beads.el require the bd CLI?

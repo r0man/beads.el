@@ -16,6 +16,28 @@
 ;; `beads-section-mode' major mode.  Issue context is stored as a
 ;; `beads-section' text property on each rendered line and read back
 ;; via `beads-section-issue-id-at-point'.
+;;
+;; Mode-inheritance idiom (the blessed extension pattern):
+;;
+;;   `beads-section-mode' derives from `vui-mode' and parents its keymap
+;;   to `vui-mode-map'.  A consumer library should derive its own
+;;   section major mode from `beads-section-mode' and parent its keymap
+;;   to `beads-section-mode-map', forming the chain
+;;
+;;       vui-mode -> beads-section-mode -> consumer-mode
+;;
+;;   so the consumer inherits the vui machinery and beads.el's section
+;;   navigation bindings and only adds its own.  For example:
+;;
+;;       (defvar-keymap my-section-mode-map
+;;         :parent beads-section-mode-map
+;;         "RET" #'my-visit-thing-at-point)
+;;
+;;       (define-derived-mode my-section-mode beads-section-mode "My"
+;;         "Major mode for my-tool section buffers."
+;;         :interactive nil)
+;;
+;; See the manual node "Extending beads.el" for the full extension API.
 
 ;;; Code:
 
