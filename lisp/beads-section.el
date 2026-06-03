@@ -29,7 +29,7 @@
 
 ;;; Forward Declarations
 
-(declare-function beads-show "beads-command-show" (&optional issue-id))
+(declare-function beads-show "beads-command-show")
 
 ;;; Glyphs
 
