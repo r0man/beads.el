@@ -46,34 +46,61 @@ When nil, no pagination is active (all entries fit on one page).")
   "Entries per page.
 When nil, computed dynamically from `window-body-height'.")
 
-;;; Page Size
+;;; Pure Pagination Core (public, buffer-agnostic)
+;;
+;; These four functions take all their inputs as arguments and read no
+;; buffer-local state, so any tabulated-list (or other list) buffer can
+;; reuse them as a single source of truth for page arithmetic.  The
+;; buffer-stateful helpers below are re-implemented on top of them.
 
-(defun beads-pager--compute-page-size ()
-  "Compute page size from current window body height.
+(defun beads-pager-window-page-size (&optional window)
+  "Return the page size that fits WINDOW's body (selected window if nil).
 Subtracts 3 to account for the tabulated-list header row, the
 mode-line, and a small margin.  Minimum is 5."
-  (max 5 (- (window-body-height) 3)))
+  (max 5 (- (window-body-height window) 3)))
+
+(defun beads-pager-page-count (total page-size)
+  "Return the number of pages needed for TOTAL entries at PAGE-SIZE each.
+Always at least 1, even when TOTAL is 0."
+  (max 1 (ceiling (float total) page-size)))
+
+(defun beads-pager-page-bounds (page page-size total)
+  "Return (START . END), 0-based half-open indices, for 1-based PAGE.
+START is the index of PAGE's first entry; END is the exclusive end.
+Both are clamped to TOTAL, so a PAGE past the end yields an empty
+range rather than an out-of-bounds index.  PAGE-SIZE is the number of
+entries per page."
+  (let* ((start (min (* (1- page) page-size) total))
+         (end (min (+ start page-size) total)))
+    (cons start end)))
+
+(defun beads-pager-slice (entries page page-size)
+  "Return the sublist of ENTRIES shown on 1-based PAGE with PAGE-SIZE each."
+  (let ((bounds (beads-pager-page-bounds page page-size (length entries))))
+    (seq-subseq entries (car bounds) (cdr bounds))))
+
+;;; Buffer-Stateful Layer (private, built on the pure core above)
 
 (defun beads-pager--effective-page-size ()
   "Return the effective page size (explicit or computed from window)."
-  (or beads-pager--page-size (beads-pager--compute-page-size)))
-
-;;; Page Arithmetic
+  (or beads-pager--page-size (beads-pager-window-page-size)))
 
 (defun beads-pager--total-pages ()
   "Return total number of pages for the current entry list."
-  (let ((total (length beads-pager--all-entries))
-        (ps (beads-pager--effective-page-size)))
-    (max 1 (ceiling (float total) ps))))
+  (beads-pager-page-count (length beads-pager--all-entries)
+                          (beads-pager--effective-page-size)))
 
 (defun beads-pager--page-start ()
   "Return 0-based start index for the current page."
-  (* (1- beads-pager--page) (beads-pager--effective-page-size)))
+  (car (beads-pager-page-bounds beads-pager--page
+                                (beads-pager--effective-page-size)
+                                (length beads-pager--all-entries))))
 
 (defun beads-pager--page-end ()
   "Return 0-based exclusive end index for the current page."
-  (min (+ (beads-pager--page-start) (beads-pager--effective-page-size))
-       (length beads-pager--all-entries)))
+  (cdr (beads-pager-page-bounds beads-pager--page
+                                (beads-pager--effective-page-size)
+                                (length beads-pager--all-entries))))
 
 ;;; Total Count for Mode-Line
 
@@ -97,9 +124,9 @@ Clamps `beads-pager--page' to the valid range before slicing."
       (setq beads-pager--page
             (max 1 (min beads-pager--page total-pages))))
     (setq tabulated-list-entries
-          (seq-subseq beads-pager--all-entries
-                      (beads-pager--page-start)
-                      (beads-pager--page-end)))
+          (beads-pager-slice beads-pager--all-entries
+                             beads-pager--page
+                             (beads-pager--effective-page-size)))
     (tabulated-list-print t)
     (force-mode-line-update)))
 

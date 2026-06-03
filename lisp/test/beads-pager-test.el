@@ -28,6 +28,46 @@
                   (vector (number-to-string i) "test")))
           (number-sequence 1 n)))
 
+;;; Pure Pagination Core (public, buffer-agnostic)
+
+(ert-deftest beads-pager-test-page-count ()
+  "beads-pager-page-count handles empty, exact-fit, and partial totals."
+  (should (eq (beads-pager-page-count 0 5) 1))    ; never below 1
+  (should (eq (beads-pager-page-count 1 5) 1))
+  (should (eq (beads-pager-page-count 5 5) 1))    ; exact fit
+  (should (eq (beads-pager-page-count 10 5) 2))   ; exact multiple
+  (should (eq (beads-pager-page-count 12 5) 3)))  ; partial last page
+
+(ert-deftest beads-pager-test-page-bounds ()
+  "beads-pager-page-bounds returns half-open (START . END), clamped to TOTAL."
+  (should (equal (beads-pager-page-bounds 1 5 12) '(0 . 5)))
+  (should (equal (beads-pager-page-bounds 2 5 12) '(5 . 10)))
+  ;; Last page is partial: END clamps to TOTAL.
+  (should (equal (beads-pager-page-bounds 3 5 12) '(10 . 12)))
+  ;; A page past the end yields an empty, clamped range (START = END).
+  (should (equal (beads-pager-page-bounds 4 5 12) '(12 . 12))))
+
+(ert-deftest beads-pager-test-slice ()
+  "beads-pager-slice returns the entries shown on the requested page."
+  (let ((entries (beads-pager-test--make-entries 12)))
+    (should (equal (mapcar #'car (beads-pager-slice entries 1 5))
+                   '("1" "2" "3" "4" "5")))
+    (should (equal (mapcar #'car (beads-pager-slice entries 2 5))
+                   '("6" "7" "8" "9" "10")))
+    ;; Partial last page.
+    (should (equal (mapcar #'car (beads-pager-slice entries 3 5))
+                   '("11" "12")))
+    ;; Out-of-range page yields no entries (no error).
+    (should (null (beads-pager-slice entries 4 5)))))
+
+(ert-deftest beads-pager-test-window-page-size ()
+  "beads-pager-window-page-size subtracts header overhead, floor of 5."
+  (cl-letf (((symbol-function 'window-body-height) (lambda (&optional _w) 23)))
+    (should (eq (beads-pager-window-page-size) 20)))
+  ;; A small window clamps up to the minimum of 5.
+  (cl-letf (((symbol-function 'window-body-height) (lambda (&optional _w) 4)))
+    (should (eq (beads-pager-window-page-size) 5))))
+
 ;;; Mode Activation
 
 (ert-deftest beads-pager-test-mode-activates ()
