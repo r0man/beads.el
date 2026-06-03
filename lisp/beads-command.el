@@ -71,6 +71,11 @@
 ;; in beads-meta.el, which is required above and loaded first so they are
 ;; available during compilation.  Their former `beads--' names remain as
 ;; obsolete aliases there for backward compatibility.
+;;
+;; `beads-defcommand' itself is now a thin wrapper over the reusable
+;; `beads-meta-defcommand' engine (also in beads-meta.el): the shared
+;; expansion is built by `beads-meta--expand-defcommand', and this macro
+;; just passes beads.el's global-options section and slot normalizer.
 
 (defmacro beads-defcommand (name superclasses slots &rest options)
   "Define a beads command class with all generated artifacts.
@@ -133,82 +138,18 @@ Example (hand-written transient):
     :result (list-of beads-issue)
     :transient :manual)"
   (declare (indent 2))
-  ;; Extract custom keywords from options before passing to defclass
-  (let* ((result-1 (beads-meta-extract-option :cli-command options))
-         (cli-command (car result-1))
-         (options-2 (cdr result-1))
-         (result-2 (beads-meta-extract-option :result options-2))
-         (result-type (car result-2))
-         (options-3 (cdr result-2))
-         (result-3 (beads-meta-extract-option :json options-3))
-         (json-val (car result-3))
-         (json-specified (cl-position :json options-2))
-         (options-4 (cdr result-3))
-         (result-4 (beads-meta-extract-option :transient options-4))
-         (transient-val (car result-4))
-         (transient-specified (cl-position :transient options-3))
-         (defclass-options (cdr result-4))
-         ;; Normalize slots: unified normalization (EIEIO core + transient + aliases)
-         (normalized-slots (mapcar #'beads--normalize-slot slots))
-         ;; Add cli-command as a class-allocated slot if specified
-         (final-slots (if cli-command
-                         (append normalized-slots
-                                 `((cli-command
-                                    :initform ,cli-command
-                                    :allocation :class
-                                    :documentation "CLI subcommand name.")))
-                       normalized-slots))
-         ;; Determine transient mode:
-         ;; - not specified → auto-generate (t)
-         ;; - t → auto-generate
-         ;; - nil → no transient
-         ;; - :manual → skip auto-generation
-         (generate-transient (if transient-specified
-                                 (eq transient-val t)
-                               t))
-         ;; Transient-related names (only needed when generating a menu)
-         (transient-name (when generate-transient
-                           (beads-meta-derive-transient-name name)))
-         (transient-prefix (when transient-name
-                             (symbol-name transient-name)))
-         ;; Extract docstring for transient
-         (doc-pos (cl-position :documentation defclass-options))
-         (docstring (when doc-pos (nth (1+ doc-pos) defclass-options)))
-         (short-doc (when generate-transient
-                      (beads-meta-first-sentence docstring))))
-    ;; Defensive superclass check at macro-expansion time
-    (dolist (super superclasses)
-      (unless (or (find-class super nil)
-                  ;; Allow forward references during compilation
-                  (bound-and-true-p byte-compile-current-file))
-        (lwarn 'beads :warning
-               "beads-defcommand %s: superclass %s is not defined"
-               name super)))
-    (let ((primary-parent (car superclasses)))
-      `(progn
-         (eval-and-compile
-           (defclass ,name ,superclasses ,final-slots ,@defclass-options))
-         ;; Register class hierarchy for subcommand derivation (D13)
-         ;; and transient menu generation (D14)
-         ,@(when (and primary-parent
-                      (not (eq primary-parent 'beads-command)))
-             `((put ',name 'beads-parent ',primary-parent)
-               (cl-pushnew ',name (get ',primary-parent 'beads-children))))
-         ,@(when cli-command
-             `((cl-defmethod beads-command-subcommand ((_command ,name))
-                 ,(format "Return %S as the CLI subcommand name."
-                          cli-command)
-                 ,cli-command)))
-         ,@(when result-type
-             `((put ',name 'beads-result ',result-type)))
-         ,@(when (and json-specified (not json-val))
-             `((put ',name 'beads-json nil)))
-         ,@(when (and transient-specified (eq transient-val :manual))
-             `((put ',name 'beads-transient :manual)))
-         ,@(when generate-transient
-             `((beads-meta-define-transient ,name ,transient-prefix
-                 ,short-doc
-                 beads-option-global-section)))))))
+  ;; Thin wrapper over the shared engine in beads-meta.el.  beads.el
+  ;; supplies its own transient global-options section and slot
+  ;; normalizer; everything else (the :cli-command/:result/:json/
+  ;; :transient handling, the class/hierarchy/transient codegen) lives
+  ;; in `beads-meta--expand-defcommand'.  Because that engine is a
+  ;; function, this macro still expands in a single step to exactly the
+  ;; same `progn' it produced before — preserving byte-for-byte
+  ;; macroexpansion and the autoload generation that walks it.
+  (beads-meta--expand-defcommand
+   name superclasses slots options
+   :global-section 'beads-option-global-section
+   :slot-normalizer #'beads--normalize-slot))
 
 ;;; Terminal Backend Customization
 
