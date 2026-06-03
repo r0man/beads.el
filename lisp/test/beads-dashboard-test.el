@@ -1168,5 +1168,52 @@ in the same section over the section header fallback."
     (beads-dashboard--restore-point 'ready nil t)
     (should (looking-at "…"))))
 
+;;; Entry-point :directory Tests
+
+(ert-deftest beads-dashboard-test-directory-keyword-scopes-default-directory ()
+  "The :directory keyword binds `default-directory' for resolution.
+Both the project-root and database-path lookups must run with
+`default-directory' set to DIRECTORY, so the board is scoped to that
+store rather than the caller's working directory."
+  :tags '(:unit)
+  (let ((seen-root-dir nil)
+        (seen-db-dir nil)
+        (beads-command--policy t))     ; skip the async policy probe
+    (cl-letf (((symbol-function 'beads-dashboard--project-root)
+               (lambda () (setq seen-root-dir default-directory) "/tmp/scoped"))
+              ((symbol-function 'beads--get-database-path)
+               (lambda () (setq seen-db-dir default-directory) nil))
+              ((symbol-function 'beads-dashboard-mode) (lambda () nil))
+              ((symbol-function 'vui-mount) (lambda (&rest _) nil))
+              ((symbol-function 'pop-to-buffer) (lambda (&rest _) nil)))
+      (unwind-protect
+          (progn
+            (beads-dashboard :directory "/tmp/scoped-store/")
+            (should (equal seen-root-dir "/tmp/scoped-store/"))
+            (should (equal seen-db-dir "/tmp/scoped-store/")))
+        (dolist (b (buffer-list))
+          (when (string-match-p "beads-dashboard" (buffer-name b))
+            (kill-buffer b)))))))
+
+(ert-deftest beads-dashboard-test-no-directory-uses-default-directory ()
+  "A zero-argument beads-dashboard call leaves `default-directory' alone."
+  :tags '(:unit)
+  (let ((seen-root-dir nil)
+        (beads-command--policy t)
+        (default-directory "/tmp/caller-dir/"))
+    (cl-letf (((symbol-function 'beads-dashboard--project-root)
+               (lambda () (setq seen-root-dir default-directory) "/tmp/caller"))
+              ((symbol-function 'beads--get-database-path) (lambda () nil))
+              ((symbol-function 'beads-dashboard-mode) (lambda () nil))
+              ((symbol-function 'vui-mount) (lambda (&rest _) nil))
+              ((symbol-function 'pop-to-buffer) (lambda (&rest _) nil)))
+      (unwind-protect
+          (progn
+            (beads-dashboard)
+            (should (equal seen-root-dir "/tmp/caller-dir/")))
+        (dolist (b (buffer-list))
+          (when (string-match-p "beads-dashboard" (buffer-name b))
+            (kill-buffer b)))))))
+
 (provide 'beads-dashboard-test)
 ;;; beads-dashboard-test.el ends here

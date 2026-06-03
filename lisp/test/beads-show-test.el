@@ -780,6 +780,35 @@ This is needed because show buffers are now named by project, not issue."
        (should (string= beads-show--issue-id "bd-42")))
      (kill-buffer beads-show-test--buffer-name))))
 
+(ert-deftest beads-show-test-show-passes-directory-keyword ()
+  "Test that beads-show threads its :directory keyword into the command.
+When DIRECTORY is supplied it must reach the `beads-command-show'
+:directory slot so bd is invoked with --directory / -C."
+  (beads-show-test-with-git-mocks
+   (let ((captured-directory 'unset))
+     (cl-letf (((symbol-function 'beads-command-execute)
+                (lambda (cmd)
+                  (setq captured-directory (oref cmd directory))
+                  (beads-issue-from-json beads-show-test--full-issue))))
+       (beads-show "bd-42" :directory "/tmp/scoped-store")
+       (should (equal captured-directory "/tmp/scoped-store"))
+       (when (get-buffer beads-show-test--buffer-name)
+         (kill-buffer beads-show-test--buffer-name))))))
+
+(ert-deftest beads-show-test-show-without-directory-leaves-slot-nil ()
+  "Test that a one-argument beads-show call sets no :directory slot.
+This keeps the emitted command line identical for existing callers."
+  (beads-show-test-with-git-mocks
+   (let ((captured-directory 'unset))
+     (cl-letf (((symbol-function 'beads-command-execute)
+                (lambda (cmd)
+                  (setq captured-directory (oref cmd directory))
+                  (beads-issue-from-json beads-show-test--full-issue))))
+       (beads-show "bd-42")
+       (should (null captured-directory))
+       (when (get-buffer beads-show-test--buffer-name)
+         (kill-buffer beads-show-test--buffer-name))))))
+
 (ert-deftest beads-show-test-show-command-renders-content ()
   "Test that beads-show renders issue content."
   (beads-show-test-with-git-mocks

@@ -18,6 +18,7 @@
 ;;; Code:
 
 (require 'eieio)
+(require 'cl-lib)
 (require 'vui)
 (require 'beads-section)
 (require 'beads-command)
@@ -1037,10 +1038,17 @@ the new state without the user having to press \\[beads-dashboard-refresh]."
 ;;; Entry Point
 
 ;;;###autoload
-(defun beads-dashboard ()
-  "Open or refresh the Magit-idiomatic beads dashboard for this project."
+(cl-defun beads-dashboard (&key directory)
+  "Open or refresh the Magit-idiomatic beads dashboard for this project.
+
+With DIRECTORY non-nil, scope the board to the bead store at DIRECTORY
+instead of resolving from `default-directory'.  This is the explicit
+replacement for binding `default-directory' around a `beads-dashboard'
+call; the project root and database path are both resolved relative to
+DIRECTORY.  Existing zero-argument callers are unaffected."
   (interactive)
-  (let* ((root (beads-dashboard--project-root))
+  (let* ((default-directory (or directory default-directory))
+         (root (beads-dashboard--project-root))
          (buf-name (beads-dashboard--buffer-name-for root))
          (buf (get-buffer-create buf-name))
          (db (ignore-errors (beads--get-database-path))))

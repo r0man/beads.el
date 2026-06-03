@@ -1561,14 +1561,21 @@ Section order matches CLI: DEPENDS ON → CHILDREN → BLOCKS → text sections.
 ;;; Commands
 
 ;;;###autoload
-(defun beads-show (issue-id)
+(cl-defun beads-show (issue-id &key directory)
   "Show detailed view of issue with ISSUE-ID.
 Creates or switches to a buffer showing the full issue details.
 Buffer is named *beads-show[PROJECT]/ISSUE-ID TITLE* and is keyed
 by (project-dir, issue-id) pair - each issue gets its own buffer.
 
 Commands are executed in the caller's directory context, ensuring
-correct project detection (important for git worktrees)."
+correct project detection (important for git worktrees).
+
+With DIRECTORY non-nil, act on the bead store at DIRECTORY: the value
+is passed to bd as --directory / -C (via the `beads-command-show'
+:directory slot) instead of relying solely on `default-directory'.
+This lets a consumer scope the lookup to a specific project's store
+even when the shared Dolt server would otherwise misroute the working
+directory.  Existing one-argument callers are unaffected."
   (interactive
    (list (beads-completion-read-issue "Show issue: " nil t nil
                                       'beads--issue-id-history)))
@@ -1589,10 +1596,15 @@ correct project detection (important for git worktrees)."
       ;; Register with worktree session for lifecycle management
       (beads-show--register-with-session)
       (condition-case err
-          ;; Execute command in caller's directory context
+          ;; Execute command in caller's directory context.  When a
+          ;; DIRECTORY was supplied, splice it in as the :directory slot
+          ;; so bd is invoked with --directory / -C (only when non-nil,
+          ;; so existing callers' command lines are unchanged).
           (let ((default-directory caller-dir)
-                (issue (beads-execute 'beads-command-show :issue-ids (list issue-id)
-                                      :include-dependents t)))
+                (issue (apply #'beads-execute 'beads-command-show
+                              :issue-ids (list issue-id)
+                              :include-dependents t
+                              (when directory (list :directory directory)))))
             (setq beads-show--issue-data issue)
             ;; Rename buffer to include title now that we have it
             (let* ((title (oref issue title))
