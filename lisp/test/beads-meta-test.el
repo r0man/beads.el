@@ -2149,5 +2149,137 @@ obsolete-function byte-compile warning."
     ;; :transient as symbol -> :transient-class
     (should (eq 'transient-switch (plist-get props :transient-class)))))
 
+;;; ============================================================
+;;; Tests for beads-meta-defcommand (the public engine macro)
+;;; ============================================================
+;;
+;; These exercise the reusable command-definition engine directly.  They
+;; expand the macro one step (macroexpand-1) and inspect the generated
+;; `progn'; nothing is executed against the bd CLI.
+
+(defun beads-meta-test--progn-forms (expansion)
+  "Return the body forms of a `progn' EXPANSION (cdr), or nil."
+  (when (eq 'progn (car-safe expansion))
+    (cdr expansion)))
+
+(defun beads-meta-test--defclass-of (expansion)
+  "Return the inner `defclass' form generated inside EXPANSION."
+  (let ((ec (car (beads-meta-test--progn-forms expansion))))
+    (when (eq 'eval-and-compile (car-safe ec))
+      (cadr ec))))
+
+(ert-deftest beads-meta-defcommand-expands-to-progn ()
+  "beads-meta-defcommand expands to a progn wrapping an eval-and-compile
+defclass with the given name and superclasses."
+  (let* ((form (macroexpand-1
+                '(beads-meta-defcommand beads-meta-test-cmd
+                     (beads-meta-test-base)
+                     ((title :initarg :title))
+                   :documentation "A test command."
+                   :transient nil)))
+         (dc (beads-meta-test--defclass-of form)))
+    (should (eq 'progn (car form)))
+    (should (eq 'defclass (car dc)))
+    (should (eq 'beads-meta-test-cmd (nth 1 dc)))
+    (should (equal '(beads-meta-test-base) (nth 2 dc)))))
+
+(ert-deftest beads-meta-defcommand-slot-normalizer-identity ()
+  "With no :slot-normalizer the raw slots pass through unchanged."
+  (let* ((form (macroexpand-1
+                '(beads-meta-defcommand beads-meta-test-cmd
+                     (beads-meta-test-base)
+                     ((title :initarg :title :custom-prop 7))
+                   :documentation "A test command."
+                   :transient nil)))
+         (dc (beads-meta-test--defclass-of form)))
+    ;; Slots are spliced verbatim (identity normalization)
+    (should (equal '((title :initarg :title :custom-prop 7))
+                   (nth 3 dc)))))
+
+(ert-deftest beads-meta-defcommand-slot-normalizer-applied ()
+  "A :slot-normalizer function transforms each slot at expansion time."
+  (let* ((form (macroexpand-1
+                '(beads-meta-defcommand beads-meta-test-cmd
+                     (beads-meta-test-base)
+                     ((title :initarg :title))
+                   :documentation "A test command."
+                   :transient nil
+                   :slot-normalizer
+                   (lambda (slot)
+                     (cons (car slot)
+                           (plist-put (copy-sequence (cdr slot))
+                                      :added t))))))
+         (dc (beads-meta-test--defclass-of form)))
+    (should (equal '((title :initarg :title :added t))
+                   (nth 3 dc)))))
+
+(ert-deftest beads-meta-defcommand-symbol-properties ()
+  ":symbol-properties emit additive `put' forms on the class name."
+  (let* ((form (macroexpand-1
+                '(beads-meta-defcommand beads-meta-test-cmd
+                     (beads-meta-test-base)
+                     ((title :initarg :title))
+                   :documentation "A test command."
+                   :transient nil
+                   :symbol-properties ((gascity-foo . bar)))))
+         (forms (beads-meta-test--progn-forms form)))
+    (should (member '(put 'beads-meta-test-cmd 'gascity-foo 'bar)
+                    forms))))
+
+(ert-deftest beads-meta-defcommand-extra-forms ()
+  ":extra-forms are spliced verbatim at the end of the progn."
+  (let* ((form (macroexpand-1
+                '(beads-meta-defcommand beads-meta-test-cmd
+                     (beads-meta-test-base)
+                     ((title :initarg :title))
+                   :documentation "A test command."
+                   :transient nil
+                   :extra-forms ((defun beads-meta-test-cmd! () 'ok)))))
+         (forms (beads-meta-test--progn-forms form)))
+    (should (member '(defun beads-meta-test-cmd! () 'ok) forms))
+    ;; Spliced last
+    (should (equal '(defun beads-meta-test-cmd! () 'ok)
+                   (car (last forms))))))
+
+(ert-deftest beads-meta-defcommand-global-section-spliced ()
+  "A caller-supplied :global-section is spliced into the transient call."
+  (let* ((form (macroexpand-1
+                '(beads-meta-defcommand beads-meta-test-cmd
+                     (beads-meta-test-base)
+                     ((title :initarg :title))
+                   :documentation "A test command."
+                   :global-section my-custom-global-section)))
+         (forms (beads-meta-test--progn-forms form))
+         (transient (seq-find (lambda (f)
+                                (eq 'beads-meta-define-transient (car-safe f)))
+                              forms)))
+    (should transient)
+    ;; (beads-meta-define-transient NAME PREFIX SHORT-DOC GLOBAL-SECTION)
+    (should (eq 'my-custom-global-section (nth 4 transient)))))
+
+(ert-deftest beads-meta-defcommand-matches-beads-defcommand ()
+  "`beads-defcommand' is a faithful wrapper: its one-step expansion is
+`equal' to `beads-meta-defcommand' supplied with beads.el's own global
+section and slot normalizer."
+  (skip-unless (require 'beads-command nil t))
+  (let* ((slots '((issue-ids :positional 1 :type (list-of string)
+                             :short-option "i")
+                  (reason :type (or null string) :short-option "r")))
+         (a (macroexpand-1
+             `(beads-defcommand beads-meta-test-equiv
+                  (beads-command-global-options)
+                  ,slots
+                :documentation "Equiv test."
+                :result (list-of beads-issue))))
+         (b (macroexpand-1
+             `(beads-meta-defcommand beads-meta-test-equiv
+                  (beads-command-global-options)
+                  ,slots
+                :documentation "Equiv test."
+                :result (list-of beads-issue)
+                :global-section beads-option-global-section
+                :slot-normalizer #'beads--normalize-slot))))
+    (should (equal a b))))
+
 (provide 'beads-meta-test)
 ;;; beads-meta-test.el ends here

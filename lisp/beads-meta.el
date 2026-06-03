@@ -1628,6 +1628,195 @@ with a single macro call."
         `(autoload ',prefix-sym ,autoload-file nil t)))))
 
 ;;; ============================================================
+;;; Command-definition engine (beads-meta-defcommand)
+;;; ============================================================
+;;
+;; `beads-meta-defcommand' is the reusable engine behind
+;; `beads-defcommand'.  A consumer library (e.g. gascity.el) can build
+;; its own command-definition macro as a thin wrapper that supplies the
+;; library-specific pieces — its own transient global-options section,
+;; an optional slot normalizer, extra symbol properties, and extra
+;; forms (such as a bang convenience function) — while reusing all of
+;; beads.el's class/CLI/transient codegen.
+;;
+;; The shared expansion is built by the pure helper
+;; `beads-meta--expand-defcommand', so both `beads-defcommand' and
+;; `beads-meta-defcommand' expand in a single step to the same kind of
+;; `progn'.  Keeping the engine a function (not a macro that calls
+;; another macro) means `beads-defcommand' still macroexpands directly
+;; to its final form, so its one-step expansion — and the autoload
+;; generation that walks it — is unchanged.
+
+(eval-and-compile
+(cl-defun beads-meta--expand-defcommand (name superclasses slots options
+                                         &key global-section
+                                              slot-normalizer
+                                              symbol-properties
+                                              extra-forms)
+  "Build the full `progn' expansion for a command definition.
+
+This is the engine shared by `beads-defcommand' and
+`beads-meta-defcommand'.  NAME, SUPERCLASSES and SLOTS are as in
+`beads-defcommand'.  OPTIONS is the trailing plist; the `:cli-command',
+`:result', `:json', `:transient' and `:documentation' keywords are
+interpreted here and any leftover options pass through to `defclass'.
+
+The keyword arguments are already-evaluated VALUES (not forms) that
+parameterize the library-specific behaviour:
+
+GLOBAL-SECTION    Symbol naming a transient global-options group to
+                  splice into the generated `beads-meta-define-transient'
+                  call (e.g. `beads-option-global-section'), or nil.
+SLOT-NORMALIZER   Function applied to each slot definition at
+                  expansion time, or nil for identity.
+SYMBOL-PROPERTIES Alist of (PROPERTY . VALUE); each emits a
+                  `(put (quote NAME) (quote PROPERTY) (quote VALUE))'
+                  form.  Additive — the built-in `beads-result',
+                  `beads-json' and `beads-transient' properties are
+                  always handled regardless.
+EXTRA-FORMS       List of forms spliced verbatim at the end of the
+                  generated `progn' (e.g. a consumer bang-function).
+
+Returns the `progn' form."
+  ;; Extract custom keywords from options before passing to defclass
+  (let* ((result-1 (beads-meta-extract-option :cli-command options))
+         (cli-command (car result-1))
+         (options-2 (cdr result-1))
+         (result-2 (beads-meta-extract-option :result options-2))
+         (result-type (car result-2))
+         (options-3 (cdr result-2))
+         (result-3 (beads-meta-extract-option :json options-3))
+         (json-val (car result-3))
+         (json-specified (cl-position :json options-2))
+         (options-4 (cdr result-3))
+         (result-4 (beads-meta-extract-option :transient options-4))
+         (transient-val (car result-4))
+         (transient-specified (cl-position :transient options-3))
+         (defclass-options (cdr result-4))
+         ;; Normalize slots via the caller's normalizer (identity when nil)
+         (normalized-slots (mapcar (or slot-normalizer #'identity) slots))
+         ;; Add cli-command as a class-allocated slot if specified
+         (final-slots (if cli-command
+                          (append normalized-slots
+                                  `((cli-command
+                                     :initform ,cli-command
+                                     :allocation :class
+                                     :documentation "CLI subcommand name.")))
+                        normalized-slots))
+         ;; Determine transient mode:
+         ;; - not specified → auto-generate (t)
+         ;; - t → auto-generate
+         ;; - nil → no transient
+         ;; - :manual → skip auto-generation
+         (generate-transient (if transient-specified
+                                 (eq transient-val t)
+                               t))
+         ;; Transient-related names (only needed when generating a menu)
+         (transient-name (when generate-transient
+                           (beads-meta-derive-transient-name name)))
+         (transient-prefix (when transient-name
+                             (symbol-name transient-name)))
+         ;; Extract docstring for transient
+         (doc-pos (cl-position :documentation defclass-options))
+         (docstring (when doc-pos (nth (1+ doc-pos) defclass-options)))
+         (short-doc (when generate-transient
+                      (beads-meta-first-sentence docstring))))
+    ;; Defensive superclass check at macro-expansion time
+    (dolist (super superclasses)
+      (unless (or (find-class super nil)
+                  ;; Allow forward references during compilation
+                  (bound-and-true-p byte-compile-current-file))
+        (lwarn 'beads :warning
+               "beads-defcommand %s: superclass %s is not defined"
+               name super)))
+    (let ((primary-parent (car superclasses)))
+      `(progn
+         (eval-and-compile
+           (defclass ,name ,superclasses ,final-slots ,@defclass-options))
+         ;; Register class hierarchy for subcommand derivation (D13)
+         ;; and transient menu generation (D14)
+         ,@(when (and primary-parent
+                      (not (eq primary-parent 'beads-command)))
+             `((put ',name 'beads-parent ',primary-parent)
+               (cl-pushnew ',name (get ',primary-parent 'beads-children))))
+         ,@(when cli-command
+             `((cl-defmethod beads-command-subcommand ((_command ,name))
+                 ,(format "Return %S as the CLI subcommand name."
+                          cli-command)
+                 ,cli-command)))
+         ,@(when result-type
+             `((put ',name 'beads-result ',result-type)))
+         ,@(when (and json-specified (not json-val))
+             `((put ',name 'beads-json nil)))
+         ,@(when (and transient-specified (eq transient-val :manual))
+             `((put ',name 'beads-transient :manual)))
+         ;; Consumer-supplied extra symbol properties (additive; nil for
+         ;; `beads-defcommand', so its expansion is unaffected)
+         ,@(mapcar (lambda (pv)
+                     `(put ',name ',(car pv) ',(cdr pv)))
+                   symbol-properties)
+         ,@(when generate-transient
+             `((beads-meta-define-transient ,name ,transient-prefix
+                 ,short-doc
+                 ,global-section)))
+         ;; Consumer-supplied extra forms (e.g. a bang fn; nil for
+         ;; `beads-defcommand')
+         ,@extra-forms)))))
+
+(defmacro beads-meta-defcommand (name superclasses slots &rest options)
+  "Define a command class — the reusable engine behind `beads-defcommand'.
+
+NAME, SUPERCLASSES, SLOTS and the command OPTIONS (`:cli-command',
+`:result', `:json', `:transient', `:documentation', …) are exactly as
+in `beads-defcommand'.  In addition, the following keyword options
+parameterize the codegen for libraries that build on beads.el's command
+machinery (they are stripped before reaching `defclass'):
+
+  :global-section SYM    Symbol of a transient global-options group to
+                         include in the generated menu (e.g.
+                         `beads-option-global-section'), or nil.
+  :slot-normalizer FN    Function applied to each slot definition at
+                         expansion time, or nil for identity.  Pass
+                         `#'beads--normalize-slot' to reuse beads.el's
+                         unified slot inference.
+  :symbol-properties AL  Alist of (PROPERTY . VALUE) put on NAME, in
+                         addition to the built-in `beads-result',
+                         `beads-json' and `beads-transient' properties.
+  :extra-forms FORMS     List of forms spliced at the end of the
+                         generated `progn' (e.g. a NAME! bang function).
+
+`beads-defcommand' is the beads.el wrapper, equivalent to:
+
+  (beads-meta-defcommand NAME SUPERCLASSES SLOTS
+    :global-section beads-option-global-section
+    :slot-normalizer #\\='beads--normalize-slot
+    OPTIONS…)"
+  (declare (indent 2))
+  ;; Pull the engine keywords out of OPTIONS (leaving the command
+  ;; options for `beads-meta--expand-defcommand' to interpret).
+  (let* ((gs-res (beads-meta-extract-option :global-section options))
+         (global-section (car gs-res))
+         (options (cdr gs-res))
+         (sn-res (beads-meta-extract-option :slot-normalizer options))
+         (slot-normalizer-form (car sn-res))
+         (options (cdr sn-res))
+         (sp-res (beads-meta-extract-option :symbol-properties options))
+         (symbol-properties (car sp-res))
+         (options (cdr sp-res))
+         (ef-res (beads-meta-extract-option :extra-forms options))
+         (extra-forms (car ef-res))
+         (options (cdr ef-res)))
+    (beads-meta--expand-defcommand
+     name superclasses slots options
+     :global-section global-section
+     ;; SLOT-NORMALIZER arrives as an unevaluated form (e.g. #'fn);
+     ;; turn it into the actual function the engine applies.
+     :slot-normalizer (when slot-normalizer-form
+                        (eval slot-normalizer-form t))
+     :symbol-properties symbol-properties
+     :extra-forms extra-forms)))
+
+;;; ============================================================
 ;;; Auto-generated transient menu hierarchy (D14)
 ;;; ============================================================
 
