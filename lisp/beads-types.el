@@ -477,6 +477,25 @@ When populated from bd show --json, includes full issue details.")
     :documentation "List of blocking issue IDs."))
   "Represents an issue with blocking information.")
 
+(defclass beads-orphan-issue (beads-issue)
+  ((latest-commit
+    :initarg :latest-commit
+    :type (or null string)
+    :initform nil
+    :documentation "Short hash of the commit that referenced this issue.")
+   (latest-commit-message
+    :initarg :latest-commit-message
+    :type (or null string)
+    :initform nil
+    :documentation "Subject of the commit that referenced this issue."))
+  "Represents an orphaned issue from `bd orphans'.
+An orphan is an open/in_progress issue referenced in a commit message
+but never formally closed.  `bd orphans --json' keys the identifier as
+`issue_id' (not the standard `id') and omits priority/type, so this
+subclass remaps the key (via the `beads-from-json' override) while
+inheriting `beads-issue' slots.  That lets orphans flow through the same
+dashboard render path as other issue lists without a shape mismatch.")
+
 (defclass beads-tree-node (beads-issue)
   ((depth
     :initarg :depth
@@ -833,6 +852,25 @@ Delegates to `beads-from-json'."
   "Create a beads-blocked-issue object from JSON alist.
 Delegates to `beads-from-json'."
   (beads-from-json 'beads-blocked-issue json))
+
+(defun beads-orphan-issue-from-json (json)
+  "Create a beads-orphan-issue object from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-orphan-issue json))
+
+(cl-defmethod beads-from-json ((_class (eql 'beads-orphan-issue)) json)
+  "Construct beads-orphan-issue from JSON.
+`bd orphans --json' uses `issue_id' as the identifier key (not the
+standard `id') and carries commit-provenance fields, so the generic
+introspection path would leave `id' nil.  Map the keys explicitly;
+absent optional fields (`latest_commit', `latest_commit_message') stay
+nil."
+  (beads-orphan-issue
+   :id (alist-get 'issue_id json)
+   :title (alist-get 'title json)
+   :status (alist-get 'status json)
+   :latest-commit (alist-get 'latest_commit json)
+   :latest-commit-message (alist-get 'latest_commit_message json)))
 
 (defun beads-tree-node-from-json (json)
   "Create a beads-tree-node object from JSON alist.

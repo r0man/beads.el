@@ -367,6 +367,29 @@ so callers can stamp the section-key onto each row."
     (apply #'vui-vstack
            (append rows (when more (list more))))))
 
+(defun beads-dashboard--unparsed-row (item &optional section-key)
+  "Return a degraded vnode for a non-`beads-issue' ITEM.
+Defensive fallback for `beads-dashboard--render-issue-list': a section
+loader can hand back raw alists when its command lacks a `:result' type
+\(the orphans-section crash, bde-4kgt).  Rather than let `oref' abort the
+entire dashboard reconcile, render a single dimmed line naming the
+offending element so the rest of the refresh survives.  SECTION-KEY,
+when non-nil, is stamped so +/-/* still resolve the enclosing section."
+  (let* ((ident (or (ignore-errors
+                      (and (consp item)
+                           (or (alist-get 'id item)
+                               (alist-get 'issue_id item)
+                               (alist-get 'title item))))
+                    item))
+         (text (format "%s" ident))
+         (label (if (> (length text) 60)
+                    (concat (substring text 0 57) "…")
+                  text)))
+    (vui-text (beads-dashboard--maybe-stamp
+               (format "  ⚠ unparsed entry: %s" label)
+               section-key)
+              :face 'warning)))
+
 (defun beads-dashboard--render-issue-list (issues &optional section-key extra-rows)
   "Return a vstack of issue line vnodes, one per ISSUES element.
 Truncated to the section's effective display limit (computed from
@@ -378,16 +401,26 @@ load-more commands can resolve the enclosing section in O(1).
 Each row also gets a trailing agent badge group built via
 `beads-agent-display-format-issue-agents', so the dashboard shows
 the same role icons as the issue list whenever an issue has a
-focused agent session or a recent finished/failed outcome."
+focused agent session or a recent finished/failed outcome.
+
+Elements that are not `beads-issue' instances degrade to
+`beads-dashboard--unparsed-row' instead of signalling, so one section
+fed raw data cannot abort the whole reconcile (bde-4kgt)."
   (beads-dashboard--limited-vstack
    issues
    (lambda (issue sk)
-     (let* ((id (oref issue id))
-            (agents (and id (beads-agent-display-format-issue-agents id))))
-       (beads-section--issue-line-vnode
-        issue
-        (when sk (list 'beads-dashboard-section-key sk))
-        agents)))
+     ;; `cl-typep' (not `beads-issue-p') so beads-issue SUBCLASSES —
+     ;; beads-orphan-issue, beads-blocked-issue — pass; the auto-generated
+     ;; `beads-issue-p' only matches the exact class.  Total + safe on raw
+     ;; alists, which fall through to the degraded row.
+     (if (cl-typep issue 'beads-issue)
+         (let* ((id (oref issue id))
+                (agents (and id (beads-agent-display-format-issue-agents id))))
+           (beads-section--issue-line-vnode
+            issue
+            (when sk (list 'beads-dashboard-section-key sk))
+            agents))
+       (beads-dashboard--unparsed-row issue sk)))
    extra-rows section-key))
 
 (defun beads-dashboard--issue-not-blocker-p (issue)
