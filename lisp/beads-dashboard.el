@@ -192,11 +192,16 @@ of `(resolve reject)'.  RENDER-READY is called with the parsed data.
 COLLAPSED-ALIST is the root component's collapse state.  BUFFER is
 the dashboard buffer captured for the toggle callback.  PLIST
 forwards `:icon', `:render-empty', `:render-error', `:force-render',
-`:hide-count', and `:extra-rows' (the latter is mixed into the
+`:hide-count', `:extra-rows' (the latter is mixed into the
 :async-key so pressing `+'/`-'/`*' invalidates the cached payload and
-re-runs the loader with the new fetch limit)."
+re-runs the loader with the new fetch limit), and `:db-path' (the
+store this section's data came from — also mixed into the :async-key
+so a buffer remounted for a different store, which can happen because
+the buffer name keys only on the project-root basename, does not serve
+the previous store's cached payload — see bde-jwxv)."
   (let ((collapsed (cdr (assq key collapsed-alist)))
-        (extra-rows (plist-get plist :extra-rows)))
+        (extra-rows (plist-get plist :extra-rows))
+        (db-path (plist-get plist :db-path)))
     (vui-component 'beads-dashboard--section
       :key key
       :title title
@@ -207,8 +212,10 @@ re-runs the loader with the new fetch limit)."
       ;; collapsed section's no-op result (nil) would be cached and
       ;; survive expansion.  EXTRA-ROWS is included so a `+' press
       ;; (which raises the CLI fetch limit) invalidates the cache and
-      ;; pulls the additional rows from bd.
-      :async-key (list key generation collapsed extra-rows)
+      ;; pulls the additional rows from bd.  DB-PATH is included so a
+      ;; buffer remounted for a different store re-runs the loader
+      ;; rather than serving the previous store's cached payload.
+      :async-key (list key generation db-path collapsed extra-rows)
       :load (if collapsed (lambda (resolve _reject) (funcall resolve nil)) loader)
       :render-ready render-ready
       :render-empty (plist-get plist :render-empty)
@@ -273,9 +280,10 @@ Sections receive collapse state as a prop because per-component
       (beads-dashboard--header-vnode project-root db-path)
       (beads-dashboard--section
        'stats "Stats"
-       (beads-dashboard--stats-loader)
+       (beads-dashboard--stats-loader db-path)
        #'beads-dashboard-render-stats
        collapsed generation buffer
+       :db-path db-path
        :icon "📊"
        :force-render t
        ;; Stats data is an alist, not a list of issues — `length' is meaningless.
@@ -289,9 +297,10 @@ Sections receive collapse state as a prop because per-component
         (beads-dashboard--section
          'closed "Recently Closed"
          (beads-dashboard--closed-loader
-          (beads-dashboard--effective-fetch-limit rx))
+          db-path (beads-dashboard--effective-fetch-limit rx))
          (lambda (data) (beads-dashboard-render-closed data 'closed rx))
          collapsed generation buffer
+         :db-path db-path
          :icon "📦"
          :extra-rows rx
          :render-empty
@@ -300,9 +309,10 @@ Sections receive collapse state as a prop because per-component
         (beads-dashboard--section
          'in-flight "In progress"
          (beads-dashboard--in-flight-loader
-          (beads-dashboard--effective-fetch-limit rx))
+          db-path (beads-dashboard--effective-fetch-limit rx))
          (lambda (data) (beads-dashboard-render-in-flight data 'in-flight rx))
          collapsed generation buffer
+         :db-path db-path
          :icon "🚧"
          :extra-rows rx
          :render-empty
@@ -311,9 +321,10 @@ Sections receive collapse state as a prop because per-component
         (beads-dashboard--section
          'ready "Ready"
          (beads-dashboard--ready-loader
-          (beads-dashboard--effective-fetch-limit rx))
+          db-path (beads-dashboard--effective-fetch-limit rx))
          (lambda (data) (beads-dashboard-render-ready data 'ready rx))
          collapsed generation buffer
+         :db-path db-path
          :icon "✅"
          :extra-rows rx
          :render-empty
@@ -321,44 +332,49 @@ Sections receive collapse state as a prop because per-component
       (let ((rx (cdr (assq 'blocked extra))))
         (beads-dashboard--section
          'blocked "Blocked"
-         (beads-dashboard--blocked-loader)
+         (beads-dashboard--blocked-loader db-path)
          (lambda (data) (beads-dashboard-render-blocked data 'blocked rx))
          collapsed generation buffer
+         :db-path db-path
          :icon "🔒"
          :extra-rows rx))
       (let ((rx (cdr (assq 'epics extra))))
         (beads-dashboard--section
          'epics "Epic Progress"
-         (beads-dashboard--epic-loader)
+         (beads-dashboard--epic-loader db-path)
          (lambda (data) (beads-dashboard-render-epic data 'epics rx))
          collapsed generation buffer
+         :db-path db-path
          :icon "🎯"
          :extra-rows rx))
       (let ((rx (cdr (assq 'stale extra))))
         (beads-dashboard--section
          'stale "Stale in-progress"
          (beads-dashboard--stale-loader
-          (beads-dashboard--effective-fetch-limit rx))
+          db-path (beads-dashboard--effective-fetch-limit rx))
          (lambda (data)
            (beads-dashboard--render-issue-list (or data '()) 'stale rx))
          collapsed generation buffer
+         :db-path db-path
          :icon "💤"
          :extra-rows rx))
       (let ((rx (cdr (assq 'orphans extra))))
         (beads-dashboard--section
          'orphans "Orphaned dependencies"
-         (beads-dashboard--orphans-loader)
+         (beads-dashboard--orphans-loader db-path)
          (lambda (data)
            (beads-dashboard--render-issue-list (or data '()) 'orphans rx))
          collapsed generation buffer
+         :db-path db-path
          :icon "🩹"
          :extra-rows rx))
       (when (eq (plist-get beads-command--policy :backend) 'server)
         (beads-dashboard--section
          'federation "Federation"
-         (beads-dashboard--federation-loader)
+         (beads-dashboard--federation-loader db-path)
          #'beads-dashboard-render-federation
          collapsed generation buffer
+         :db-path db-path
          :icon "🌐"))
       (beads-dashboard--footer-vnode)))))
 
