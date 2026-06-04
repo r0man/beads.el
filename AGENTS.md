@@ -115,6 +115,25 @@ actionable list. Mid-level groups (e.g. `dolt.remote`, `backup`
 parents that route to subcommands) follow the same rule: parent
 transient yes, EIEIO class no.
 
+### Command-parity drift gate
+
+`lisp/beads-audit.el` + `lisp/test/beads-audit-test.el` keep the command
+classes in lockstep with the live `bd` CLI surface so drift cannot be
+merged silently. The gate walks `bd <cmd> --help` (help only — never
+touches the database) and introspects the class inventory live, then
+fails CI on a **new unclassed command** or a **new slot gap**.
+`M-x beads-audit-report` renders the same audit interactively.
+
+The policy that decides what is *not* a gap lives as data in the
+`beads-meta-parity-*` constants (`beads-meta.el`), not in prose: router
+groups, non-goal commands/flags, the `admin compact` intentional
+multi-class cluster (audited as a union), and a baseline of accepted
+deferred drift. When the gate fails, either add the missing class/slot
+or record the intentional omission in the matching constant — the test
+failure names the exact constant to edit. The `:integration` gate tests
+skip when `bd` is absent; the `:unit` tests cover the diff logic without
+it.
+
 ## Agent Instructions
 
 This project uses **bd** (beads) for issue tracking. Run `bd prime` for full workflow context.

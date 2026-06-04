@@ -198,6 +198,19 @@
   :documentation "Migrate git hooks to marker-managed format."
   :cli-command "migrate hooks")
 
+;;; Migrate Schema Command
+
+;;;###autoload (autoload 'beads-migrate-schema "beads-command-migrate" nil t)
+(beads-defcommand beads-command-migrate-schema (beads-command-global-options)
+  ()
+  :documentation "Apply pending schema migrations idempotently.
+Schema migrations also run automatically on store open, so this
+subcommand is typically a no-op.  It exists to make migration
+explicit and observable in CI, release gates, and recovery
+scenarios.  Inherits global options only; takes no command-specific
+flags."
+  :cli-command "migrate schema")
+
 ;;; Parent Transient Menu
 
 ;;;###autoload (autoload 'beads-migrate-menu "beads-command-migrate" nil t)
@@ -207,6 +220,7 @@
    ("m" "Auto-migrate" beads-migrate)
    ("H" "Hooks" beads-migrate-hooks)
    ("i" "Move issues" beads-migrate-issues)
+   ("S" "Schema" beads-migrate-schema)
    ("s" "Sync workflow" beads-migrate-sync)])
 
 (provide 'beads-command-migrate)
