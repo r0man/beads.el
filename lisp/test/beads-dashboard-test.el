@@ -1215,5 +1215,96 @@ store rather than the caller's working directory."
           (when (string-match-p "beads-dashboard" (buffer-name b))
             (kill-buffer b)))))))
 
+;;; Store Routing (`--db' threading — bde-jwxv)
+
+(ert-deftest beads-dashboard-test-make-loader-stamps-db ()
+  "`beads-dashboard--make-loader' stamps DB-PATH on the command's `:db'
+slot and serializes it as `--db'.
+Regression for bde-jwxv: section loaders built commands without `--db',
+so in any `$BEADS_DIR'-set shell every rig's dashboard rendered the
+`$BEADS_DIR' store regardless of the resolved store."
+  :tags '(:unit)
+  (let ((cmd (beads-command-status :json t))
+        (db-path "/some/rig/.beads/dolt"))
+    (beads-dashboard--make-loader cmd '(stats) db-path)
+    (should (equal (oref cmd db) db-path))
+    (let ((argv (beads-command-line cmd)))
+      (should (member "--db" argv))
+      (should (member db-path argv)))))
+
+(ert-deftest beads-dashboard-test-make-loader-cache-key-store-scoped ()
+  "DB-PATH is folded into the single-flight cache-key so two dashboards
+scoped to different stores cannot coalesce onto one in-flight request.
+With no DB-PATH the cache-key is left exactly as the caller passed it."
+  :tags '(:unit)
+  (let (captured)
+    (cl-letf (((symbol-function 'beads-command-execute-async)
+               (lambda (_cmd _ok _err &rest kwargs)
+                 (setq captured (plist-get kwargs :cache-key))
+                 'stubbed)))
+      (funcall (beads-dashboard--make-loader
+                (beads-command-status :json t) '(stats) "/a/.beads/dolt")
+               #'ignore #'ignore)
+      (should (equal captured '("/a/.beads/dolt" stats)))
+      ;; A different store yields a distinct key — no cross-store coalescing.
+      (funcall (beads-dashboard--make-loader
+                (beads-command-status :json t) '(stats) "/b/.beads/dolt")
+               #'ignore #'ignore)
+      (should (equal captured '("/b/.beads/dolt" stats)))
+      ;; No store: key is unchanged (backward compatible).
+      (funcall (beads-dashboard--make-loader
+                (beads-command-status :json t) '(stats))
+               #'ignore #'ignore)
+      (should (equal captured '(stats))))))
+
+(ert-deftest beads-dashboard-test-section-loaders-carry-db ()
+  "Every section loader serializes `--db DB-PATH', so each bd subprocess
+targets the dashboard's resolved store rather than `$BEADS_DIR'/cwd.
+This is the end-to-end regression for bde-jwxv across all sections."
+  :tags '(:unit)
+  (let* ((db "/some/rig/.beads/dolt")
+         (loaders (list (beads-dashboard--stats-loader db)
+                        (beads-dashboard--closed-loader db)
+                        (beads-dashboard--in-flight-loader db)
+                        (beads-dashboard--ready-loader db)
+                        (beads-dashboard--blocked-loader db)
+                        (beads-dashboard--epic-loader db)
+                        (beads-dashboard--stale-loader db)
+                        (beads-dashboard--orphans-loader db)
+                        (beads-dashboard--federation-loader db))))
+    (dolist (loader loaders)
+      (let (captured-cmd captured-key)
+        (cl-letf (((symbol-function 'beads-command-execute-async)
+                   (lambda (cmd _ok _err &rest kwargs)
+                     (setq captured-cmd cmd
+                           captured-key (plist-get kwargs :cache-key))
+                     'stubbed)))
+          (funcall loader #'ignore #'ignore))
+        (let ((argv (beads-command-line captured-cmd)))
+          (should (member "--db" argv))
+          (should (member db argv)))
+        ;; cache-key is store-scoped (db path at the head).
+        (should (equal (car captured-key) db))))))
+
+(ert-deftest beads-dashboard-test-section-async-key-includes-db-path ()
+  "Two sections differing only by store get different async-keys, so a
+buffer remounted for a different store re-runs the loader instead of
+serving the prior store's cached payload.  This matters because the
+dashboard buffer name keys only on the project-root basename, so two
+stores with the same basename share one buffer (bde-jwxv)."
+  :tags '(:unit)
+  (let* ((collapsed '((stats . nil)))
+         (vnode-a (beads-dashboard--section
+                   'stats "Stats"
+                   (lambda (_r _j) nil) #'identity collapsed 0
+                   (current-buffer) :db-path "/a/.beads/dolt"))
+         (vnode-b (beads-dashboard--section
+                   'stats "Stats"
+                   (lambda (_r _j) nil) #'identity collapsed 0
+                   (current-buffer) :db-path "/b/.beads/dolt"))
+         (key-a (plist-get (vui-vnode-component-props vnode-a) :async-key))
+         (key-b (plist-get (vui-vnode-component-props vnode-b) :async-key)))
+    (should-not (equal key-a key-b))))
+
 (provide 'beads-dashboard-test)
 ;;; beads-dashboard-test.el ends here

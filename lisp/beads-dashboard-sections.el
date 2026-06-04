@@ -294,18 +294,30 @@ failure in one section never blanks the dashboard."
 
 ;;; Section Spec Helpers
 
-(defun beads-dashboard--make-loader (cmd cache-key)
+(defun beads-dashboard--make-loader (cmd cache-key &optional db-path)
   "Return a `vui-use-async' loader thunk to run CMD asynchronously.
 CMD is a `beads-command' instance.  CACHE-KEY is forwarded to
-`beads-command-execute-async' for single-flight coalescing."
-  (lambda (resolve reject)
-    (condition-case spawn-err
-        (beads-command-execute-async
-         cmd resolve reject
-         :queue 'auto
-         :cache-key cache-key
-         :timeout beads-command-async-timeout)
-      (error (funcall reject (error-message-string spawn-err))))))
+`beads-command-execute-async' for single-flight coalescing.
+
+DB-PATH, when non-nil, is stamped onto CMD's `:db' slot so the bd
+subprocess targets that bead store instead of falling back to
+`$BEADS_DIR' or cwd.  Without it every rig's dashboard renders the
+`$BEADS_DIR' store in any agent shell, since `--db' is the only
+discovery input that overrides `$BEADS_DIR' (see bde-jwxv).  DB-PATH is
+also folded into CACHE-KEY so that two dashboards scoped to different
+stores cannot coalesce onto a single in-flight request and serve each
+other's data."
+  (when db-path
+    (oset cmd db db-path))
+  (let ((cache-key (if db-path (cons db-path cache-key) cache-key)))
+    (lambda (resolve reject)
+      (condition-case spawn-err
+          (beads-command-execute-async
+           cmd resolve reject
+           :queue 'auto
+           :cache-key cache-key
+           :timeout beads-command-async-timeout)
+        (error (funcall reject (error-message-string spawn-err)))))))
 
 (defun beads-dashboard--more-line (section-key hidden)
   "Return a clickable `… and N more' button for SECTION-KEY, or nil.
@@ -388,10 +400,12 @@ the blocked list (e.g., \"hooked\" / \"in_progress\")."
 
 ;;; Stats Strip
 
-(defun beads-dashboard--stats-loader ()
-  "Return a `vui-use-async' loader for `bd stats --json'."
+(defun beads-dashboard--stats-loader (db-path)
+  "Return a `vui-use-async' loader for `bd stats --json'.
+DB-PATH scopes the command to a bead store (see
+`beads-dashboard--make-loader')."
   (beads-dashboard--make-loader
-   (beads-command-status :json t) '(stats)))
+   (beads-command-status :json t) '(stats) db-path))
 
 (defun beads-dashboard-render-stats (data)
   "Render the stats strip from DATA, the parsed `bd stats' JSON.
@@ -424,32 +438,38 @@ work, and a permanent `Deferred 0' would just clutter the strip."
 
 ;;; Attention: Stale and Orphans
 
-(defun beads-dashboard--stale-loader (&optional fetch-limit)
+(defun beads-dashboard--stale-loader (db-path &optional fetch-limit)
   "Return a loader for `bd stale --json'.
+DB-PATH scopes the command to a bead store (see
+`beads-dashboard--make-loader').
 FETCH-LIMIT, when non-nil, is forwarded as `--limit' (0 = unlimited)."
   (beads-dashboard--make-loader
    (if fetch-limit
        (beads-command-stale :limit fetch-limit :json t)
      (beads-command-stale :json t))
-   '(stale)))
+   '(stale) db-path))
 
-(defun beads-dashboard--orphans-loader ()
+(defun beads-dashboard--orphans-loader (db-path)
   "Return a loader for `bd orphans --json'.
+DB-PATH scopes the command to a bead store (see
+`beads-dashboard--make-loader').
 `bd orphans' has no `--limit'; truncation happens locally."
   (beads-dashboard--make-loader
-   (beads-command-orphans :json t) '(orphans)))
+   (beads-command-orphans :json t) '(orphans) db-path))
 
 ;;; In Flight
 
-(defun beads-dashboard--in-flight-loader (&optional fetch-limit)
+(defun beads-dashboard--in-flight-loader (db-path &optional fetch-limit)
   "Return a loader for in-progress issues.
+DB-PATH scopes the command to a bead store (see
+`beads-dashboard--make-loader').
 FETCH-LIMIT, when non-nil, is forwarded as `--limit' to `bd list'."
   (beads-dashboard--make-loader
    (if fetch-limit
        (beads-command-list :status beads-status-in-progress
                            :limit fetch-limit :json t)
      (beads-command-list :status beads-status-in-progress :json t))
-   '(list in_progress)))
+   '(list in_progress) db-path))
 
 (defun beads-dashboard-render-in-flight (issues &optional section-key extra-rows)
   "Render the In Flight section from ISSUES as a flat issue list.
@@ -458,8 +478,10 @@ SECTION-KEY is stamped on rows; EXTRA-ROWS controls the visible count."
 
 ;;; Ready
 
-(defun beads-dashboard--ready-loader (&optional fetch-limit)
+(defun beads-dashboard--ready-loader (db-path &optional fetch-limit)
   "Return a loader for `bd ready --json'.
+DB-PATH scopes the command to a bead store (see
+`beads-dashboard--make-loader').
 FETCH-LIMIT, when non-nil, is forwarded as `--limit'.  Without this
 `bd ready' defaults to --limit 100, which makes the section header's
 \(N) count cap out at 100 even when more ready issues exist."
@@ -467,7 +489,7 @@ FETCH-LIMIT, when non-nil, is forwarded as `--limit'.  Without this
    (if fetch-limit
        (beads-command-ready :limit fetch-limit :json t)
      (beads-command-ready :json t))
-   '(ready)))
+   '(ready) db-path))
 
 (defun beads-dashboard-render-ready (issues &optional section-key extra-rows)
   "Render the Ready section from ISSUES, sorted by priority.
@@ -478,11 +500,13 @@ SECTION-KEY is stamped on rows; EXTRA-ROWS controls the visible count."
 
 ;;; Blocked
 
-(defun beads-dashboard--blocked-loader ()
+(defun beads-dashboard--blocked-loader (db-path)
   "Return a loader for `bd blocked --json'.
+DB-PATH scopes the command to a bead store (see
+`beads-dashboard--make-loader').
 `bd blocked' has no `--limit'; truncation happens locally."
   (beads-dashboard--make-loader
-   (beads-command-blocked :json t) '(blocked)))
+   (beads-command-blocked :json t) '(blocked) db-path))
 
 (defun beads-dashboard-render-blocked (issues &optional section-key extra-rows)
   "Render the Blocked section from ISSUES, filtering active work.
@@ -493,8 +517,10 @@ SECTION-KEY is stamped on rows; EXTRA-ROWS controls the visible count."
 
 ;;; Recently Closed
 
-(defun beads-dashboard--closed-loader (&optional fetch-limit)
+(defun beads-dashboard--closed-loader (db-path &optional fetch-limit)
   "Return a loader for recently closed issues.
+DB-PATH scopes the command to a bead store (see
+`beads-dashboard--make-loader').
 `bd list --sort closed' already returns most-recent first.  FETCH-LIMIT,
 when non-nil, is forwarded as `--limit'; otherwise a sensible default
 \(25) is used so we never over-fetch closed history."
@@ -505,7 +531,7 @@ when non-nil, is forwarded as `--limit'; otherwise a sensible default
                                   beads-dashboard-section-limit
                                   25)
                        :json t)
-   '(list closed)))
+   '(list closed) db-path))
 
 (defun beads-dashboard-render-closed (issues &optional section-key extra-rows)
   "Render the Recently Closed section from ISSUES.
@@ -517,10 +543,12 @@ issue-list path."
 
 ;;; Epic Progress
 
-(defun beads-dashboard--epic-loader ()
-  "Return a loader for `bd epic status --json'."
+(defun beads-dashboard--epic-loader (db-path)
+  "Return a loader for `bd epic status --json'.
+DB-PATH scopes the command to a bead store (see
+`beads-dashboard--make-loader')."
   (beads-dashboard--make-loader
-   (beads-command-epic-status :json t) '(epic-status)))
+   (beads-command-epic-status :json t) '(epic-status) db-path))
 
 (defun beads-dashboard-render-epic (data &optional section-key extra-rows)
   "Render the Epic Progress section from DATA.
@@ -571,10 +599,12 @@ commands can resolve the enclosing section."
 
 ;;; Federation
 
-(defun beads-dashboard--federation-loader ()
-  "Return a loader for `bd federation status --json'."
+(defun beads-dashboard--federation-loader (db-path)
+  "Return a loader for `bd federation status --json'.
+DB-PATH scopes the command to a bead store (see
+`beads-dashboard--make-loader')."
   (beads-dashboard--make-loader
-   (beads-command-federation-status :json t) '(federation-status)))
+   (beads-command-federation-status :json t) '(federation-status) db-path))
 
 (defun beads-dashboard-render-federation (data)
   "Render the Federation section from DATA."
