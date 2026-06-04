@@ -33,9 +33,6 @@
   :documentation "Represents bd config get command.
 Gets a configuration value.")
 
-;; Validate override removed: the base method checks :required slots
-;; automatically via beads-command-validate-slots.
-
 ;;; Config Set
 
 ;;;###autoload (autoload 'beads-config-set "beads-command-config" nil t)
@@ -55,9 +52,6 @@ Gets a configuration value.")
   :documentation "Represents bd config set command.
 Sets a configuration value.")
 
-;; Validate override removed: the base method checks :required slots
-;; automatically via beads-command-validate-slots.
-
 ;;; Config List
 
 ;;;###autoload (autoload 'beads-config-list "beads-command-config" nil t)
@@ -75,9 +69,6 @@ Lists all configuration values.")
     :required t))
   :documentation "Represents bd config unset command.
 Deletes a configuration value.")
-
-;; Validate override removed: the base method checks :required slots
-;; automatically via beads-command-validate-slots.
 
 ;;; Config Set-Many
 
@@ -98,9 +89,6 @@ Deletes a configuration value.")
 Sets multiple configuration values at once with a single auto-commit.
 Each argument must be in key=value format."
   :cli-command "config set-many")
-
-;; Validate override removed: the base method checks :required slots
-;; automatically via beads-command-validate-slots.
 
 ;;; Config Validate
 

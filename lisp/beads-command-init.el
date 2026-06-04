@@ -225,8 +225,6 @@ Returns error string or nil if valid."
      ;; Otherwise valid
      (t nil))))
 
-;; Parse override removed: base method returns raw stdout when :json nil.
-
 ;;; Transient Menu
 
 ;; Generate the complete transient menu from slot metadata

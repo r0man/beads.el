@@ -273,12 +273,6 @@ Returns error message string or nil if valid."
 Creates a git worktree with beads redirect configuration."
   :result beads-worktree)
 
-;; Validate override removed: the base method checks :required slots
-;; automatically via beads-command-validate-slots.
-
-;; Parse override removed: the base method handles JSON-to-domain
-;; parsing automatically via :result beads-worktree.
-
 ;;; ============================================================
 ;;; Command Class: beads-command-worktree-list
 ;;; ============================================================
@@ -289,9 +283,6 @@ Creates a git worktree with beads redirect configuration."
   :documentation "Represents bd worktree list command.
 Lists all git worktrees with their beads configuration state."
   :result (list-of beads-worktree))
-
-;; Parse override removed: the base method handles JSON-to-domain
-;; parsing automatically via :result (list-of beads-worktree).
 
 ;;; ============================================================
 ;;; Command Class: beads-command-worktree-remove
@@ -311,9 +302,6 @@ Lists all git worktrees with their beads configuration state."
   :documentation "Represents bd worktree remove command.
 Removes a worktree with safety checks (unless --force is used).")
 
-;; Validate override removed: the base method checks :required slots
-;; automatically via beads-command-validate-slots.
-
 ;;; ============================================================
 ;;; Command Class: beads-command-worktree-info
 ;;; ============================================================
@@ -324,10 +312,6 @@ Removes a worktree with safety checks (unless --force is used).")
   :documentation "Represents bd worktree info command.
 Shows information about the current worktree context."
   :result beads-worktree-info)
-
-
-;; Parse override removed: the base method handles JSON-to-domain
-;; parsing automatically via :result beads-worktree-info.
 
 ;;; ============================================================
 ;;; Utility Functions

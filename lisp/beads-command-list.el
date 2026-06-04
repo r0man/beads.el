@@ -486,9 +486,6 @@ P can be a number or string representation."
        (beads-command--validate-string-list label "label")
        (beads-command--validate-string-list label-any "label-any")))))
 
-;; Parse override removed: the base method handles JSON-to-domain
-;; parsing automatically via :result (list-of beads-issue).
-
 (defun beads-list-execute (&rest args)
   "Execute `beads-command-list' and return result data.
 

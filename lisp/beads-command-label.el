@@ -204,8 +204,6 @@ Lists all unique labels in the database."
   :cli-command "label list-all"
   :transient :manual)
 
-;; Validate override removed: base handles slot-level validation.
-
 ;;; Label Propagate Command
 
 ;;;###autoload (autoload 'beads-label-propagate "beads-command-label" nil t)
