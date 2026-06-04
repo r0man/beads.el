@@ -367,6 +367,43 @@ the real `beads-command-execute' pipeline would return."
     (should (null (oref issue design)))
     (should (null (oref issue assignee)))))
 
+(ert-deftest beads-types-test-orphan-issue-from-json ()
+  "`bd orphans --json' keys the id as `issue_id'; map it onto `id'.
+Regression for bde-4kgt: the generic introspection path would leave
+`id' nil (no `id' key in the JSON), so the dashboard `oref'-ed nil-id
+rows.  The override remaps `issue_id' and captures commit provenance."
+  (let ((orphan (beads-orphan-issue-from-json
+                 '((issue_id . "bd-77")
+                   (title . "Implemented but never closed")
+                   (status . "open")
+                   (latest_commit . "612d1fd")
+                   (latest_commit_message . "fix: do the thing (bd-77)")))))
+    (should (beads-orphan-issue-p orphan))
+    ;; A subclass of beads-issue, so it flows through the issue render path.
+    ;; NB: `cl-typep' (not the exact-match `beads-issue-p') matches subclasses
+    ;; — this is precisely what `beads-dashboard--render-issue-list' relies on.
+    (should (cl-typep orphan 'beads-issue))
+    (should (string= (oref orphan id) "bd-77"))
+    (should (string= (oref orphan title) "Implemented but never closed"))
+    (should (string= (oref orphan status) "open"))
+    (should (string= (oref orphan latest-commit) "612d1fd"))
+    (should (string= (oref orphan latest-commit-message)
+                     "fix: do the thing (bd-77)"))
+    ;; Orphans output carries no priority/type -- those slots stay nil.
+    (should (null (oref orphan priority)))
+    (should (null (oref orphan issue-type)))))
+
+(ert-deftest beads-types-test-orphan-issue-from-json-minimal ()
+  "Commit fields are `omitempty'; an `id' still populates when absent."
+  (let ((orphan (beads-orphan-issue-from-json
+                 '((issue_id . "bd-9")
+                   (title . "Orphan")
+                   (status . "in_progress")))))
+    (should (beads-orphan-issue-p orphan))
+    (should (string= (oref orphan id) "bd-9"))
+    (should (null (oref orphan latest-commit)))
+    (should (null (oref orphan latest-commit-message)))))
+
 (ert-deftest beads-types-test-dependency-from-json ()
   "Test converting JSON to beads-dependency object."
   (let ((dep (beads-dependency-from-json

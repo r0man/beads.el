@@ -18,6 +18,7 @@
 (require 'beads-meta)
 (require 'beads-option)
 (require 'beads-reader)
+(require 'beads-types)
 (require 'transient)
 
 ;;; ============================================================
@@ -129,7 +130,10 @@ Marks an issue as superseded by a newer one.")
     :order 2
     :documentation "Filter by labels (OR: must have AT LEAST ONE). Can combine with --label"))
   :documentation "Represents bd orphans command.
-Identifies orphaned issues referenced in commits but still open.")
+Identifies orphaned issues referenced in commits but still open.
+When executed with :json t, returns a list of beads-orphan-issue
+instances (the JSON keys the identifier as `issue_id', not `id')."
+  :result (list-of beads-orphan-issue))
 
 
 ;;; ============================================================

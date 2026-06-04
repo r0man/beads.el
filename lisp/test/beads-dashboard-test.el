@@ -90,6 +90,45 @@ and appends a `… and N more' line."
                           (vui-vnode-vstack-children vnode))))
       (should (= 5 (length children))))))
 
+(ert-deftest beads-dashboard-test-render-orphan-issues ()
+  "Regression (bde-4kgt): a non-empty orphans list renders as real issue rows.
+`beads-orphan-issue' is a `beads-issue' subclass, so it flows through the
+shared issue-line render path exactly like stale/ready rows.  Before the
+fix, raw alists reached `(oref issue id)' and aborted the whole reconcile.
+The button-label assertion guards against a regression where a subclass
+instance is misrouted to the degraded `unparsed-row' path."
+  :tags '(:unit)
+  (let* ((beads-dashboard-section-limit nil)
+         (orphans (list (beads-orphan-issue
+                         :id "bd-77" :title "Orphan" :status "open"
+                         :latest-commit "612d1fd")))
+         (vnode (beads-dashboard--render-issue-list orphans 'orphans))
+         (kids (vui-vnode-vstack-children vnode))
+         (row (car kids)))
+    (should (= 1 (length kids)))
+    ;; Rendered as a real issue row (button), NOT a degraded text placeholder.
+    (should (vui-vnode-button-p row))
+    (let ((label (vui-vnode-button-label row)))
+      (should (string-match-p "bd-77" label))
+      (should (string-match-p "Orphan" label)))))
+
+(ert-deftest beads-dashboard-test-render-issue-list-tolerates-non-issue ()
+  "Defensive (bde-4kgt): a non-`beads-issue' element degrades to a
+placeholder row instead of signalling, so one section fed raw data
+cannot abort the whole dashboard reconcile."
+  :tags '(:unit)
+  (let* ((beads-dashboard-section-limit nil)
+         (bad (list '((issue_id . "whisperel-ujim") (title . "raw alist"))))
+         (vnode (beads-dashboard--render-issue-list bad 'orphans))
+         (kids (vui-vnode-vstack-children vnode))
+         (row (car kids)))
+    ;; One degraded row, rendered without error (no wrong-type-argument).
+    (should (= 1 (length kids)))
+    ;; It is the degraded text placeholder, surfacing a best-effort id.
+    (should (vui-vnode-text-p row))
+    (should (string-match-p "unparsed" (vui-vnode-text-content row)))
+    (should (string-match-p "whisperel-ujim" (vui-vnode-text-content row)))))
+
 (ert-deftest beads-dashboard-test-data-empty-p ()
   "`beads-dashboard--data-empty-p' recognises nil, empty list, empty vector."
   :tags '(:unit)

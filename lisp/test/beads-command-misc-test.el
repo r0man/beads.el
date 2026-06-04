@@ -97,6 +97,42 @@
          (args (beads-command-line cmd)))
     (should (member "--fix" args))))
 
+;;; Unit Tests: beads-command-orphans JSON parse (bde-4kgt)
+
+(ert-deftest beads-command-orphans-test-parse-json-issues ()
+  "Regression (bde-4kgt): orphans parse yields beads-orphan-issue, not raw alists.
+With no `:result' declaration, `bd orphans --json' output flowed through
+as raw alists and the dashboard `oref'-ed them, aborting the whole
+reconcile.  The literal JSON here mirrors bd's exact wire keys
+\(`issue_id', `latest_commit', ...)."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-orphans :json t))
+         (json-string
+          (concat "[{\"issue_id\":\"bd-77\","
+                  "\"title\":\"Implemented but never closed\","
+                  "\"status\":\"open\","
+                  "\"latest_commit\":\"612d1fd\","
+                  "\"latest_commit_message\":\"fix: do the thing (bd-77)\"}]"))
+         (result (beads-command-parse cmd json-string)))
+    (should (listp result))
+    (should (= (length result) 1))
+    (should (beads-orphan-issue-p (car result)))
+    ;; The crash site `(oref issue id)' now resolves to the remapped key.
+    (should (string= (oref (car result) id) "bd-77"))
+    (should (string= (oref (car result) latest-commit) "612d1fd"))))
+
+(ert-deftest beads-command-orphans-test-parse-json-empty ()
+  "`bd orphans --json' emits `null' (not `[]') when empty -> nil list."
+  :tags '(:unit)
+  (let ((cmd (beads-command-orphans :json t)))
+    (should (null (beads-command-parse cmd "null")))))
+
+(ert-deftest beads-command-orphans-test-parse-json-empty-array ()
+  "An empty JSON array also yields an empty list."
+  :tags '(:unit)
+  (let ((cmd (beads-command-orphans :json t)))
+    (should (null (beads-command-parse cmd "[]")))))
+
 ;;; Unit Tests: beads-command-lint command-line
 
 (ert-deftest beads-command-lint-test-command-line-basic ()
