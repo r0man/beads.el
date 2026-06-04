@@ -1,0 +1,2382 @@
+[
+  {
+    "class": "beads-command-admin-cleanup",
+    "cli_path": "admin.cleanup",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-admin.el",
+    "line": 28,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-admin-compact",
+    "cli_path": "admin.compact",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-admin.el",
+    "line": 82,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-admin-reset",
+    "cli_path": "admin.reset",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-admin.el",
+    "line": 182,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-ado-projects",
+    "cli_path": "ado.projects",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 754,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-ado-pull",
+    "cli_path": "ado.pull",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 761,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-ado-push",
+    "cli_path": "ado.push",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 779,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-ado-status",
+    "cli_path": "ado.status",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 747,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-ado-sync",
+    "cli_path": "ado.sync",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 649,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-assign",
+    "cli_path": "assign",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 1381,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-audit-label",
+    "cli_path": "audit.label",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-audit.el",
+    "line": 99,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-audit-record",
+    "cli_path": "audit.record",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-audit.el",
+    "line": 29,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-backup",
+    "cli_path": "backup",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 928,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-backup-init",
+    "cli_path": "backup.init",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 944,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-backup-remove",
+    "cli_path": "backup.remove",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 1675,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-backup-restore",
+    "cli_path": "backup.restore",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 984,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-backup-status",
+    "cli_path": "backup.status",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 964,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-backup-sync",
+    "cli_path": "backup.sync",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 974,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-batch",
+    "cli_path": "batch",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-batch.el",
+    "line": 43,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-blocked",
+    "cli_path": "blocked",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-blocked.el",
+    "line": 38,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-bootstrap",
+    "cli_path": "bootstrap",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-init.el",
+    "line": 364,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-branch",
+    "cli_path": "branch",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-branch.el",
+    "line": 34,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-children",
+    "cli_path": "children",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 596,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-close",
+    "cli_path": "close",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-close.el",
+    "line": 42,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-comment",
+    "cli_path": "comment",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 1413,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-comments",
+    "cli_path": "comments",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-comments.el",
+    "line": 42,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-comments-add",
+    "cli_path": "comments.add",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-comments.el",
+    "line": 70,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-compact",
+    "cli_path": "compact",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-compact.el",
+    "line": 332,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-compact-analyze",
+    "cli_path": "admin.compact",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-compact.el",
+    "line": 97,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-compact-apply",
+    "cli_path": "admin.compact",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-compact.el",
+    "line": 130,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-compact-auto",
+    "cli_path": "admin.compact",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-compact.el",
+    "line": 181,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-compact-stats",
+    "cli_path": "admin.compact",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-compact.el",
+    "line": 80,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-config-apply",
+    "cli_path": "config.apply",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-config.el",
+    "line": 142,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-config-drift",
+    "cli_path": "config.drift",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-config.el",
+    "line": 163,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-config-get",
+    "cli_path": "config.get",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-config.el",
+    "line": 29,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-config-list",
+    "cli_path": "config.list",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-config.el",
+    "line": 64,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-config-set",
+    "cli_path": "config.set",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-config.el",
+    "line": 42,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-config-set-many",
+    "cli_path": "config.set-many",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-config.el",
+    "line": 85,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-config-show",
+    "cli_path": "config.show",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-config.el",
+    "line": 116,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-config-unset",
+    "cli_path": "config.unset",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-config.el",
+    "line": 72,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-config-validate",
+    "cli_path": "config.validate",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-config.el",
+    "line": 108,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-context",
+    "cli_path": "context",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 1371,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-cook",
+    "cli_path": "cook",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 506,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-count",
+    "cli_path": "count",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-count.el",
+    "line": 30,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-create",
+    "cli_path": "create",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-create.el",
+    "line": 46,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-create-form",
+    "cli_path": "create-form",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 610,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-defer",
+    "cli_path": "defer",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-defer.el",
+    "line": 30,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-delete",
+    "cli_path": "delete",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-delete.el",
+    "line": 59,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-dep-add",
+    "cli_path": "dep.add",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-dep.el",
+    "line": 50,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-dep-cycles",
+    "cli_path": "dep.cycles",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-dep.el",
+    "line": 299,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-dep-list",
+    "cli_path": "dep.list",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-dep.el",
+    "line": 163,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-dep-relate",
+    "cli_path": "dep.relate",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-dep.el",
+    "line": 311,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-dep-remove",
+    "cli_path": "dep.remove",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-dep.el",
+    "line": 130,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-dep-tree",
+    "cli_path": "dep.tree",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-dep.el",
+    "line": 215,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-dep-unrelate",
+    "cli_path": "dep.unrelate",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-dep.el",
+    "line": 336,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-diff",
+    "cli_path": "diff",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-diff.el",
+    "line": 30,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-doctor",
+    "cli_path": "doctor",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-doctor.el",
+    "line": 34,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-dolt-clean-databases",
+    "cli_path": "dolt.clean-databases",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-dolt.el",
+    "line": 274,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-dolt-commit",
+    "cli_path": "dolt.commit",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-dolt.el",
+    "line": 100,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-dolt-killall",
+    "cli_path": "dolt.killall",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-dolt.el",
+    "line": 289,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-dolt-pull",
+    "cli_path": "dolt.pull",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-dolt.el",
+    "line": 143,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-dolt-push",
+    "cli_path": "dolt.push",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-dolt.el",
+    "line": 118,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-dolt-remote-add",
+    "cli_path": "dolt.remote.add",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-dolt.el",
+    "line": 199,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-dolt-remote-list",
+    "cli_path": "dolt.remote.list",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-dolt.el",
+    "line": 228,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-dolt-remote-remove",
+    "cli_path": "dolt.remote.remove",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-dolt.el",
+    "line": 239,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-dolt-set",
+    "cli_path": "dolt.set",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-dolt.el",
+    "line": 53,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-dolt-show",
+    "cli_path": "dolt.show",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-dolt.el",
+    "line": 41,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-dolt-start",
+    "cli_path": "dolt.start",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-dolt.el",
+    "line": 161,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-dolt-status",
+    "cli_path": "dolt.status",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-dolt.el",
+    "line": 187,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-dolt-stop",
+    "cli_path": "dolt.stop",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-dolt.el",
+    "line": 172,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-dolt-test",
+    "cli_path": "dolt.test",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-dolt.el",
+    "line": 88,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-duplicate",
+    "cli_path": "duplicate",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 29,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-duplicates",
+    "cli_path": "duplicates",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 51,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-edit",
+    "cli_path": "edit",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-edit.el",
+    "line": 36,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-epic-close-eligible",
+    "cli_path": "epic.close-eligible",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-epic.el",
+    "line": 84,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-epic-status",
+    "cli_path": "epic.status",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-epic.el",
+    "line": 45,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-export",
+    "cli_path": "export",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 1033,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-federation-add-peer",
+    "cli_path": "federation.add-peer",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-federation.el",
+    "line": 32,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-federation-list-peers",
+    "cli_path": "federation.list-peers",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-federation.el",
+    "line": 104,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-federation-remove-peer",
+    "cli_path": "federation.remove-peer",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-federation.el",
+    "line": 84,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-federation-status",
+    "cli_path": "federation.status",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-federation.el",
+    "line": 145,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-federation-sync",
+    "cli_path": "federation.sync",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-federation.el",
+    "line": 115,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-find-duplicates",
+    "cli_path": "find-duplicates",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 875,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-flatten",
+    "cli_path": "flatten",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 1101,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-forget",
+    "cli_path": "forget",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 1190,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-formula-convert",
+    "cli_path": "formula.convert",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-formula.el",
+    "line": 159,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-formula-list",
+    "cli_path": "formula.list",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-formula.el",
+    "line": 116,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-formula-show",
+    "cli_path": "formula.show",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-formula.el",
+    "line": 140,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-gate-add-waiter",
+    "cli_path": "gate.add-waiter",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-gate.el",
+    "line": 164,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-gate-check",
+    "cli_path": "gate.check",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-gate.el",
+    "line": 98,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-gate-create",
+    "cli_path": "gate.create",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-gate.el",
+    "line": 29,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-gate-discover",
+    "cli_path": "gate.discover",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-gate.el",
+    "line": 179,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-gate-list",
+    "cli_path": "gate.list",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-gate.el",
+    "line": 77,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-gate-resolve",
+    "cli_path": "gate.resolve",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-gate.el",
+    "line": 132,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-gate-show",
+    "cli_path": "gate.show",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-gate.el",
+    "line": 152,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-gc",
+    "cli_path": "gc",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 1119,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-github-pull",
+    "cli_path": "github.pull",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 603,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-github-push",
+    "cli_path": "github.push",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 620,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-github-repos",
+    "cli_path": "github.repos",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 597,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-github-status",
+    "cli_path": "github.status",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 591,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-github-sync",
+    "cli_path": "github.sync",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 542,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-gitlab-projects",
+    "cli_path": "gitlab.projects",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 457,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-gitlab-pull",
+    "cli_path": "gitlab.pull",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 464,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-gitlab-push",
+    "cli_path": "gitlab.push",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 482,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-gitlab-status",
+    "cli_path": "gitlab.status",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 450,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-gitlab-sync",
+    "cli_path": "gitlab.sync",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 359,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-graph",
+    "cli_path": "graph",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-graph.el",
+    "line": 35,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-graph-check",
+    "cli_path": "graph.check",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-graph.el",
+    "line": 92,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-history",
+    "cli_path": "history",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-history.el",
+    "line": 30,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-hooks-install",
+    "cli_path": "hooks.install",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-hooks.el",
+    "line": 27,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-hooks-list",
+    "cli_path": "hooks.list",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-hooks.el",
+    "line": 70,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-hooks-run",
+    "cli_path": "hooks.run",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-hooks.el",
+    "line": 80,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-hooks-uninstall",
+    "cli_path": "hooks.uninstall",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-hooks.el",
+    "line": 60,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-human",
+    "cli_path": "human",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 272,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-human-dismiss",
+    "cli_path": "human.dismiss",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 835,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-human-list",
+    "cli_path": "human.list",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 792,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-human-respond",
+    "cli_path": "human.respond",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 808,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-human-stats",
+    "cli_path": "human.stats",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 861,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-import",
+    "cli_path": "import",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 1070,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-info",
+    "cli_path": "info",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-info.el",
+    "line": 36,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-init",
+    "cli_path": "init",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-init.el",
+    "line": 48,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-init-safety",
+    "cli_path": "init-safety",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-init.el",
+    "line": 400,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-jira-pull",
+    "cli_path": "jira.pull",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 101,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-jira-push",
+    "cli_path": "jira.push",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 119,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-jira-status",
+    "cli_path": "jira.status",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 94,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-jira-sync",
+    "cli_path": "jira.sync",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 29,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-kv",
+    "cli_path": "kv",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 1205,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-kv-clear",
+    "cli_path": "kv.clear",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 1263,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-kv-get",
+    "cli_path": "kv.get",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 1214,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-kv-list",
+    "cli_path": "kv.list",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 1282,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-kv-set",
+    "cli_path": "kv.set",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 1233,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-label-add",
+    "cli_path": "label.add",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-label.el",
+    "line": 86,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-label-list",
+    "cli_path": "label.list",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-label.el",
+    "line": 182,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-label-list-all",
+    "cli_path": "label.list-all",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-label.el",
+    "line": 200,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-label-propagate",
+    "cli_path": "label.propagate",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-label.el",
+    "line": 212,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-label-remove",
+    "cli_path": "label.remove",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-label.el",
+    "line": 134,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-linear-pull",
+    "cli_path": "linear.pull",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 247,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-linear-push",
+    "cli_path": "linear.push",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 270,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-linear-status",
+    "cli_path": "linear.status",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 233,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-linear-sync",
+    "cli_path": "linear.sync",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 141,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-linear-teams",
+    "cli_path": "linear.teams",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 240,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-link",
+    "cli_path": "link",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 1467,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-lint",
+    "cli_path": "lint",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 144,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-list",
+    "cli_path": "list",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-list.el",
+    "line": 74,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-mail",
+    "cli_path": "mail",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 571,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-memories",
+    "cli_path": "memories",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 1288,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-merge-slot-acquire",
+    "cli_path": "merge-slot.acquire",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-merge-slot.el",
+    "line": 71,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-merge-slot-check",
+    "cli_path": "merge-slot.check",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-merge-slot.el",
+    "line": 57,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-merge-slot-create",
+    "cli_path": "merge-slot.create",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-merge-slot.el",
+    "line": 43,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-merge-slot-release",
+    "cli_path": "merge-slot.release",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-merge-slot.el",
+    "line": 98,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-migrate",
+    "cli_path": "migrate",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-migrate.el",
+    "line": 25,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-migrate-hooks",
+    "cli_path": "migrate.hooks",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-migrate.el",
+    "line": 171,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-migrate-issues",
+    "cli_path": "migrate.issues",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-migrate.el",
+    "line": 61,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-migrate-sync",
+    "cli_path": "migrate.sync",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-migrate.el",
+    "line": 151,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-mol-bond",
+    "cli_path": "mol.bond",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-mol.el",
+    "line": 231,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-mol-burn",
+    "cli_path": "mol.burn",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-mol.el",
+    "line": 325,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-mol-current",
+    "cli_path": "mol.current",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-mol.el",
+    "line": 381,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-mol-distill",
+    "cli_path": "mol.distill",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-mol.el",
+    "line": 349,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-mol-last-activity",
+    "cli_path": "mol.last-activity",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-mol.el",
+    "line": 487,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-mol-pour",
+    "cli_path": "mol.pour",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-mol.el",
+    "line": 48,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-mol-progress",
+    "cli_path": "mol.progress",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-mol.el",
+    "line": 415,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-mol-ready",
+    "cli_path": "mol.ready",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-mol.el",
+    "line": 427,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-mol-seed",
+    "cli_path": "mol.seed",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-mol.el",
+    "line": 468,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-mol-show",
+    "cli_path": "mol.show",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-mol.el",
+    "line": 30,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-mol-squash",
+    "cli_path": "mol.squash",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-mol.el",
+    "line": 294,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-mol-stale",
+    "cli_path": "mol.stale",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-mol.el",
+    "line": 438,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-mol-wisp",
+    "cli_path": "mol.wisp",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-mol.el",
+    "line": 94,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-mol-wisp-create",
+    "cli_path": "mol.wisp.create",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-mol.el",
+    "line": 126,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-mol-wisp-gc",
+    "cli_path": "mol.wisp.gc",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-mol.el",
+    "line": 182,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-mol-wisp-list",
+    "cli_path": "mol.wisp.list",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-mol.el",
+    "line": 157,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-note",
+    "cli_path": "note",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 211,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-notion-connect",
+    "cli_path": "notion.connect",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 811,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-notion-init",
+    "cli_path": "notion.init",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 824,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-notion-pull",
+    "cli_path": "notion.pull",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 914,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-notion-push",
+    "cli_path": "notion.push",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 932,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-notion-status",
+    "cli_path": "notion.status",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 844,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-notion-sync",
+    "cli_path": "notion.sync",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 851,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-onboard",
+    "cli_path": "onboard",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 283,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-orphans",
+    "cli_path": "orphans",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 100,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-ping",
+    "cli_path": "ping",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-ping.el",
+    "line": 40,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-preflight",
+    "cli_path": "preflight",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 328,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-prime",
+    "cli_path": "prime",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 294,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-priority",
+    "cli_path": "priority",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 1518,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-promote",
+    "cli_path": "promote",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 624,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-prune",
+    "cli_path": "prune",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-prune.el",
+    "line": 36,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-purge",
+    "cli_path": "purge",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 1156,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-q",
+    "cli_path": "q",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 173,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-query",
+    "cli_path": "query",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 646,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-quickstart",
+    "cli_path": "quickstart",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-quickstart.el",
+    "line": 35,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-ready",
+    "cli_path": "ready",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-ready.el",
+    "line": 42,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-recall",
+    "cli_path": "recall",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 1294,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-remember",
+    "cli_path": "remember",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 1309,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-rename",
+    "cli_path": "rename",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 1333,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-rename-prefix",
+    "cli_path": "rename-prefix",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 402,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-reopen",
+    "cli_path": "reopen",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-reopen.el",
+    "line": 45,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-repo-add",
+    "cli_path": "repo.add",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 292,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-repo-list",
+    "cli_path": "repo.list",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 307,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-repo-remove",
+    "cli_path": "repo.remove",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 319,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-repo-sync",
+    "cli_path": "repo.sync",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-integrations.el",
+    "line": 334,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-restore",
+    "cli_path": "restore",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-restore.el",
+    "line": 30,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-rules-audit",
+    "cli_path": "rules.audit",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 1612,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-rules-compact",
+    "cli_path": "rules.compact",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 1634,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-search",
+    "cli_path": "search",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-search.el",
+    "line": 37,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-set-state",
+    "cli_path": "set-state",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-state.el",
+    "line": 29,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-setup",
+    "cli_path": "setup",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 427,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-ship",
+    "cli_path": "ship",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 482,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-show",
+    "cli_path": "show",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-show.el",
+    "line": 60,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-sql",
+    "cli_path": "sql",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-sql.el",
+    "line": 32,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-stale",
+    "cli_path": "stale",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-stale.el",
+    "line": 32,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-state",
+    "cli_path": "state",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-state.el",
+    "line": 61,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-state-list",
+    "cli_path": "state.list",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-state.el",
+    "line": 77,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-status",
+    "cli_path": "status",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-status.el",
+    "line": 42,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-statuses",
+    "cli_path": "statuses",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 1600,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-supersede",
+    "cli_path": "supersede",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 77,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-swarm-create",
+    "cli_path": "swarm.create",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-swarm.el",
+    "line": 27,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-swarm-list",
+    "cli_path": "swarm.list",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-swarm.el",
+    "line": 51,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-swarm-status",
+    "cli_path": "swarm.status",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-swarm.el",
+    "line": 60,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-swarm-validate",
+    "cli_path": "swarm.validate",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-swarm.el",
+    "line": 70,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-tag",
+    "cli_path": "tag",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 1565,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-todo",
+    "cli_path": "todo",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 702,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-todo-add",
+    "cli_path": "todo.add",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 712,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-todo-done",
+    "cli_path": "todo.done",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 762,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-todo-list",
+    "cli_path": "todo.list",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 747,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-types",
+    "cli_path": "types",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 869,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-undefer",
+    "cli_path": "undefer",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-defer.el",
+    "line": 59,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-update",
+    "cli_path": "update",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-update.el",
+    "line": 46,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-upgrade",
+    "cli_path": "upgrade",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 361,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-upgrade-ack",
+    "cli_path": "upgrade.ack",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 392,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-upgrade-review",
+    "cli_path": "upgrade.review",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 382,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-upgrade-status",
+    "cli_path": "upgrade.status",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 372,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-vc-commit",
+    "cli_path": "vc.commit",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-vc.el",
+    "line": 30,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-vc-merge",
+    "cli_path": "vc.merge",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-vc.el",
+    "line": 54,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-vc-status",
+    "cli_path": "vc.status",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-vc.el",
+    "line": 81,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-version",
+    "cli_path": "version",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 250,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-where",
+    "cli_path": "where",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-misc.el",
+    "line": 261,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-worktree-create",
+    "cli_path": "worktree.create",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-worktree.el",
+    "line": 261,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-worktree-info",
+    "cli_path": "worktree.info",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-worktree.el",
+    "line": 321,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-worktree-list",
+    "cli_path": "worktree.list",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-worktree.el",
+    "line": 287,
+    "cli_command": null
+  },
+  {
+    "class": "beads-command-worktree-remove",
+    "cli_path": "worktree.remove",
+    "supers": [
+      "beads-command-global-options"
+    ],
+    "file": "lisp/beads-command-worktree.el",
+    "line": 301,
+    "cli_command": null
+  }
+]

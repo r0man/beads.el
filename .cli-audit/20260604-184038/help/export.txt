@@ -1,0 +1,49 @@
+Export all issues to JSONL (newline-delimited JSON) format.
+
+Each line is a complete JSON object representing one issue, including its
+labels, dependencies, and comments.
+
+This command is for issue export, migration, and interoperability. It exports
+records from the issues table; it is not a full database backup and does not
+capture Dolt branches, commit history, working-set state, or non-issue tables.
+For supported full backup/restore flows, use 'bd backup init', 'bd backup sync',
+and 'bd backup restore'.
+
+By default, exports only regular issues (excluding infrastructure beads
+like agents, rigs, roles, and messages). Use --all to include everything.
+
+Memories (from 'bd remember') are excluded by default because they may
+contain sensitive agent context. Use --include-memories or --all to
+include them.
+
+EXAMPLES:
+  bd export                              # Export issues to stdout
+  bd export -o issues.jsonl              # Export issues to file
+  bd export --include-memories           # Export issues + memories
+  bd export --all -o full.jsonl          # Include infra + templates + gates + memories
+  bd export --scrub -o clean.jsonl       # Exclude test/pollution records
+
+Usage:
+  bd export [flags]
+
+Flags:
+      --all                Include all records (infra, templates, gates, memories)
+  -h, --help               help for export
+      --include-infra      Include infrastructure beads (agents, rigs, roles, messages)
+      --include-memories   Include persistent memories (from 'bd remember') in the export
+  -o, --output string      Output file path (default: stdout)
+      --scrub              Exclude test/pollution records
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --ignore-schema-skew        Proceed despite forward schema drift (some queries may fail)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables Dolt auto-push
+  -v, --verbose                   Enable verbose/debug output

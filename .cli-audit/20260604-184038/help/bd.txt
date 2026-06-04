@@ -1,0 +1,10 @@
+Error: unknown command "bd" for "bd"
+
+Did you mean this?
+	ado
+	gc
+	kv
+	q
+	vc
+
+Run 'bd --help' for usage.
