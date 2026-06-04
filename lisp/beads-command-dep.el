@@ -122,9 +122,6 @@ Returns error string or nil if valid."
       "Must provide depends-on or blocked-by issue ID")
      (t nil))))
 
-;; Parse override removed: the base method handles JSON-to-domain
-;; parsing automatically via :result beads-dep-op-result.
-
 ;;; Dependency Remove Command
 
 (beads-defcommand beads-command-dep-remove (beads-command-global-options)
@@ -154,9 +151,6 @@ Returns error string or nil if valid."
 Removes a dependency between two issues."
   :result beads-dep-op-result
   :transient :manual)
-
-;; Parse override removed: the base method handles JSON-to-domain
-;; parsing automatically via :result beads-dep-op-result.
 
 ;;; Dependency List Command
 
@@ -301,9 +295,6 @@ Return list of beads-tree-node objects."
   :documentation "Represents bd dep cycles command.
 Detects dependency cycles in the issue graph."
   :transient :manual)
-
-
-;; Validate override removed: base handles slot-level validation.
 
 ;;; Dep Relate Command
 

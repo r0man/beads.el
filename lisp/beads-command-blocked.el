@@ -50,11 +50,6 @@ When executed with :json t, returns list of beads-blocked-issue instances."
   :result (list-of beads-blocked-issue)
   :transient :manual)
 
-
-;; Parse override removed: the base method handles JSON-to-domain
-;; parsing automatically via :result (list-of beads-blocked-issue).
-
-
 ;;; Transient Menu
 
 ;; Generate the complete transient menu from slot metadata

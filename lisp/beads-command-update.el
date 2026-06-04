@@ -356,10 +356,6 @@ Returns error string or nil if valid."
      (beads-command--validate-string-list remove-label "remove-label")
      (beads-command--validate-string-list set-labels "set-labels"))))
 
-;; Parse override removed: the base method handles JSON-to-domain
-;; parsing automatically via :result (list-of beads-issue).
-;; The execute-interactive method normalizes results to a list.
-
 (cl-defmethod beads-command-execute-interactive ((cmd beads-command-update))
   "Execute CMD to update issue and show result."
   (oset cmd json t)

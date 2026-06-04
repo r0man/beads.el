@@ -137,10 +137,6 @@ of instances when multiple IDs provided)."
   :result (list-of beads-issue)
   :transient :manual)
 
-
-;; Validate override removed: `:required t' on issue-ids handles
-;; the "must provide at least one issue ID" check automatically.
-
 (cl-defmethod beads-command-parse ((command beads-command-show) stdout)
   "Parse show COMMAND output from STDOUT.
 Delegates JSON→domain parsing to the base method via :result,

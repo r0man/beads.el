@@ -206,10 +206,6 @@ Returns error string or nil if valid."
      (beads-command--validate-string-list label "label")
      (beads-command--validate-string-list label-any "label-any"))))
 
-;; Parse override removed: the base method handles JSON-to-domain
-;; parsing automatically via :result (list-of beads-issue).
-
-
 ;;; Transient Menu
 
 ;; Generate the complete transient menu from slot metadata

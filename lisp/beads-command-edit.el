@@ -78,10 +78,6 @@
 Opens an issue field in $EDITOR for modification."
   :transient :manual)
 
-
-;; Validate override removed: the base method checks :required slots
-;; automatically via beads-command-validate-slots.
-
 ;;; Interactive Edit Workflow
 
 (defun beads-edit--detect-issue-id ()
