@@ -1992,5 +1992,103 @@ Example:
           (push (list key desc sym) entries))))
     (apply #'vector group-name (nreverse entries))))
 
+;;; ============================================================
+;;; Command-parity policy data
+;;; ============================================================
+;;
+;; These constants encode, *as data*, the policy that the CLI command
+;; parity drift gate (`beads-audit', exercised by
+;; `lisp/test/beads-audit-test.el') consumes when deciding what counts
+;; as a real gap.  Keeping the policy here -- rather than scattered
+;; across prose in `CLAUDE.md' and a one-shot audit script -- means the
+;; gate and the documentation cannot drift apart
+;; (see .designs/command-parity/analysis.md sec 2.4.2).
+
+(defconst beads-meta-parity-router-groups
+  '("admin" "ado" "audit" "config" "dep" "dolt" "dolt.remote" "epic"
+    "federation" "formula" "gate" "github" "gitlab" "hooks" "jira"
+    "label" "linear" "merge-slot" "mol" "notion" "repo" "rules" "swarm"
+    "vc" "worktree")
+  "CLI paths that are router groups, intentionally without a command class.
+Per project policy (`CLAUDE.md' > \"Top-level group commands\"), a
+`bd <group>' router serializes to `bd <group>' with no args -- which
+only prints help -- so each group is surfaced via a
+`transient-define-prefix' parent menu and gets *no* `beads-defcommand'
+class.  The parity gate excludes these paths from its
+missing-command check.")
+
+(defconst beads-meta-parity-non-goal-commands
+  '("comments.list" "completion" "__complete")
+  "CLI leaf paths intentionally left without a command class.
+- `comments.list' is a bd-internal redirect: `bd comments list' prints
+  \"Invalid -- use `bd comments <issue-id>'\" and exits, so beads.el
+  correctly omits it.
+- `completion' and `__complete' are cobra shell-completion plumbing
+  (shell-only / internal), out of scope for an Emacs UI.
+
+Note: `sql' is deliberately *not* listed here -- it has a real class
+\(`beads-command-sql'), so excluding it would mask an accidental
+deletion.  The parity gate excludes these paths from its
+missing-command check.")
+
+(defconst beads-meta-parity-non-goal-flags
+  '(("init"
+     "debug"
+     "proxied-server"
+     "proxied-server-config-path"
+     "proxied-server-external-host"
+     "proxied-server-external-keep-alive"
+     "proxied-server-external-port"
+     "proxied-server-external-socket-path"
+     "proxied-server-external-tls"
+     "proxied-server-external-tls-cert-path"
+     "proxied-server-external-tls-key-path"
+     "proxied-server-external-user"
+     "proxied-server-log-path"
+     "proxied-server-root-path"))
+  "Alist of (CLI-PATH . FLAG-LONG-NAMES) for flags intentionally not surfaced.
+These are declared non-goals: `bd init's experimental per-workspace
+proxied dolt sql-server tuning knobs (TLS paths, sockets, keepalive)
+plus `--debug', niche server-ops flags an Emacs UI need not expose.
+The parity gate treats a missing slot for one of these flags as
+intentional, not drift.")
+
+(defconst beads-meta-parity-intentional-collisions
+  '(("admin.compact"
+     :rationale "bd admin compact has mutually-exclusive operating modes \
+(--stats, --analyze, --apply, --auto, --dolt).  Each Emacs class models \
+one mode so the transient surfaces only the relevant flags.  See \
+lisp/beads-command-compact.el header."
+     :classes (beads-command-admin-compact
+               beads-command-compact-stats
+               beads-command-compact-analyze
+               beads-command-compact-apply
+               beads-command-compact-auto)))
+  "Alist of (CLI-PATH . PLIST) for cli_path collisions that are intentional.
+PLIST keys: `:rationale' (string) and `:classes' (list of expected
+member class symbols).  Some CLI paths are deliberately targeted by
+more than one `beads-defcommand' class -- e.g. `bd admin compact' has
+mutually-exclusive modes and beads.el exposes one class per mode.  The
+parity gate unions the member classes' slots before diffing against the
+combined `--help', so the cluster is audited as a unit, and re-flags
+only when the member set drifts from the recorded intent.")
+
+(defconst beads-meta-parity-accepted-drift
+  '(("dep.add" "depends-on")
+    ("linear.sync" "milestones" "no-wait" "pull-if-stale" "threshold")
+    ("list" "skip-labels")
+    ("prime" "hook-json" "memories-only")
+    ("show" "include-comments"))
+  "Alist of (CLI-PATH . FLAG-LONG-NAMES) for known, accepted slot drift.
+These are real but low-priority single-flag gaps that the maintainer
+has chosen to defer (see .designs/command-parity/analysis.md sec 1.3).
+They form the gate's baseline: the gate fails only on slot drift that
+is *not* listed here, so a NEW missing flag is caught while this known
+debt does not block merges.  Notable entries:
+- `dep.add --depends-on' is an explicit alias for `--blocked-by'
+  \(already a slot), not a real gap.
+Fixing one of these means adding the slot *and* removing the entry
+here.")
+
 (provide 'beads-meta)
 ;;; beads-meta.el ends here
