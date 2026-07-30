@@ -288,7 +288,7 @@ Used as :if predicate for context-aware transient groups."
 ;; All commands are now in beads-ops-menu and beads-advanced-menu.
 ;; This is kept temporarily for backwards compatibility.
 
-;;;###autoload
+;;;###autoload (autoload 'beads-more-menu "beads" nil t)
 (transient-define-prefix beads-more-menu ()
   "Additional beads commands not in the main dispatch.
 
@@ -392,7 +392,7 @@ into logical groups for easy access."
 
 ;;; Main Transient Menu
 
-;;;###autoload
+;;;###autoload (autoload 'beads "beads" nil t)
 (transient-define-prefix beads ()
   "Main transient menu for Beads issue tracker.
 
