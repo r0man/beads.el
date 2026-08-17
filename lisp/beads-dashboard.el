@@ -82,10 +82,17 @@ Thin wrapper over `beads--project-root'; see it and
   (beads--project-root))
 
 (defun beads-dashboard--buffer-name-for (root)
-  "Return the dashboard buffer name for project ROOT."
+  "Return the dashboard buffer name for project ROOT.
+A remote ROOT is qualified with its TRAMP prefix
+\(e.g. \"*beads-dashboard</ssh:user@example.com:|rig>*\") so a local
+and a remote project with the same basename get distinct dashboards
+instead of `get-buffer-create' silently reusing one for the other."
   (if root
-      (format "*beads-dashboard<%s>*"
-              (file-name-nondirectory (directory-file-name root)))
+      (let ((remote (file-remote-p root))
+            (name (file-name-nondirectory (directory-file-name root))))
+        (if remote
+            (format "*beads-dashboard<%s|%s>*" remote name)
+          (format "*beads-dashboard<%s>*" name)))
     beads-dashboard--buffer-name))
 
 (defun beads-dashboard--load-visibility (root)

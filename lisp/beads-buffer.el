@@ -13,6 +13,10 @@
 ;;
 ;; - Project prefix in brackets: All buffers include [PROJECT] or [PROJECT@BRANCH]
 ;; - Branch disambiguation: When not on main branch, shows [PROJECT@BRANCH]
+;; - Remote disambiguation: When `default-directory' is remote (TRAMP),
+;;   the context is qualified as [REMOTE|PROJECT], e.g.
+;;   [/ssh:user@example.com:|myproject], so a local and a remote
+;;   project with the same name never share buffers
 ;; - Issue ID: Show and agent buffers can include issue context
 ;; - Title truncation: Long titles are truncated with ellipsis
 ;;
@@ -81,6 +85,16 @@ Branch names like `feature/auth` become `feature-auth`."
   (when branch
     (replace-regexp-in-string "/" "-" branch)))
 
+(defun beads-buffer--remote-qualifier ()
+  "Return the remote prefix qualifying buffer names, or nil when local.
+The TRAMP prefix of `default-directory' (e.g.
+\"/ssh:user@example.com:\").  A local and a remote project with the
+same name must not share buffer names — `get-buffer-create' on the
+colliding name would silently reuse (and stomp) the other store's
+buffer — so `beads-buffer-project-context' prepends this as
+\"REMOTE|PROJECT\" inside the bracket context."
+  (file-remote-p default-directory))
+
 (defun beads-buffer-is-main-branch-p (&optional branch)
   "Return non-nil if BRANCH is a main branch name.
 If BRANCH is nil, checks the current branch.
@@ -111,16 +125,23 @@ from the current git state.
 
 Returns:
   \"PROJECT\" if on main branch or branch is not provided
-  \"PROJECT@BRANCH\" if on feature branch (branch sanitized)"
+  \"PROJECT@BRANCH\" if on feature branch (branch sanitized)
+
+Either form is prefixed as \"REMOTE|...\" when `default-directory'
+is remote (see `beads-buffer--remote-qualifier'), regardless of
+whether PROJECT was passed explicitly — remoteness is a property of
+where the caller is looking, not of the project name."
   (let* ((auto-detect-p (null project))
          (proj (or project (beads-git-get-project-name) "unknown"))
          (br (if auto-detect-p
                  (unless (beads-buffer-is-main-branch-p)
                    (beads-buffer--sanitize-branch (beads-git-get-branch)))
-               branch)))
-    (if br
-        (format "%s@%s" proj br)
-      proj)))
+               branch))
+         (context (if br (format "%s@%s" proj br) proj))
+         (remote (beads-buffer--remote-qualifier)))
+    (if remote
+        (format "%s|%s" remote context)
+      context)))
 
 ;;; List Buffer Names
 
@@ -213,60 +234,74 @@ Examples:
 
 ;;; Parse Functions
 
+(defconst beads-buffer--context-regexp
+  (concat "\\[\\(?:\\([^]|]+\\)|\\)?"   ; optional REMOTE| qualifier
+          "\\([^]@|]+\\)"               ; project
+          "\\(?:@\\([^]]+\\)\\)?\\]")   ; optional @branch
+  "Regexp matching the bracket context of a beads buffer name.
+Three capture groups: 1 = remote qualifier (the TRAMP prefix, nil
+for local buffers), 2 = project, 3 = branch (nil on main).  The
+single source for the [REMOTE|PROJECT@BRANCH] grammar shared by
+every parse function below — group numbers in those parsers are
+offsets from wherever this pattern lands in their full regexp.")
+
 (defun beads-buffer-parse-list (buffer-name)
   "Parse BUFFER-NAME as a list buffer name.
-Returns plist with :type, :project, :branch, :filter, or nil."
+Returns plist with :type, :remote, :project, :branch, :filter, or nil."
   (when (string-match
          (concat "\\`\\*beads-\\(list\\|ready\\|blocked\\|search\\)"
-                 "\\[\\([^]@]+\\)\\(?:@\\([^]]+\\)\\)?\\]"
+                 beads-buffer--context-regexp
                  "\\(?: \\(.+\\)\\)?\\*\\'")
          buffer-name)
     (list :type (match-string 1 buffer-name)
-          :project (match-string 2 buffer-name)
-          :branch (match-string 3 buffer-name)
-          :filter (match-string 4 buffer-name))))
+          :remote (match-string 2 buffer-name)
+          :project (match-string 3 buffer-name)
+          :branch (match-string 4 buffer-name)
+          :filter (match-string 5 buffer-name))))
 
 (defun beads-buffer-parse-show (buffer-name)
   "Parse BUFFER-NAME as a show buffer name.
-Returns plist with :project, :branch, :issue-id, :title, or nil."
+Returns plist with :remote, :project, :branch, :issue-id, :title, or nil."
   (when (string-match
          (concat "\\`\\*beads-show"
-                 "\\[\\([^]@]+\\)\\(?:@\\([^]]+\\)\\)?\\]"
+                 beads-buffer--context-regexp
                  "/\\([^ *]+\\)"
                  "\\(?: \\(.+\\)\\)?\\*\\'")
          buffer-name)
-    (list :project (match-string 1 buffer-name)
-          :branch (match-string 2 buffer-name)
-          :issue-id (match-string 3 buffer-name)
-          :title (match-string 4 buffer-name))))
+    (list :remote (match-string 1 buffer-name)
+          :project (match-string 2 buffer-name)
+          :branch (match-string 3 buffer-name)
+          :issue-id (match-string 4 buffer-name)
+          :title (match-string 5 buffer-name))))
 
 (defun beads-buffer-parse-agent (buffer-name)
   "Parse BUFFER-NAME as an agent buffer name.
-Returns plist with :project, :branch, :type, :instance,
+Returns plist with :remote, :project, :branch, :type, :instance,
 :issue-id, :title.  Returns nil if not an agent buffer or if BUFFER-NAME is nil."
   (when (and buffer-name
              (string-match
               (concat "\\`\\*beads-agent"
-                      "\\[\\([^]@]+\\)\\(?:@\\([^]]+\\)\\)?\\]"
+                      beads-buffer--context-regexp
                       "/\\([^#]+\\)"                ; type
                       "#\\([0-9]+\\)"               ; #N
                       "\\(?: \\([^ *]+\\)\\)?"      ; issue-id
                       "\\(?: \\(.+\\)\\)?"          ; title
                       "\\*\\'")
               buffer-name))
-    (list :project (match-string 1 buffer-name)
-          :branch (match-string 2 buffer-name)
-          :type (match-string 3 buffer-name)
-          :instance (string-to-number (match-string 4 buffer-name))
-          :issue-id (match-string 5 buffer-name)
-          :title (match-string 6 buffer-name))))
+    (list :remote (match-string 1 buffer-name)
+          :project (match-string 2 buffer-name)
+          :branch (match-string 3 buffer-name)
+          :type (match-string 4 buffer-name)
+          :instance (string-to-number (match-string 5 buffer-name))
+          :issue-id (match-string 6 buffer-name)
+          :title (match-string 7 buffer-name))))
 
 (defun beads-buffer-parse-utility (buffer-name)
   "Parse BUFFER-NAME as a utility buffer name.
-Returns plist with :type, :project, :branch, :suffix, or nil."
+Returns plist with :type, :remote, :project, :branch, :suffix, or nil."
   (when (string-match
          (concat "\\`\\*beads-\\([a-z-]+\\)"
-                 "\\[\\([^]@]+\\)\\(?:@\\([^]]+\\)\\)?\\]"
+                 beads-buffer--context-regexp
                  "\\(?:/\\([^*]+\\)\\)?"      ; /suffix
                  "\\*\\'")
          buffer-name)
@@ -274,9 +309,10 @@ Returns plist with :type, :project, :branch, :suffix, or nil."
       ;; Exclude known non-utility types
       (unless (member type '("list" "ready" "blocked" "search" "show" "agent"))
         (list :type type
-              :project (match-string 2 buffer-name)
-              :branch (match-string 3 buffer-name)
-              :suffix (match-string 4 buffer-name))))))
+              :remote (match-string 2 buffer-name)
+              :project (match-string 3 buffer-name)
+              :branch (match-string 4 buffer-name)
+              :suffix (match-string 5 buffer-name))))))
 
 ;;; Predicates
 

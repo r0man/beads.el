@@ -4,6 +4,26 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Remote (TRAMP) stores: async bd runs on the remote host
+
+`beads-command-execute-async` (and the dashboard's concurrency
+probe) now spawn bd through the TRAMP file handler when
+`default-directory` is remote, so async views — dashboard sections,
+eldoc, list refreshes — read the remote store instead of failing or
+silently querying a local one.  Sync execution already worked.  On
+remote spawns bd's stderr is discarded on the remote side (TRAMP
+cannot safely separate it; error reports carry an empty `:stderr`),
+and a missing remote directory is reported as an error instead of
+hanging the request forever.  Works under both tramp-sh and the
+Emacs 30 direct-async handler.
+
+Buffer names are qualified with the remote prefix — e.g.
+`*beads-show[/ssh:user@example.com:|rig]/bd-1*`,
+`*beads-dashboard</ssh:user@example.com:|rig>*` — so a local and a
+remote project with the same name no longer collide in one buffer.
+The `beads-buffer-parse-*` functions gained a `:remote` key (nil for
+local buffers); all other keys are unchanged.
+
 ### Breaking: `beads-agent-backend-start` is now 4-arity
 
 The backend protocol generic changed signature:

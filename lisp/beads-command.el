@@ -849,6 +849,41 @@ Maps cache-key -> plist `(:process P :waiters W)'.  When a duplicate
 request arrives while one is in flight, its callbacks are added to the
 waiter list and share the existing process's result.")
 
+(defun beads-command--remote-async-command (cmd)
+  "Wrap argv CMD so its stderr is discarded on the remote host.
+
+TRAMP's async handlers cannot safely separate stderr for us: a
+string `:stderr' signals `wrong-type-argument bufferp' under the
+direct-async handler (`tramp-handle-make-process'), and a buffer
+`:stderr' over tramp-sh is backed by a remote named pipe whose
+sentinel-time cleanup runs TRAMP operations from process
+sentinels — under parallel loads those fire inside each other's
+TRAMP calls and raise \"Forbidden reentrant call of Tramp\".  So
+the separation happens ON the host instead: CMD runs under
+/bin/sh with stderr pointed at /dev/null there, keeping stdout
+clean for JSON parsing under both tramp-sh and direct-async.
+\"$0\" is CMD's program (absolute or resolvable on the host);
+\"$@\" its arguments."
+  (append (list "/bin/sh" "-c" "exec \"$0\" \"$@\" 2>/dev/null") cmd))
+
+(defun beads-command--async-stderr-buffer-p (remote)
+  "Return non-nil when an async spawn may use a local stderr buffer.
+REMOTE is `file-remote-p' of the spawn's `default-directory'.
+
+Always true locally.  On a remote directory only under TRAMP's
+direct-async handler, which hands `:stderr' to the local
+`make-process' unchanged — there the buffer is wanted, because the
+spawned process is a fresh LOCAL login program whose own stderr
+chatter would otherwise merge into the stdout pipe.  The tramp-sh
+path must get nil `:stderr' (see `beads-command--remote-async-command'
+for why).  `tramp-direct-async-process-p' is the predicate TRAMP's
+own dispatch consults; call this within
+`with-connection-local-variables' so it sees the connection-local
+`tramp-direct-async-process'."
+  (or (not remote)
+      (and (fboundp 'tramp-direct-async-process-p)
+           (tramp-direct-async-process-p))))
+
 (defun beads-command-policy--from-dolt-status (callback)
   "Probe `bd dolt status --json' and resolve a concurrency policy.
 
@@ -857,28 +892,36 @@ Calls CALLBACK with `(:backend SYM :max-concurrent N)'.  Maps
 CALLBACK with nil if probe spawn fails."
   (let* ((cmd (list (or (and (boundp 'beads-executable) beads-executable) "bd")
                     "dolt" "status" "--json"))
+         (remote (file-remote-p default-directory))
          (stdout (generate-new-buffer " *beads-policy-probe-stdout*"))
-         (stderr (generate-new-buffer " *beads-policy-probe-stderr*"))
+         (stderr nil)
          (process-environment (beads-command--process-environment))
          (timed-out nil)
          (timer nil)
          proc)
-    (condition-case _
+    (with-connection-local-variables
+     (when (beads-command--async-stderr-buffer-p remote)
+       (setq stderr (generate-new-buffer " *beads-policy-probe-stderr*")))
+     (condition-case _
         (setq proc
               (make-process
                :name "beads-policy-probe"
                :buffer stdout
                :stderr stderr
-               :command cmd
+               :command (if remote (beads-command--remote-async-command cmd) cmd)
                :connection-type 'pipe
+               :file-handler t
                :sentinel
                (lambda (p _event)
                  (when (memq (process-status p) '(exit signal))
                    (when timer (cancel-timer timer) (setq timer nil))
                    (let ((exit (process-exit-status p))
-                         (out (with-current-buffer stdout (buffer-string))))
+                         (out (if (buffer-live-p stdout)
+                                  (with-current-buffer stdout (buffer-string))
+                                "")))
                      (let ((kill-buffer-query-functions nil))
-                       (kill-buffer stdout) (kill-buffer stderr))
+                       (when (buffer-live-p stdout) (kill-buffer stdout))
+                       (when (buffer-live-p stderr) (kill-buffer stderr)))
                      (if timed-out
                          (funcall callback nil)
                        (if (and (zerop exit) (not (string-empty-p out)))
@@ -897,7 +940,7 @@ CALLBACK with nil if probe spawn fails."
        (let ((kill-buffer-query-functions nil))
          (when (buffer-live-p stdout) (kill-buffer stdout))
          (when (buffer-live-p stderr) (kill-buffer stderr)))
-       (funcall callback nil)))
+       (funcall callback nil))))
     (when (and proc (process-live-p proc))
       (setq timer
             (run-at-time
@@ -1070,11 +1113,19 @@ fails.  Returns a process object, `coalesced', or `queued'."
   "Spawn COMMAND as an async process with queue/coalesce/timeout guards.
 ON-SUCCESS receives the parsed result; ON-ERROR receives the error
 condition.  QUEUE, CACHE-KEY, TIMEOUT, and CALLER-BUFFER are forwarded
-from `beads-command-execute-async'.  Internal helper."
+from `beads-command-execute-async'.  Internal helper.
+
+On a remote `default-directory' the spawn dispatches through the
+TRAMP file handler so bd runs on that host against its store, with
+stderr separated on the host (`beads-command--remote-async-command')
+and a local stderr buffer only where it is safe
+\(`beads-command--async-stderr-buffer-p'); error reports then carry
+an empty :stderr."
   (let* ((cmd (beads-command-line command))
          (cmd-string (mapconcat #'shell-quote-argument cmd " "))
+         (remote (file-remote-p default-directory))
          (stdout-buffer (generate-new-buffer " *beads-async-stdout*"))
-         (stderr-buffer (generate-new-buffer " *beads-async-stderr*"))
+         (stderr-buffer nil)
          (process-environment (beads-command--process-environment))
          (start-time (current-time))
          (timed-out nil)
@@ -1146,14 +1197,37 @@ from `beads-command-execute-async'.  Internal helper."
       (when queue
         (cl-incf beads-command--in-flight)
         (setq counted t))
-      (condition-case spawn-err
+      ;; A missing remote directory must be rejected before spawning:
+      ;; no TRAMP handler signals it — tramp-sh sends "cd DIR && exec
+      ;; bd ..." to a channel shell, the failed cd short-circuits the
+      ;; exec, and the channel idles at its prompt forever, so the
+      ;; sentinel never fires and each attempt leaks a wedged process.
+      ;; A probe error (unreachable host) falls through to the spawn,
+      ;; whose own failure carries the real reason.
+      (when (and remote
+                 (condition-case nil
+                     (not (file-directory-p default-directory))
+                   (error nil)))
+        (cleanup-buffers)
+        (decrement)
+        (let ((err (list (format "Cannot run bd: no such directory: %s"
+                                 default-directory)
+                         :command cmd-string
+                         :spawn-error 'remote-directory-missing)))
+          (run-at-time 0 nil (lambda () (reject-all err))))
+        (cl-return-from beads-command--spawn-async nil))
+      (with-connection-local-variables
+       (when (beads-command--async-stderr-buffer-p remote)
+         (setq stderr-buffer (generate-new-buffer " *beads-async-stderr*")))
+       (condition-case spawn-err
           (setq process
                 (make-process
                  :name "beads-async"
                  :buffer stdout-buffer
                  :stderr stderr-buffer
-                 :command cmd
+                 :command (if remote (beads-command--remote-async-command cmd) cmd)
                  :connection-type 'pipe
+                 :file-handler t
                  :sentinel
                  (lambda (proc _event)
                    (when (memq (process-status proc) '(exit signal))
@@ -1224,7 +1298,7 @@ from `beads-command-execute-async'.  Internal helper."
                           :command cmd-string
                           :spawn-error spawn-err)))
            (run-at-time 0 nil (lambda () (reject-all err))))
-         (cl-return-from beads-command--spawn-async nil)))
+         (cl-return-from beads-command--spawn-async nil))))
       ;; Spawn-failure detection: `make-process' may return a process
       ;; that's already dead if the binary is missing.
       (unless (process-live-p process)

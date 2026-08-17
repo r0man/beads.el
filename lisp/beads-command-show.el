@@ -378,6 +378,13 @@ Buffer is named *beads-show[PROJECT]/ISSUE-ID TITLE*."
                (buf-name (beads-buffer-name-show issue-id title proj-name))
                (buffer (get-buffer-create buf-name)))
           (with-current-buffer buffer
+            ;; Anchor the buffer to its store: refreshes and renames run
+            ;; with the buffer current, and both bd resolution and the
+            ;; remote buffer-name qualifier follow `default-directory' —
+            ;; inheriting whatever buffer happened to be current at
+            ;; creation would re-resolve against the wrong (e.g. local
+            ;; instead of TRAMP-remote) store.
+            (setq default-directory (file-name-as-directory project-dir))
             (setq beads-show--project-dir project-dir)
             (setq beads-show--issue-id issue-id)
             (setq beads-show--branch (beads-git-get-branch))
