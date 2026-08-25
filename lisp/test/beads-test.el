@@ -77,9 +77,10 @@ Sets `beads-test--last-created-prefix' as a side effect."
     (call-process "git" nil nil nil "config" "user.email" "test@beads-test.local")
     (call-process "git" nil nil nil "config" "user.name" "Beads Test")
     ;; Execute bd init.  The caller (beads-test-with-project or
-    ;; beads-test-with-shared-project) unsets BEADS_DOLT_PORT so bd
-    ;; uses its embedded Dolt engine in .beads/embeddeddolt/ and never
-    ;; reaches a production sql-server (e.g. Gas Town on 3307).
+    ;; beads-test-with-shared-project) unsets every variable in
+    ;; `beads-test-isolation-env-vars\' so bd uses its embedded Dolt
+    ;; engine in .beads/embeddeddolt/ and never reaches the production
+    ;; store a Gas Town shell points BEADS_DIR at.
     (beads-command-execute (apply #'beads-command-init effective-args))
     default-directory))
 
@@ -146,12 +147,10 @@ For a project with default settings, use an empty list:
     )"
   (declare (indent 1))
   (let ((temp-dir (make-symbol "temp-dir")))
-    `(let* (;; Defensively unset BEADS_DOLT_PORT so we never inherit a
-            ;; production port (e.g. 3307 from a Gas Town shell).
-            ;; bd uses its embedded Dolt engine, writing to the
-            ;; repo-local .beads/embeddeddolt/ directory.
-            (process-environment
-             (cons "BEADS_DOLT_PORT" process-environment))
+    `(let* (;; Unset every store/port variable a Gas Town shell
+            ;; exports so bd uses its embedded Dolt engine, writing to
+            ;; the repo-local .beads/embeddeddolt/ directory.
+            (process-environment (beads-test-isolated-process-environment))
             (,temp-dir (beads-test-create-project ,@init-args))
             (default-directory ,temp-dir)
             (beads--project-cache (make-hash-table :test 'equal)))
@@ -585,11 +584,10 @@ deleted between tests to ensure isolation.
 Tests that need custom init args (e.g., a specific :prefix) should
 continue using `beads-test-with-project' instead."
   (declare (indent 0))
-  `(let* (;; Defensively unset BEADS_DOLT_PORT so we never inherit a
-          ;; production port (e.g. 3307 from a Gas Town shell).
-          ;; bd uses its embedded Dolt engine in .beads/embeddeddolt/.
-          (process-environment
-           (cons "BEADS_DOLT_PORT" process-environment))
+  `(let* (;; Unset every store/port variable a Gas Town shell exports
+          ;; so bd uses its embedded Dolt engine in
+          ;; .beads/embeddeddolt/, not the production store.
+          (process-environment (beads-test-isolated-process-environment))
           (default-directory (beads-test-get-shared-project))
           (beads--project-cache (make-hash-table :test 'equal)))
      ;; Clean up issues from previous tests
@@ -604,6 +602,43 @@ continue using `beads-test-with-project' instead."
              (progn ,@body)
            ;; Clear transient state after test too
            (beads-test--clear-transient-state))))))
+
+
+;;; ========================================
+;;; Fixture Isolation Guards
+;;; ========================================
+
+;; bde-dww: these two fixtures back most of the suite, and both run a
+;; real `bd init'.  A Gas Town agent shell exports BEADS_DIR at the
+;; production store, which overrides repo-local discovery -- bd then
+;; reports "This workspace is already initialized" and exits 1, and
+;; every test using the fixture fails with that one signature.  Assert
+;; each macro really unsets the isolation set, not merely that
+;; `beads-test-isolated-process-environment' would if called.
+
+(ert-deftest beads-test-with-project-no-production-leak ()
+  "Test that `beads-test-with-project' unsets the isolation variables.
+Seeds the whole set the way a Gas Town shell exports it, then checks
+both halves: the variables read back unset, and `bd init' actually
+produced a repo-local store instead of resolving the seeded one."
+  :tags '(:integration)
+  (skip-unless (executable-find "bd"))
+  (let ((process-environment (beads-test-leaking-process-environment)))
+    (beads-test-with-project ()
+      (beads-test-assert-isolated process-environment)
+      (should (file-directory-p ".beads/embeddeddolt")))))
+
+(ert-deftest beads-test-with-shared-project-no-production-leak ()
+  "Test that `beads-test-with-shared-project' unsets the isolation variables.
+The shared fixture binds the isolated environment before it lazily
+creates the project, so the seeded values must not reach that
+`bd init' either."
+  :tags '(:integration)
+  (skip-unless (executable-find "bd"))
+  (let ((process-environment (beads-test-leaking-process-environment)))
+    (beads-test-with-shared-project
+      (beads-test-assert-isolated process-environment)
+      (should (file-directory-p ".beads/embeddeddolt")))))
 
 
 ;;; ========================================

@@ -141,36 +141,60 @@
   (beads-test-skip-unless-bd)
   (should t))
 
-;;; Isolation helpers
+;;; Test: production store and Dolt server isolation
 
-(defun beads-integration-test--effective-env-var (name env)
-  "Return the effective value of NAME from process-environment list ENV.
-The effective value is the first matching entry:
-- \"NAME=VALUE\" → returns VALUE string
-- \"NAME\" (no =) → returns nil (variable is unset)
-- no match → returns :not-found"
-  (let ((prefix (concat name "=")))
-    (catch 'found
-      (dolist (entry env)
-        (cond
-         ((string= entry name) (throw 'found nil))
-         ((string-prefix-p prefix entry)
-          (throw 'found (substring entry (length prefix))))))
-      :not-found)))
+;; bde-dww: a Gas Town agent shell exports BEADS_DIR plus three Dolt
+;; port variables.  BEADS_DIR is the load-bearing one -- it names an
+;; absolute store path that overrides repo-local discovery, so `bd
+;; init' inside a temp repo resolves the production store, reports
+;; "This workspace is already initialized", and exits 1 before
+;; .beads/embeddeddolt/ is ever created.  Every test touching bd then
+;; fails with that one signature.
+;;
+;; These guards assert over `beads-test-isolation-env-vars' rather
+;; than one hardcoded name, so narrowing the constant fails a test
+;; instead of silently narrowing coverage.
 
-;;; Test: production Dolt server isolation
+(ert-deftest beads-integration-test-isolation-env-vars-names-store-and-ports ()
+  "Test that `beads-test-isolation-env-vars' names every leaking variable.
+BEADS_DIR is the one that actually reroutes `bd init' to the
+production store; the port variables are defence in depth.  Dropping
+any of them reintroduces bde-dww, so pin the whole set here -- the
+other guards iterate over this constant and would quietly weaken
+along with it."
+  (dolist (var '("BEADS_DIR"
+                 "BEADS_DOLT_PORT"
+                 "BEADS_DOLT_SERVER_PORT"
+                 "GC_DOLT_PORT"))
+    (should (member var beads-test-isolation-env-vars))))
+
+(ert-deftest beads-integration-test-isolated-process-environment-unsets-all ()
+  "Test that `beads-test-isolated-process-environment' unsets every variable.
+Each must read back as unset rather than rerouted to another value."
+  (beads-test-assert-isolated
+   (beads-test-isolated-process-environment
+    (beads-test-leaking-process-environment))))
+
+(ert-deftest beads-integration-test-env-effective-value-semantics ()
+  "Test `beads-test-env-effective-value' distinguishes unset from absent.
+The other guards rest on this distinction: an entry with no \"=\" is
+the unset sentinel and must shadow a later exported value."
+  (let ((env '("SET=value" "UNSET" "SHADOWED=later")))
+    (should (equal (beads-test-env-effective-value "SET" env) "value"))
+    (should (null (beads-test-env-effective-value "UNSET" env)))
+    (should (eq (beads-test-env-effective-value "ABSENT" env) :not-found))
+    ;; First match wins, so the unset sentinel shadows the export.
+    (should (null (beads-test-env-effective-value
+                   "SHADOWED" (cons "SHADOWED" env))))))
 
 (ert-deftest beads-integration-test-create-temp-repo-no-production-leak ()
-  "Test that beads-test-create-temp-repo unsets BEADS_DOLT_PORT.
-When BEADS_DOLT_PORT=3307 is set in the outer environment (e.g. a
-Gas Town shell), the test infrastructure must defensively unset it
-so bd uses its embedded Dolt engine in the temp repo's
-.beads/embeddeddolt/ directory and never reaches a production
-sql-server."
+  "Test that `beads-test-create-temp-repo' unsets the isolation variables.
+When a Gas Town shell exports all of them, the fixture must unset
+each one so bd uses its embedded Dolt engine in the temp repo's
+.beads/embeddeddolt/ directory and never reaches the production
+store."
   (let* ((captured-env nil)
-         ;; Simulate Gas Town production environment
-         (process-environment
-          (cons "BEADS_DOLT_PORT=3307" process-environment)))
+         (process-environment (beads-test-leaking-process-environment)))
     ;; Mock beads-test--init-beads to capture process-environment
     (cl-letf (((symbol-function 'beads-test--init-beads)
                (lambda (_dir &optional _prefix _quiet)
@@ -179,30 +203,39 @@ sql-server."
       (let ((temp-dir (beads-test-create-temp-repo :init-beads t)))
         (unwind-protect
             (progn
-              ;; init must have been called — captured-env was set
+              ;; init must have been called -- captured-env was set
               (should captured-env)
-              ;; The effective BEADS_DOLT_PORT must be nil ("unset"
-              ;; sentinel from -effective-env-var) — never the
-              ;; production port, never any other value.
-              (let ((effective (beads-integration-test--effective-env-var
-                                "BEADS_DOLT_PORT" captured-env)))
-                (should (null effective))))
+              (beads-test-assert-isolated captured-env))
           (delete-directory temp-dir t))))))
 
 (ert-deftest beads-integration-test-with-temp-repo-no-production-leak ()
-  "Test that beads-test-with-temp-repo unsets BEADS_DOLT_PORT.
-Even when BEADS_DOLT_PORT=3307 is present in the outer environment,
-the macro must unset the variable so bd commands inside the body
-use embedded Dolt and never connect to a production server."
-  ;; Simulate Gas Town environment with production port set
-  (let ((process-environment
-         (cons "BEADS_DOLT_PORT=3307" process-environment)))
+  "Test that `beads-test-with-temp-repo' unsets the isolation variables.
+Even with all of them present in the outer environment, the macro
+must unset each so bd commands inside the body use embedded Dolt and
+never reach the production store."
+  (let ((process-environment (beads-test-leaking-process-environment)))
     (beads-test-with-temp-repo ()
-      ;; Inside the macro, the effective BEADS_DOLT_PORT must be
-      ;; unset (nil), not just rerouted to a different port.
-      (let ((effective (beads-integration-test--effective-env-var
-                        "BEADS_DOLT_PORT" process-environment)))
-        (should (null effective))))))
+      (beads-test-assert-isolated process-environment))))
+
+(ert-deftest beads-integration-test-with-temp-repo-init-survives-beads-dir ()
+  "Test that `bd init' succeeds while BEADS_DIR names an initialized store.
+This is bde-dww end to end.  Without the unset, bd resolves the store
+BEADS_DIR points at, sees it already initialized, and exits 1, so the
+temp repo never gets its own .beads/embeddeddolt/.  A real
+initialized store stands in for the production one, which is what
+makes bd take that branch."
+  :tags '(:integration)
+  (skip-unless (executable-find "bd"))
+  (let ((decoy (beads-test-create-temp-repo :init-beads t :quiet t)))
+    (unwind-protect
+        (let ((process-environment
+               (cons (concat "BEADS_DIR=" (expand-file-name ".beads" decoy))
+                     process-environment)))
+          (beads-test-with-temp-repo (:init-beads t)
+            ;; The store bd created must be repo-local, not the decoy.
+            (should (file-directory-p ".beads/embeddeddolt"))
+            (should-not (file-equal-p default-directory decoy))))
+      (delete-directory decoy t))))
 
 (provide 'beads-integration-test-test)
 ;;; beads-integration-test-test.el ends here
