@@ -28,6 +28,24 @@ in your PATH, or a full path to the executable."
   :type 'string
   :group 'beads)
 
+(defcustom beads-remote-search-path
+  '("~/.guix-home/profile/bin"
+    "~/.guix-profile/bin"
+    "~/.nix-profile/bin"
+    "~/.local/bin"
+    "~/bin")
+  "Directories probed for `beads-executable' on a remote host.
+When a command runs against a remote store (a TRAMP
+`default-directory') and `beads-executable' is a bare name, TRAMP
+resolves it against `tramp-remote-path' — which covers system
+directories but not per-user profile directories, so a bd installed
+via Guix Home, Nix, or pip lands in exit 127.  These directories are
+probed (in order, on the remote host, cached per connection) after
+`tramp-remote-path' fails.  Relative to the remote user's home
+directory when they start with `~'."
+  :type '(repeat string)
+  :group 'beads)
+
 (defcustom beads-database-path nil
   "Path to the beads database.
 If nil, bd will auto-discover the database by searching for a

@@ -412,12 +412,59 @@ Loops over command-option slots, calls `beads-command-validate-slot'
 for each, and collects errors.  Returns a list of error strings,
 or nil if all slots are valid.")
 
+;;; Remote Executable Resolution
+
+(defvar beads-remote-search-path)       ; beads-custom.el
+
+(defvar beads-command--remote-executable-cache (make-hash-table :test 'equal)
+  "Cache of resolved bd programs, keyed by TRAMP connection prefix.
+Maps the `file-remote-p' of a spawn's `default-directory' to the
+host-local absolute bd path resolved by
+`beads-command-resolve-executable'.  Only successful resolutions are
+cached, so installing bd on the host is picked up by the next
+command.  `clrhash' this if bd moves on a host mid-session.")
+
+(defun beads-command--remote-find-executable (remote)
+  "Resolve `beads-executable' to a host-local absolute path on REMOTE.
+REMOTE is a TRAMP connection prefix (the `file-remote-p' of the
+store's directory); `default-directory' must already be on that
+connection.  Tries `tramp-remote-path' first (`executable-find''s
+remote search), then probes the `beads-remote-search-path' profile
+directories on the host.  Returns nil when neither finds it."
+  (or (executable-find beads-executable t)
+      (cl-some (lambda (dir)
+                 (let ((cand (expand-file-name
+                              beads-executable (concat remote dir))))
+                   (and (file-executable-p cand)
+                        (file-local-name cand))))
+               (and (boundp 'beads-remote-search-path)
+                    beads-remote-search-path))))
+
+(defun beads-command-resolve-executable ()
+  "Return the bd program to spawn from `default-directory'.
+A local directory, or an absolute `beads-executable', passes through
+unchanged.  On a remote directory a bare name is resolved to a
+host-local absolute path, cached per connection: `tramp-remote-path'
+omits per-user profile directories (Guix Home, Nix, pip --user), so a
+bare \"bd\" that works in the user's login shell still exits 127
+through TRAMP (bde-hku).  An unresolvable name is returned bare, so
+the spawn fails with beads.el's usual error surface."
+  (let ((remote (file-remote-p default-directory)))
+    (if (or (not remote) (file-name-absolute-p beads-executable))
+        beads-executable
+      (or (gethash remote beads-command--remote-executable-cache)
+          (when-let* ((found (beads-command--remote-find-executable remote)))
+            (puthash remote found beads-command--remote-executable-cache))
+          beads-executable))))
+
 ;;; Base Implementation - Global Flags
 
 (cl-defmethod beads-command-line :around ((_command beads-command))
-  "Prepend executable to command line built by primary method.
-This :around method ensures all command lines start with beads-executable."
-  (cons beads-executable (cl-call-next-method)))
+  "Prepend the bd program to the command line built by the primary method.
+The program is `beads-executable', resolved to a host-local absolute
+path when `default-directory' is remote
+\(`beads-command-resolve-executable')."
+  (cons (beads-command-resolve-executable) (cl-call-next-method)))
 
 (cl-defmethod beads-command-line ((command beads-command))
   "Build command arguments from COMMAND using slot metadata.
@@ -890,7 +937,9 @@ own dispatch consults; call this within
 Calls CALLBACK with `(:backend SYM :max-concurrent N)'.  Maps
 `mode=server' to 8 and anything else to 1 — the safe default.  Calls
 CALLBACK with nil if probe spawn fails."
-  (let* ((cmd (list (or (and (boundp 'beads-executable) beads-executable) "bd")
+  (let* ((cmd (list (if (boundp 'beads-executable)
+                        (beads-command-resolve-executable)
+                      "bd")
                     "dolt" "status" "--json"))
          (remote (file-remote-p default-directory))
          (stdout (generate-new-buffer " *beads-policy-probe-stdout*"))

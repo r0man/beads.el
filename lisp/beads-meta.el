@@ -1004,6 +1004,14 @@ Returns a string or nil if value should not be included."
   "List of slot names that are global bd CLI options.
 These slots are defined in `beads-command-global-options' class.")
 
+(defconst beads-meta--global-path-slots '(db directory)
+  "Global option slots whose value is a file name on bd's own host.
+Serialized through `file-local-name': bd runs where the store lives,
+so a TRAMP-prefixed value (a dashboard scoped to a remote store osets
+these from remote-qualified names) must be handed over host-local, or
+remote bd tries to open the \"/ssh:user@host:...\" name literally.
+Identity for local values.")
+
 (defun beads-meta-build-command-line (command)
   "Build command-line arguments from slot metadata for COMMAND.
 COMMAND is an EIEIO object instance.
@@ -1110,7 +1118,11 @@ Uses slot metadata (:long-option, :short-option, :option-type) to build args."
                (push (concat "--" long-opt) result))
               (_
                (push (concat "--" long-opt) result)
-               (push (if (stringp value) value (format "%s" value)) result)))))))
+               (let ((str (if (stringp value) value (format "%s" value))))
+                 (push (if (memq slot-name beads-meta--global-path-slots)
+                           (file-local-name str)
+                         str)
+                       result))))))))
     (nreverse result)))
 
 ;;; ============================================================
