@@ -37,6 +37,7 @@
 (require 'beads-buffer)
 (require 'beads-command)
 (require 'beads-command-dep)
+(require 'beads-eldoc)
 (require 'beads-command-label)
 (require 'beads-command-update)
 (require 'beads-completion)
@@ -283,11 +284,10 @@ Set to nil to disable truncation."
 
 ;;; Constants
 
-(defconst beads-show-issue-id-regexp
-  "\\([a-zA-Z][a-zA-Z0-9._-]*-[0-9a-fA-F]+\\(?:\\.[0-9]+\\)*\\)"
-  "Regexp matching beads issue IDs.
-Matches patterns like project-hexid with optional sub-ids:
-  bd-a1b2, worker-f14c.2, beads.el-7bea.1.3")
+(defconst beads-show-issue-id-regexp beads-issue-id-regexp
+  "Regexp matching beads issue IDs; `beads-issue-id-regexp'.
+Kept as a name for callers of this file; prefer the shared constant
+and `beads-issue-id-search-forward', which also checks boundaries.")
 
 ;;; Variables
 
@@ -587,20 +587,29 @@ Returns alist of (NAME . POSITION) for sections."
 
 (defun beads-show--eldoc-function (callback)
   "Eldoc function for issue IDs in beads-show buffers.
-CALLBACK is called with the documentation string."
+CALLBACK receives a one-line summary.  The lookup goes through the
+shared asynchronous eldoc cache (`beads-eldoc--request-issue'), so a
+remote store never stalls redisplay; a late result is dropped unless
+the same id is still at point."
   (when-let* ((issue-id (beads-show--extract-issue-at-point)))
-    (condition-case nil
-        (let* ((issue (beads-execute 'beads-command-show :issue-ids (list issue-id)))
-               (title (oref issue title))
-               (status (oref issue status))
-               (priority (oref issue priority))
-               (doc (format "%s: %s [%s P%s]"
-                            issue-id
-                            (or title "Untitled")
-                            (upcase (or status "?"))
-                            (or priority "?"))))
-          (funcall callback doc))
-      (error nil))))
+    (let* ((buffer (current-buffer))
+           (delivered nil)
+           (state (beads-eldoc--request-issue
+                   issue-id
+                   (lambda (issue)
+                     (when (and issue
+                                (beads-eldoc--request-current-p buffer issue-id))
+                       (setq delivered t)
+                       (funcall callback
+                                (format "%s: %s [%s P%s]"
+                                        issue-id
+                                        (or (oref issue title) "Untitled")
+                                        (upcase (or (oref issue status) "?"))
+                                        (or (oref issue priority) "?"))))))))
+      (pcase state
+        ('pending t)
+        ('cached delivered)
+        (_ nil)))))
 
 ;;; Xref Integration
 
@@ -1044,14 +1053,12 @@ Shows direct child issues in CLI-style format with progress bar:
 
 (defun beads-show--buttonize-references (start end)
   "Make issue references clickable between START and END.
-Recognizes issue IDs in the format PROJECT-HASH[.CHILD], where PROJECT can
-contain letters, numbers, dots, underscores, and hyphens, HASH is a
-hexadecimal string (4-8 characters), and optional .CHILD for hierarchical
-child IDs (can be nested like .1.2.3).
-Examples: beads.el-7bea, bd-a1b2.1, worker-f14c.2.3, api-3e7a."
+Ids are found with `beads-issue-id-search-forward' (PREFIX-HASH[.CHILD],
+base-36 hash: bs-lc1lb, bd-a1b2.1, beads.el-7bea), honouring the
+buffer's `beads-issue-id-prefixes'."
   (save-excursion
     (goto-char start)
-    (while (re-search-forward "\\b\\([a-zA-Z][a-zA-Z0-9._-]*-[0-9a-fA-F]+\\(?:\\.[0-9]+\\)*\\)\\b" end t)
+    (while (beads-issue-id-search-forward end nil beads-issue-id-prefixes)
       (let ((issue-id (match-string 1)))
         (make-button (match-beginning 1) (match-end 1)
                     'issue-id issue-id
@@ -1067,29 +1074,10 @@ Examples: beads.el-7bea, bd-a1b2.1, worker-f14c.2.3, api-3e7a."
 
 (defun beads-show--extract-issue-at-point ()
   "Extract issue reference at point.
-Returns the issue ID or nil if none found.
-Recognizes issue IDs like beads.el-7bea, bd-a1b2.1, worker-f14c.2, etc."
-  (let ((case-fold-search nil)
-        (original-point (point)))
-    (or
-     ;; First try to see if we're on a button
-     (when-let* ((button (button-at original-point)))
-       (button-get button 'issue-id))
-
-     ;; Try to find issue ID on current line around point
-     (save-excursion
-       (let ((line-start (line-beginning-position))
-             (line-end (line-end-position))
-             (result nil))
-         (goto-char line-start)
-         (while (and (not result)
-                    (re-search-forward "\\b\\([a-zA-Z][a-zA-Z0-9._-]*-[0-9a-fA-F]+\\(?:\\.[0-9]+\\)*\\)\\b" line-end t))
-           (let ((match-start (match-beginning 1))
-                 (match-end (match-end 1)))
-             (when (and (>= original-point match-start)
-                       (<= original-point match-end))
-               (setq result (match-string 1)))))
-         result)))))
+Returns the issue ID or nil if none found: a button's `issue-id'
+first, else an id on the current line overlapping point
+\(`beads-issue-id-at-point')."
+  (beads-issue-id-at-point beads-issue-id-prefixes))
 
 ;;; Outline Navigation
 
@@ -2014,9 +2002,10 @@ Set mark at beginning of section, move point to end, and activate region."
     (save-excursion
       ;; Move past current reference if we're on one
       (when (beads-show--extract-issue-at-point)
-        (re-search-forward "[a-zA-Z][a-zA-Z0-9._-]*-[0-9a-fA-F]+\\(?:\\.[0-9]+\\)*" nil t))
+        (let ((case-fold-search nil))
+          (re-search-forward beads-issue-id-regexp nil t)))
       ;; Search for next reference
-      (when (re-search-forward "\\([a-zA-Z][a-zA-Z0-9._-]*-[0-9a-fA-F]+\\(?:\\.[0-9]+\\)*\\)" nil t)
+      (when (beads-issue-id-search-forward nil nil beads-issue-id-prefixes)
         (setq found (match-beginning 1))))
     (if found
         (goto-char found)
@@ -2032,7 +2021,7 @@ Set mark at beginning of section, move point to end, and activate region."
       (when (beads-show--extract-issue-at-point)
         (goto-char (line-beginning-position)))
       ;; Search for previous reference
-      (when (re-search-backward "\\([a-zA-Z][a-zA-Z0-9._-]*-[0-9a-fA-F]+\\(?:\\.[0-9]+\\)*\\)" nil t)
+      (when (beads-issue-id-search-backward nil nil beads-issue-id-prefixes)
         (setq found (match-beginning 1))))
     (if found
         (goto-char found)

@@ -52,6 +52,113 @@ Values longer than this will be truncated with \"...\" appended.")
   "Maximum length for issue titles in dependency graphs.
 Longer titles will be truncated for graph display.")
 
+;;; Issue Identifiers
+
+(defconst beads-issue-id-regexp
+  "\\([a-zA-Z][a-zA-Z0-9._-]*-[0-9a-z]+\\(?:\\.[0-9]+\\)*\\)"
+  "Regexp matching a beads issue id; group 1 is the id.
+An id is PREFIX-HASH[.CHILD...]: PREFIX starts with a letter and may
+contain letters, digits, dots, underscores and hyphens (\"bd\",
+\"beads.el\", \"my_project\"); HASH is a lowercase base-36 string --
+NOT hexadecimal, real ids look like bs-lc1lb, gce-hck or bde-dww, which
+a hex class never matched; CHILD suffixes are numeric (bd-a1b2.1.3).
+The regexp carries no \\b anchors because hyphens and dots are word
+boundaries to Emacs, so \\b would accept \"agent-abc\" inside
+\"gc-agent-abc\"; use `beads-issue-id-search-forward' or
+`beads-issue-id-at-point', which apply `beads-issue-id--boundary-p'.")
+
+(defvaralias 'beads-eldoc-issue-prefixes 'beads-issue-id-prefixes)
+
+(defcustom beads-issue-id-prefixes nil
+  "Issue id prefixes to recognise in text, or nil for any.
+A list of strings such as (\"bde\" \"gce\").  The base-36 id syntax
+also matches ordinary hyphenated words (\"post-command\"), so a caller
+that knows which stores are in play -- gascity.el knows every rig's
+prefix -- sets this buffer-locally and eldoc/reference detection then
+ignores everything else.  Nil accepts any syntactically valid id."
+  :type '(repeat string)
+  :local t
+  :group 'beads)
+
+
+(defun beads-issue-id--allowed-p (id prefixes)
+  "Return non-nil when ID's prefix is in PREFIXES, or PREFIXES is nil."
+  (or (null prefixes)
+      (seq-some (lambda (prefix) (string-prefix-p (concat prefix "-") id))
+                prefixes)))
+
+(defun beads-issue-id--boundary-p (beg end)
+  "Return non-nil when the id between BEG and END stands alone.
+The character before BEG must not be part of an id prefix, and the
+character after END must not extend the id, so \"agent-abc\" inside
+\"gc-agent-abc\" is rejected while a trailing dot or comma is fine."
+  (and (or (= beg (point-min))
+           (not (string-match-p "[[:alnum:]._-]" (string (char-before beg)))))
+       (or (= end (point-max))
+           (not (string-match-p "[[:alnum:]_-]" (string (char-after end)))))))
+
+(defun beads-issue-id-search-forward (&optional bound regexp prefixes)
+  "Search forward for the next issue id ending before BOUND.
+REGEXP defaults to `beads-issue-id-regexp' (group 1 must be the id);
+PREFIXES defaults to nil, accept any -- callers normally pass
+`beads-issue-id-prefixes'.  Matches that fail `beads-issue-id--boundary-p'
+or the prefix allowlist are skipped.  Returns the id with the match
+data set (group 1) and point after it, or nil with point at BOUND."
+  (let ((regexp (or regexp beads-issue-id-regexp))
+        (case-fold-search nil)
+        (found nil))
+    (while (and (not found) (re-search-forward regexp bound t))
+      (let ((beg (match-beginning 1))
+            (end (match-end 1)))
+        (if (and (beads-issue-id--boundary-p beg end)
+                 (beads-issue-id--allowed-p (match-string-no-properties 1)
+                                            prefixes))
+            (setq found (match-string-no-properties 1))
+          ;; Retry one character in: the greedy prefix may have swallowed
+          ;; a leading token, or this is a non-id word to step past.
+          (goto-char (1+ beg)))))
+    found))
+
+(defun beads-issue-id-search-backward (&optional bound regexp prefixes)
+  "Search backward for the closest issue id ending at or before point.
+A plain `re-search-backward' will not do: it stops at the nearest
+start position, which for \"bd-1\" is the tail \"d-1\", and once that is
+rejected the real id is excluded because it extends past point.  So
+scan forward from BOUND (default `point-min') with
+`beads-issue-id-search-forward' -- REGEXP and PREFIXES as there -- and
+keep the last id ending before point.  On success point is at the id's
+start, the match data (group 1) is set and the id returned; otherwise
+nil with point unchanged."
+  (let ((origin (point))
+        (last nil))
+    (save-excursion
+      (goto-char (or bound (point-min)))
+      (while (beads-issue-id-search-forward origin regexp prefixes)
+        (setq last (cons (match-beginning 1) (match-end 1)))))
+    (when last
+      (goto-char (car last))
+      (set-match-data (list (car last) (cdr last) (car last) (cdr last)))
+      (buffer-substring-no-properties (car last) (cdr last)))))
+
+(defun beads-issue-id-at-point (&optional prefixes regexp)
+  "Return the issue id at point, or nil.
+A button carrying an `issue-id' property wins (beads-show references);
+otherwise the current line is scanned with `beads-issue-id-search-forward'
+for an id overlapping point.  PREFIXES and REGEXP are passed through."
+  (or (when-let* ((button (button-at (point))))
+        (button-get button 'issue-id))
+      (save-excursion
+        (let ((pos (point))
+              (end (line-end-position))
+              (found nil))
+          (goto-char (line-beginning-position))
+          (while (and (not found)
+                      (beads-issue-id-search-forward end regexp prefixes))
+            (when (and (<= (match-beginning 1) pos)
+                       (<= pos (match-end 1)))
+              (setq found (match-string-no-properties 1))))
+          found))))
+
 ;;; Utilities
 
 (defun beads--log (level format-string &rest args)

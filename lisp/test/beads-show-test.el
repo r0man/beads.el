@@ -3623,7 +3623,7 @@ Empty sessions are automatically cleaned up."
      (should (or (null section) (stringp section))))))
 
 (ert-deftest beads-show-test-eldoc-function ()
-  "Test eldoc provides documentation for elements."
+  "Eldoc in a show buffer resolves through the shared async cache."
   (beads-show-test-with-git-mocks
    (with-temp-buffer
     (beads-show-mode)
@@ -3632,13 +3632,22 @@ Empty sessions are automatically cleaned up."
     (goto-char (point-min))
     (search-forward "bd-42")
     (backward-char 2)
-    (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (&rest _)
-                 (beads-issue-from-json beads-show-test--full-issue))))
-      (let ((result nil))
-        (beads-show--eldoc-function
-         (lambda (doc &rest _) (setq result doc)))
-        (should (or (null result) (stringp result))))))))
+    (let ((beads-eldoc--cache (make-hash-table :test 'equal))
+          (beads-eldoc--pending (make-hash-table :test 'equal))
+          (on-success nil)
+          (result nil))
+      (cl-letf (((symbol-function 'beads-command-execute-async)
+                 (lambda (_cmd success &optional _error &rest _kw)
+                   (setq on-success success)
+                   'mock-process)))
+        (should (eq (beads-show--eldoc-function
+                     (lambda (doc &rest _) (setq result doc)))
+                    t))
+        (should (null result))
+        (funcall on-success (beads-issue-from-json beads-show-test--full-issue))
+        (should (stringp result))
+        (should (string-match-p "bd-42" result))
+        (should (beads-eldoc--get-cached-issue "bd-42")))))))
 
 (ert-deftest beads-show-test-xref-backend ()
   "Test xref backend is registered."

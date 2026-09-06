@@ -209,12 +209,11 @@ When viewing issue details (via `beads-show` or pressing `RET` in list):
 ### Eldoc Support
 
 beads.el provides eldoc integration that displays issue information when your
-cursor hovers over issue references in any buffer.
+cursor is on an issue reference in any buffer.
 
 **Supported Formats:**
-- `beads.el-22` - Project-specific references
-- `bd-123` - Standard Beads references
-- `worker-1`, `api-42` - Any `project-N` format
+- `bs-lc1lb`, `gce-hck`, `bde-dww` - Standard `bd` ids (base-36 hash)
+- `beads.el-22`, `bd-a1b2.1` - Dotted prefixes and child ids
 
 **Enable Eldoc Support:**
 
@@ -225,32 +224,41 @@ cursor hovers over issue references in any buffer.
 
 **What You Get:**
 
-When you position your cursor on an issue reference like `beads.el-22`:
+When you position your cursor on an issue reference like `bs-lc1lb`:
 - **Echo area**: Brief info (ID, status, title)
 - **Eldoc buffer**: Full issue metadata (description, notes, dates, etc.)
 
 **How It Works:**
 
 1. **In beads buffers** (list/show): Uses text properties for instant lookup
-2. **In other buffers** (code, markdown, org): Pattern matching with caching
-3. **Performance**: Issues are cached for 5 minutes (configurable)
+2. **In other buffers** (code, markdown, org, shell/comint, `vterm-copy-mode`):
+   Pattern matching on the current line
+3. **Never blocks**: lookups run asynchronously through `bd show`; results
+   are cached per store for 5 minutes, unknown ids for 45 seconds, and a
+   remote (TRAMP) store is only queried while its connection is open
 
 **Configuration:**
 
 ```elisp
-;; Customize cache TTL (default: 300 seconds)
-(setq beads-eldoc-cache-ttl 600)  ; 10 minutes
+;; Customize cache TTLs (seconds)
+(setq beads-eldoc-cache-ttl 600)
+(setq beads-eldoc-negative-cache-ttl 120)
 
-;; Customize issue pattern (default supports all project-N formats)
-(setq beads-eldoc-issue-pattern "\\b\\([a-zA-Z][a-zA-Z0-9._-]*-[0-9]+\\)\\b")
+;; Only recognise ids from these stores (buffer-local friendly)
+(setq-local beads-issue-id-prefixes '("bde" "gce"))
+
+;; Resolve ids in another store than default-directory: a directory,
+;; or a function from id to directory (a TRAMP name is fine)
+(setq-local beads-eldoc-directory "/home/me/src/other-project/")
 ```
 
 **Example Use Cases:**
 
-- **Code comments**: Hover over `;; Fix beads.el-22` to see issue details
+- **Code comments**: Put point on `;; Fix bde-dww` to see issue details
 - **Commit messages**: See issue info while writing git commits
-- **Org files**: Get context on issues in your planning documents
-- **Markdown**: Preview issue details in README or documentation
+- **Terminal buffers**: In a vterm, `C-c C-t` (`vterm-copy-mode`) and move
+  point onto an id printed by an agent or a `bd` command
+- **Org files / Markdown**: Get context on issues in your documents
 
 **Tips:**
 

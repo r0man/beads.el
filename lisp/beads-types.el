@@ -1409,7 +1409,7 @@ Possible values:
 Delegates to `beads-from-json'."
   (beads-from-json 'beads-worktree json))
 
-(cl-defmethod beads-from-json ((_class (eql 'beads-worktree)) json)
+(cl-defmethod beads-from-json ((_class (eql 'beads-worktree)) _json)
   "Construct beads-worktree from JSON.
 Derives `name' from `path' when the name key is absent (e.g. in
 bd worktree create output)."

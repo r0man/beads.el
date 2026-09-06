@@ -4,13 +4,42 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Eldoc: asynchronous, base-36 ids, terminal buffers
+
+`beads-eldoc-mode` no longer runs `bd show` synchronously: it used to
+freeze Emacs for every eldoc tick on a remote (TRAMP) store — one to
+four seconds per lookup, plus a remote-to-local copy of a stderr temp
+file.  Lookups now go through `beads-command-execute-async`, results
+are cached per store (a remote host's `bd-1` and a local `bd-1` are
+distinct entries), unknown ids are cached as misses for
+`beads-eldoc-negative-cache-ttl` seconds, concurrent requests for one
+id share a single spawn, and nothing is spawned for a remote store
+whose connection is not already open.  A result that lands after
+point has left the id is dropped.  `beads-show--eldoc-function` uses
+the same cache.
+
+Issue ids are recognised by one shared regexp, `beads-issue-id-regexp`,
+whose hash part is base-36 — real ids look like `bs-lc1lb`, `gce-hck`
+or `bde-dww`, which the previous hex-only patterns in eldoc, `beads-show`
+and `beads-issue-at-point` never matched outside a button.  Point-based
+eldoc therefore now works in any text buffer, including shell/comint
+buffers and `vterm-copy-mode`.  Because the wider syntax also matches
+hyphenated words, `beads-issue-id-prefixes` (alias
+`beads-eldoc-issue-prefixes`) restricts detection to known store
+prefixes; it and the new `beads-eldoc-directory` (the store, or a
+function from id to store, that lookups resolve in) are meant to be set
+buffer-locally by front ends such as gascity.el.  The default of
+`beads-eldoc-issue-pattern` is now nil (use the shared regexp); a
+customised value is still honoured.  New helpers:
+`beads-issue-id-search-forward`, `beads-issue-id-at-point`.
+
 ### Remote (TRAMP) stores: async bd runs on the remote host
 
 `beads-command-execute-async` (and the dashboard's concurrency
 probe) now spawn bd through the TRAMP file handler when
 `default-directory` is remote, so async views — dashboard sections,
-eldoc, list refreshes — read the remote store instead of failing or
-silently querying a local one.  Sync execution already worked.  On
+list refreshes, and (see below) eldoc — read the remote store instead
+of failing or silently querying a local one.  Sync execution already worked.  On
 remote spawns bd's stderr is discarded on the remote side (TRAMP
 cannot safely separate it; error reports carry an empty `:stderr`),
 and a missing remote directory is reported as an error instead of

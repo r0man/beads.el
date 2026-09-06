@@ -10,7 +10,7 @@
 ;; Comprehensive ERT tests for beads-eldoc.el including:
 ;; - Issue reference detection at point
 ;; - Cache management (TTL, invalidation)
-;; - Issue fetching with error handling
+;; - Asynchronous issue fetching with negative caching and dedup
 ;; - Eldoc documentation formatting
 ;; - Minor mode activation/deactivation
 ;; - Integration with beads completion cache invalidation
@@ -154,6 +154,93 @@ supports uppercase characters."
       (should (equal (beads-eldoc--issue-id-at-point) "custom-999")))))
 
 ;;; ========================================
+;;; Issue ID Regexp Tests
+;;; ========================================
+
+(ert-deftest beads-eldoc-test-issue-id-base36 ()
+  "Real bd ids are base-36, not hex; every one of these must be found."
+  (dolist (id '("bs-lc1lb" "bs-8vh9x" "gce-hck" "bde-21fu" "beads.el-22"
+                "bd-a1b2.1" "worker-f14c.2.3"))
+    (with-temp-buffer
+      (insert "see " id " for details")
+      (goto-char (+ (point-min) 5))
+      (should (equal (beads-issue-id-at-point) id)))))
+
+(ert-deftest beads-eldoc-test-issue-id-rejects-non-ids ()
+  "Uppercase hashes, dates and dotted abbreviations are not ids."
+  (dolist (text '("see foo-BAR here" "on 2024-01 we" "e.g. this" "no-"))
+    (with-temp-buffer
+      (insert text)
+      (goto-char (+ (point-min) 4))
+      (should-not (beads-issue-id-at-point)))))
+
+(ert-deftest beads-eldoc-test-issue-id-boundary ()
+  "A hyphenated compound does not yield its tail as an id."
+  (with-temp-buffer
+    (insert "the gc-agent-abc buffer")
+    (goto-char (+ (point-min) 14))
+    ;; Without an allowlist the whole compound is the candidate.
+    (should (equal (beads-issue-id-at-point) "gc-agent-abc"))
+    ;; With one, neither the compound nor its tail qualifies.
+    (should-not (beads-issue-id-at-point '("agent" "gce")))))
+
+(ert-deftest beads-eldoc-test-issue-id-prefix-allowlist ()
+  "Only ids with an allowed prefix are recognised."
+  (with-temp-buffer
+    (insert "post-command runs bs-lc1lb and gce-hck")
+    (let ((prefixes '("bs" "gce")))
+      (goto-char (+ (point-min) 3))
+      (should-not (beads-issue-id-at-point prefixes))
+      (goto-char (+ (point-min) 20))
+      (should (equal (beads-issue-id-at-point prefixes) "bs-lc1lb"))
+      (goto-char (- (point-max) 2))
+      (should (equal (beads-issue-id-at-point prefixes) "gce-hck")))))
+
+(ert-deftest beads-eldoc-test-issue-id-prefixes-buffer-local ()
+  "`beads-eldoc--issue-id-at-point' honours a buffer-local allowlist."
+  (with-temp-buffer
+    (insert "post-command runs bs-lc1lb")
+    (setq-local beads-issue-id-prefixes '("bs"))
+    (goto-char (+ (point-min) 3))
+    (should-not (beads-eldoc--issue-id-at-point))
+    (goto-char (- (point-max) 2))
+    (should (equal (beads-eldoc--issue-id-at-point) "bs-lc1lb"))))
+
+(ert-deftest beads-eldoc-test-issue-id-trailing-punctuation ()
+  "Trailing punctuation does not break an id."
+  (with-temp-buffer
+    (insert "fixed by bs-lc1lb, see gce-hck.")
+    (goto-char (+ (point-min) 11))
+    (should (equal (beads-issue-id-at-point) "bs-lc1lb"))
+    (goto-char (- (point-max) 3))
+    (should (equal (beads-issue-id-at-point) "gce-hck"))))
+
+(ert-deftest beads-eldoc-test-issue-id-search-forward ()
+  "`beads-issue-id-search-forward' walks every id in a region."
+  (with-temp-buffer
+    (insert "bs-lc1lb then gc-agent then gce-hck\n")
+    (goto-char (point-min))
+    (let (found)
+      (while (beads-issue-id-search-forward nil nil '("bs" "gce"))
+        (push (match-string 1) found))
+      (should (equal (nreverse found) '("bs-lc1lb" "gce-hck"))))))
+
+(ert-deftest beads-eldoc-test-issue-id-search-backward ()
+  "`beads-issue-id-search-backward' finds whole ids, not their tails."
+  (with-temp-buffer
+    (insert "See bd-1\nand gce-hck for details")
+    (goto-char (point-max))
+    (should (equal (beads-issue-id-search-backward) "gce-hck"))
+    (should (= (point) (match-beginning 1)))
+    (should (equal (beads-issue-id-search-backward) "bd-1"))
+    (should (= (point) 5))
+    (should-not (beads-issue-id-search-backward))
+    (should (= (point) 5))
+    ;; The allowlist applies.
+    (goto-char (point-max))
+    (should (equal (beads-issue-id-search-backward nil nil '("bd")) "bd-1"))))
+
+;;; ========================================
 ;;; Cache Management Tests
 ;;; ========================================
 
@@ -173,29 +260,58 @@ supports uppercase characters."
 (ert-deftest beads-eldoc-test-cache-ttl ()
   "Test that stale cache entries are removed."
   (let ((beads-eldoc--cache (make-hash-table :test 'equal))
-        (beads-eldoc-cache-ttl 1))
+        (beads-eldoc-cache-ttl 1)
+        (key (beads-eldoc--cache-key "beads.el-1")))
     ;; Cache an issue with old timestamp
-    (puthash "beads.el-1"
-             (list :timestamp (- (float-time) 2)
+    (puthash key
+             (list :status 'ok
+                   :timestamp (- (float-time) 2)
                    :issue beads-eldoc-test--sample-issue)
              beads-eldoc--cache)
     ;; Should return nil because entry is stale
     (should (null (beads-eldoc--get-cached-issue "beads.el-1")))
     ;; Entry should be removed from cache
-    (should (null (gethash "beads.el-1" beads-eldoc--cache)))))
+    (should (null (gethash key beads-eldoc--cache)))))
+
+(ert-deftest beads-eldoc-test-cache-negative ()
+  "A cached miss answers nil without a lookup, then expires."
+  (let ((beads-eldoc--cache (make-hash-table :test 'equal))
+        (beads-eldoc-negative-cache-ttl 1))
+    (beads-eldoc--cache-missing "bd-nope")
+    (should (null (beads-eldoc--get-cached-issue "bd-nope")))
+    (should (eq (plist-get (beads-eldoc--cache-get "bd-nope") :status) 'missing))
+    (let ((beads-eldoc-negative-cache-ttl 0))
+      (should (null (beads-eldoc--cache-get "bd-nope"))))))
+
+(ert-deftest beads-eldoc-test-cache-scoped ()
+  "The same id in two stores are two cache entries."
+  (let ((beads-eldoc--cache (make-hash-table :test 'equal)))
+    (let ((default-directory "/tmp/a/"))
+      (beads-eldoc--cache-issue "bd-1" beads-eldoc-test--sample-issue))
+    (let ((default-directory "/tmp/b/"))
+      (should (null (beads-eldoc--get-cached-issue "bd-1")))
+      (beads-eldoc--cache-issue "bd-1" beads-eldoc-test--sample-issue-bd))
+    (should (= (hash-table-count beads-eldoc--cache) 2))
+    (let ((default-directory "/tmp/a/"))
+      (should (equal (oref (beads-eldoc--get-cached-issue "bd-1") id)
+                     "beads.el-22")))))
 
 (ert-deftest beads-eldoc-test-cache-invalidate-single ()
-  "Test invalidating a single cache entry."
+  "Test invalidating a single cache entry, across scopes."
   (let ((beads-eldoc--cache (make-hash-table :test 'equal)))
-    (beads-eldoc--cache-issue "beads.el-22"
-                              beads-eldoc-test--sample-issue)
-    (beads-eldoc--cache-issue "beads.el-23"
-                              beads-eldoc-test--sample-issue-bd)
+    (let ((default-directory "/tmp/a/"))
+      (beads-eldoc--cache-issue "beads.el-22" beads-eldoc-test--sample-issue))
+    (let ((default-directory "/tmp/b/"))
+      (beads-eldoc--cache-issue "beads.el-22" beads-eldoc-test--sample-issue))
+    (beads-eldoc--cache-issue "beads.el-23" beads-eldoc-test--sample-issue-bd)
     (beads-eldoc--invalidate-cache "beads.el-22")
-    ;; First issue should be invalidated
-    (should (null (gethash "beads.el-22" beads-eldoc--cache)))
+    ;; Both scopes of the first issue should be invalidated
+    (let ((default-directory "/tmp/a/"))
+      (should (null (beads-eldoc--get-cached-issue "beads.el-22"))))
+    (let ((default-directory "/tmp/b/"))
+      (should (null (beads-eldoc--get-cached-issue "beads.el-22"))))
     ;; Second issue should still be cached
-    (should (gethash "beads.el-23" beads-eldoc--cache))))
+    (should (beads-eldoc--get-cached-issue "beads.el-23"))))
 
 (ert-deftest beads-eldoc-test-cache-invalidate-all ()
   "Test invalidating entire cache."
@@ -209,44 +325,135 @@ supports uppercase characters."
     (should (zerop (hash-table-count beads-eldoc--cache)))))
 
 ;;; ========================================
-;;; Issue Fetching Tests
+;;; Issue Fetching Tests (asynchronous)
 ;;; ========================================
 
-(ert-deftest beads-eldoc-test-fetch-issue-success ()
-  "Test successful issue fetching with caching."
-  (let ((beads-eldoc--cache (make-hash-table :test 'equal)))
-    (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_cmd)
-                 beads-eldoc-test--sample-issue)))
-      (let ((issue (beads-eldoc--fetch-issue "beads.el-22")))
-        ;; Should return parsed issue
-        (should (equal (oref issue id) "beads.el-22"))
-        ;; Should be cached
-        (should (beads-eldoc--get-cached-issue "beads.el-22"))))))
+(defmacro beads-eldoc-test--with-async-mock (spec &rest body)
+  "Run BODY with `beads-command-execute-async' mocked.
+SPEC is (SPAWNS COMMANDS SUCCESSES ERRORS): variables bound to a spawn
+counter, the list of command objects, and the captured on-success /
+on-error closures (newest first), so a test can complete a lookup
+whenever it likes.  Also binds fresh cache and pending tables."
+  (declare (indent 1))
+  (let ((spawns (nth 0 spec)) (commands (nth 1 spec))
+        (successes (nth 2 spec)) (errors (nth 3 spec)))
+    `(let ((beads-eldoc--cache (make-hash-table :test 'equal))
+           (beads-eldoc--pending (make-hash-table :test 'equal))
+           (,spawns 0) (,commands nil) (,successes nil) (,errors nil))
+       (cl-letf (((symbol-function 'beads-command-execute-async)
+                  (lambda (cmd on-success &optional on-error &rest _kw)
+                    (cl-incf ,spawns)
+                    (push cmd ,commands)
+                    (push on-success ,successes)
+                    (push on-error ,errors)
+                    'mock-process)))
+         (ignore ,commands ,successes ,errors)
+         ,@body))))
 
-(ert-deftest beads-eldoc-test-fetch-issue-uses-cache ()
-  "Test that fetch uses cache on second call."
+(ert-deftest beads-eldoc-test-request-issue-pending-then-delivers ()
+  "A cold lookup spawns once, returns `pending', and delivers later."
+  (beads-eldoc-test--with-async-mock (spawns commands successes errors)
+    (let ((got 'unset))
+      (should (eq (beads-eldoc--request-issue
+                   "beads.el-22" (lambda (issue) (setq got issue)))
+                  'pending))
+      (should (= spawns 1))
+      (should (eq got 'unset))
+      (should (equal (oref (car commands) issue-ids) '("beads.el-22")))
+      (funcall (car successes) beads-eldoc-test--sample-issue)
+      (should (equal (oref got id) "beads.el-22"))
+      ;; Now cached: the next request answers synchronously.
+      (should (eq (beads-eldoc--request-issue "beads.el-22" #'ignore) 'cached))
+      (should (= spawns 1)))))
+
+(ert-deftest beads-eldoc-test-request-issue-dedups-pending ()
+  "Two requests before completion share one spawn and both get the result."
+  (beads-eldoc-test--with-async-mock (spawns commands successes errors)
+    (let ((a nil) (b nil))
+      (beads-eldoc--request-issue "beads.el-22" (lambda (i) (setq a i)))
+      (should (eq (beads-eldoc--request-issue "beads.el-22" (lambda (i) (setq b i)))
+                  'pending))
+      (should (= spawns 1))
+      (funcall (car successes) beads-eldoc-test--sample-issue)
+      (should (and a b))
+      (should (zerop (hash-table-count beads-eldoc--pending))))))
+
+(ert-deftest beads-eldoc-test-request-issue-negative-cache ()
+  "A failed lookup is cached as missing and not retried within the TTL."
+  (beads-eldoc-test--with-async-mock (spawns commands successes errors)
+    (let ((got 'unset))
+      (beads-eldoc--request-issue "bd-nope" (lambda (i) (setq got i)))
+      (funcall (car errors) '(error "no issue found"))
+      (should (null got))
+      (setq got 'unset)
+      (should (eq (beads-eldoc--request-issue "bd-nope" (lambda (i) (setq got i)))
+                  'cached))
+      (should (null got))
+      (should (= spawns 1))
+      ;; Expired negative entry: one more spawn.
+      (let ((beads-eldoc-negative-cache-ttl 0))
+        (beads-eldoc--request-issue "bd-nope" #'ignore))
+      (should (= spawns 2)))))
+
+(ert-deftest beads-eldoc-test-request-issue-scope-and-directory ()
+  "Requests are keyed per store; `beads-eldoc-directory' sets the store."
+  (beads-eldoc-test--with-async-mock (spawns commands successes errors)
+    (let ((default-directory "/tmp/a/"))
+      (beads-eldoc--request-issue "bd-1" #'ignore))
+    (let ((default-directory "/tmp/b/"))
+      (beads-eldoc--request-issue "bd-1" #'ignore))
+    (should (= spawns 2))
+    (should (null (oref (car commands) directory)))
+    ;; A string directory becomes the command's --directory and a new scope.
+    (let ((default-directory "/tmp/a/")
+          (beads-eldoc-directory "/tmp/store/"))
+      (beads-eldoc--request-issue "bd-1" #'ignore))
+    (should (= spawns 3))
+    (should (equal (oref (car commands) directory) "/tmp/store/"))
+    ;; A function directory is called with the id.
+    (let ((default-directory "/tmp/a/")
+          (beads-eldoc-directory (lambda (id) (and (equal id "bd-1") "/tmp/fn/"))))
+      (beads-eldoc--request-issue "bd-1" #'ignore))
+    (should (= spawns 4))
+    (should (equal (oref (car commands) directory) "/tmp/fn/"))
+    ;; The scoped result lands under its own key.
+    (funcall (car successes) beads-eldoc-test--sample-issue)
+    (should (beads-eldoc--get-cached-issue "bd-1" "/tmp/fn"))
+    (should-not (beads-eldoc--get-cached-issue "bd-1" "/tmp/a"))))
+
+(ert-deftest beads-eldoc-test-request-issue-remote-not-connected ()
+  "No lookup is spawned for a remote store that is not connected."
+  (require 'tramp)
+  (beads-eldoc-test--with-async-mock (spawns commands successes errors)
+    (let ((default-directory "/ssh:nohost.invalid:/tmp/")
+          (called nil))
+      (should (null (beads-eldoc--request-issue "bd-1" (lambda (_) (setq called t)))))
+      (should-not called)
+      (should (= spawns 0))
+      (should (zerop (hash-table-count beads-eldoc--pending))))))
+
+(ert-deftest beads-eldoc-test-request-issue-spawn-error ()
+  "A spawn that signals is recorded as a miss, not raised."
   (let ((beads-eldoc--cache (make-hash-table :test 'equal))
-        (call-count 0))
-    (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_cmd)
-                 (setq call-count (1+ call-count))
-                 beads-eldoc-test--sample-issue)))
-      ;; First call should fetch from bd
-      (beads-eldoc--fetch-issue "beads.el-22")
-      (should (= call-count 1))
-      ;; Second call should use cache
-      (beads-eldoc--fetch-issue "beads.el-22")
-      (should (= call-count 1)))))
+        (beads-eldoc--pending (make-hash-table :test 'equal))
+        (got 'unset))
+    (cl-letf (((symbol-function 'beads-command-execute-async)
+               (lambda (&rest _) (error "Command failed"))))
+      (should (eq (beads-eldoc--request-issue "beads.el-999"
+                                              (lambda (i) (setq got i)))
+                  'pending))
+      (should (null got))
+      (should (eq (plist-get (beads-eldoc--cache-get "beads.el-999") :status)
+                  'missing)))))
 
-(ert-deftest beads-eldoc-test-fetch-issue-error ()
-  "Test that fetch errors are handled gracefully."
-  (let ((beads-eldoc--cache (make-hash-table :test 'equal)))
-    (cl-letf (((symbol-function 'beads-execute)
-               (lambda (_class &rest _args)
-                 (error "Command failed"))))
-      ;; Should return nil on error, not signal
-      (should (null (beads-eldoc--fetch-issue "beads.el-999"))))))
+(ert-deftest beads-eldoc-test-invalidation-keeps-pending ()
+  "Invalidating results leaves in-flight lookups untouched."
+  (beads-eldoc-test--with-async-mock (spawns commands successes errors)
+    (beads-eldoc--cache-issue "bd-2" beads-eldoc-test--sample-issue-bd)
+    (beads-eldoc--request-issue "bd-1" #'ignore)
+    (beads-eldoc--invalidate-cache)
+    (should (zerop (hash-table-count beads-eldoc--cache)))
+    (should (= (hash-table-count beads-eldoc--pending) 1))))
 
 ;;; ========================================
 ;;; Formatting Tests
@@ -292,18 +499,17 @@ supports uppercase characters."
 ;;; ========================================
 
 (ert-deftest beads-eldoc-test-eldoc-function-success ()
-  "Test eldoc function calls callback with documentation."
+  "Test eldoc function calls callback with documentation from the cache."
   (let ((beads-eldoc--cache (make-hash-table :test 'equal))
         (callback-called nil)
         (callback-args nil))
+    (beads-eldoc--cache-issue "beads.el-22" beads-eldoc-test--sample-issue)
     (cl-letf (((symbol-function 'beads-eldoc--issue-id-at-point)
-               (lambda () "beads.el-22"))
-              ((symbol-function 'beads-eldoc--fetch-issue)
-               (lambda (_) beads-eldoc-test--sample-issue)))
-      (beads-eldoc-function
-       (lambda (&rest args)
-         (setq callback-called t)
-         (setq callback-args args)))
+               (lambda () "beads.el-22")))
+      (should (beads-eldoc-function
+               (lambda (&rest args)
+                 (setq callback-called t)
+                 (setq callback-args args))))
       ;; Callback should be called
       (should callback-called)
       ;; First arg should be echo area string
@@ -314,20 +520,60 @@ supports uppercase characters."
   (let ((callback-called nil))
     (cl-letf (((symbol-function 'beads-eldoc--issue-id-at-point)
                (lambda () nil)))
-      (beads-eldoc-function (lambda (&rest _) (setq callback-called t)))
+      (should-not (beads-eldoc-function
+                   (lambda (&rest _) (setq callback-called t))))
       ;; Callback should not be called
       (should-not callback-called))))
 
 (ert-deftest beads-eldoc-test-eldoc-function-fetch-error ()
-  "Test eldoc function when fetch fails."
-  (let ((callback-called nil))
+  "Test eldoc function when the id is cached as missing."
+  (let ((beads-eldoc--cache (make-hash-table :test 'equal))
+        (callback-called nil))
+    (beads-eldoc--cache-missing "beads.el-999")
     (cl-letf (((symbol-function 'beads-eldoc--issue-id-at-point)
-               (lambda () "beads.el-999"))
-              ((symbol-function 'beads-eldoc--fetch-issue)
-               (lambda (_) nil)))
-      (beads-eldoc-function (lambda (&rest _) (setq callback-called t)))
-      ;; Callback should not be called if fetch returns nil
+               (lambda () "beads.el-999")))
+      (should-not (beads-eldoc-function
+                   (lambda (&rest _) (setq callback-called t))))
+      ;; Callback should not be called if the issue is unknown
       (should-not callback-called))))
+
+(ert-deftest beads-eldoc-test-eldoc-function-async ()
+  "A cold lookup returns t and delivers when the process completes."
+  (beads-eldoc-test--with-async-mock (spawns commands successes errors)
+    (beads-eldoc-test--at-point "Implementing beads.el-|22 now" "|"
+      (let ((echo nil) (plist nil))
+        (should (eq (beads-eldoc-function
+                     (lambda (e &rest p) (setq echo e plist p)))
+                    t))
+        (should (= spawns 1))
+        (should (null echo))
+        (funcall (car successes) beads-eldoc-test--sample-issue)
+        (should (string-match-p "beads\\.el-22" echo))
+        (should (equal (plist-get plist :thing) "beads.el-22"))
+        (should (string-match-p "Issue: beads\\.el-22" (plist-get plist :buffer)))))))
+
+(ert-deftest beads-eldoc-test-eldoc-function-drops-late-callback ()
+  "A result arriving after point left the id is not shown, but is cached."
+  (beads-eldoc-test--with-async-mock (spawns commands successes errors)
+    (beads-eldoc-test--at-point "Implementing beads.el-|22 now" "|"
+      (let ((echo nil))
+        (beads-eldoc-function (lambda (e &rest _) (setq echo e)))
+        (goto-char (point-max))
+        (funcall (car successes) beads-eldoc-test--sample-issue)
+        (should (null echo))
+        (should (beads-eldoc--get-cached-issue "beads.el-22"))))))
+
+(ert-deftest beads-eldoc-test-eldoc-function-dead-buffer ()
+  "A result arriving after the buffer died is cached and nothing else."
+  (beads-eldoc-test--with-async-mock (spawns commands successes errors)
+    (let ((echo nil))
+      (with-temp-buffer
+        (insert "Implementing beads.el-22 now")
+        (goto-char (+ (point-min) 15))
+        (beads-eldoc-function (lambda (e &rest _) (setq echo e))))
+      (funcall (car successes) beads-eldoc-test--sample-issue)
+      (should (null echo))
+      (should (beads-eldoc--get-cached-issue "beads.el-22")))))
 
 ;;; ========================================
 ;;; Minor Mode Tests
@@ -394,18 +640,17 @@ supports uppercase characters."
 
 (ert-deftest beads-eldoc-test-integration-full-workflow ()
   "Test full workflow: detect issue, fetch, format, display."
-  (let ((beads-eldoc--cache (make-hash-table :test 'equal))
-        (result-echo nil)
-        (result-buffer nil))
-    (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_cmd)
-                 beads-eldoc-test--sample-issue)))
+  (beads-eldoc-test--with-async-mock (spawns commands successes errors)
+    (let ((result-echo nil)
+          (result-buffer nil))
       (beads-eldoc-test--at-point
           "Implementing beads.el-|22 now" "|"
         (beads-eldoc-function
          (lambda (echo &rest plist)
            (setq result-echo echo)
            (setq result-buffer (plist-get plist :buffer))))
+        ;; The lookup completes asynchronously.
+        (funcall (car successes) beads-eldoc-test--sample-issue)
         ;; Echo area should have brief info
         (should (string-match-p "beads\\.el-22" result-echo))
         (should (string-match-p "in_progress" result-echo))

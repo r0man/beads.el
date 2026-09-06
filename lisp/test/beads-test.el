@@ -2513,6 +2513,13 @@ The log format is compatible with `log-view-mode':
     (goto-char (+ (point-min) 4))
     (should (equal (beads--issue-id-at-text-point) "bd-a1b2"))))
 
+(ert-deftest beads-test-issue-id-at-text-point-base36 ()
+  "Real ids have base-36 hashes; bs-lc1lb must be found."
+  (with-temp-buffer
+    (insert "see bs-lc1lb for details\n")
+    (goto-char (+ (point-min) 6))
+    (should (equal (beads--issue-id-at-text-point) "bs-lc1lb"))))
+
 (ert-deftest beads-test-issue-id-at-text-point-nil-when-off-id ()
   "Test that beads--issue-id-at-text-point returns nil when point is not on an issue."
   (with-temp-buffer

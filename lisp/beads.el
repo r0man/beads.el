@@ -104,27 +104,9 @@ Enables debug logging if not already enabled."
 
 (defun beads--issue-id-at-text-point ()
   "Return a beads issue ID at point from button or regexp, or nil.
-Checks for a button with an `issue-id' property first, then
-scans the current line for an issue ID pattern overlapping point."
-  (let ((original-point (point))
-        (case-fold-search nil))
-    (or
-     ;; Button with issue-id property
-     (when-let ((button (button-at original-point)))
-       (button-get button 'issue-id))
-     ;; Issue ID pattern on current line, overlapping point
-     (save-excursion
-       (let ((line-start (line-beginning-position))
-             (line-end   (line-end-position)))
-         (goto-char line-start)
-         (catch 'found
-           (while (re-search-forward
-                   (concat "\\b\\([a-zA-Z][a-zA-Z0-9._-]*"
-                           "-[0-9a-fA-F]+\\(?:\\.[0-9]+\\)*\\)\\b")
-                   line-end t)
-             (when (and (>= original-point (match-beginning 1))
-                        (<= original-point (match-end 1)))
-               (throw 'found (match-string 1))))))))))
+Delegates to `beads-issue-id-at-point' with the buffer's
+`beads-issue-id-prefixes'."
+  (beads-issue-id-at-point beads-issue-id-prefixes))
 
 ;;;###autoload
 (defun beads-issue-at-point ()
