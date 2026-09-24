@@ -74,6 +74,104 @@ Proves the gate FAILS on a new slot gap without needing `bd'."
   (should-not (member "proxied-server"
                       (beads-audit--missing-slots '("proxied-server") '() "init"))))
 
+(ert-deftest beads-audit-test-classify-every-path-exactly-once ()
+  "Classification puts every CLI path in exactly one category.
+The CLI sync audit's core invariant (REQ-001): no path is unclassified
+or double-classified."
+  :tags '(:unit)
+  (let* ((cli '("close" "frobnicate" "admin" "comments.list" "serve"
+                "update"))
+         (inv '(("close" beads-command-close)
+                ("update" beads-command-update)))
+         (class (beads-audit-classify cli inv))
+         (by-path (mapcar (lambda (e) (plist-get e :path)) class)))
+    ;; Every CLI path appears exactly once.
+    (should (= (length class) (length cli)))
+    (should (equal (sort (copy-sequence by-path) #'string<)
+                   (sort (copy-sequence cli) #'string<)))
+    ;; Bound categories: covered / missing / router / out-of-scope.
+    (let ((entry (alist-get "close" (mapcar (lambda (e) (cons (plist-get e :path) e)) class)
+                           nil nil #'equal)))
+      (should (eq (plist-get entry :category) 'covered)))
+    (let ((table (mapcar (lambda (e) (cons (plist-get e :path) e)) class)))
+      (should (eq (plist-get (cdr (assoc "frobnicate" table)) :category)
+                  'missing))
+      (should (eq (plist-get (cdr (assoc "admin" table)) :category)
+                  'router))
+      (should (eq (plist-get (cdr (assoc "comments.list" table)) :category)
+                  'out-of-scope))
+      (should (eq (plist-get (cdr (assoc "serve" table)) :category)
+                  'out-of-scope)))))
+
+(ert-deftest beads-audit-test-classify-out-of-scope-has-rationale ()
+  "Category-3 paths carry a recorded skip rationale.
+The audit output must state the decision for every skipped command
+(REQ-001); a policy-listed path without a rationale is a bug."
+  :tags '(:unit)
+  (let ((class (beads-audit-classify '("serve" "metrics.on")
+                                     nil)))
+    (dolist (entry class)
+      (should-not (string-empty-p (plist-get entry :rationale)))
+      (should (string-match-p "Category 3" (plist-get entry :disposition))))))
+
+(ert-deftest beads-audit-test-classify-missing-records-disposition ()
+  "Category-1 (missing) paths carry their recorded backlog disposition."
+  :tags '(:unit)
+  (let* ((class (beads-audit-classify '("heartbeat") nil))
+         (entry (car class)))
+    (should (eq (plist-get entry :category) 'missing))
+    (should (string-match-p "Category 1" (plist-get entry :disposition)))
+    (should (string-match-p "Phase 3" (plist-get entry :rationale)))))
+
+(ert-deftest beads-audit-test-classify-collision-category ()
+  "An unregistered multi-class path classifies as `collision'."
+  :tags '(:unit)
+  (let* ((cli '("frob"))
+         ;; Two classes on one path, no registered intent.
+         (inv '(("frob" beads-command-close beads-command-delete)))
+         (class (beads-audit-classify cli inv))
+         (entry (car class)))
+    (should (eq (plist-get entry :category) 'collision))))
+
+(ert-deftest beads-audit-test-classification-summary-counts ()
+  "The summary counts add up to the total."
+  :tags '(:unit)
+  (let* ((cli '("close" "frobnicate" "admin" "serve"))
+         (inv '(("close" beads-command-close)))
+         (counts (beads-audit-classification-summary
+                  (beads-audit-classify cli inv))))
+    (should (= (plist-get counts :total) 4))
+    (should (= (plist-get counts :covered) 1))
+    (should (= (plist-get counts :missing) 1))
+    (should (= (plist-get counts :router) 1))
+    (should (= (plist-get counts :out-of-scope) 1))
+    (should (= (+ (plist-get counts :covered)
+                  (plist-get counts :missing)
+                  (plist-get counts :router)
+                  (plist-get counts :out-of-scope)
+                  (plist-get counts :collision))
+               (plist-get counts :total)))))
+
+(ert-deftest beads-audit-test-report-string-renders-classification ()
+  "The batch report text renders every classification category."
+  :tags '(:unit)
+  (let* ((cli '("close" "frobnicate" "admin" "serve" "update"))
+         (inv '(("close" beads-command-close)
+                ("update" beads-command-update)))
+         ;; Stub the flag walk so no live `bd' is needed: report-string
+         ;; calls slot-drift which parses help for inventoried paths.
+         (beads-audit--help-cache (make-hash-table :test 'equal)))
+    (cl-letf (((symbol-function 'beads-audit--command-flag-longs)
+               (lambda (_segments) nil)))
+      (let ((report (beads-audit-report-string cli inv)))
+        (should (string-match-p "Category 1" report))
+        (should (string-match-p "frobnicate" report))
+        (should (string-match-p "Category 3" report))
+        (should (string-match-p "serve" report))
+        (should (string-match-p "Router groups" report))
+        ;; Slot-drift section present with the none-marker (no flags).
+        (should (string-match-p "Category 2" report))))))
+
 (ert-deftest beads-audit-test-intentional-collision-data-is-real ()
   "The recorded `admin compact' collision members are real classes on that path.
 Keeps `beads-meta-parity-intentional-collisions' from drifting away from

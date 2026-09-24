@@ -332,15 +332,17 @@ exercised on synthetic input."
 
 (defun beads-audit-missing-commands (&optional cli-paths inventory)
   "Return addressable CLI command paths that have no `beads-defcommand' class.
-Router groups (`beads-meta-parity-router-groups') and declared non-goal
-commands (`beads-meta-parity-non-goal-commands') are excluded by policy.
-CLI-PATHS and INVENTORY default to live discovery; pass them to audit a
-synthetic surface (used by the gate's self-test)."
+Router groups (`beads-meta-parity-router-groups'), declared non-goal
+commands (`beads-meta-parity-non-goal-commands'), and the recorded
+category-1 backlog (`beads-meta-parity-planned-commands') are excluded
+by policy.  CLI-PATHS and INVENTORY default to live discovery; pass
+them to audit a synthetic surface (used by the gate's self-test)."
   (let* ((cli (or cli-paths (beads-audit-cli-commands)))
          (inv (or inventory (beads-audit-class-inventory)))
          (covered (mapcar #'car inv))
          (excluded (append beads-meta-parity-router-groups
-                           beads-meta-parity-non-goal-commands)))
+                           beads-meta-parity-non-goal-commands
+                           beads-meta-parity-planned-commands)))
     (cl-remove-if (lambda (p) (or (member p covered) (member p excluded)))
                   cli)))
 
@@ -382,49 +384,257 @@ it to audit a synthetic inventory (used by the gate's self-test)."
     (nreverse findings)))
 
 ;;; ============================================================
+;;; Classification (the CLI sync audit, REQ-001)
+;;; ============================================================
+
+(defun beads-audit-classify (&optional cli-paths inventory)
+  "Classify every CLI command path into exactly one audit category.
+CLI-PATHS and INVENTORY default to live discovery; pass them to audit
+a synthetic surface (used by the self-test).
+
+Returns a list of plists, one per path, sorted by path:
+
+  (:path   PATH
+   :category CAT        one of the symbols `covered', `router',
+                        `out-of-scope', `missing', `collision'
+   :disposition STRING  human-readable disposition sentence
+   :rationale STRING    per-command decision, or the empty string when
+                        the path has no recorded rationale)
+
+Categories map onto the CLI sync audit's buckets:
+
+- `covered'      a class exists and no unaccepted slot drift -- no action.
+- `router'       a router group, transient parent without a class (policy).
+- `out-of-scope' deliberately skipped (category 3), recorded in
+                 `beads-meta-parity-non-goal-commands'.
+- `missing'      category 1: core user-facing command with no class; the
+                 backlog for later sync-plan phases.
+- `collision'    category 2-adjacent: several classes target one path
+                 without a registered intent (a drift-gate finding).
+
+Category 2 (an existing class missing 1.3.x flags) is intentionally NOT
+a classification here: a classified command is still `covered' as a
+command, and its flag gaps are the slot-drift findings returned by
+`beads-audit-slot-drift'.  The report joins the two so each covered
+command with gaps is labeled category 2 in the audit output."
+  (let* ((cli (or cli-paths (beads-audit-cli-commands)))
+         (inv (or inventory (beads-audit-class-inventory)))
+         (covered (mapcar #'car inv))
+         (drift (beads-audit-slot-drift inv))
+         (collisions (cl-remove-if (lambda (d) (eq (plist-get d :kind)
+                                                   'missing-slot))
+                                   drift))
+         (drift-paths (mapcar (lambda (d) (plist-get d :path)) drift))
+         entries)
+    (dolist (path cli)
+      (let* ((classes (cdr (assoc path inv)))
+             (rationale (or (cdr (assoc path
+                                  beads-meta-parity-command-rationales))
+                            ""))
+             category disposition)
+        (cond
+         ((and (> (length classes) 1)
+               (cl-find path collisions
+                        :test (lambda (p d)
+                                (equal p (plist-get d :path)))))
+          ;; Several classes target one path without a registered intent:
+          ;; surfaced as its own category so it cannot hide as "covered".
+          (setq category 'collision
+                disposition
+                "Category 2-adjacent drift finding: several classes target\nthis path without a registered intent in\n`beads-meta-parity-intentional-collisions'."))
+         ((member path covered)
+          (if (member path drift-paths)
+              (setq category 'covered
+                    disposition
+                    (format "Category 2: covered by %s, but carries\nunaccepted slot drift (see the slot-drift gate)."
+                            (mapconcat #'symbol-name classes ", ")))
+            (setq category 'covered
+                  disposition
+                  (format "Covered by %s; no unaccepted slot drift."
+                          (mapconcat #'symbol-name classes ", ")))))
+         ((member path beads-meta-parity-router-groups)
+          (setq category 'router
+                disposition
+                "Category N/A: router group surfaced as a parent transient\nmenu without a class (project policy)."))
+         ((member path beads-meta-parity-non-goal-commands)
+          (setq category 'out-of-scope
+                disposition
+                (or rationale
+                    "Category 3: deliberately out of scope (no rationale\nrecorded -- add one to `beads-meta-parity-command-rationales').")))
+         ((member path beads-meta-parity-planned-commands)
+          (setq category 'missing
+                disposition
+                (or (and (not (string-empty-p rationale)) rationale)
+                    "Category 1: core user-facing command with no class\nyet; recorded in the sync-plan backlog.")))
+         (t
+          (setq category 'missing
+                disposition
+                (if (string-empty-p rationale)
+                    "Category 1: core user-facing command with no class."
+                  rationale))))
+        (push (list :path path :category category
+                    :disposition disposition :rationale rationale)
+              entries)))
+    (sort entries
+          (lambda (a b)
+            (string< (plist-get a :path)
+                     (plist-get b :path))))))
+
+(defun beads-audit-classification-summary (classification)
+  "Return a plist of counts keyed by category from CLASSIFICATION.
+Keys: `:total' `:covered' `:router' `:out-of-scope' `:missing' and
+`:collision'.  Category 2 (flag gaps) is counted separately from the
+slot-drift findings, not from CLASSIFICATION."
+  (let ((total 0) (covered 0) (router 0) (out-of-scope 0)
+        (missing 0) (collision 0))
+    (dolist (entry classification)
+      (cl-incf total)
+      (cl-case (plist-get entry :category)
+        (covered (cl-incf covered))
+        (router (cl-incf router))
+        (out-of-scope (cl-incf out-of-scope))
+        (missing (cl-incf missing))
+        (collision (cl-incf collision))))
+    (list :total total :covered covered :router router
+          :out-of-scope out-of-scope :missing missing
+          :collision collision)))
+
+;;; ============================================================
+;;; Report rendering (interactive + batch)
+;;; ============================================================
+
+(defun beads-audit-report-string (&optional cli-paths inventory)
+  "Return the full command-parity report as a string.
+CLI-PATHS and INVENTORY default to live discovery.  The same text is
+displayed by `beads-audit-report' and written by
+`beads-audit-report-to-file', so the interactive view, the batch export,
+and the recorded audit artifact cannot disagree."
+  (let* ((cli (or cli-paths (beads-audit-cli-commands)))
+         (inv (or inventory (beads-audit-class-inventory)))
+         (classification (beads-audit-classify cli inv))
+         (counts (beads-audit-classification-summary classification))
+         (drift (beads-audit-slot-drift inv))
+         (missing-slot-count
+          (cl-count-if (lambda (d) (eq (plist-get d :kind) 'missing-slot))
+                       drift))
+         (lines nil))
+    (cl-labels ((emit (fmt &rest args)
+                  (push (apply #'format fmt args) lines)))
+      (emit "beads.el command-parity report")
+      (emit "==============================")
+      (emit "")
+      (emit "CLI command paths discovered:   %d" (plist-get counts :total))
+      (emit "Command classes (unique paths): %d" (length inv))
+      (emit "")
+      (emit "Classification (every path in exactly one category):")
+      (emit "  Covered (category 1/2 resolved, class exists):  %d"
+            (plist-get counts :covered))
+      (emit "  Router groups (parent transient, no class):     %d"
+            (plist-get counts :router))
+      (emit "  Out-of-scope skips (category 3):                %d"
+            (plist-get counts :out-of-scope))
+      (emit "  Missing core commands (category 1 backlog):     %d"
+            (plist-get counts :missing))
+      (emit "  Unexpected collisions (drift-gate finding):     %d"
+            (plist-get counts :collision))
+      (emit "  Slot-drift findings (category 2 flag gaps):     %d"
+            missing-slot-count)
+      (emit "")
+      (emit "Category 1 -- core user-facing commands with no class (backlog):")
+      (let ((n 0))
+        (dolist (entry classification)
+          (when (eq (plist-get entry :category) 'missing)
+            (cl-incf n)
+            (emit "  - %s" (plist-get entry :path))
+            (dolist (l (split-string (plist-get entry :disposition) "\n"))
+              (emit "      %s" l))))
+        (when (= n 0)
+          (emit "  (none -- every core command has a class)")))
+      (emit "")
+      (emit "Category 2 -- existing classes missing 1.3.x flags:")
+      (let ((n 0))
+        (dolist (d drift)
+          (when (eq (plist-get d :kind) 'missing-slot)
+            (cl-incf n)
+            (emit "  - %s --%s" (plist-get d :path) (plist-get d :flag))))
+        (when (= n 0)
+          (emit "  (none -- no unaccepted slot drift)")))
+      (emit "")
+      (emit "Category 3 -- deliberately out-of-scope commands (skip decisions):")
+      (let ((n 0))
+        (dolist (entry classification)
+          (when (eq (plist-get entry :category) 'out-of-scope)
+            (cl-incf n)
+            (emit "  - %s" (plist-get entry :path))
+            (dolist (l (split-string (plist-get entry :disposition) "\n"))
+              (emit "      %s" l))))
+        (when (= n 0)
+          (emit "  (none)")))
+      (emit "")
+      (emit "Router groups (parent transients, no class -- policy):")
+      (dolist (entry classification)
+        (when (eq (plist-get entry :category) 'router)
+          (emit "  - %s" (plist-get entry :path))))
+      (emit "")
+      (emit "Borderline calls recorded by the 1.3.x audit:")
+      (let ((n 0))
+        (dolist (entry classification)
+          (when (and (eq (plist-get entry :category) 'covered)
+                     (not (string-empty-p (plist-get entry :rationale))))
+            (cl-incf n)
+            (emit "  - %s" (plist-get entry :path))
+            (dolist (l (split-string (plist-get entry :rationale) "\n"))
+              (emit "      %s" l))))
+        (when (= n 0)
+          (emit "  (none recorded)")))
+      (emit "")
+      (emit "Unexpected multi-class collisions:")
+      (let ((n 0))
+        (dolist (d drift)
+          (when (eq (plist-get d :kind) 'unexpected-collision)
+            (cl-incf n)
+            (emit "  - %s" (plist-get d :path))))
+        (when (= n 0)
+          (emit "  (none)")))
+      (string-join (nreverse lines) "\n"))))
+
+;;;###autoload
+(defun beads-audit-report-to-file (path)
+  "Write the command-parity report to file PATH (batch audit export).
+Uses the live `bd' walk; identical text to `beads-audit-report'.
+Returns PATH."
+  (interactive "FWrite parity report to: ")
+  (unless (beads-audit-bd-available-p)
+    (user-error "The `bd' executable is not available"))
+  (beads-audit-clear-cache)
+  (let ((report (beads-audit-report-string)))
+    (with-temp-file path
+      (insert report)
+      (insert "\n")))
+  path)
+
+;;; ============================================================
 ;;; Interactive report
 ;;; ============================================================
 
 ;;;###autoload
 (defun beads-audit-report ()
-  "Display a human-readable command-parity report.
+  "Display the human-readable command-parity report.
 Walks the live `bd' CLI surface, introspects the class inventory, and
-summarizes addressable command coverage, missing commands, and new slot
-drift (beyond the accepted baseline)."
+renders the classified inventory produced by `beads-audit-classify':
+every command in exactly one category with its disposition, plus the
+slot-drift findings beyond the accepted baseline.  The identical text is
+available for batch export via `beads-audit-report-string' and
+`beads-audit-report-to-file'."
   (interactive)
   (unless (beads-audit-bd-available-p)
     (user-error "The `bd' executable is not available"))
   (beads-audit-clear-cache)             ; fresh data for an interactive run
-  (let* ((cli (beads-audit-cli-commands))
-         (inv (beads-audit-class-inventory))
-         (missing (beads-audit-missing-commands cli inv))
-         (drift (beads-audit-slot-drift inv))
-         (excluded (append beads-meta-parity-router-groups
-                           beads-meta-parity-non-goal-commands))
-         (addressable (cl-remove-if (lambda (p) (member p excluded)) cli)))
+  (let ((report (beads-audit-report-string)))
     (with-current-buffer (get-buffer-create "*beads-parity*")
       (let ((inhibit-read-only t))
         (erase-buffer)
-        (insert "beads.el command-parity report\n")
-        (insert "==============================\n\n")
-        (insert (format "CLI command paths discovered:   %d\n" (length cli)))
-        (insert (format "Command classes (unique paths): %d\n" (length inv)))
-        (insert (format "Addressable command coverage:   %d/%d\n\n"
-                        (- (length addressable) (length missing))
-                        (length addressable)))
-        (insert (format "Missing commands (no class, not excluded): %d\n"
-                        (length missing)))
-        (dolist (m (sort (copy-sequence missing) #'string<))
-          (insert (format "  - %s\n" m)))
-        (insert (format "\nNew slot drift (beyond baseline): %d\n"
-                        (length drift)))
-        (dolist (d drift)
-          (insert (format "  - %s%s [%s]\n"
-                          (plist-get d :path)
-                          (if (plist-get d :flag)
-                              (format " --%s" (plist-get d :flag))
-                            "")
-                          (plist-get d :kind))))
+        (insert report)
         (goto-char (point-min))
         (special-mode)))
     (display-buffer "*beads-parity*")))

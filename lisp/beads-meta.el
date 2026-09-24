@@ -2017,10 +2017,10 @@ Example:
 ;; (see .designs/command-parity/analysis.md sec 2.4.2).
 
 (defconst beads-meta-parity-router-groups
-  '("admin" "ado" "audit" "config" "dep" "dolt" "dolt.remote" "epic"
-    "federation" "formula" "gate" "github" "gitlab" "hooks" "jira"
-    "label" "linear" "merge-slot" "mol" "notion" "repo" "rules" "swarm"
-    "vc" "worktree")
+  '("admin" "ado" "audit" "config" "conflicts" "dep" "dolt" "dolt.remote"
+    "epic" "events" "federation" "formula" "gate" "github" "gitlab"
+    "hooks" "jira" "label" "linear" "merge-slot" "metrics" "mol"
+    "notion" "provenance" "repo" "rules" "swarm" "vc" "worktree")
   "CLI paths that are router groups, intentionally without a command class.
 Per project policy (`CLAUDE.md' > \"Top-level group commands\"), a
 `bd <group>' router serializes to `bd <group>' with no args -- which
@@ -2030,18 +2030,126 @@ class.  The parity gate excludes these paths from its
 missing-command check.")
 
 (defconst beads-meta-parity-non-goal-commands
-  '("comments.list" "completion" "__complete")
+  '("comments.list" "completion" "__complete"
+    "serve" "metrics" "metrics.on" "metrics.off" "metrics.example"
+    "migrate.from-proxied-server-to-server"
+    "migrate.from-server-to-proxied-server" "migrate.legacy-sqlite")
   "CLI leaf paths intentionally left without a command class.
 - `comments.list' is a bd-internal redirect: `bd comments list' prints
   \"Invalid -- use `bd comments <issue-id>'\" and exits, so beads.el
   correctly omits it.
 - `completion' and `__complete' are cobra shell-completion plumbing
   (shell-only / internal), out of scope for an Emacs UI.
+- `serve' runs a long-lived loopback HTTP API server; the Emacs UI
+  spawns `bd' subprocesses directly, so hosting the API adds nothing
+  (rationale: `beads-meta-parity-command-rationales').
+- `metrics' and its `on'/`off'/`example' subcommands toggle bd's
+  anonymous usage telemetry -- unrelated to issue tracking.
+- The `migrate.from-*' server-mode switches and `migrate.legacy-sqlite'
+  are one-time ops migrations for server-mode / pre-Dolt installs;
+  the embedded-engine install beads.el targets never runs them.
 
 Note: `sql' is deliberately *not* listed here -- it has a real class
 \(`beads-command-sql'), so excluding it would mask an accidental
 deletion.  The parity gate excludes these paths from its
 missing-command check.")
+
+(defconst beads-meta-parity-command-rationales
+  '(("comments.list"
+     . "Category 3: bd-internal redirect -- `bd comments list' prints\n\"Invalid -- use `bd comments <issue-id>'\" and exits; beads.el's\ncomments command covers the real surface.")
+    ("completion"
+     . "Category 3: cobra shell-completion plumbing (shell-only), out of\nscope for an Emacs UI.")
+    ("__complete"
+     . "Category 3: cobra hidden completion helper; internal plumbing.")
+    ("serve"
+     . "Category 3: long-lived loopback HTTP API server; the Emacs UI spawns\nbd subprocesses directly, so it never needs the HTTP surface.")
+    ("metrics"
+     . "Category 3: shows bd's anonymous usage-telemetry status; not issue\ntracking and never needed to drive beads from Emacs.")
+    ("metrics.on"
+     . "Category 3: toggles anonymous usage telemetry on; out of scope for a\nUI whose job is issues, not telemetry settings.")
+    ("metrics.off"
+     . "Category 3: toggles anonymous usage telemetry off; a one-time shell\npreference, not an issue-tracking operation.")
+    ("metrics.example"
+     . "Category 3: prints sample telemetry payloads; a developer-time\nreference with no UI value.")
+    ("migrate.from-proxied-server-to-server"
+     . "Category 3: experimental one-time ops migration between server modes;\nembedded-engine installs (the beads.el default) never run it.")
+    ("migrate.from-server-to-proxied-server"
+     . "Category 3: experimental one-time ops migration between server modes;\nembedded-engine installs (the beads.el default) never run it.")
+    ("migrate.legacy-sqlite"
+     . "Category 3: reads an authenticated legacy pre-Dolt SQLite file as\nJSONL; a one-time recovery path for ancient databases.")
+    ("conflicts"
+     . "Category 1 (parent): mid-level router for merge-conflict resolution\nadded in bd 1.3.x; parent transient, no class (router policy).")
+    ("conflicts.list"
+     . "Category 1: list live merge conflicts; core new 1.3.x surface.\nSchedule: implement in Phase 3 of the 1.3.0 sync plan.")
+    ("conflicts.resolve"
+     . "Category 1: resolve conflicts --ours/--theirs; core new 1.3.x surface.\nSchedule: Phase 3 of the 1.3.0 sync plan.")
+    ("conflicts.show"
+     . "Category 1: show conflicted rows field-by-field; core new 1.3.x\nsurface. Schedule: Phase 3 of the 1.3.0 sync plan.")
+    ("events"
+     . "Category 1 (parent): mid-level router for the durable events journal\n(bd_events_journal); parent transient, no class (router policy).")
+    ("events.export"
+     . "Category 1: export the events journal as JSON lines; core journal\nsurface. Schedule: Phase 3 of the 1.3.0 sync plan.")
+    ("events.prune"
+     . "Category 1: prune journal records below a sequence number; core\njournal surface. Schedule: Phase 3 of the 1.3.0 sync plan.")
+    ("events.tail"
+     . "Category 1: tail journal records after a sequence number; core\njournal surface. Schedule: Phase 3 of the 1.3.0 sync plan.")
+    ("provenance"
+     . "Category 1 (parent): mid-level router for the append-only provenance\nlog; parent transient, no class (router policy).")
+    ("provenance.by-ref"
+     . "Category 1: list provenance events bound to a ref; core new 1.3.x\nsurface. Schedule: Phase 3 of the 1.3.0 sync plan.")
+    ("provenance.log"
+     . "Category 1: list provenance events for an issue; core new 1.3.x\nsurface. Schedule: Phase 3 of the 1.3.0 sync plan.")
+    ("provenance.record"
+     . "Category 1: record a provenance binding (idempotent); core new 1.3.x\nsurface. Schedule: Phase 3 of the 1.3.0 sync plan.")
+    ("heartbeat"
+     . "Category 1: refresh the lease on a claimed issue; core worker-loop\ncommand (beads.el's own agent layer needs it). Schedule: Phase 3.")
+    ("reclaim"
+     . "Category 1: revert stale-lease issues to ready; core dead-worker\nrecovery. Schedule: Phase 3 of the 1.3.0 sync plan.")
+    ("unclaim"
+     . "Category 1: release a claimed issue; core worker-loop command.\nSchedule: Phase 3 of the 1.3.0 sync plan.")
+    ("migrate-personal"
+     . "Category 1: one-time move of personal planning issues to the planning\nrepo; user-facing convenience. Schedule: Phase 3 of the plan.")
+    ("schema"
+     . "Category 1: print the JSON Schema for bd's canonical output records;\nuseful for validating beads-types.el against the wire format.\nSchedule: Phase 3 of the 1.3.0 sync plan.")
+    ("sync"
+     . "Category 1: run one pull/conflict-repair/push federation cycle; core\nmulti-machine loop. Schedule: Phase 3 of the 1.3.0 sync plan.")
+    ("dolt.remote.reset-data"
+     . "Category 1: rebuild a Dolt remote's data plane after a history squash;\nrecovery maintenance matching the classed dolt remote add/list/remove\nsiblings. Schedule: Phase 3 of the 1.3.0 sync plan.")
+    ("formula.schema"
+     . "Category 1: print the formula struct index; complements the\nalready-classed formula convert/list/show leaves. Schedule: Phase 3.")
+    ("cook"
+     . "Covered: `beads-command-cook' exists; borderline call resolved as CORE\n(formula compilation belongs in the UI next to formula list/show).")
+    ("ship"
+     . "Covered: `beads-command-ship' exists; borderline call resolved as CORE\n(cross-project capability publishing is user-facing).")
+    ("defer"
+     . "Covered: `beads-command-defer' exists; borderline call resolved as\nCORE (postpone-to-icebox is everyday triage).")
+    ("undefer"
+     . "Covered: `beads-command-undefer' exists; borderline call resolved as\nCORE (restores deferred work; pairs with defer).")
+    ("rename-prefix"
+     . "Covered: `beads-command-rename-prefix' exists; borderline call\nresolved as CORE (rare but repo-wide and destructive enough that doing\nit from a menu beats a hand-typed shell line).")
+    ("memories"
+     . "Covered: `beads-command-memories' exists; borderline call resolved as\nCORE (persistent-memory list/search surface).")
+    ("remember"
+     . "Covered: `beads-command-remember' exists; borderline call resolved as\nCORE (store a memory from the UI).")
+    ("recall"
+     . "Covered: `beads-command-recall' exists; borderline call resolved as\nCORE (retrieve a memory's full text).")
+    ("forget"
+     . "Covered: `beads-command-forget' exists; borderline call resolved as\nCORE (delete a memory; pairs with remember/recall)."))
+  "Alist of (CLI-PATH . RATIONALE) recording the per-command audit decision.
+Produced by the bd 1.3.0 CLI sync audit (workflow be-j2b, REQ-001).  The
+parity gate and `beads-audit-report' read their dispositions from this
+alist so the audit output and the enforced policy cannot drift apart.
+
+Each entry states the category the 1.3.x audit assigned and why:
+- Category 1 -- core user-facing command with no class yet (to be
+  implemented in a later phase of the sync plan).
+- Category 2 -- existing class missing 1.3.x flags (tracked by the
+  slot-drift gate, not this alist).
+- Category 3 -- deliberately out-of-scope delegator/skip, with the
+  one-line reason; those paths are also listed in
+  `beads-meta-parity-non-goal-commands' so the gate enforces the skip.
+- Covered -- the command already has a class; entries exist for the
+  borderline calls the audit was asked to decide explicitly.")
 
 (defconst beads-meta-parity-non-goal-flags
   '(("init"
@@ -2088,9 +2196,55 @@ only when the member set drifts from the recorded intent.")
 (defconst beads-meta-parity-accepted-drift
   '(("dep.add" "depends-on")
     ("linear.sync" "milestones" "no-wait" "pull-if-stale" "threshold")
-    ("list" "skip-labels")
-    ("prime" "hook-json" "memories-only")
-    ("show" "include-comments"))
+    ;; --- bd 1.3.x CLI sync audit backlog (workflow be-j2b, REQ-001):
+    ;; category-2 flag gaps recorded by the audit (the pre-existing
+    ;; baseline entries are merged into these one-per-path entries --
+    ;; assoc takes the first match).  Each gap is scheduled for slot
+    ;; closure in a later sync-plan phase.  Fixing one means adding the
+    ;; slot *and* removing its entry here.
+    ("assign" "force")
+    ("blocked" "label" "label-any" "exclude-label")
+    ("children" "pretty")
+    ("count" "include-infra")
+    ("create" "status" "allow-empty-description" "storage-class")
+    ("defer" "reason")
+    ("dep.tree" "max-rows")
+    ("dolt.clean-databases" "purge-dropped")
+    ("dolt.pull" "strategy")
+    ("dolt.push" "yes" "no-adopt")
+    ("dolt.remote.add" "allow-git-origin")
+    ("epic.close-eligible" "reason")
+    ("export" "exclude-owner")
+    ("find-duplicates" "max-rows")
+    ("gate.create" "title")
+    ("gc" "full")
+    ("graph" "open" "max-rows")
+    ("history" "events")
+    ("human.respond" "file" "stdin")
+    ("import" "allow-stale")
+    ("init" "init-if-missing" "server-tls" "team-server"
+     "proxied-server-port" "proxied-server-idle-timeout"
+     "proxied-server-external-tls-ca-cert-path"
+     "proxied-server-external-tls-server-name"
+     "proxied-server-external-tls-skip-verify")
+    ("list" "skip-labels" "brief" "external-ref" "external-contains"
+     "max-rows" "offset")
+    ("migrate" "force")
+    ("migrate.schema" "force")
+    ("mol.ready" "gated")
+    ("prime" "hook-json" "memories-only" "max-memories"
+     "max-memory-chars" "no-memories")
+    ("prune" "ignore-references")
+    ("q" "parent")
+    ("query" "offset")
+    ("ready" "brief" "label-pattern" "label-regex" "max-rows" "offset")
+    ("restore" "apply")
+    ("show" "include-comments" "brief-deps")
+    ("stale" "label" "label-any" "exclude-label")
+    ("status" "no-blocked")
+    ("types" "sections")
+    ("update" "force" "if-assignee" "if-status")
+    ("worktree.remove" "merged-into"))
   "Alist of (CLI-PATH . FLAG-LONG-NAMES) for known, accepted slot drift.
 These are real but low-priority single-flag gaps that the maintainer
 has chosen to defer (see .designs/command-parity/analysis.md sec 1.3).
@@ -2099,8 +2253,28 @@ is *not* listed here, so a NEW missing flag is caught while this known
 debt does not block merges.  Notable entries:
 - `dep.add --depends-on' is an explicit alias for `--blocked-by'
   \(already a slot), not a real gap.
+- The block commented \"bd 1.3.x CLI sync audit backlog\" records the
+  category-2 flag gaps the 1.3.0 audit classified (workflow be-j2b);
+  `beads-audit-report' still lists them so the debt stays visible.
 Fixing one of these means adding the slot *and* removing the entry
 here.")
+
+(defconst beads-meta-parity-planned-commands
+  '("conflicts.list" "conflicts.resolve" "conflicts.show"
+    "dolt.remote.reset-data" "events.export" "events.prune" "events.tail"
+    "formula.schema" "heartbeat" "migrate-personal" "provenance.by-ref"
+    "provenance.log" "provenance.record" "reclaim" "schema" "sync"
+    "unclaim")
+  "Category-1 backlog of the bd 1.3.x CLI sync audit (workflow be-j2b).
+These are core user-facing bd 1.3.x commands with no class yet, each
+scheduled for a later phase of the sync plan -- see the per-command
+rationale in `beads-meta-parity-command-rationales'.
+
+The parity gate tolerates exactly this recorded baseline (a NEW
+unclassed command still fails CI), and `beads-audit-report' still
+classifies each of them as `missing' with its stated disposition, so
+the debt stays visible without blocking merges.  Implementing one of
+these means adding the class *and* removing the entry here.")
 
 (provide 'beads-meta)
 ;;; beads-meta.el ends here
