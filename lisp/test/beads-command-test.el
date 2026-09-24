@@ -2014,7 +2014,10 @@ The default limit behavior is in beads-command-list!, not the class."
       (beads-command-execute-async cmd (lambda (_) nil) #'ignore :queue 'auto)
       (let ((res (beads-command-execute-async cmd (lambda (_) nil) #'ignore :queue 'auto)))
         (should (eq res 'queued)))
-      (let ((deadline (+ (float-time) 5.0)))
+      ;; The 5 s deadline lost once under full-suite load (~1/5800 runs);
+      ;; the wall-clock poll only needs to outlast process scheduling, so
+      ;; allow for load spikes.
+      (let ((deadline (+ (float-time) 30.0)))
         (while (and (< calls 2) (< (float-time) deadline))
           (sit-for 0.05)))
       (should (= 2 calls))

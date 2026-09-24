@@ -119,5 +119,54 @@
   "Verify beads-worktree-menu is defined."
   (should (fboundp 'beads-worktree-menu)))
 
+;;; Suffix Reachability (layout walk)
+
+(defun beads-advanced-menu-test--suffix-pairs (spec)
+  "Collect (KEY . COMMAND) pairs reachable from transient layout SPEC.
+Walks vectors, `(CLASS PLIST CHILDREN...)' group forms, and suffix
+plists recursively."
+  (cond
+   ((vectorp spec)
+    (seq-mapcat #'beads-advanced-menu-test--suffix-pairs (append spec nil)))
+   ((and (consp spec) (symbolp (car spec)))
+    (let* ((rest (cdr spec))
+           (props (if (keywordp (car rest)) rest (car rest)))
+           (children (if (keywordp (car rest)) nil (cdr rest))))
+      (append (when (and (listp props)
+                         (plist-get props :key)
+                         (plist-get props :command))
+                (list (cons (plist-get props :key)
+                            (plist-get props :command))))
+              (seq-mapcat #'beads-advanced-menu-test--suffix-pairs children))))
+   ((and (consp spec) (keywordp (car spec)))
+    (let ((key (plist-get spec :key))
+          (command (plist-get spec :command)))
+      (when (and key command) (list (cons key command)))))
+   ((consp spec)
+    (seq-mapcat #'beads-advanced-menu-test--suffix-pairs spec))
+   (t nil)))
+
+(defun beads-advanced-menu-test--layout-suffixes (menu)
+  "Return the (KEY . COMMAND) pairs registered on transient MENU."
+  (beads-advanced-menu-test--suffix-pairs
+   (get menu 'transient--layout)))
+
+(ert-deftest beads-advanced-menu-test-new-bd-1.3-leaves-reachable ()
+  "The new category-1 command leaves are registered on the menu."
+  (let ((suffixes (beads-advanced-menu-test--layout-suffixes
+                   'beads-advanced-menu)))
+    (dolist (expected '(("Y" . beads-sync)
+                        ("s" . beads-schema)
+                        ("5" . beads-migrate-personal)
+                        ("H" . beads-provenance)))
+      (should (member expected suffixes)))))
+
+(ert-deftest beads-advanced-menu-test-keys-unique ()
+  "Every suffix key on the advanced menu is unique."
+  (let ((keys (mapcar #'car
+                      (beads-advanced-menu-test--layout-suffixes
+                       'beads-advanced-menu))))
+    (should (equal keys (delete-dups (copy-sequence keys))))))
+
 (provide 'beads-advanced-menu-test)
 ;;; beads-advanced-menu-test.el ends here

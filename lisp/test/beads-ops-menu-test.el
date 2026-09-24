@@ -120,5 +120,56 @@
   "Verify beads-set-state is defined."
   (should (fboundp 'beads-set-state)))
 
+;;; Suffix Reachability (layout walk)
+
+(defun beads-ops-menu-test--suffix-pairs (spec)
+  "Collect (KEY . COMMAND) pairs reachable from transient layout SPEC.
+Walks vectors and lists everywhere: the layout root is a vector,
+group elements are `(CLASS :KW V...) / (CLASS :KW (CHILDREN...))'
+forms (both vectors and lists depending on the transient version),
+and a suffix spec is a keyword-plist carrying :key/:command."
+  (cond
+   ((vectorp spec)
+    (seq-mapcat #'beads-ops-menu-test--suffix-pairs (append spec nil)))
+   ((and (consp spec) (symbolp (car spec)))
+    (let* ((rest (cdr spec))
+           (props (if (keywordp (car rest)) rest (car rest)))
+           (children (if (keywordp (car rest)) nil (cdr rest))))
+      (append (when (and (listp props)
+                         (plist-get props :key)
+                         (plist-get props :command))
+                (list (cons (plist-get props :key)
+                            (plist-get props :command))))
+              (seq-mapcat #'beads-ops-menu-test--suffix-pairs children))))
+   ((and (consp spec) (keywordp (car spec)))
+    (let ((key (plist-get spec :key))
+          (command (plist-get spec :command)))
+      (when (and key command) (list (cons key command)))))
+   ((consp spec)
+    (seq-mapcat #'beads-ops-menu-test--suffix-pairs spec))
+   (t nil)))
+
+(defun beads-ops-menu-test--layout-suffixes (menu)
+  "Return the (KEY . COMMAND) pairs registered on transient MENU."
+  (beads-ops-menu-test--suffix-pairs
+   (get menu 'transient--layout)))
+
+(ert-deftest beads-ops-menu-test-new-bd-1.3-leaves-reachable ()
+  "The nine new category-1 command leaves are registered on the menu."
+  (let ((suffixes (beads-ops-menu-test--layout-suffixes 'beads-ops-menu)))
+    (dolist (expected '(("u" . beads-unclaim)
+                        ("e" . beads-events)
+                        ("C" . beads-conflicts)
+                        ("r" . beads-reclaim)
+                        ("B" . beads-heartbeat)))
+      (should (member expected suffixes)))))
+
+(ert-deftest beads-ops-menu-test-keys-unique ()
+  "Every suffix key on the ops menu is unique."
+  (let ((keys (mapcar #'car
+                      (beads-ops-menu-test--layout-suffixes
+                       'beads-ops-menu))))
+    (should (equal keys (delete-dups (copy-sequence keys))))))
+
 (provide 'beads-ops-menu-test)
 ;;; beads-ops-menu-test.el ends here

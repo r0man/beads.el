@@ -69,6 +69,10 @@
 (declare-function beads-worktree-menu "beads-command-worktree" nil)
 (declare-function beads-diff "beads-command-diff" nil)
 (declare-function beads-history "beads-command-history" nil)
+(declare-function beads-sync "beads-command-sync" nil)
+(declare-function beads-schema "beads-command-schema" nil)
+(declare-function beads-migrate-personal "beads-command-migrate-personal" nil)
+(declare-function beads-provenance "beads-command-provenance" nil)
 
 ;;;###autoload (autoload 'beads-advanced-menu "beads-advanced-menu" nil t)
 (transient-define-prefix beads-advanced-menu ()
@@ -93,12 +97,15 @@ memory, and administration."
    ("B" "Branch" beads-branch)
    ("V" "VC" beads-vc)
    ("F" "Federation" beads-federation)
-   ("J" "SQL" beads-sql)]
+   ("J" "SQL" beads-sql)
+   ("Y" "Dolt sync" beads-sync)
+   ("s" "Schema" beads-schema)]
   ["Duplicates & Migration"
    ("1" "Mark duplicate" beads-duplicate)
    ("2" "Find duplicates" beads-duplicates)
    ("3" "Supersede" beads-supersede)
-   ("m" "Migrate" beads-migrate-menu)]
+   ("m" "Migrate" beads-migrate-menu)
+   ("5" "Migrate personal" beads-migrate-personal)]
   ["Integrations"
    ("j" "Jira" beads-jira)
    ("n" "Linear" beads-linear)
@@ -128,7 +135,8 @@ memory, and administration."
    ("a" "Admin" beads-admin)
    ("W" "Worktree" beads-worktree-menu)
    ("`" "Diff" beads-diff)
-   ("%" "History" beads-history)]
+   ("%" "History" beads-history)
+   ("H" "Provenance" beads-provenance)]
   ["Actions"
    ("q" "Quit" transient-quit-one)])
 

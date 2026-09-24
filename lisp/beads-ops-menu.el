@@ -44,6 +44,11 @@
 (declare-function beads-ship "beads-command-misc" nil)
 (declare-function beads-set-state "beads-command-state" nil)
 (declare-function beads-state-menu "beads-command-state" nil)
+(declare-function beads-unclaim "beads-command-unclaim" nil)
+(declare-function beads-events "beads-command-events" nil)
+(declare-function beads-conflicts "beads-command-conflicts" nil)
+(declare-function beads-reclaim "beads-command-reclaim" nil)
+(declare-function beads-heartbeat "beads-command-heartbeat" nil)
 
 ;;;###autoload (autoload 'beads-ops-menu "beads-ops-menu" nil t)
 (transient-define-prefix beads-ops-menu ()
@@ -57,7 +62,8 @@ workflow coordination."
    ("F" "Undefer" beads-undefer)
    ("D" "Delete" beads-delete)
 ("p" "Promote wisp" beads-promote)
-   ("R" "Rename" beads-rename)]
+   ("R" "Rename" beads-rename)
+   ("u" "Unclaim" beads-unclaim)]
   ["Views & Reports"
    ("c" "Count" beads-count)
    ("t" "Stats" beads-stats)
@@ -70,6 +76,7 @@ workflow coordination."
    ("a" "Children" beads-children)
    ("=" "Comments" beads-comments-menu)
    ("[" "Todo" beads-todo)
+   ("e" "Events" beads-events)
    ("q" "Query" beads-query)]
   ["Workflow"
    ("g" "Gate" beads-gate)
@@ -77,7 +84,10 @@ workflow coordination."
    ("K" "Cook" beads-cook)
    ("H" "Ship" beads-ship)
    ("z" "Set state" beads-set-state)
-   ("Z" "State menu" beads-state-menu)]
+   ("Z" "State menu" beads-state-menu)
+   ("C" "Conflicts" beads-conflicts)
+   ("r" "Reclaim" beads-reclaim)
+   ("B" "Heartbeat" beads-heartbeat)]
   ["Actions"
    ("Q" "Quit" transient-quit-one)])
 

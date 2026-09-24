@@ -4,6 +4,16 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Menu registration for the bd 1.3.x command additions
+
+The command transients added in the bd 1.3.x sync are now reachable
+from the menus instead of only `M-x`:
+
+- Ops menu (`!`): `u' Unclaim, `e' Events, `C' Conflicts,
+  `r' Reclaim, `B' Heartbeat.
+- Advanced menu (`>`): `Y' Dolt sync, `s' Schema,
+  `5' Migrate personal, `H' Provenance.
+
 ### CHANGELOG behavior follow-through (bd 1.3.x)
 
 Behavior changes required by the bd 1.3.x CHANGELOG now have UI
