@@ -319,11 +319,11 @@ Extensible — add methods for custom types.")
   "Coerce VALUE to boolean.  :json-false becomes nil."
   (not (eq value :json-false)))
 
-(cl-defmethod beads-coerce-json-value (value (_type (eql alist)))
+(cl-defmethod beads-coerce-json-value (value (_type (eql beads-alist)))
   "Coerce VALUE (a parsed JSON object) to an alist.
 Nested JSON objects become alists, arrays become lists, and
 `:json-false' becomes nil so plain Elisp accessors work on the
-result.  Scalars pass through unchanged (a slot typed `alist' that
+result.  Scalars pass through unchanged (a slot typed `beads-alist' that
 receives a scalar came from malformed producer output)."
   (cond
    ((not value) nil)
@@ -331,11 +331,11 @@ receives a scalar came from malformed producer output)."
     (mapcar (lambda (pair)
               (if (consp pair)
                   (cons (car pair)
-                        (beads-coerce-json-value (cdr pair) 'alist))
+                        (beads-coerce-json-value (cdr pair) 'beads-alist))
                 pair))
             value))
    ((vectorp value)
-    (mapcar (lambda (v) (beads-coerce-json-value v 'alist)) value))
+    (mapcar (lambda (v) (beads-coerce-json-value v 'beads-alist)) value))
    ((eq value :json-false) nil)
    (t value)))
 
@@ -1019,8 +1019,8 @@ Returns a string or nil if value should not be included."
 ;;; ============================================================
 
 (defconst beads-meta--global-option-slots
-  '(actor db directory dolt-auto-commit global profile quiet readonly
-    sandbox verbose)
+  '(actor db directory dolt-auto-commit global profile mem-profile
+    quiet readonly sandbox verbose)
   "List of slot names that are global bd CLI options.
 These slots are defined in `beads-command-global-options' class.")
 

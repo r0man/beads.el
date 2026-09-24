@@ -1435,11 +1435,13 @@ Returns:
   "Format the two-line issue header.
 ID is the issue ID, TITLE is the issue title, STATUS is the status string,
 PRIORITY is the priority level (0-4), ISSUE-TYPE is the type (task, etc),
-and OWNER is the issue creator/owner.
+and OWNER is the issue creator (`created-by'; bd 1.3.x labels this
+field `Created by:', reserving `owner' for the separate CV-attribution
+field that the text view never renders).
 
 Returns a two-line string:
   Line 1: id: title
-  Line 2: ○ Open · P1 · Epic · Owner"
+  Line 2: ○ Open · P1 · Epic · <creator>"
   (let* ((icon (beads-show--status-icon status))
          (icon-face (pcase status
                       ("open" 'beads-show-status-open-face)

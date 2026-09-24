@@ -299,12 +299,70 @@
 (ert-deftest beads-dep-test-cycles-render-has-commands ()
   "Test that cycles rendering includes command help."
   (with-temp-buffer
-    (beads-dep-cycles-mode)
     (beads-dep-cycles--render [])
     (let ((content (buffer-string)))
       (should (string-match-p "Commands:" content))
       (should (string-match-p "g.*refresh" content))
       (should (string-match-p "q.*quit" content)))))
+
+;;; Tests for the bd 1.3.x cycles JSON shape (CHANGELOG follow-through)
+
+(defvar beads-dep-test--sample-cycles-130
+  [(("members" . [(("id" . "bd-1")) (("id" . "bd-2")) (("id" . "bd-3"))])
+    ("partial" . nil))
+   (("members" . [(("id" . "bd-4")) (("id" . "bd-5"))
+                  (("id" . "bd-gone"))])
+    ("partial" . t))]
+  "Sample cycles in the bd 1.3.x JSON shape: each cycle is
+{members: [{id}, ...], partial: bool}; bd-gone names a row this
+workspace no longer holds, so its cycle is partial.")
+
+(ert-deftest beads-dep-test-cycles-render-130-member-objects ()
+  "Test rendering the bd 1.3.x {members, partial} cycle shape."
+  (with-temp-buffer
+    (beads-dep-cycles-mode)
+    (beads-dep-cycles--render beads-dep-test--sample-cycles-130)
+    (let ((content (buffer-string)))
+      (should (string-match-p "Found 2 cycle" content))
+      (should (string-match-p "bd-1" content))
+      (should (string-match-p "bd-5" content))
+      (should (string-match-p " -> " content)))))
+
+(ert-deftest beads-dep-test-cycles-render-130-partial-flag ()
+  "Test that a partial cycle (missing member row) is marked."
+  (with-temp-buffer
+    (beads-dep-cycles-mode)
+    (beads-dep-cycles--render beads-dep-test--sample-cycles-130)
+    (let ((content (buffer-string)))
+      (should (string-match-p "partial" content))
+      ;; The non-partial cycle gets no marker
+      (let ((n 0) (pos 0))
+        (while (string-match "(partial" content pos)
+          (setq n (1+ n)
+                pos (match-end 0)))
+        (should (= 1 n))))))
+
+(ert-deftest beads-dep-test-cycles-render-130-canonical-ids ()
+  "Test that cycle member ids render in the stored (canonical) order."
+  (with-temp-buffer
+    (beads-dep-cycles-mode)
+    (beads-dep-cycles--render beads-dep-test--sample-cycles-130)
+    (let ((content (buffer-string)))
+      ;; The first cycle's members render in bd's canonical order
+      (should (< (string-match-p "bd-1" content)
+                 (string-match-p "bd-2" content)
+                 (string-match-p "bd-3" content))))))
+
+(ert-deftest beads-dep-test-cycles-member-ids-130-shape ()
+  "Test `beads-dep-cycles--cycle-members' on both shapes."
+  (let ((new (beads-dep-cycles--cycle-members
+              '(("members" . [(("id" . "bd-1")) (("id" . "bd-2"))])
+                ("partial" . t)))))
+    (should (equal (car new) '("bd-1" "bd-2")))
+    (should (eq (cdr new) t)))
+  (let ((legacy (beads-dep-cycles--cycle-members ["bd-1" "bd-2"])))
+    (should (equal (car legacy) '("bd-1" "bd-2")))
+    (should (null (cdr legacy)))))
 
 ;;; Tests for Tree Command
 

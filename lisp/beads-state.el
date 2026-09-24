@@ -58,8 +58,15 @@ When non-nil, uses the global shared-server database (beads_global).")
 When non-nil, enables sandbox mode: disables daemon and auto-sync.")
 
 (defvar beads-global-profile nil
-  "Global profile flag.
-When non-nil, generates CPU profile for performance analysis.")
+  "Global CPU-profile flag.
+When non-nil, generates a CPU profile for performance analysis.
+bd 1.3.0 renamed the persistent flag from `--profile' to
+`--cpu-profile' with no alias (#5126); beads.el passes the new
+spelling.")
+
+(defvar beads-global-mem-profile nil
+  "Global heap-profile path (bd 1.3.0 `--mem-profile').
+When non-nil, bd writes a heap profile to this file on exit.")
 
 (defvar beads-global-quiet nil
   "Global quiet flag.

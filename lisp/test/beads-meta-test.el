@@ -1187,8 +1187,9 @@ be-j2b phase 3 slot closure)."
     ;; Should include global options inherited from beads-command-global-options
     (should (memq 'actor options))
     (should (memq 'verbose options))
-    ;; Should have 13 command-show + 11 inherited option slots = 24
-    (should (= 24 (length options)))))
+    ;; Should have 13 command-show + 12 inherited option slots = 25
+    ;; (json + 11 global options, including the bd 1.3.0 --mem-profile slot)
+    (should (= 25 (length options)))))
 
 (ert-deftest beads-meta-show-generate-infix-specs ()
   "Test that infix specs can be generated from beads-command-show."
@@ -1463,8 +1464,9 @@ be-j2b phase 3 slot closure)."
     ;; Should include global options inherited from beads-command-global-options
     (should (memq 'actor options))
     (should (memq 'verbose options))
-    ;; All slots have :long-option: 63 command-list + 1 json + 10 global options
-    (should (= 74 (length options)))))
+    ;; All slots have :long-option: 63 command-list + 1 json + 11 global
+    ;; options (the bd 1.3.0 --mem-profile slot made it 11)
+    (should (= 75 (length options)))))
 
 (ert-deftest beads-meta-list-generate-infix-specs ()
   "Test that infix specs can be generated from beads-command-list."
@@ -2285,6 +2287,29 @@ section and slot normalizer."
                 :global-section beads-option-global-section
                 :slot-normalizer #'beads--normalize-slot))))
     (should (equal a b))))
+
+;;; Global-option serialization (REQ-007 CHANGELOG follow-through)
+
+(ert-deftest beads-meta-test-global-options-serialize-cpu-profile ()
+  "The global-options class must serialize `--cpu-profile', never
+the removed bd 1.3.0 spelling `--profile' (#5126), and must offer
+the new `--mem-profile' flag."
+  (skip-unless (require 'beads-command nil t))
+  (let* ((cmd (beads-command-global-options))
+         (cls (eieio-object-class cmd)))
+    ;; The renamed CPU-profile slot serializes with the new spelling.
+    (should (equal "cpu-profile"
+                   (beads-meta-slot-property cls 'profile :long-option)))
+    ;; The bd 1.3.0 heap-profile flag has its own typed slot.
+    (should (equal "mem-profile"
+                   (beads-meta-slot-property cls 'mem-profile :long-option)))
+    (let ((args (progn (oset cmd profile t)
+                       (oset cmd mem-profile "/tmp/heap.prof")
+                       (beads-meta-build-global-options cmd))))
+      (should (member "--cpu-profile" args))
+      (should-not (member "--profile" args))
+      (should (member "--mem-profile" args))
+      (should (member "/tmp/heap.prof" args)))))
 
 (provide 'beads-meta-test)
 ;;; beads-meta-test.el ends here

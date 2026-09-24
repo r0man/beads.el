@@ -741,18 +741,37 @@ same consistent empty-section treatment."
   "Sample issue with an active lease.")
 
 (ert-deftest beads-show-test-render-lease-section ()
-  "Test that the LEASE section renders expiry, heartbeat and node."
+  "Test that the LEASE section renders expiry, heartbeat and node.
+
+The relative-time assertions need freshly stamped fixture timestamps:
+a `defvar' computed at file-load time drifts while the full suite
+runs (the test executes minutes after the file was loaded, so a
+30-second-old heartbeat would no longer render as \"just now\")."
   (beads-show-test-with-temp-buffer
-   (let ((parsed (beads--parse-issue beads-show-test--issue-with-lease)))
-     (beads-show--render-issue parsed)
-     (let ((text (beads-show-test--get-buffer-text)))
-       (should (string-match-p "LEASE" text))
-       (should (string-match-p "Expires:" text))
-       (should (string-match-p "Heartbeat:" text))
-       (should (string-match-p "Granted by: node-a" text))
-       ;; Relative rendering: future expiry and past heartbeat
-       (should (string-match-p "(in [0-9.]+ mins?)" text))
-       (should (string-match-p "(just now)" text))))))
+   (let ((fresh `((id . "be-ls1")
+                  (title . "Leased bead")
+                  (status . "in_progress")
+                  (priority . 1)
+                  (issue_type . "task")
+                  (created_at . "2026-09-24T11:00:00Z")
+                  (updated_at . "2026-09-24T12:00:00Z")
+                  (lease_expires_at . ,(format-time-string
+                                        "%Y-%m-%dT%H:%M:%SZ"
+                                        (time-add (current-time) 240) t))
+                  (heartbeat_at . ,(format-time-string
+                                    "%Y-%m-%dT%H:%M:%SZ"
+                                    (time-add (current-time) -30) t))
+                  (lease_granted_node . "node-a"))))
+     (let ((parsed (beads--parse-issue fresh)))
+       (beads-show--render-issue parsed)
+       (let ((text (beads-show-test--get-buffer-text)))
+         (should (string-match-p "LEASE" text))
+         (should (string-match-p "Expires:" text))
+         (should (string-match-p "Heartbeat:" text))
+         (should (string-match-p "Granted by: node-a" text))
+         ;; Relative rendering: future expiry and past heartbeat
+         (should (string-match-p "(in [0-9.]+ mins?)" text))
+         (should (string-match-p "(just now)" text)))))))
 
 (ert-deftest beads-show-test-render-lease-absent-placeholder ()
   "Test that an issue without lease fields shows the placeholder."

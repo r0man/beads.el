@@ -303,6 +303,46 @@
   "Test that global sandbox infix is defined."
   (should (commandp 'beads-option-global-sandbox)))
 
+(ert-deftest beads-option-test-global-profile-argument-is-cpu-profile ()
+  "The CPU-profile infix must pass `--cpu-profile', not `--profile'.
+bd 1.3.0 renamed the persistent flag to `--cpu-profile' with no alias
+(#5126); the old spelling now fails as an unknown flag (REQ-007
+CHANGELOG follow-through)."
+  (should (commandp 'beads-option-global-profile))
+  ;; transient-define-infix records the suffix object in the symbol's
+  ;; `transient--suffix' property; read its `argument' slot.
+  (should (equal (eieio-oref (get 'beads-option-global-profile
+                                  'transient--suffix)
+                             'argument)
+                 "--cpu-profile")))
+
+(ert-deftest beads-option-test-global-mem-profile-infix-exists ()
+  "Test that the bd 1.3.0 heap-profile global infix is defined.
+--mem-profile FILE is new global surface in bd 1.3.0 (REQ-007
+CHANGELOG follow-through)."
+  (should (commandp 'beads-option-global-mem-profile))
+  (should (equal (eieio-oref (get 'beads-option-global-mem-profile
+                                  'transient--suffix)
+                             'argument)
+                 "--mem-profile=")))
+
+(ert-deftest beads-option-test-global-section-includes-mem-profile ()
+  "The global options section layout must offer the heap-profile infix.
+`transient-define-group' stores the parsed children under the
+`transient--layout' property: a vector whose last element holds the
+child specs, each suffix child being a `(transient-suffix :command
+NAME)' list."
+  (let* ((layout (get 'beads-option-global-section 'transient--layout))
+         (children (and (vectorp layout) (aref layout 2)))
+         (flat (flatten-list (seq-map (lambda (child)
+                                        (if (vectorp child)
+                                            (append child nil)
+                                          child))
+                                      children))))
+    (should layout)
+    (should (member 'beads-option-global-mem-profile flat))
+    (should (fboundp 'beads-option-global-mem-profile))))
+
 ;; Note: beads-option-global-section existence is tested indirectly
 ;; by the fact that beads-create transient menu works and includes
 ;; the global options section.

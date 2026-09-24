@@ -1043,12 +1043,24 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :prompt "Auto-commit policy (off|on|batch): ")
 
 (transient-define-infix beads-option-global-profile ()
-  "Generate CPU profile for performance analysis."
+  "Generate CPU profile for performance analysis.
+bd 1.3.0 renamed the persistent flag from `--profile' to
+`--cpu-profile' with no alias (#5126); the old spelling now fails as
+an unknown flag, so beads.el passes the new one."
   :class 'beads-option-global-switch
   :variable 'beads-global-profile
   :description "CPU profile"
   :key "=P"
-  :argument "--profile")
+  :argument "--cpu-profile")
+
+(transient-define-infix beads-option-global-mem-profile ()
+  "Write a heap profile to FILE on exit (bd 1.3.0)."
+  :class 'beads-option-global
+  :variable 'beads-global-mem-profile
+  :description "Heap profile"
+  :key "=M"
+  :argument "--mem-profile="
+  :prompt "Heap profile FILE: ")
 
 (transient-define-infix beads-option-global-quiet ()
   "Suppress non-essential output (errors only)."
@@ -1082,6 +1094,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
           (beads-option-global-dolt-auto-commit)
           (beads-option-global-global)
           (beads-option-global-json)
+          (beads-option-global-mem-profile)
           (beads-option-global-profile)
           (beads-option-global-quiet)
           (beads-option-global-readonly)

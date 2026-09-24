@@ -4,6 +4,40 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### CHANGELOG behavior follow-through (bd 1.3.x)
+
+Behavior changes required by the bd 1.3.x CHANGELOG now have UI
+follow-through:
+
+- The global `CPU profile' option passes `--cpu-profile`.  bd 1.3.0
+  renamed the persistent flag from `--profile' to `--cpu-profile' with
+  no alias (#5126); the old spelling now fails as an unknown flag.
+  The command-class global-options slot serializes the new spelling
+  too, and the new `--mem-profile' heap-profile global flag has an
+  infix (key `=M') and a typed slot.
+- `bd dep cycles' rendering accepts the bd 1.3.x JSON shape: each cycle
+  is now an object `{"members": [{"id"}, …], "partial": bool}' with
+  canonical (lowest-id-first) member order, and a cycle with a missing
+  member row renders every member and is marked "(partial — a member
+  row is missing)" instead of silently shrinking.  The pre-1.3.0
+  array-of-ids shape still renders unchanged.
+- The event-type vocabulary knows the `claimed' and `lease_reclaimed'
+  event types a bd 1.2.x+/1.3.x store emits (claims and replica-aware
+  lease reclaims), so history/event rendering and validation no longer
+  treat them as unknown.
+- `beads-search` documents that bd 1.3.x search INCLUDES CLOSED issues
+  by default (bd-t5yex), and its status filter documents that passing
+  `open' restores the old open-only behavior.
+- The show buffer header docstring names the second-line creator value
+  `Created by' (bd 1.3.x labels the `created_by' field `Created by:';
+  `owner' is a separate CV-attribution field).  The buffer itself
+  already rendered the bare creator name without an `Owner:' label, so
+  no visible change was needed there.
+- The internal `alist' Elisp type was renamed `beads-alist'
+  (package-prefix policy); the coercion method and every typed slot
+  that accepted a JSON object moved with it.  Out-of-tree slot
+  definitions that said `:type alist' need the new name.
+
 ### Command/flag gap closure: bd 1.3.0 command surface
 
 Every bd 1.3.0 command now has an Emacs surface: new `beads-defcommand`

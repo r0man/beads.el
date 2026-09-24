@@ -802,8 +802,38 @@ Issue ID field with that value."
   (setq truncate-lines nil)
   (setq buffer-read-only t))
 
+(defun beads-dep-cycles--alist-get (key alist)
+  "Return the value of KEY in ALIST, tolerant of string or symbol keys.
+JSON parsing may produce either key type depending on the parser."
+  (cdr (cl-assoc key alist
+                 :test (lambda (a b)
+                         (equal (if (symbolp a) (symbol-name a) (format "%s" a))
+                                (if (symbolp b) (symbol-name b) (format "%s" b)))))))
+
+(defun beads-dep-cycles--cycle-members (cycle)
+  "Return the member id list of one CYCLE from `bd dep cycles --json'.
+bd 1.3.x emits each cycle as an object {\"members\": [{\"id\"},
+…], \"partial\": bool} (CHANGELOG 1.2.1: deterministic, honest
+report); a member whose row is gone carries only its id.  The old
+shape — a plain array of member ids — is still tolerated so a
+pre-1.3.0 store renders unchanged.  Returns (IDS . PARTIAL-P)."
+  (cond
+   ((and (listp cycle) (beads-dep-cycles--alist-get "members" cycle))
+    (cons (mapcar (lambda (m)
+                    (format "%s" (or (beads-dep-cycles--alist-get "id" m) m)))
+                  (append (beads-dep-cycles--alist-get "members" cycle) nil))
+          (eq (beads-dep-cycles--alist-get "partial" cycle) t)))
+   ((or (vectorp cycle) (listp cycle))
+    (cons (mapcar (lambda (m) (if (stringp m) m (format "%s" m)))
+                  (append (if (vectorp cycle) (append cycle nil) cycle) nil))
+          nil))))
+
 (defun beads-dep-cycles--render (cycles)
-  "Render CYCLES into current buffer."
+  "Render CYCLES into current buffer.
+CYCLES is the parsed `bd dep cycles --json' output: under bd 1.3.x
+an array of {\"members\": [{\"id\"}, …], \"partial\" bool} objects,
+with ids canonical (lowest first) and cycles sorted; the legacy
+array-of-ids shape is also accepted."
   (let ((inhibit-read-only t))
     (erase-buffer)
     ;; Header
@@ -819,16 +849,23 @@ Issue ID field with that value."
                         'face 'error)
               "\n\n")
       (dotimes (i (length cycles))
-        (let ((cycle (aref cycles i)))
+        (let* ((cycle (aref cycles i))
+               (parsed (beads-dep-cycles--cycle-members cycle))
+               (ids (car parsed))
+               (partial-p (cdr parsed)))
           (insert (propertize (format "Cycle %d: " (1+ i))
                             'face 'warning))
           (insert (mapconcat (lambda (id)
                               (propertize id
                                         'face 'font-lock-constant-face))
-                            cycle
+                            ids
                             " -> "))
-          (insert " -> " (propertize (aref cycle 0)
+          (insert " -> " (propertize (car ids)
                                    'face 'font-lock-constant-face))
+          (when partial-p
+            (insert " ")
+            (insert (propertize "(partial — a member row is missing)"
+                                'face 'shadow)))
           (insert "\n"))))
     (insert "\n")
     ;; Footer

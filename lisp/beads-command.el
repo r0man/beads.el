@@ -268,10 +268,20 @@ batch: defer commits to bd dolt commit"
     :initarg :profile
     :type boolean
     :initform nil
-    :documentation "Generate CPU profile
-For performance analysis"
-    :long-option "profile"
+    :documentation "Generate CPU profile for performance analysis
+bd 1.3.0 renamed the persistent flag from --profile to --cpu-profile
+with no alias (#5126); the old spelling now fails as an unknown flag,
+so this slot serializes the new one"
+    :long-option "cpu-profile"
     :option-type :boolean)
+   (mem-profile
+    :initarg :mem-profile
+    :type (or null string)
+    :initform nil
+    :documentation "Write heap profile to FILE on exit (bd 1.3.0)
+Also respects the BEADS_MEM_PROFILE environment variable"
+    :long-option "mem-profile"
+    :option-type :string)
    (quiet
     :initarg :quiet
     :type boolean

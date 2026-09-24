@@ -48,6 +48,9 @@
     :short-option "s"
     :type (or null string)
     :choices ("open" "in_progress" "blocked" "deferred" "closed")
+    :documentation "Filter by status.  bd 1.3.x search includes closed
+issues by default (bd-t5yex); pass `open' here to restore the old
+open-only behavior."
     :group "Filters"
     :level 2
     :order 1)
@@ -212,6 +215,12 @@
 
 Full-text search across issue title, description, and ID.
 Supports filtering by status, type, assignee, labels, dates, and priority.
+
+Since bd 1.3.x, search INCLUDES CLOSED ISSUES by default (bd-t5yex):
+the dominant query is \"was this already found/filed/fixed?\", where
+excluding closed issues produced a false \"no\".  Narrow with the
+status filter (open) to get the old open-only behavior.  `bd list'
+keeps its open-only default.
 
 Examples:
   Search for authentication bugs

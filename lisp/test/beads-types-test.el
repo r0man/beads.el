@@ -199,8 +199,17 @@ the real `beads-command-execute' pipeline would return."
   (should (string= beads-event-updated "updated"))
   (should (string= beads-event-status-changed "status_changed"))
   (should (string= beads-event-closed "closed"))
+  (should (string= beads-event-claimed "claimed"))
+  (should (string= beads-event-lease-reclaimed "lease_reclaimed"))
   (should (member beads-event-created beads-event-type-values))
-  (should (member beads-event-updated beads-event-type-values)))
+  (should (member beads-event-updated beads-event-type-values))
+  ;; bd 1.2.x+ emits claimed / lease_reclaimed events (claims and
+  ;; replica-aware lease reclaims); a 1.3.0 store's history includes
+  ;; them, so the vocabulary must know them (REQ-007 follow-through).
+  (should (member beads-event-claimed beads-event-type-values))
+  (should (member beads-event-lease-reclaimed beads-event-type-values))
+  (should (beads-event-type-valid-p "claimed"))
+  (should (beads-event-type-valid-p "lease_reclaimed")))
 
 (ert-deftest beads-types-test-sort-policy-constants ()
   "Test that sort policy constants are defined correctly."
@@ -1730,11 +1739,11 @@ left nil is the correct model of \"absent\"."
 
 (ert-deftest beads-types-test-coerce-json-value-alist ()
   "The alist coercion method normalizes JSON objects recursively."
-  (should (null (beads-coerce-json-value nil 'alist)))
-  (should (equal (beads-coerce-json-value '((a . 1)) 'alist)
+  (should (null (beads-coerce-json-value nil 'beads-alist)))
+  (should (equal (beads-coerce-json-value '((a . 1)) 'beads-alist)
                  '((a . 1))))
   (should (equal (beads-coerce-json-value
-                  '((a . ((b . :json-false))) (c . [1 2])) 'alist)
+                  '((a . ((b . :json-false))) (c . [1 2])) 'beads-alist)
                  '((a . ((b))) (c . (1 2))))))
 
 (ert-deftest beads-types-test-issue-130-live-shape-regression ()

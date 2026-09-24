@@ -67,9 +67,9 @@
 (require 'json)
 (require 'beads-meta)
 
-;; `alist' is not a built-in type spec, but slot validation goes through
+;; `beads-alist' is not a built-in type spec, but slot validation goes through
 ;; `cl-typep', so define it: any list (conses, including the empty list).
-(cl-deftype alist () '(satisfies listp))
+(cl-deftype beads-alist () '(satisfies listp))
 
 ;; Forward declarations to avoid circular dependencies
 (declare-function beads--parse-issue "beads-util")
@@ -248,6 +248,9 @@
 (defconst beads-event-updated "updated"
   "Event type: issue updated.")
 
+(defconst beads-event-claimed "claimed"
+  "Event type: issue claimed.")
+
 (defconst beads-event-status-changed "status_changed"
   "Event type: status changed.")
 
@@ -275,9 +278,13 @@
 (defconst beads-event-compacted "compacted"
   "Event type: issue compacted.")
 
+(defconst beads-event-lease-reclaimed "lease_reclaimed"
+  "Event type: lease reclaimed (bd 1.2.x+ replica-aware leases).")
+
 (defconst beads-event-type-values
   (list beads-event-created
         beads-event-updated
+        beads-event-claimed
         beads-event-status-changed
         beads-event-commented
         beads-event-closed
@@ -286,7 +293,8 @@
         beads-event-dependency-removed
         beads-event-label-added
         beads-event-label-removed
-        beads-event-compacted)
+        beads-event-compacted
+        beads-event-lease-reclaimed)
   "List of all valid event type values.")
 
 ;; Sort policy constants
@@ -450,7 +458,7 @@
     :documentation "Adapter/system that created this issue (federation).")
    (metadata
     :initarg :metadata
-    :type (or null alist)
+    :type (or null beads-alist)
     :initform nil
     :documentation "Custom key/value metadata (JSON object coerced to an alist).")
    (sender
@@ -575,7 +583,7 @@
     :documentation "Number of issues that depend on this issue.")
    (bonded-from
     :initarg :bonded-from
-    :type (or null (list-of alist))
+    :type (or null (list-of beads-alist))
     :initform nil
     :documentation "Constituent proto references for compound molecules.")
    (compaction-level
@@ -663,7 +671,7 @@
     :documentation "User who created the dependency.")
    (metadata
     :initarg :metadata
-    :type (or null string alist)
+    :type (or null string beads-alist)
     :initform nil
     :documentation "Type-specific edge data.  `bd show --json' emits this
 as a JSON object (coerced to an alist); some write paths carry a raw
