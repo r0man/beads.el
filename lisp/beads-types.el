@@ -663,9 +663,11 @@
     :documentation "User who created the dependency.")
    (metadata
     :initarg :metadata
-    :type (or null string)
+    :type (or null string alist)
     :initform nil
-    :documentation "Type-specific edge data (raw JSON string).")
+    :documentation "Type-specific edge data.  `bd show --json' emits this
+as a JSON object (coerced to an alist); some write paths carry a raw
+JSON string instead, so both shapes are accepted.")
    (thread-id
     :initarg :thread-id
     :type (or null string)
