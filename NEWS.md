@@ -4,6 +4,37 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Command/flag gap closure: bd 1.3.0 command surface
+
+Every bd 1.3.0 command now has an Emacs surface: new `beads-defcommand`
+classes for the category-1 leaves (`conflicts`, `events`, `heartbeat`,
+`migrate-personal`, `provenance`, `reclaim`, `schema`, `serve`, `sync`,
+`unclaim`, and friends — one `beads-command-<name>.el` each), parent
+transient-only menus for the new top-level groups per AGENTS.md policy,
+and the category-2 flag gaps filled as class slots (`update --force`,
+`ready/list --brief/--max-rows/--offset`, `init` proxied-server knobs,
+`create --status/--allow-empty-description/--storage-class`, and the
+rest of the audit's category-2 list).  New commands are registered on
+the main/ops/advanced menus.  The command-parity drift gate now passes
+against live `bd 1.3.0`.
+
+### Show buffer: full terminal `bd show` section parity
+
+The show buffer now renders every section terminal `bd show` displays
+for any bead: a METADATA map (sorted keys, clickable issue-id values),
+LABELS badges, a LEASE section (expiry with relative time, heartbeat,
+granting node), TRACKS / TRACKED BY sections for `tracks`-type edges
+in both directions, a COMMENTS section rendering full comment threads
+(the interactive show path now requests `--include-comments`), and —
+on closed beads — a CLOSE REASON section plus an `Outcome:` header
+line sourced from the `gc.outcome` metadata key.  DESCRIPTION, DESIGN,
+ACCEPTANCE CRITERIA and NOTES body sections are always rendered: an
+empty section shows a dim "(none)" placeholder under its header
+instead of being silently skipped, so the section inventory is
+identical for every bead.  An absent `labels` key and an explicitly
+empty label list render identically.  `beads-show-next-section` and
+`beads-show-previous-section` return nil when no section is found.
+
 ### Show: bd 1.3.0 flags (--brief-deps, --include-comments) and richer data source
 
 `beads-command-show` gains the two missing bd 1.3.0 show flags as class
