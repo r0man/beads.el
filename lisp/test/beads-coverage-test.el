@@ -798,9 +798,12 @@
                    (priority . 1)
                    (issue_type . "task")))))
       (beads-show--insert-blocks-section (list dep))
-      ;; Related deps should not appear in BLOCKS section
-      (should (string= "" (buffer-substring-no-properties
-                           (point-min) (point-max)))))))
+      ;; Related deps are filtered out, leaving only the section header
+      ;; and the consistent dim "(none)" placeholder
+      (let ((text (buffer-substring-no-properties (point-min) (point-max))))
+        (should (string-match-p "BLOCKS" text))
+        (should (string-match-p "(none)" text))
+        (should-not (string-match-p "bd-42" text))))))
 
 ;;; ============================================================
 ;;; beads-command-show.el - In Fenced Code Block
