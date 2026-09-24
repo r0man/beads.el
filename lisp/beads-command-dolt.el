@@ -128,10 +128,29 @@ Auto-generates commit message if not provided.")
     :prompt "Remote name: "
     :group "Options"
     :level 1
-    :order 2))
+    :order 2)
+   (yes
+    :type boolean
+    :long-option "yes"
+    :short-option "y"
+    :group "Remote Adoption"
+    :level 2
+    :order 1
+    :documentation "Consent to adopting a Dolt remote derived from git origin
+when none is configured")
+   (no-adopt
+    :type boolean
+    :long-option "no-adopt"
+    :group "Remote Adoption"
+    :level 2
+    :order 2
+    :documentation "Never derive a Dolt remote from git origin
+(also BD_NO_REMOTE_ADOPT=1)"))
   :documentation "Push commits to Dolt remote.
 Use --force to overwrite remote changes.
-Use --remote to push to a specific named remote instead of the default.")
+Use --remote to push to a specific named remote instead of the default.
+With no configured remote, push adopts a Dolt remote derived from git
+origin only with --yes; --no-adopt never derives one.")
 
 
 
@@ -147,7 +166,16 @@ Use --remote to push to a specific named remote instead of the default.")
     :prompt "Remote name: "
     :group "Options"
     :level 1
-    :order 1))
+    :order 1)
+   (strategy
+    :type (or null string)
+    :long-option "strategy"
+    :choices ("ours" "theirs")
+    :group "Conflicts"
+    :level 2
+    :order 1
+    :documentation "Conflict resolution strategy for conflicts the
+auto-resolver declines: ours or theirs (embedded storage only)"))
   :documentation "Pull commits from Dolt remote.
 Use --remote to pull from a specific named remote instead of the default.")
 
@@ -216,7 +244,15 @@ Reports PID, port, and running status.")
     :group "Add Remote"
     :level 1
     :order 2
-    :required t))
+    :required t)
+   (allow-git-origin
+    :type boolean
+    :long-option "allow-git-origin"
+    :group "Options"
+    :level 2
+    :order 1
+    :documentation "Allow adding a Dolt remote whose URL matches the git
+origin (proceed with a warning instead of aborting)"))
   :documentation "Add a Dolt remote.")
 
 
@@ -257,6 +293,40 @@ Reports PID, port, and running status.")
 Use --force to remove even when SQL and CLI URLs conflict.")
 
 
+;;; ============================================================
+;;; Command Class: beads-command-dolt-remote-reset-data
+;;; ============================================================
+
+;;;###autoload (autoload 'beads-dolt-remote-reset-data "beads-command-dolt" nil t)
+(beads-defcommand beads-command-dolt-remote-reset-data
+    (beads-command-global-options)
+  ((remote-name
+    :positional 1
+    :type (or null string)
+    :short-option "n"
+    :argument "--name="
+    :prompt "Remote name: "
+    :group "Reset Data"
+    :level 1
+    :order 1
+    :required t)
+   (yes
+    :type boolean
+    :long-option "yes"
+    :short-option "y"
+    :group "Options"
+    :level 1
+    :order 1
+    :documentation "Skip the confirmation prompt (required in
+non-interactive use)"))
+  :documentation "Rebuild a Dolt remote's data plane from local HEAD.
+After a history squash a plain force-push re-points the remote's refs
+but deletes nothing; reset-data clears the remote's stored data and
+force-pushes a fresh store (git-backed, native file, and cloud
+remotes)."
+  :cli-command "dolt remote reset-data")
+
+
 ;;; Dolt Remote Submenu (hand-written)
 
 ;;;###autoload (autoload 'beads-dolt-remote "beads-command-dolt" nil t)
@@ -266,6 +336,7 @@ Use --force to remove even when SQL and CLI URLs conflict.")
    ("a" "Add remote" beads-dolt-remote-add)
    ("l" "List remotes" beads-dolt-remote-list)
    ("r" "Remove remote" beads-dolt-remote-remove)
+   ("R" "Reset remote data" beads-dolt-remote-reset-data)
    ("q" "Quit" transient-quit-one)])
 
 ;;; Clean-Databases Command
@@ -278,9 +349,18 @@ Use --force to remove even when SQL and CLI URLs conflict.")
     :short-option "n"
     :group "Options"
     :level 1
-    :order 1))
+    :order 1)
+   (purge-dropped
+    :type boolean
+    :long-option "purge-dropped"
+    :group "Options"
+    :level 2
+    :order 1
+    :documentation "After dropping, also run CALL DOLT_PURGE_DROPPED_DATABASES()
+- server-global and irreversible"))
   :documentation "Represents bd dolt clean-databases command.
-Drop leftover test and polecat databases from the shared Dolt server."
+Drop leftover test and polecat databases from the shared Dolt server.
+--purge-dropped additionally purges dropped databases server-globally."
   :cli-command "dolt clean-databases")
 
 ;;; Killall Command

@@ -41,6 +41,14 @@
     :group "Filters"
     :level 2
     :order 2)
+   (include-infra
+    :type boolean
+    :long-option "include-infra"
+    :group "Filters"
+    :level 3
+    :order 1
+    :documentation "Include infrastructure beads and the wisps tier (matches
+'bd list --include-infra --all' cardinality)")
    (created-after
     :type (or null string)
     :short-option "Ca"

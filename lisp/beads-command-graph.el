@@ -61,7 +61,23 @@
    (html
     :type boolean
     :group "Options"
-    :level 2))
+    :level 2)
+   (open
+    :type boolean
+    :long-option "open"
+    :group "Options"
+    :level 2
+    :order 1
+    :documentation "Show only open issues (filters out closed/deferred),
+forces compact layer format")
+   (max-rows
+    :type (or null string integer)
+    :long-option "max-rows"
+    :group "Options"
+    :level 3
+    :order 1
+    :documentation "Hard upper bound on rows fetched from storage; returns
+exit code 2 with an error when exceeded.  0 disables (the default)"))
   :documentation "Represents bd graph command.
 Displays issue dependency graph visualization."
   :transient :manual)

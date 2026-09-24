@@ -60,7 +60,15 @@
     :group "Options"
     :level 1
     :order 4
-    :documentation "Only prune beads matching ID glob pattern (e.g., 'gm-old-*')"))
+    :documentation "Only prune beads matching ID glob pattern (e.g., 'gm-old-*')")
+   (ignore-references
+    :type boolean
+    :long-option "ignore-references"
+    :group "Options"
+    :level 2
+    :order 1
+    :documentation "Delete closed beads even when referenced by open beads
+(use with care; e.g. bulk-decommissioning)"))
   :documentation "Represents bd prune command.
 Permanently deletes closed non-ephemeral beads and their data.
 Requires --older-than or --pattern as a safety gate.")

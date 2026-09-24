@@ -298,9 +298,19 @@ Lists all git worktrees with their beads configuration state."
     :short-option "f"
     :group "Options"
     :level 1
-    :order 1))
+    :order 1)
+   (merged-into
+    :type (or null string)
+    :long-option "merged-into"
+    :prompt "Require containment in ref: "
+    :group "Options"
+    :level 2
+    :order 1
+    :documentation "Require worktree HEAD to be contained in this ref
+(full refs, unambiguous short ref names, or committishs)"))
   :documentation "Represents bd worktree remove command.
-Removes a worktree with safety checks (unless --force is used).")
+Removes a worktree with safety checks (unless --force is used).
+--merged-into checks containment against a ref instead.")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-worktree-info

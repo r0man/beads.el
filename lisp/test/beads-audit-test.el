@@ -115,13 +115,28 @@ The audit output must state the decision for every skipped command
       (should (string-match-p "Category 3" (plist-get entry :disposition))))))
 
 (ert-deftest beads-audit-test-classify-missing-records-disposition ()
-  "Category-1 (missing) paths carry their recorded backlog disposition."
+  "Category-1 (missing) paths carry their recorded backlog disposition.
+The Phase 1 audit backlog was closed by the Phase 3 implementation
+(they have classes now), so `beads-meta-parity-planned-commands' is
+empty and every still-missing path carries the generic disposition."
   :tags '(:unit)
-  (let* ((class (beads-audit-classify '("heartbeat") nil))
+  (should (null beads-meta-parity-planned-commands))
+  (let* ((class (beads-audit-classify '("frobnicate") nil))
+         (entry (car class)))
+    (should (eq (plist-get entry :category) 'missing))
+    (should (string-match-p "Category 1" (plist-get entry :disposition)))))
+
+(ert-deftest beads-audit-test-classify-planned-records-disposition ()
+  "Category-1 backlog paths (when any are recorded) carry their
+recorded disposition naming the phase that will implement them."
+  :tags '(:unit)
+  (let* ((beads-meta-parity-planned-commands '("bead.placeholder"))
+         (class (beads-audit-classify '("bead.placeholder") nil))
          (entry (car class)))
     (should (eq (plist-get entry :category) 'missing))
     (should (string-match-p "Category 1" (plist-get entry :disposition)))
-    (should (string-match-p "Phase 3" (plist-get entry :rationale)))))
+    (should (string-match-p
+             "sync-plan backlog" (plist-get entry :disposition)))))
 
 (ert-deftest beads-audit-test-classify-collision-category ()
   "An unregistered multi-class path classifies as `collision'."

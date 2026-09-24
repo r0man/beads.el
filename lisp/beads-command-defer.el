@@ -44,7 +44,16 @@
     :prompt "Until (e.g., +1h, tomorrow): "
     :group "Options"
     :level 1
-    :order 1))
+    :order 1)
+   (reason
+    :type (or null string)
+    :long-option "reason"
+    :prompt "Reason: "
+    :group "Options"
+    :level 2
+    :order 1
+    :documentation "Record why this issue is being deferred (appended to
+notes)"))
   :documentation "Represents bd defer command.
 Defers one or more issues for later.")
 

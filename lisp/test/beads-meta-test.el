@@ -1168,15 +1168,17 @@ like flags) rather than a positional slot."
   (let ((slots (beads-meta-transient-slots 'beads-command-show)))
     ;; Should have issue-ids slot with transient key
     (should (memq 'issue-ids slots))
-    ;; Should have 11 slots with transient keys
+    ;; Should have 13 slots with transient keys
     ;; (beads--normalize-slot infers :transient-key for all command options)
-    ;; 11 = 10 base slots + include-dependents (bde-gi7o)
-    (should (= 11 (length slots)))))
+    ;; 13 = 10 base slots + include-dependents (bde-gi7o)
+    ;;   + include-comments/brief-deps (be-j2b phase 3 slot closure)
+    (should (= 13 (length slots)))))
 
 (ert-deftest beads-meta-show-option-slots ()
   "Test that option slots are identified correctly.
-In bd 1.0.3 issue-ids is a --id flag, so all 11 own slots are options
-\(10 base + include-dependents, bde-gi7o)."
+In bd 1.0.3 issue-ids is a --id flag, so all 13 own slots are options
+\(10 base + include-dependents, bde-gi7o, + include-comments/brief-deps,
+be-j2b phase 3 slot closure)."
   (let ((options (beads-meta-option-slots 'beads-command-show)))
     ;; Should include the new --id flag for issue-ids
     (should (memq 'issue-ids options))
@@ -1185,15 +1187,16 @@ In bd 1.0.3 issue-ids is a --id flag, so all 11 own slots are options
     ;; Should include global options inherited from beads-command-global-options
     (should (memq 'actor options))
     (should (memq 'verbose options))
-    ;; Should have 11 command-show + 11 inherited option slots = 22
-    (should (= 22 (length options)))))
+    ;; Should have 13 command-show + 11 inherited option slots = 24
+    (should (= 24 (length options)))))
 
 (ert-deftest beads-meta-show-generate-infix-specs ()
   "Test that infix specs can be generated from beads-command-show."
   (let ((specs (beads-meta-generate-infix-specs
                 'beads-command-show "beads-show")))
-    ;; Should have 11 infix specs (10 base + include-dependents, bde-gi7o)
-    (should (= 11 (length specs)))
+    ;; Should have 13 infix specs (10 base + include-dependents, bde-gi7o,
+    ;; + include-comments/brief-deps, be-j2b phase 3 slot closure)
+    (should (= 13 (length specs)))
     ;; Check for specific infix
     (let ((issue-ids-spec (cl-find-if
                            (lambda (s)
@@ -1436,9 +1439,11 @@ In bd 1.0.3 issue-ids is a --id flag, so all 11 own slots are options
     (should (memq 'long slots))
     (should (memq 'format slots))
     (should (memq 'all slots))
-    ;; Should have 57 slots with transient keys
-    ;; (beads--normalize-slot infers :transient-key for all command options)
-    (should (= 57 (length slots)))))
+    ;; Should have 63 slots with transient keys
+    ;; (beads--normalize-slot infers :transient-key for all command options;
+    ;; 57 + skip-labels/brief/external-ref/external-contains/max-rows/offset
+    ;; from the be-j2b phase 3 slot closure)
+    (should (= 63 (length slots)))))
 
 (ert-deftest beads-meta-list-option-slots ()
   "Test that non-positional CLI options are identified."
@@ -1458,15 +1463,15 @@ In bd 1.0.3 issue-ids is a --id flag, so all 11 own slots are options
     ;; Should include global options inherited from beads-command-global-options
     (should (memq 'actor options))
     (should (memq 'verbose options))
-    ;; All slots have :long-option: 57 command-list + 1 json + 10 global options
-    (should (= 68 (length options)))))
+    ;; All slots have :long-option: 63 command-list + 1 json + 10 global options
+    (should (= 74 (length options)))))
 
 (ert-deftest beads-meta-list-generate-infix-specs ()
   "Test that infix specs can be generated from beads-command-list."
   (let ((specs (beads-meta-generate-infix-specs
                 'beads-command-list "beads-list")))
-    ;; Should have specs for all 57 transient-enabled slots
-    (should (= 57 (length specs)))
+    ;; Should have specs for all 63 transient-enabled slots
+    (should (= 63 (length specs)))
     ;; Check for specific infixes
     (let ((status-spec (cl-find-if
                         (lambda (s)

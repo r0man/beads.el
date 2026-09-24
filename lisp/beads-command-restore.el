@@ -44,7 +44,15 @@
     :documentation "Output restore results in JSON format"
     :group "Options"
     :level 2
-    :order 2))
+    :order 2)
+   (apply
+    :type boolean
+    :long-option "apply"
+    :group "Options"
+    :level 1
+    :order 3
+    :documentation "Write the restored content back into the issue
+(default: display only)"))
   :documentation "Restore a compacted issue from Dolt history.
 Requires Dolt backend.")
 

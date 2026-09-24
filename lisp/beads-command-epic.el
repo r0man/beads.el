@@ -87,7 +87,17 @@ since the base method's (list-of ...) coercion only handles arrays."
     :short-option "n"
     :group "Close Eligible Epics"
     :level 1
-    :order 1))
+    :order 1)
+   (reason
+    :type (or null string)
+    :long-option "reason"
+    :short-option "r"
+    :prompt "Close reason: "
+    :group "Close Eligible Epics"
+    :level 1
+    :order 2
+    :documentation "Close reason applied to every epic closed
+(default: All children completed)"))
   :transient :manual
   :documentation "Represents bd epic close-eligible command.
 Closes epics where all children are complete."

@@ -198,7 +198,15 @@ Checks issues for missing template sections.")
     :type (list-of string)
     :group "Options"
     :level 1
-    :order 3))
+    :order 3)
+   (parent
+    :type (or null string)
+    :prompt "Parent issue ID: "
+    :reader beads-reader-create-parent
+    :group "Options"
+    :level 2
+    :order 4
+    :documentation "Parent issue ID for hierarchical child (e.g. 'bd-a3f8e9')"))
   :documentation "Represents bd q command.
 Quick capture: creates issue and outputs only ID.")
 
@@ -315,7 +323,49 @@ Displays minimal snippet for AGENTS.md.")
     :group "Options"
     :level 1
     :order 4
-    :documentation "Stealth mode (no git operations, flush only)"))
+    :documentation "Stealth mode (no git operations, flush only)")
+   (hook-json
+    :type boolean
+    :long-option "hook-json"
+    :group "Memories"
+    :level 2
+    :order 1
+    :documentation "Wrap output in the SessionStart hook JSON envelope
+(Claude Code, Gemini CLI, Codex)")
+   (memories-only
+    :type boolean
+    :long-option "memories-only"
+    :group "Memories"
+    :level 2
+    :order 2
+    :documentation "Output only persistent memories for compact hook contexts")
+   (max-memories
+    :type (or null string integer)
+    :long-option "max-memories"
+    :prompt "Max memories to inject: "
+    :group "Memories"
+    :level 2
+    :order 3
+    :documentation "Cap injected persistent memories to N entries
+(0 = unlimited; falls back to the prime.max-memories config key)")
+   (max-memory-chars
+    :type (or null string integer)
+    :long-option "max-memory-chars"
+    :prompt "Max total memory bytes: "
+    :group "Memories"
+    :level 2
+    :order 4
+    :documentation "Cap the total bytes of injected memory entries, at
+whole-memory boundaries (0 = unlimited; falls back to the
+prime.max-memory-chars config key)")
+   (no-memories
+    :type boolean
+    :long-option "no-memories"
+    :group "Memories"
+    :level 2
+    :order 5
+    :documentation "Omit the persistent memories section (ignored when
+--memories-only is set, which wins)"))
   :documentation "Represents bd prime command.
 Outputs AI-optimized workflow context.")
 
@@ -602,7 +652,14 @@ Version tracking is automatic - bd updates metadata.json on every run.
     :reader beads--read-issue-at-point-or-prompt
     :group "Options"
     :level 1
-    :order 0))
+    :order 0)
+   (pretty
+    :type boolean
+    :long-option "pretty"
+    :group "Options"
+    :level 2
+    :order 1
+    :documentation "Show children in tree format"))
   :documentation "Represents bd children command.
 Lists child beads of a parent issue.")
 
@@ -694,7 +751,15 @@ Promotes a wisp to a permanent bead.")
     :group "Options"
     :level 3
     :order 1
-    :documentation "Only parse the query and show the AST (for debugging)"))
+    :documentation "Only parse the query and show the AST (for debugging)")
+   (offset
+    :type (or null string integer)
+    :long-option "offset"
+    :group "Options"
+    :level 3
+    :order 2
+    :documentation "Skip the first N matching results (0-based).  Only
+supported under --proxied-server"))
   :documentation "Represents bd query command.
 Queries issues using a simple query language.")
 
@@ -823,7 +888,22 @@ Lists all issues labeled with the human tag.")
     :group "Options"
     :level 1
     :order 2
-    :required t))
+    :required t)
+   (file
+    :type (or null string)
+    :long-option "file"
+    :prompt "Read response text from file: "
+    :group "Input Source"
+    :level 2
+    :order 1
+    :documentation "Read response text from file")
+   (stdin
+    :type boolean
+    :long-option "stdin"
+    :group "Input Source"
+    :level 2
+    :order 2
+    :documentation "Read response text from stdin"))
   :documentation "Represents bd human respond command.
 Responds to a human-needed bead by adding a comment and closing it.")
 
@@ -867,7 +947,13 @@ Shows summary statistics for human-needed beads.")
 
 ;;;###autoload (autoload 'beads-types "beads-command-misc" nil t)
 (beads-defcommand beads-command-types (beads-command-global-options)
-  ()
+  ((sections
+    :type boolean
+    :long-option "sections"
+    :group "Options"
+    :level 1
+    :order 1
+    :documentation "Show required sections for each issue type"))
   :documentation "Represents bd types command.
 Lists valid issue types.")
 
@@ -881,6 +967,14 @@ Lists valid issue types.")
     :level 1
     :order 1
     :documentation "Maximum number of pairs to show (default 50)")
+   (max-rows
+    :type (or null string integer)
+    :long-option "max-rows"
+    :group "Options"
+    :level 2
+    :order 3
+    :documentation "Hard upper bound on rows fetched from storage; returns
+exit code 2 with an error when exceeded.  0 disables (the default)")
    (method
     :type (or null string)
     :long-option "method"
@@ -1062,7 +1156,17 @@ Dolt-native backup commands (preserve full commit history):
     :group "Options"
     :level 1
     :order 5
-    :documentation "Exclude test/pollution records"))
+    :documentation "Exclude test/pollution records")
+   (exclude-owner
+    :type (list-of string)
+    :long-option "exclude-owner"
+    :prompt "Exclude issues created by (comma-separated identities): "
+    :reader beads-reader-issue-labels
+    :group "Options"
+    :level 2
+    :order 6
+    :documentation "Exclude issues created by this identity (repeatable; also
+reads export.exclude_owners config)"))
   :documentation "Represents bd export command.
 Export all issues to JSONL (newline-delimited JSON) format.")
 
@@ -1091,7 +1195,15 @@ Export all issues to JSONL (newline-delimited JSON) format.")
     :group "Options"
     :level 1
     :order 3
-    :documentation "Read JSONL from a specific file"))
+    :documentation "Read JSONL from a specific file")
+   (allow-stale
+    :type boolean
+    :long-option "allow-stale"
+    :group "Options"
+    :level 2
+    :order 1
+    :documentation "Import rows even when older than the local issue
+(required to restore an older snapshot)"))
   :documentation "Represents bd import command.
 Imports issues from a JSONL file into the database.")
 
@@ -1148,7 +1260,14 @@ Squashes all Dolt history into a single commit.")
     :group "Options"
     :level 1
     :order 5
-    :documentation "Skip Dolt garbage collection phase"))
+    :documentation "Skip Dolt garbage collection phase")
+   (full
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 6
+    :documentation "Run a full Dolt GC (all generations; slower, reclaims
+space default passes cannot)"))
   :documentation "Represents bd gc command.
 Garbage collects: decays old issues, compacts Dolt, runs GC.")
 
@@ -1400,7 +1519,15 @@ Show effective backend identity and repository context.")
     :prompt "Assignee: "
     :group "Assign Issue"
     :level 1
-    :order 1))
+    :order 1)
+   (force
+    :type boolean
+    :transient transient-option
+    :group "Options"
+    :level 2
+    :order 1
+    :documentation "Allow overwriting another actor's live in_progress claim
+(use only for abandoned claims — crashed agent, expired lease; prefer bd reclaim)"))
   :documentation "Represents bd assign command.
 Shorthand for bd update <id> --assignee <name>.
 Pass an empty string as assignee to unassign.")

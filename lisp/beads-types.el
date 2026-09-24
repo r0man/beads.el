@@ -1823,6 +1823,355 @@ exited without rolling anything back."
            (oref result dry-run))))
 
 ;;; ============================================================
+;;; bd 1.3.x sync command result classes
+;;; ============================================================
+
+(defclass beads-conflicts-list-result ()
+  ((conflicts
+    :initarg :conflicts
+    :type integer
+    :initform 0
+    :documentation "Total number of live merge conflicts.")
+   (merging
+    :initarg :merging
+    :type boolean
+    :initform nil
+    :documentation "Whether a Dolt merge is currently in progress.")
+   (tables
+    :initarg :tables
+    :type list
+    :initform nil
+    :documentation "Raw list of conflicted-table entries (bd-defined shape)."))
+  "Result of `bd conflicts list --json'.")
+
+(defun beads-conflicts-list-result-from-json (json)
+  "Create a beads-conflicts-list-result from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-conflicts-list-result json))
+
+(defclass beads-conflicts-show-result ()
+  ((conflicts
+    :initarg :conflicts
+    :type integer
+    :initform 0
+    :documentation "Total number of live merge conflicts.")
+   (rows
+    :initarg :rows
+    :type list
+    :initform nil
+    :documentation "Raw list of conflicted-row entries (bd-defined shape:
+base/ours/theirs field values per row)."))
+  "Result of `bd conflicts show --json'.")
+
+(defun beads-conflicts-show-result-from-json (json)
+  "Create a beads-conflicts-show-result from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-conflicts-show-result json))
+
+(defclass beads-events-prune-result ()
+  ((pruned
+    :initarg :pruned
+    :type integer
+    :initform 0
+    :documentation "Number of journal records deleted."))
+  "Result of `bd events prune --json'.")
+
+(defun beads-events-prune-result-from-json (json)
+  "Create a beads-events-prune-result from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-events-prune-result json))
+
+(defclass beads-event-record ()
+  ((seq
+    :initarg :seq
+    :type integer
+    :initform 0
+    :documentation "Gapless commit-order journal sequence number.")
+   (ts
+    :initarg :ts
+    :type (or null string)
+    :initform nil
+    :documentation "UTC insert time (RFC3339), stamped in the transaction.")
+   (op
+    :initarg :op
+    :type (or null string)
+    :initform nil
+    :documentation "Mutation kind: create, update, close, delete, dep_add,
+dep_remove, or comment.")
+   (issue-id
+    :initarg :issue-id
+    :type (or null string)
+    :initform nil
+    :documentation "The mutated issue's id.")
+   (actor
+    :initarg :actor
+    :type (or null string)
+    :initform nil
+    :documentation "Acting identity that performed the mutation.")
+   (issue
+    :initarg :issue
+    :type (or null beads-issue)
+    :initform nil
+    :documentation "The issue snapshot after the mutation (null when deleted).")
+   (dep
+    :initarg :dep
+    :type list
+    :initform nil
+    :documentation "Raw dependency payload for dep_add/dep_remove ops.")
+   (comment
+    :initarg :comment
+    :type list
+    :initform nil
+    :documentation "Raw comment payload for comment ops."))
+  "One record of the durable events journal (`bd events tail'/`export').
+The journal emits one JSON object per line, not an array; parse with
+`beads-events-records-from-json-lines'.")
+
+(defun beads-event-record-from-json (json)
+  "Create a beads-event-record from a single JSON record alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-event-record json))
+
+(defun beads-events-records-from-json-lines (text)
+  "Parse journal TEXT (one JSON object per line) into beads-event-record.
+Empty lines are skipped.  Signals `beads-json-parse-error' when a
+non-blank line is not valid JSON."
+  (let (records)
+    (dolist (line (split-string text "\n" t))
+      (condition-case err
+        (push (beads-event-record-from-json
+               (json-read-from-string line))
+              records)
+      (error
+       (signal 'beads-json-parse-error
+               (list (format "Failed to parse journal line as JSON: %s"
+                             (error-message-string err))
+                     :stdout text
+                     :parse-error err)))))
+    (nreverse records)))
+
+(defclass beads-provenance-event ()
+  ((id
+    :initarg :id
+    :type (or null string)
+    :initform nil
+    :documentation "Deterministic event id (source:issue:kind:ref/at).")
+   (issue-id
+    :initarg :issue-id
+    :type (or null string)
+    :initform nil
+    :documentation "Issue the event is bound to (empty for ref-only kinds).")
+   (kind
+    :initarg :kind
+    :type (or null string)
+    :initform nil
+    :documentation "Event kind: cut, claim, suspend, resume, handoff,
+commit, land, or used.")
+   (ref
+    :initarg :ref
+    :type (or null string)
+    :initform nil
+    :documentation "Opaque external reference (SHA, PR URL, ...).")
+   (ref-kind
+    :initarg :ref-kind
+    :type (or null string)
+    :initform nil
+    :documentation "Ref kind: git-sha, pr, work-id, transcript, or branch.")
+   (source
+    :initarg :source
+    :type (or null string)
+    :initform nil
+    :documentation "Producer of the event (git-hook, orchestrator, ...).")
+   (created-at
+    :initarg :created-at
+    :type (or null string)
+    :initform nil
+    :documentation "Event timestamp (ISO 8601)."))
+  "One provenance event from `bd provenance log'/`by-ref --json'.")
+
+(defun beads-provenance-event-from-json (json)
+  "Create a beads-provenance-event from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-provenance-event json))
+
+(defclass beads-provenance-record-result ()
+  ((id
+    :initarg :id
+    :type (or null string)
+    :initform nil
+    :documentation "Deterministic id of the recorded event.")
+   (inserted
+    :initarg :inserted
+    :type boolean
+    :initform nil
+    :documentation "Whether this call inserted the event (idempotent
+re-runs report nil).")
+   (issue-id
+    :initarg :issue-id
+    :type (or null string)
+    :initform nil
+    :documentation "Issue the event was bound to.")
+   (kind
+    :initarg :kind
+    :type (or null string)
+    :initform nil
+    :documentation "Event kind that was recorded."))
+  "Result of `bd provenance record --json'.")
+
+(defun beads-provenance-record-result-from-json (json)
+  "Create a beads-provenance-record-result from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-provenance-record-result json))
+
+(defclass beads-heartbeat-result ()
+  ((id
+    :initarg :id
+    :type (or null string)
+    :initform nil
+    :documentation "The heartbeated issue's id.")
+   (owner
+    :initarg :owner
+    :type (or null string)
+    :initform nil
+    :documentation "Actor whose lease was refreshed.")
+   (status
+    :initarg :status
+    :type (or null string)
+    :initform nil
+    :documentation "Operation status (bd reports \"heartbeat\")."))
+  "Result of `bd heartbeat <id> --json'.")
+
+(defun beads-heartbeat-result-from-json (json)
+  "Create a beads-heartbeat-result from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-heartbeat-result json))
+
+(defclass beads-reclaim-entry ()
+  ((id
+    :initarg :id
+    :type (or null string)
+    :initform nil
+    :documentation "Reclaimed issue id.")
+   (previous-owner
+    :initarg :previous-owner
+    :type (or null string)
+    :initform nil
+    :documentation "Assignee whose stale lease was reverted."))
+  "One reclaimed lease in a `bd reclaim --json' result.")
+
+(defun beads-reclaim-entry-from-json (json)
+  "Create a beads-reclaim-entry from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-reclaim-entry json))
+
+(defclass beads-reclaim-result ()
+  ((count
+    :initarg :count
+    :type integer
+    :initform 0
+    :documentation "Number of leases reclaimed.")
+   (reclaimed
+    :initarg :reclaimed
+    :type (or null (list-of beads-reclaim-entry))
+    :initform nil
+    :documentation "List of beads-reclaim-entry objects (nil when none).")
+   (scoped
+    :initarg :scoped
+    :type boolean
+    :initform nil
+    :documentation "Whether the reclaim was narrowed by explicit filters."))
+  "Result of `bd reclaim --json'.")
+
+(defun beads-reclaim-result-from-json (json)
+  "Create a beads-reclaim-result from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-reclaim-result json))
+
+(defclass beads-sync-result ()
+  ((status
+    :initarg :status
+    :type (or null string)
+    :initform nil
+    :documentation "Outcome: ok, no-remote, conflict, retried, stuck, ...")
+   (attempts
+    :initarg :attempts
+    :type integer
+    :initform 0
+    :documentation "Pull/push attempts used.")
+   (pushed
+    :initarg :pushed
+    :type boolean
+    :initform nil
+    :documentation "Whether a push completed.")
+   (rows-corrected
+    :initarg :rows-corrected
+    :type integer
+    :initform 0
+    :documentation "Denormalized is_blocked rows repaired."))
+  "Result of `bd sync --json'.")
+
+(defun beads-sync-result-from-json (json)
+  "Create a beads-sync-result from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-sync-result json))
+
+(defclass beads-formula-schema-field ()
+  ((name
+    :initarg :name
+    :type (or null string)
+    :initform nil
+    :documentation "Go field name.")
+   (type
+    :initarg :type
+    :type (or null string)
+    :initform nil
+    :documentation "Declared Go type.")
+   (json-name
+    :initarg :json-name
+    :type (or null string)
+    :initform nil
+    :documentation "JSON key for this field.")
+   (required
+    :initarg :required
+    :type boolean
+    :initform nil
+    :documentation "Whether the field is required.")
+   (doc
+    :initarg :doc
+    :type (or null string)
+    :initform nil
+    :documentation "Field documentation."))
+  "One exported struct field from `bd formula schema --json'.")
+
+(defun beads-formula-schema-field-from-json (json)
+  "Create a beads-formula-schema-field from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-formula-schema-field json))
+
+(defclass beads-formula-schema-struct ()
+  ((name
+    :initarg :name
+    :type (or null string)
+    :initform nil
+    :documentation "Struct name (e.g. LoopSpec).")
+   (doc
+    :initarg :doc
+    :type (or null string)
+    :initform nil
+    :documentation "Struct documentation.")
+   (fields
+    :initarg :fields
+    :type (or null (list-of beads-formula-schema-field))
+    :initform nil
+    :documentation "List of beads-formula-schema-field objects."))
+  "One exported schema struct from `bd formula schema --json'.")
+
+(defun beads-formula-schema-struct-from-json (json)
+  "Create a beads-formula-schema-struct from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-formula-schema-struct json))
+
+;;; ============================================================
 ;;; Section Data Classes
 ;;; ============================================================
 

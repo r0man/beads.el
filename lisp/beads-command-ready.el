@@ -179,7 +179,49 @@
    (plain
     :type boolean
     :group "Display"
-    :level 3))
+    :level 3)
+   (brief
+    :type boolean
+    :long-option "brief"
+    :group "Display"
+    :level 2
+    :order 3
+    :documentation "Omit the free-form text (description, design,
+acceptance criteria, notes, payload, waiters) from each row.  Requires
+--json and cannot combine with --claim, --gated, --mol or --explain")
+   (label-pattern
+    :type (or null string)
+    :long-option "label-pattern"
+    :prompt "Label glob pattern: "
+    :group "Label Filters"
+    :level 3
+    :order 1
+    :documentation "Filter by label glob pattern (e.g. 'tech-*')")
+   (label-regex
+    :type (or null string)
+    :long-option "label-regex"
+    :prompt "Label regex pattern: "
+    :group "Label Filters"
+    :level 3
+    :order 2
+    :documentation "Filter by label regex pattern (e.g. 'tech-(debt|legacy)')")
+   (max-rows
+    :type (or null string integer)
+    :long-option "max-rows"
+    :group "Display"
+    :level 3
+    :order 1
+    :documentation "Hard upper bound on rows fetched from storage; returns
+exit code 2 with an error when exceeded.  0 disables (the default).
+Not supported under --proxied-server")
+   (offset
+    :type (or null string integer)
+    :long-option "offset"
+    :group "Display"
+    :level 3
+    :order 2
+    :documentation "Skip the first N matching results (0-based).  Only
+supported under --proxied-server"))
   :documentation "Represents bd ready command.
 Shows ready work (no blockers, open or in-progress).
 When executed with :json t, returns list of beads-issue instances."

@@ -322,8 +322,12 @@ Tests successful creation with ALL field types including deps, parent, force."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
-    ;; First create a parent issue for --parent and --deps flags
+    ;; Create a parent issue for --parent and an unrelated issue for
+    ;; --deps.  bd 1.3.x rejects a dependency between a parent and its
+    ;; own child ("blocked" cascades to descendants, so the parent could
+    ;; never close), so the dependency must point at an unrelated issue.
     (let* ((parent (beads-execute 'beads-command-create :title "Parent Issue" :issue-type "epic"))
+           (blocker (beads-execute 'beads-command-create :title "Blocker Issue"))
            (parent-id (oref parent id))
            (ext-ref (format "gh-%d" (random 99999)))
            (result
@@ -342,7 +346,7 @@ Tests successful creation with ALL field types including deps, parent, force."
                          "--acceptance=Acceptance criteria here"
                          "--design=Design notes"
                          ;; Additional flags for comprehensive coverage:
-                         (format "--deps=blocks:%s" parent-id)
+                         (format "--deps=blocks:%s" (oref blocker id))
                          (format "--parent=%s" parent-id)
                          "--force")
                  (call-interactively #'beads-create--execute))))))

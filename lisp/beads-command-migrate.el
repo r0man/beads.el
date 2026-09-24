@@ -51,7 +51,15 @@
     :documentation "Output migration statistics in JSON format"
     :group "Options"
     :level 2
-    :order 6))
+    :order 6)
+   (force
+    :type boolean
+    :long-option "force"
+    :group "Remote Gate"
+    :level 2
+    :order 7
+    :documentation "Bypass the remote-migrate gate as the single designated
+migrator (equivalent to BD_ALLOW_REMOTE_MIGRATE=1)"))
   :documentation "Detect and migrate database schema to current version.")
 
 ;;; Migrate Issues Command
@@ -201,13 +209,19 @@
 
 ;;;###autoload (autoload 'beads-migrate-schema "beads-command-migrate" nil t)
 (beads-defcommand beads-command-migrate-schema (beads-command-global-options)
-  ()
+  ((force
+    :type boolean
+    :long-option "force"
+    :group "Remote Gate"
+    :level 1
+    :order 1
+    :documentation "Bypass the remote-migrate gate as the single designated
+migrator (equivalent to BD_ALLOW_REMOTE_MIGRATE=1)"))
   :documentation "Apply pending schema migrations idempotently.
 Schema migrations also run automatically on store open, so this
 subcommand is typically a no-op.  It exists to make migration
 explicit and observable in CI, release gates, and recovery
-scenarios.  Inherits global options only; takes no command-specific
-flags."
+scenarios."
   :cli-command "migrate schema")
 
 ;;; Parent Transient Menu

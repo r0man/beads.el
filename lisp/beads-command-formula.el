@@ -169,11 +169,68 @@
   :cli-command "formula convert"
   :transient nil)
 
+;;; ============================================================
+;;; Formula Schema Command Class (bd 1.3.x)
+;;; ============================================================
+
+;;;###autoload (autoload 'beads-formula-schema "beads-command-formula" nil t)
+(beads-defcommand beads-command-formula-schema (beads-command-global-options)
+  ((primitive
+    :positional 1
+    :type (or null string)
+    :prompt "Primitive (optional): "
+    :group "Schema"
+    :level 1
+    :order 1
+    :documentation "Show only this struct's fields (e.g. LoopSpec)"))
+  :documentation "Show the formula schema index.
+Every exported struct declared in a .formula.toml/.formula.json, with
+field names, types, and tags — generated from internal/formula/types.go
+via go:generate, so it cannot drift."
+  :cli-command "formula schema"
+  :result (list-of beads-formula-schema-struct)
+  :transient nil)
+
+(cl-defmethod beads-command-parse ((_command beads-command-formula-schema) stdout)
+  "Parse the formula schema index from STDOUT.
+Bind `json-array-type' to the symbol list so nested `fields' arrays
+hold as lists."
+  (when (and stdout (not (string-empty-p stdout)))
+    (let ((json-object-type 'alist)
+          (json-array-type 'list)
+          (json-key-type 'symbol))
+      (mapcar #'beads-formula-schema-struct-from-json
+              (json-read-from-string stdout)))))
+
 (cl-defmethod beads-command-validate ((command beads-command-formula-convert))
   "Validate COMMAND.  Requires formula name or --all."
   (with-slots (formula-name all) command
     (unless (or all (and formula-name (not (string-empty-p formula-name))))
       "Formula name or --all is required")))
+
+;;; ============================================================
+;;; Formula Schema Interactive Command (bd 1.3.x)
+;;; ============================================================
+
+;;;###autoload
+(defun beads-formula-schema (primitive)
+  "Show the formula schema index, or PRIMITIVE's fields when given.
+Displays every exported formula schema struct with its field names,
+types, and tags, in a terminal buffer via the auto-generated
+`beads-formula-schema' transient-less command path."
+  (interactive
+   (list (completing-read
+          "Primitive (empty for full index): "
+          (mapcar (lambda (s) (oref s name))
+                  (beads-execute 'beads-command-formula-schema :json t))
+          nil nil)))
+  (beads-check-executable)
+  (let ((primitive (and (stringp primitive) (not (string-empty-p primitive))
+                        primitive)))
+    (beads-command-execute-interactive
+     (if primitive
+         (beads-command-formula-schema :primitive primitive)
+       (beads-command-formula-schema)))))
 
 ;;; ============================================================
 ;;; Formula Convert Interactive Command
@@ -641,7 +698,8 @@ When called interactively with a prefix argument, prompts for TYPE."
   ["Actions"
    ("l" beads-formula-menu--list)
    ("s" "Show formula" beads-formula-show)
-   ("c" "Convert JSON→TOML" beads-formula-convert)])
+   ("c" "Convert JSON→TOML" beads-formula-convert)
+   ("S" "Schema index" beads-formula-schema)])
 
 (provide 'beads-command-formula)
 ;;; beads-command-formula.el ends here

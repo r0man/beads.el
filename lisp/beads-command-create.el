@@ -387,7 +387,33 @@
               "recovery" "error" "escalation")
     :group "Advanced"
     :level 5
-    :order 9))
+    :order 9)
+   (status
+    :type (or null string)
+    :long-option "status"
+    :prompt "Initial status: "
+    :reader beads-reader-update-status
+    :group "Options"
+    :level 2
+    :order 5
+    :documentation "Initial status")
+   (allow-empty-description
+    :type boolean
+    :long-option "allow-empty-description"
+    :group "Options"
+    :level 3
+    :order 1
+    :documentation "Allow empty description input from stdin or file")
+   (storage-class
+    :type (or null string)
+    :long-option "storage-class"
+    :prompt "Storage class: "
+    :choices ("versioned" "unversioned" "ephemeral")
+    :group "Options"
+    :level 3
+    :order 2
+    :documentation "Storage class: versioned, unversioned, or ephemeral
+(default: storage-class.<type> config, else versioned)"))
   :documentation "Represents bd create command.
 Creates a new issue (or multiple issues from markdown file).
 When executed with :json t, returns the created beads-issue instance(s)."

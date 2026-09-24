@@ -114,7 +114,7 @@ This must be called before claudemacs is loaded."
   (when (or (featurep 'eat) (require 'eat nil t))
     ;; Verify the gv-setter is available by checking if eat-term-set-parameter exists
     (unless (fboundp 'eat-term-set-parameter)
-      (warn "eat-term-set-parameter not found - bell handler may fail"))
+      (warn "Eat-term-set-parameter not found - bell handler may fail"))
     ;; Install advice as fallback if claudemacs is already loaded
     ;; Otherwise, advice will be installed after require in beads-agent-backend-start
     (when (featurep 'claudemacs)

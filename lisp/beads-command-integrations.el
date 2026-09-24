@@ -223,7 +223,39 @@ Equivalent to: bd jira sync --push --issues <ids>.")
     :type boolean
     :group "Conflict"
     :level 2
-    :order 15))
+    :order 15)
+   (milestones
+    :type boolean
+    :long-option "milestones"
+    :group "Pull"
+    :level 3
+    :order 1
+    :documentation "Reconstruct Linear project milestones as local epic
+parents when pulling")
+   (no-wait
+    :type boolean
+    :long-option "no-wait"
+    :group "Concurrency"
+    :level 3
+    :order 1
+    :documentation "Fail immediately if another sync is running instead
+of waiting")
+   (pull-if-stale
+    :type boolean
+    :long-option "pull-if-stale"
+    :group "Pull"
+    :level 3
+    :order 2
+    :documentation "Pull only if Linear data is stale (skip if fresh)")
+   (threshold
+    :type (or null string)
+    :long-option "threshold"
+    :prompt "Staleness threshold (e.g. 20m): "
+    :group "Pull"
+    :level 3
+    :order 3
+    :documentation "Staleness threshold for --pull-if-stale
+(default 20m)"))
   :documentation "Represents bd linear sync command.
 Synchronizes issues with Linear.
 Use --pull or --push to limit direction; otherwise bidirectional.")

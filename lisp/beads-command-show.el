@@ -120,6 +120,21 @@
     :short-option "w"
     :group "Options"
     :level 3)
+   (include-comments
+    :type boolean
+    :long-option "include-comments"
+    :group "Options"
+    :level 3
+    :documentation "Stream full comment bodies in JSON output (--json only;
+may be slow on issues with many comments)")
+   (brief-deps
+    :type boolean
+    :long-option "brief-deps"
+    :group "Options"
+    :level 3
+    :documentation "Reduce each dependency to its identity fields in JSON
+output (--json only; drops description, design, notes and acceptance
+criteria)")
    (include-dependents
     :type boolean
     :long-option "include-dependents"

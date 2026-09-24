@@ -58,7 +58,15 @@
     :short-option "n"
     :group "Options"
     :level 2
-    :order 3))
+    :order 3)
+   (no-blocked
+    :type boolean
+    :long-option "no-blocked"
+    :group "Options"
+    :level 2
+    :order 4
+    :documentation "Skip blocked-count computation (faster on large rigs;
+not supported in proxied-server mode)"))
   :documentation "Represents bd status command.
 Shows a quick snapshot of the issue database state and statistics.
 When executed with :json t, returns status data as JSON.")

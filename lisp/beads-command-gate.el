@@ -63,7 +63,15 @@
     :prompt "Condition identifier: "
     :group "Options"
     :level 2
-    :order 2))
+    :order 2)
+   (title
+    :type (or null string)
+    :long-option "title"
+    :prompt "Custom gate title: "
+    :group "Options"
+    :level 2
+    :order 3
+    :documentation "Custom gate title (default: Gate: <type>)"))
   :documentation "Create an ad-hoc gate issue that blocks another issue.")
 
 

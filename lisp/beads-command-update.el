@@ -322,7 +322,37 @@
     :long-option "stdin"
     :group "Content"
     :level 5
-    :order 7))
+    :order 7)
+   (force
+    :type boolean
+    :long-option "force"
+    :group "Guards"
+    :level 2
+    :order 1
+    :documentation "Override two refusals: overwrite another actor's live
+in_progress claim (abandoned claims only; prefer bd reclaim), and move
+the issue into closed despite open children or a live blocker")
+   (if-assignee
+    :type (or null string)
+    :long-option "if-assignee"
+    :prompt "Apply only if current assignee equals: "
+    :group "Guards"
+    :level 2
+    :order 2
+    :documentation "Apply the update only if the current assignee equals this
+value (empty string requires unassigned); a mismatch writes nothing and
+exits 13.  Cannot combine with --claim")
+   (if-status
+    :type (or null string)
+    :long-option "if-status"
+    :prompt "Apply only if current status equals: "
+    :reader beads-reader-update-status
+    :group "Guards"
+    :level 2
+    :order 3
+    :documentation "Apply the update only if the current status equals this
+value; a mismatch writes nothing and exits 13.  Cannot combine with
+--claim"))
   :documentation "Represents bd update command.
 Updates one or more issues with new field values.
 When executed with :json t, returns beads-issue instance (or list

@@ -4,6 +4,20 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Command/flag gap closure: bd 1.3.0 command surface
+
+Every bd 1.3.0 command now has an Emacs surface: new `beads-defcommand`
+classes for the category-1 leaves (`conflicts`, `events`, `heartbeat`,
+`migrate-personal`, `provenance`, `reclaim`, `schema`, `serve`, `sync`,
+`unclaim`, and friends — one `beads-command-<name>.el` each), parent
+transient-only menus for the new top-level groups per AGENTS.md policy,
+and the category-2 flag gaps filled as class slots (`update --force`,
+`ready/list --brief/--max-rows/--offset`, `init` proxied-server knobs,
+`create --status/--allow-empty-description/--storage-class`, and the
+rest of the audit's category-2 list).  New commands are registered on
+the main/ops/advanced menus.  The command-parity drift gate now passes
+against live `bd 1.3.0`.
+
 ### Eldoc: asynchronous, base-36 ids, terminal buffers
 
 `beads-eldoc-mode` no longer runs `bd show` synchronously: it used to

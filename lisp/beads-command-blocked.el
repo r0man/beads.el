@@ -43,7 +43,35 @@
     :reader beads-reader-issue-id
     :group "Scope"
     :level 2
-    :order 1))
+    :order 1)
+   (label
+    :type (list-of string)
+    :long-option "label"
+    :short-option "l"
+    :prompt "Labels (AND): "
+    :reader beads-reader-issue-labels
+    :group "Label Filters"
+    :level 3
+    :order 1
+    :documentation "Filter by labels (AND: must have ALL).  Can combine with --label-any")
+   (label-any
+    :type (list-of string)
+    :long-option "label-any"
+    :prompt "Labels (OR): "
+    :reader beads-reader-issue-labels
+    :group "Label Filters"
+    :level 3
+    :order 2
+    :documentation "Filter by labels (OR: must have AT LEAST ONE).  Can combine with --label")
+   (exclude-label
+    :type (list-of string)
+    :long-option "exclude-label"
+    :prompt "Exclude labels (any of): "
+    :reader beads-reader-issue-labels
+    :group "Label Filters"
+    :level 3
+    :order 3
+    :documentation "Exclude issues that have ANY of these labels"))
   :documentation "Represents bd blocked command.
 Shows blocked issues (issues with unresolved blockers).
 When executed with :json t, returns list of beads-blocked-issue instances."

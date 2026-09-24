@@ -446,7 +446,55 @@
       :type (or null string)
       :long-option "format"
       :group "Display"
-      :level 3))
+      :level 3)
+     (skip-labels
+      :type boolean
+      :long-option "skip-labels"
+      :group "Filter"
+      :level 4
+      :documentation "Skip label hydration: the labels field in output will
+be empty regardless of actual labels.  Cannot combine with --label,
+--label-any, --label-pattern, --label-regex, --exclude-label, or
+--no-labels")
+     (brief
+      :type boolean
+      :long-option "brief"
+      :group "Display"
+      :level 2
+      :order 1
+      :documentation "Omit the free-form text (description, design, acceptance
+criteria, notes, payload, waiters) from each row")
+     (external-ref
+      :type (or null string)
+      :long-option "external-ref"
+      :prompt "External ref (exact): "
+      :reader beads-reader-issue-external-ref
+      :group "Filter"
+      :level 3
+      :documentation "Filter by exact external_ref value")
+     (external-contains
+      :type (or null string)
+      :long-option "external-contains"
+      :prompt "External ref contains: "
+      :group "Filter"
+      :level 3
+      :documentation "Filter by external ref substring (case-insensitive)")
+     (max-rows
+      :type (or null string integer)
+      :long-option "max-rows"
+      :group "Display"
+      :level 3
+      :order 1
+      :documentation "Hard upper bound on rows returned; returns exit code 2
+with an error when exceeded.  0 disables (the default)")
+     (offset
+      :type (or null string integer)
+      :long-option "offset"
+      :group "Display"
+      :level 3
+      :order 2
+      :documentation "Skip the first N matching results (0-based).  Only
+supported under --proxied-server"))
     :documentation "Represents bd list command.
   Lists issues with extensive filtering and output formatting options.
   When executed with :json t, returns list of beads-issue instances."

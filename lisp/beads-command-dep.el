@@ -259,7 +259,15 @@ Does not modify any slots."
     :short-option "ap"
     :group "Dependency Tree"
     :level 3
-    :order 1))
+    :order 1)
+   (max-rows
+    :type (or null string integer)
+    :long-option "max-rows"
+    :group "Limits"
+    :level 3
+    :order 2
+    :documentation "Hard upper bound on rows returned; returns exit code 2
+with an error when exceeded.  0 disables (the default)"))
   :documentation "Represents bd dep tree command.
 Shows dependency tree rooted at the given issue."
   :transient :manual)

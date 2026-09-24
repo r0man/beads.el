@@ -425,9 +425,18 @@ Shows molecule progress summary.")
 
 ;;;###autoload (autoload 'beads-mol-ready "beads-command-mol" nil t)
 (beads-defcommand beads-command-mol-ready (beads-command-global-options)
-  ()
+  ((gated
+    :type boolean
+    :long-option "gated"
+    :group "Options"
+    :level 1
+    :order 1
+    :documentation "Find molecules ready for gate-resume dispatch (always
+on for this subcommand)"))
   :documentation "Represents bd mol ready command.
-Finds molecules ready for gate-resume dispatch.")
+Finds molecules ready for gate-resume dispatch.  --gated is accepted
+for CLI parity; gate-resume dispatch is always what this subcommand
+does.")
 
 
 ;;; ============================================================

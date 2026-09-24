@@ -45,7 +45,14 @@
     :prompt "Limit (0=all): "
     :group "Options"
     :level 2
-    :order 2))
+    :order 2)
+   (events
+    :type boolean
+    :long-option "events"
+    :group "Options"
+    :level 2
+    :order 3
+    :documentation "Show database audit events instead of commit snapshots"))
   :documentation "Show version history for an issue.
 Requires Dolt backend.")
 

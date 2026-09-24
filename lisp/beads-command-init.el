@@ -205,7 +205,75 @@
     :short-option "T"
     :group "Setup Wizards"
     :level 2
-    :order 2))
+    :order 2)
+   (init-if-missing
+    :type boolean
+    :long-option "init-if-missing"
+    :group "Other Options"
+    :level 3
+    :order 1
+    :documentation "If the workspace is already initialized, skip init and
+exit 0 instead of failing (idempotent init for scaffolds)")
+   (server-tls
+    :type boolean
+    :long-option "server-tls"
+    :group "Server Connection"
+    :level 4
+    :order 1
+    :documentation "Require TLS for the init-time Dolt server connection
+(overrides BEADS_DOLT_SERVER_TLS for this run; not persisted)")
+   (team-server
+    :type boolean
+    :long-option "team-server"
+    :group "Server Connection"
+    :level 4
+    :order 2
+    :documentation "EXPERIMENTAL: the shared database's schema is managed by
+beads-team-server (bts); proxied-server mode only")
+   (proxied-server-port
+    :type (or null string integer)
+    :long-option "proxied-server-port"
+    :prompt "Proxied-server loopback port: "
+    :group "Proxied Server (Experimental)"
+    :level 5
+    :order 1
+    :documentation "Fixed TCP port for the proxy's loopback listener
+(proxied-server mode only; 0 = OS-assigned)")
+   (proxied-server-idle-timeout
+    :type (or null string)
+    :long-option "proxied-server-idle-timeout"
+    :prompt "Proxied-server idle timeout (e.g. 30s): "
+    :group "Proxied Server (Experimental)"
+    :level 5
+    :order 2
+    :documentation "Idle duration after which the proxy shuts down its
+loopback listener and backend (proxied-server mode only)")
+   (proxied-server-external-tls-ca-cert-path
+    :type (or null string)
+    :long-option "proxied-server-external-tls-ca-cert-path"
+    :prompt "External server CA certificate path: "
+    :group "Proxied Server (Experimental)"
+    :level 5
+    :order 3
+    :documentation "Absolute path to a CA certificate (PEM) used to verify
+the externally-managed dolt sql-server (proxied-server mode only)")
+   (proxied-server-external-tls-server-name
+    :type (or null string)
+    :long-option "proxied-server-external-tls-server-name"
+    :prompt "External server TLS name: "
+    :group "Proxied Server (Experimental)"
+    :level 5
+    :order 4
+    :documentation "Server name to verify in the external dolt sql-server's
+TLS certificate (defaults to the external host; proxied-server mode only)")
+   (proxied-server-external-tls-skip-verify
+    :type boolean
+    :long-option "proxied-server-external-tls-skip-verify"
+    :group "Proxied Server (Experimental)"
+    :level 5
+    :order 5
+    :documentation "Skip TLS certificate verification for the external dolt
+sql-server (insecure; testing only)"))
   :documentation "Represents bd init command.
 Initializes bd in the current directory by creating .beads/ directory
 and database file."
