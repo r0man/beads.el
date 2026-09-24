@@ -5224,5 +5224,196 @@ Empty sessions are automatically cleaned up."
        (beads-show-backward-paragraph)
        (should (eq (point) (point-min)))))))
 
+;;; ============================================================
+;;; bd 1.3.0 show flag parity (beads-1.3.0-sync P2c, REQ-005/AC-4)
+;;; ============================================================
+
+(ert-deftest beads-show-test-brief-deps-slot-serializes-exactly ()
+  "The brief-deps slot serializes to exactly --brief-deps (AC-4)."
+  :tags '(:unit)
+  (let ((args (beads-command-line
+               (beads-command-show :issue-ids '("bd-42") :brief-deps t))))
+    (should (member "--brief-deps" args))
+    ;; Exactly once, and no value argument
+    (should (= (cl-count "--brief-deps" args :test #'string=) 1))
+    (should-not (member "true" args))))
+
+(ert-deftest beads-show-test-include-comments-slot-serializes-exactly ()
+  "The include-comments slot serializes to exactly --include-comments (AC-4)."
+  :tags '(:unit)
+  (let ((args (beads-command-line
+               (beads-command-show :issue-ids '("bd-42") :include-comments t))))
+    (should (member "--include-comments" args))
+    (should (= (cl-count "--include-comments" args :test #'string=) 1))
+    (should-not (member "true" args))))
+
+(ert-deftest beads-show-test-brief-deps-absent-by-default ()
+  "A default show command omits --brief-deps."
+  :tags '(:unit)
+  (should-not (member "--brief-deps"
+                      (beads-command-line
+                       (beads-command-show :issue-ids '("bd-42"))))))
+
+(ert-deftest beads-show-test-include-comments-absent-by-default ()
+  "A default show command omits --include-comments."
+  :tags '(:unit)
+  (should-not (member "--include-comments"
+                      (beads-command-line
+                       (beads-command-show :issue-ids '("bd-42"))))))
+
+(ert-deftest beads-show-test-new-flags-off-dont-serialize ()
+  "Explicitly nil boolean slots emit no flags."
+  :tags '(:unit)
+  (let ((args (beads-command-line
+               (beads-command-show :issue-ids '("bd-42")
+                                   :brief-deps nil
+                                   :include-comments nil))))
+    (should-not (member "--brief-deps" args))
+    (should-not (member "--include-comments" args))))
+
+(ert-deftest beads-show-test-all-13x-show-flags-serialize-exactly ()
+  "Every live `bd show --help' (1.3.0) flag serializes exactly (AC-4).
+The five pre-existing 1.3.x flags (--long, --as-of, --refs,
+--children, --local-time) plus the two new slots (--brief-deps,
+--include-comments) and the JSON data flag --include-dependents."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-show
+               :issue-ids '("bd-42")
+               :children t
+               :refs t
+               :as-of "deadbee"
+               :local-time t
+               :long t
+               :include-dependents t
+               :brief-deps t
+               :include-comments t))
+         (args (beads-command-line cmd)))
+    ;; The subcommand and the id
+    (should (equal args
+                   (append (butlast args 12)
+                           (list "show" "--id" "bd-42"
+                                 "--children" "--refs" "--as-of" "deadbee"
+                                 "--local-time" "--long"
+                                 "--include-dependents" "--brief-deps"
+                                 "--include-comments"))))))
+
+(ert-deftest beads-show-test-transient-exposes-brief-deps ()
+  "The show transient defines a brief-deps infix bound to --brief-deps."
+  :tags '(:unit)
+  (should (fboundp 'beads-show-transient-infix-brief-deps))
+  (let ((suffix (get 'beads-show-transient-infix-brief-deps
+                     'transient--suffix)))
+    (should suffix)
+    (should (equal (oref suffix argument) "--brief-deps"))))
+
+(ert-deftest beads-show-test-transient-exposes-include-comments ()
+  "The show transient defines an include-comments infix bound to --include-comments."
+  :tags '(:unit)
+  (should (fboundp 'beads-show-transient-infix-include-comments))
+  (let ((suffix (get 'beads-show-transient-infix-include-comments
+                     'transient--suffix)))
+    (should suffix)
+    (should (equal (oref suffix argument) "--include-comments"))))
+
+(ert-deftest beads-show-test-transient-exposes-all-13x-flags ()
+  "The show transient binds every 1.3.x show flag infix."
+  :tags '(:unit)
+  (dolist (infix '(beads-show-transient-infix-long
+                   beads-show-transient-infix-as-of
+                   beads-show-transient-infix-refs
+                   beads-show-transient-infix-children
+                   beads-show-transient-infix-local-time
+                   beads-show-transient-infix-brief-deps
+                   beads-show-transient-infix-include-comments))
+    (should (fboundp infix))
+    (should (get infix 'transient--suffix))))
+
+(ert-deftest beads-show-test-transient-keys-unique-per-group ()
+  "Keys are unique within each show transient group.
+Keys may repeat across groups (the menu scopes keys to the group),
+but a collision inside one group would shadow an infix.  In
+particular the new include-comments infix must not collide with
+include-dependents inside the Options group."
+  :tags '(:unit)
+  (let ((by-group (make-hash-table :test 'equal)))
+    (dolist (slot (beads-meta-transient-slots 'beads-command-show))
+      (let* ((group (or (beads-meta-slot-property
+                         'beads-command-show slot :transient-group)
+                        "?"))
+             (key (beads-meta-slot-property
+                   'beads-command-show slot :transient-key)))
+        (push key (gethash group by-group))))
+    (maphash (lambda (group keys)
+               (should (= (length keys)
+                          (length (delete-dups (copy-sequence keys))))))
+             by-group)))
+
+(ert-deftest beads-show-test-interactive-path-requests-full-data ()
+  "`beads-show' requests --long --include-comments --include-dependents.
+The show buffer's sections render from --long metadata, comment
+bodies, and dependents[], so the interactive data source must pass
+all three JSON-only flags."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (let (captured)
+     (cl-letf (((symbol-function 'beads-command-execute)
+                (lambda (cmd)
+                  (setq captured cmd)
+                  (beads-issue-from-json beads-show-test--full-issue))))
+       (beads-show "bd-42")
+       (should captured)
+       (should (oref captured long))
+       (should (oref captured include-comments))
+       (should (oref captured include-dependents))
+       (when (get-buffer beads-show-test--buffer-name)
+         (kill-buffer beads-show-test--buffer-name))))))
+
+(ert-deftest beads-show-test-update-buffer-requests-full-data ()
+  "`beads-show-update-buffer' requests the full rendering data set."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (let* ((buffer (get-buffer-create "*beads-show[test-project]/bd-42*") )
+          captured)
+     (cl-letf (((symbol-function 'beads-command-execute)
+                (lambda (cmd)
+                  (setq captured cmd)
+                  (beads-issue-from-json beads-show-test--full-issue))))
+       (beads-show-update-buffer "bd-42" buffer)
+       (should captured)
+       (should (oref captured long))
+       (should (oref captured include-comments))
+       (should (oref captured include-dependents))
+       (kill-buffer buffer)))))
+
+(ert-deftest beads-show-test-refresh-show-requests-full-data ()
+  "`beads-refresh-show' requests the full rendering data set."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (let (captured)
+     (cl-letf (((symbol-function 'beads-command-execute)
+                (lambda (cmd)
+                  (setq captured cmd)
+                  (beads-issue-from-json beads-show-test--full-issue))))
+       (with-current-buffer (get-buffer-create "*beads-show-refresh*")
+         (beads-show-mode)
+         (setq-local beads-show--issue-id "bd-42")
+         (beads-refresh-show)
+         (kill-buffer))
+       (should captured)
+       (should (oref captured long))
+       (should (oref captured include-comments))
+       (should (oref captured include-dependents))))))
+
+(ert-deftest beads-show-test-plain-execute-omits-data-flags ()
+  "A non-interactive `beads-execute' call adds no data flags by default.
+The interactive enrichment belongs to the show-buffer entry points,
+not to the command class's default serialization."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-show :issue-ids '("bd-42")))
+         (args (beads-command-line cmd)))
+    (should-not (member "--long" args))
+    (should-not (member "--include-comments" args))
+    (should-not (member "--include-dependents" args))))
+
 (provide 'beads-show-test)
 ;;; beads-show-test.el ends here
