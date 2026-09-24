@@ -67,13 +67,17 @@
 (require 'json)
 (require 'beads-meta)
 
+;; `alist' is not a built-in type spec, but slot validation goes through
+;; `cl-typep', so define it: any list (conses, including the empty list).
+(cl-deftype alist () '(satisfies listp))
+
 ;; Forward declarations to avoid circular dependencies
 (declare-function beads--parse-issue "beads-util")
 (declare-function beads--parse-issues "beads-util")
 
 ;;; Constants and Enumerations
 
-;; Status constants
+;; Status constants (mirrors bd 1.3.0 `bd schema' issue.status enum).
 (defconst beads-status-open "open"
   "Issue status: open (not yet started).")
 
@@ -83,17 +87,29 @@
 (defconst beads-status-blocked "blocked"
   "Issue status: blocked (waiting on dependencies).")
 
+(defconst beads-status-deferred "deferred"
+  "Issue status: deferred (hidden from `bd ready' until defer_until).")
+
 (defconst beads-status-closed "closed"
   "Issue status: closed (completed).")
+
+(defconst beads-status-pinned "pinned"
+  "Issue status: pinned (persistent context marker, not a work item).")
+
+(defconst beads-status-hooked "hooked"
+  "Issue status: hooked (waiting on an async gate condition).")
 
 (defconst beads-status-values
   (list beads-status-open
         beads-status-in-progress
         beads-status-blocked
-        beads-status-closed)
+        beads-status-deferred
+        beads-status-closed
+        beads-status-pinned
+        beads-status-hooked)
   "List of all valid status values.")
 
-;; Issue type constants
+;; Issue type constants (mirrors bd 1.3.0 `bd schema' issue.issue_type enum).
 (defconst beads-type-bug "bug"
   "Issue type: bug fix.")
 
@@ -109,15 +125,43 @@
 (defconst beads-type-chore "chore"
   "Issue type: chore (maintenance, refactoring).")
 
+(defconst beads-type-decision "decision"
+  "Issue type: decision record.")
+
+(defconst beads-type-message "message"
+  "Issue type: message (wisp-plane conversation item).")
+
+(defconst beads-type-molecule "molecule"
+  "Issue type: molecule (compound/context object).")
+
+(defconst beads-type-gate "gate"
+  "Issue type: gate (async coordination condition).")
+
+(defconst beads-type-spike "spike"
+  "Issue type: spike (time-boxed exploration).")
+
+(defconst beads-type-story "story"
+  "Issue type: story (user story).")
+
+(defconst beads-type-milestone "milestone"
+  "Issue type: milestone.")
+
 (defconst beads-issue-type-values
   (list beads-type-bug
         beads-type-feature
         beads-type-task
         beads-type-epic
-        beads-type-chore)
+        beads-type-chore
+        beads-type-decision
+        beads-type-message
+        beads-type-molecule
+        beads-type-gate
+        beads-type-spike
+        beads-type-story
+        beads-type-milestone)
   "List of all valid issue type values.")
 
-;; Dependency type constants
+;; Dependency type constants (mirrors bd 1.3.0 `bd schema' dependency.type enum).
 (defconst beads-dep-blocks "blocks"
   "Dependency type: blocking relationship.")
 
@@ -130,11 +174,71 @@
 (defconst beads-dep-discovered-from "discovered-from"
   "Dependency type: discovered from another issue.")
 
+(defconst beads-dep-conditional-blocks "conditional-blocks"
+  "Dependency type: conditional blocking relationship.")
+
+(defconst beads-dep-waits-for "waits-for"
+  "Dependency type: waits-for relationship.")
+
+(defconst beads-dep-replies-to "replies-to"
+  "Dependency type: message replies-to thread relationship.")
+
+(defconst beads-dep-relates-to "relates-to"
+  "Dependency type: bidirectional relates-to relationship.")
+
+(defconst beads-dep-duplicates "duplicates"
+  "Dependency type: duplicates relationship.")
+
+(defconst beads-dep-supersedes "supersedes"
+  "Dependency type: supersedes relationship.")
+
+(defconst beads-dep-authored-by "authored-by"
+  "Dependency type: authored-by relationship.")
+
+(defconst beads-dep-assigned-to "assigned-to"
+  "Dependency type: assigned-to relationship.")
+
+(defconst beads-dep-approved-by "approved-by"
+  "Dependency type: approved-by relationship.")
+
+(defconst beads-dep-attests "attests"
+  "Dependency type: attests relationship.")
+
+(defconst beads-dep-tracks "tracks"
+  "Dependency type: tracks relationship.")
+
+(defconst beads-dep-until "until"
+  "Dependency type: until relationship.")
+
+(defconst beads-dep-caused-by "caused-by"
+  "Dependency type: caused-by relationship.")
+
+(defconst beads-dep-validates "validates"
+  "Dependency type: validates relationship.")
+
+(defconst beads-dep-delegated-from "delegated-from"
+  "Dependency type: delegated-from relationship.")
+
 (defconst beads-dependency-type-values
   (list beads-dep-blocks
-        beads-dep-related
         beads-dep-parent-child
-        beads-dep-discovered-from)
+        beads-dep-conditional-blocks
+        beads-dep-waits-for
+        beads-dep-related
+        beads-dep-discovered-from
+        beads-dep-replies-to
+        beads-dep-relates-to
+        beads-dep-duplicates
+        beads-dep-supersedes
+        beads-dep-authored-by
+        beads-dep-assigned-to
+        beads-dep-approved-by
+        beads-dep-attests
+        beads-dep-tracks
+        beads-dep-until
+        beads-dep-caused-by
+        beads-dep-validates
+        beads-dep-delegated-from)
   "List of all valid dependency type values.")
 
 ;; Event type constants
@@ -284,6 +388,196 @@
     :type (or null string)
     :initform nil
     :documentation "External reference (e.g., 'gh-9', 'jira-ABC').")
+   ;; bd 1.3.0 fields.  bd omits absent optional keys from its JSON output
+   ;; rather than emitting nulls, so a slot left nil by `beads-from-json'
+   ;; means the key was absent OR explicitly null; a populated slot always
+   ;; means the key was present (the reverse is not true — renderers that
+   ;; must distinguish absent from empty check the raw JSON alist).
+   (spec-id
+    :initarg :spec-id
+    :type (or null string)
+    :initform nil
+    :documentation "Spec issue ID this issue was created from, if any.")
+   (owner
+    :initarg :owner
+    :type (or null string)
+    :initform nil
+    :documentation "Human owner for CV attribution (git author email).")
+   (started-at
+    :initarg :started-at
+    :type (or null string)
+    :initform nil
+    :documentation "When this issue transitioned to in_progress (ISO 8601).")
+   (close-reason
+    :initarg :close-reason
+    :type (or null string)
+    :initform nil
+    :documentation "Reason provided when closing the issue.")
+   (closed-by-session
+    :initarg :closed-by-session
+    :type (or null string)
+    :initform nil
+    :documentation "Agent session that closed this issue.")
+   (lease-expires-at
+    :initarg :lease-expires-at
+    :type (or null string)
+    :initform nil
+    :documentation "When the current claim's lease expires (ISO 8601).")
+   (heartbeat-at
+    :initarg :heartbeat-at
+    :type (or null string)
+    :initform nil
+    :documentation "Last heartbeat from the lease owner (ISO 8601).")
+   (lease-granted-node
+    :initarg :lease-granted-node
+    :type (or null string)
+    :initform nil
+    :documentation "Replica node that granted the current lease.")
+   (due-at
+    :initarg :due-at
+    :type (or null string)
+    :initform nil
+    :documentation "When this issue should be completed (ISO 8601).")
+   (defer-until
+    :initarg :defer-until
+    :type (or null string)
+    :initform nil
+    :documentation "Hide from `bd ready' until this time (ISO 8601).")
+   (source-system
+    :initarg :source-system
+    :type (or null string)
+    :initform nil
+    :documentation "Adapter/system that created this issue (federation).")
+   (metadata
+    :initarg :metadata
+    :type (or null alist)
+    :initform nil
+    :documentation "Custom key/value metadata (JSON object coerced to an alist).")
+   (sender
+    :initarg :sender
+    :type (or null string)
+    :initform nil
+    :documentation "Who sent this issue (for message wisps).")
+   (ephemeral
+    :initarg :ephemeral
+    :type (or null boolean)
+    :initform nil
+    :documentation "If true, this issue is not synced via git.")
+   (no-history
+    :initarg :no-history
+    :type (or null boolean)
+    :initform nil
+    :documentation "If true, stored in wisps table but not GC-eligible.")
+   (wisp-type
+    :initarg :wisp-type
+    :type (or null string)
+    :initform nil
+    :documentation "Classification for TTL-based compaction (message wisps).")
+   (storage-class
+    :initarg :storage-class
+    :type (or null string)
+    :initform nil
+    :documentation "Storage class of the issue (e.g., 'mol', 'ephemeral').")
+   (pinned
+    :initarg :pinned
+    :type (or null boolean)
+    :initform nil
+    :documentation "Persistent context marker flag (not a work item).")
+   (is-template
+    :initarg :is-template
+    :type (or null boolean)
+    :initform nil
+    :documentation "Read-only template molecule flag.")
+   (await-type
+    :initarg :await-type
+    :type (or null string)
+    :initform nil
+    :documentation "Gate condition type (e.g., 'gh:run', 'gh:pr', 'timer', 'human').")
+   (await-id
+    :initarg :await-id
+    :type (or null string)
+    :initform nil
+    :documentation "Gate condition identifier (run ID, PR number, etc).")
+   (timeout
+    :initarg :timeout
+    :type (or null integer)
+    :initform nil
+    :documentation "Max wait time before gate escalation.")
+   (waiters
+    :initarg :waiters
+    :type (or null (list-of string))
+    :initform nil
+    :documentation "Mail addresses to notify when the gate clears.")
+   (source-formula
+    :initarg :source-formula
+    :type (or null string)
+    :initform nil
+    :documentation "Formula name where this molecule step was defined.")
+   (source-location
+    :initarg :source-location
+    :type (or null string)
+    :initform nil
+    :documentation "Source location path (e.g., \"steps[0]\", \"advice[0].after\").")
+   (mol-type
+    :initarg :mol-type
+    :type (or null string)
+    :initform nil
+    :documentation "Molecule type: swarm, patrol, work (empty means work).")
+   (work-type
+    :initarg :work-type
+    :type (or null string)
+    :initform nil
+    :documentation "Work claiming policy: mutex or open_competition (empty means mutex).")
+   (event-kind
+    :initarg :event-kind
+    :type (or null string)
+    :initform nil
+    :documentation "Namespaced event type (e.g., 'patrol.muted', 'agent.started').")
+   (actor
+    :initarg :actor
+    :type (or null string)
+    :initform nil
+    :documentation "Entity URI who caused this event.")
+   (target
+    :initarg :target
+    :type (or null string)
+    :initform nil
+    :documentation "Entity URI or bead ID affected by this event.")
+   (payload
+    :initarg :payload
+    :type (or null string)
+    :initform nil
+    :documentation "Event-specific JSON payload data.")
+   (revision
+    :initarg :revision
+    :type (or null string)
+    :initform nil
+    :documentation "Optimistic-concurrency token from bd show detail views.")
+   (comment-count
+    :initarg :comment-count
+    :type (or null integer)
+    :initform nil
+    :documentation "Number of comments on this issue (count-only detail mode).")
+   (comments-omitted
+    :initarg :comments-omitted
+    :type (or null boolean)
+    :initform nil
+    :documentation "True when comment_count is positive but comments were not included.")
+   (dependency-count
+    :initarg :dependency-count
+    :type (or null integer)
+    :initform nil
+    :documentation "Number of issues this issue depends on.")
+   (dependent-count
+    :initarg :dependent-count
+    :type (or null integer)
+    :initform nil
+    :documentation "Number of issues that depend on this issue.")
+   (bonded-from
+    :initarg :bonded-from
+    :type (or null (list-of alist))
+    :initform nil
+    :documentation "Constituent proto references for compound molecules.")
    (compaction-level
     :initarg :compaction-level
     :type (or null integer)
@@ -334,10 +628,15 @@
     :type (list-of beads-comment)
     :initform nil
     :documentation "List of beads-comment objects."))
-  "Represents a Beads issue (trackable work item).")
+  "Represents a Beads issue (trackable work item) including the bd 1.3.0 schema fields (metadata map, lease/gate fields, close details, wisp/molecule flags, and detail-view counts).")
 
 (defclass beads-dependency ()
-  ((issue-id
+  ((id
+    :initarg :id
+    :type (or null string)
+    :initform nil
+    :documentation "Dependency row surrogate key (UUIDv5; only present on reads that select it).")
+   (issue-id
     :initarg :issue-id
     :type (or null string)
     :initform nil
@@ -362,6 +661,16 @@
     :type (or null string)
     :initform nil
     :documentation "User who created the dependency.")
+   (metadata
+    :initarg :metadata
+    :type (or null string)
+    :initform nil
+    :documentation "Type-specific edge data (raw JSON string).")
+   (thread-id
+    :initarg :thread-id
+    :type (or null string)
+    :initform nil
+    :documentation "Conversation thread this edge belongs to (replies-to edges).")
    ;; Additional fields from IssueWithDependencyMetadata (bd show --json)
    ;; These are populated when the dependency comes from bd show output
    (title
@@ -821,6 +1130,7 @@ JSON can be either simple dependency format (issue_id, depends_on_id,
 type) or IssueWithDependencyMetadata (id, dependency_type, plus full
 issue fields).  Handles both key variants."
   (beads-dependency
+   :id (alist-get 'id json)
    :issue-id (alist-get 'issue_id json)
    :depends-on-id (or (alist-get 'depends_on_id json)
                       (alist-get 'id json))
@@ -828,6 +1138,8 @@ issue fields).  Handles both key variants."
              (alist-get 'type json))
    :created-at (alist-get 'created_at json)
    :created-by (alist-get 'created_by json)
+   :metadata (alist-get 'metadata json)
+   :thread-id (alist-get 'thread_id json)
    :title (alist-get 'title json)
    :status (alist-get 'status json)
    :priority (alist-get 'priority json)
@@ -1009,10 +1321,20 @@ Only includes arguments for non-nil filter slots."
 (defun beads-issue-to-alist (issue)
   "Convert ISSUE (beads-issue object) to alist format.
 This provides backwards compatibility with existing code that expects
-alists from beads--parse-issue."
+alists from beads--parse-issue, and carries the bd 1.3.0 fields so
+callers see the full detail view."
   (with-slots (id title description design acceptance-criteria notes
                   status priority issue-type assignee estimated-minutes
-                  created-at updated-at closed-at external-ref) issue
+                  created-at updated-at closed-at external-ref
+                  spec-id owner started-at close-reason closed-by-session
+                  lease-expires-at heartbeat-at lease-granted-node
+                  due-at defer-until source-system metadata
+                  sender ephemeral no-history wisp-type storage-class
+                  pinned is-template await-type await-id timeout waiters
+                  source-formula source-location mol-type work-type
+                  event-kind actor target payload revision
+                  comment-count comments-omitted dependency-count
+                  dependent-count labels dependencies dependents comments) issue
     `((id . ,id)
       (title . ,title)
       (description . ,description)
@@ -1027,7 +1349,47 @@ alists from beads--parse-issue."
       (created-at . ,created-at)
       (updated-at . ,updated-at)
       (closed-at . ,closed-at)
-      (external-ref . ,external-ref))))
+      (external-ref . ,external-ref)
+      (spec_id . ,spec-id)
+      (owner . ,owner)
+      (started_at . ,started-at)
+      (close_reason . ,close-reason)
+      (closed_by_session . ,closed-by-session)
+      (lease_expires_at . ,lease-expires-at)
+      (heartbeat_at . ,heartbeat-at)
+      (lease_granted_node . ,lease-granted-node)
+      (due_at . ,due-at)
+      (defer_until . ,defer-until)
+      (source_system . ,source-system)
+      (metadata . ,metadata)
+      (sender . ,sender)
+      (ephemeral . ,ephemeral)
+      (no_history . ,no-history)
+      (wisp_type . ,wisp-type)
+      (storage_class . ,storage-class)
+      (pinned . ,pinned)
+      (is_template . ,is-template)
+      (await_type . ,await-type)
+      (await_id . ,await-id)
+      (timeout . ,timeout)
+      (waiters . ,waiters)
+      (source_formula . ,source-formula)
+      (source_location . ,source-location)
+      (mol_type . ,mol-type)
+      (work_type . ,work-type)
+      (event_kind . ,event-kind)
+      (actor . ,actor)
+      (target . ,target)
+      (payload . ,payload)
+      (revision . ,revision)
+      (comment_count . ,comment-count)
+      (comments_omitted . ,comments-omitted)
+      (dependency_count . ,dependency-count)
+      (dependent_count . ,dependent-count)
+      (labels . ,labels)
+      (dependencies . ,dependencies)
+      (dependents . ,dependents)
+      (comments . ,comments))))
 
 ;;; Validation Functions
 
@@ -1072,7 +1434,13 @@ alists from beads--parse-issue."
       "estimated_minutes cannot be negative")
      ((and (string= status beads-status-closed) (not closed-at))
       "closed issues must have closed_at timestamp")
-     ((and (not (string= status beads-status-closed)) closed-at)
+     ((and (member status (list beads-status-open
+                                beads-status-in-progress
+                                beads-status-blocked
+                                beads-status-deferred
+                                beads-status-pinned
+                                beads-status-hooked))
+           closed-at)
       "non-closed issues cannot have closed_at timestamp")
      (t nil))))
 

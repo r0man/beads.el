@@ -319,6 +319,26 @@ Extensible — add methods for custom types.")
   "Coerce VALUE to boolean.  :json-false becomes nil."
   (not (eq value :json-false)))
 
+(cl-defmethod beads-coerce-json-value (value (_type (eql alist)))
+  "Coerce VALUE (a parsed JSON object) to an alist.
+Nested JSON objects become alists, arrays become lists, and
+`:json-false' becomes nil so plain Elisp accessors work on the
+result.  Scalars pass through unchanged (a slot typed `alist' that
+receives a scalar came from malformed producer output)."
+  (cond
+   ((not value) nil)
+   ((consp value)
+    (mapcar (lambda (pair)
+              (if (consp pair)
+                  (cons (car pair)
+                        (beads-coerce-json-value (cdr pair) 'alist))
+                pair))
+            value))
+   ((vectorp value)
+    (mapcar (lambda (v) (beads-coerce-json-value v 'alist)) value))
+   ((eq value :json-false) nil)
+   (t value)))
+
 (cl-defmethod beads-coerce-json-value (value (_type (eql integer)))
   "Coerce VALUE to integer.  Strings are converted."
   (if (stringp value) (string-to-number value) value))

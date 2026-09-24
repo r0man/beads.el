@@ -150,9 +150,14 @@ the real `beads-command-execute' pipeline would return."
   (should (string= beads-status-open "open"))
   (should (string= beads-status-in-progress "in_progress"))
   (should (string= beads-status-blocked "blocked"))
+  (should (string= beads-status-deferred "deferred"))
   (should (string= beads-status-closed "closed"))
+  (should (string= beads-status-pinned "pinned"))
+  (should (string= beads-status-hooked "hooked"))
+  ;; The list mirrors the bd 1.3.0 `bd schema' issue.status enum.
   (should (equal beads-status-values
-                 '("open" "in_progress" "blocked" "closed"))))
+                 '("open" "in_progress" "blocked" "deferred" "closed"
+                   "pinned" "hooked"))))
 
 (ert-deftest beads-types-test-issue-type-constants ()
   "Test that issue type constants are defined correctly."
@@ -161,8 +166,18 @@ the real `beads-command-execute' pipeline would return."
   (should (string= beads-type-task "task"))
   (should (string= beads-type-epic "epic"))
   (should (string= beads-type-chore "chore"))
+  (should (string= beads-type-decision "decision"))
+  (should (string= beads-type-message "message"))
+  (should (string= beads-type-molecule "molecule"))
+  (should (string= beads-type-gate "gate"))
+  (should (string= beads-type-spike "spike"))
+  (should (string= beads-type-story "story"))
+  (should (string= beads-type-milestone "milestone"))
+  ;; The list mirrors the bd 1.3.0 `bd schema' issue.issue_type enum.
   (should (equal beads-issue-type-values
-                 '("bug" "feature" "task" "epic" "chore"))))
+                 '("bug" "feature" "task" "epic" "chore" "decision"
+                   "message" "molecule" "gate" "spike" "story"
+                   "milestone"))))
 
 (ert-deftest beads-types-test-dependency-type-constants ()
   "Test that dependency type constants are defined correctly."
@@ -170,8 +185,13 @@ the real `beads-command-execute' pipeline would return."
   (should (string= beads-dep-related "related"))
   (should (string= beads-dep-parent-child "parent-child"))
   (should (string= beads-dep-discovered-from "discovered-from"))
+  ;; The list mirrors the bd 1.3.0 `bd schema' dependency.type enum.
   (should (equal beads-dependency-type-values
-                 '("blocks" "related" "parent-child" "discovered-from"))))
+                 '("blocks" "parent-child" "conditional-blocks" "waits-for"
+                   "related" "discovered-from" "replies-to" "relates-to"
+                   "duplicates" "supersedes" "authored-by" "assigned-to"
+                   "approved-by" "attests" "tracks" "until" "caused-by"
+                   "validates" "delegated-from"))))
 
 (ert-deftest beads-types-test-event-type-constants ()
   "Test that event type constants are defined correctly."
@@ -1419,6 +1439,328 @@ rows.  The override remaps `issue_id' and captures commit provenance."
   (should (eq (beads-meta-slot-property
                'beads-formula-var 'var-type :json-key)
               'type)))
+
+;;; ========================================
+;;; bd 1.3.0 Schema Fields (P2a data layer)
+;;; ========================================
+
+(defvar beads-types-test--sample-issue-130-json
+  `((id . "be-yo0")
+    (title . "Rich workflow bead")
+    (description . "A bead with every 1.3.0 field")
+    (design . "the design")
+    (acceptance_criteria . "the criteria")
+    (notes . "progress notes")
+    (status . "closed")
+    (priority . 1)
+    (issue_type . "task")
+    (assignee . "gc__worker")
+    (owner . "roman@example.com")
+    (spec_id . "be-spec")
+    (estimated_minutes . 30)
+    (created_at . "2026-09-24T10:45:08Z")
+    (created_by . "dispatcher")
+    (updated_at . "2026-09-24T11:23:57Z")
+    (started_at . "2026-09-24T10:45:10Z")
+    (closed_at . "2026-09-24T11:23:57Z")
+    (close_reason . "done for demo")
+    (closed_by_session . "session-42")
+    (lease_expires_at . "2026-09-24T12:00:00Z")
+    (heartbeat_at . "2026-09-24T11:58:00Z")
+    (lease_granted_node . "node-1")
+    (due_at . "2026-09-30T00:00:00Z")
+    (defer_until . "2026-09-25T00:00:00Z")
+    (external_ref . "gh-9")
+    (source_system . "github")
+    (metadata . ((gc.kind . "workflow")
+                 (gc.outcome . "pass")
+                 (depth . 3)
+                 (flagged . :json-false)
+                 (nested . ((a . 1)))))
+    (compaction_level . 0)
+    (original_size . 0)
+    (labels . ["gc:control-quarantined"])
+    (sender . "roman")
+    (ephemeral . :json-false)
+    (no_history . t)
+    (wisp_type . "message")
+    (storage_class . "durable")
+    (pinned . :json-false)
+    (is_template . :json-false)
+    (await_type . "gh:run")
+    (await_id . "run-123")
+    (timeout . 300)
+    (waiters . ["roman@example.com"])
+    (source_formula . "do-work")
+    (source_location . "steps[0]")
+    (mol_type . "swarm")
+    (work_type . "mutex")
+    (event_kind . "agent.started")
+    (actor . "agent:1")
+    (target . "be-yo0")
+    (payload . "{\"k\":\"v\"}")
+    (revision . "17")
+    (comment_count . 2)
+    (comments_omitted . t)
+    (dependency_count . 1)
+    (dependent_count . 4)
+    (dependencies . [((id . "dep-1")
+                      (issue_id . "be-yo0")
+                      (depends_on_id . "be-j2b")
+                      (type . "blocks")
+                      (created_at . "2026-09-24T10:45:08Z")
+                      (created_by . "dispatcher")
+                      (metadata . "{\"w\":1}")
+                      (thread_id . "th-1"))])
+    (dependents . [((issue_id . "be-x")
+                    (depends_on_id . "be-yo0")
+                    (dependency_type . "parent-child"))])
+    (comments . [((id . "c-1")
+                  (issue_id . "be-yo0")
+                  (author . "bob")
+                  (text . "a comment")
+                  (created_at . "2026-09-24T12:00:00Z"))])
+    (bonded_from . [((source_id . "be-proto")
+                     (bond_type . "contains"))]))
+  "A bd 1.3.0 detail-view issue JSON carrying every schema field group.
+Mirrors live `bd show <rich-id> --json --long --include-comments
+--include-dependents' output from the bright-lights store." )
+
+(ert-deftest beads-types-test-issue-130-string-fields ()
+  "bd 1.3.0 string fields parse into typed slots."
+  (let ((issue (beads-issue-from-json beads-types-test--sample-issue-130-json)))
+    (should (beads-issue-p issue))
+    (should (string= (oref issue spec-id) "be-spec"))
+    (should (string= (oref issue owner) "roman@example.com"))
+    (should (string= (oref issue started-at) "2026-09-24T10:45:10Z"))
+    (should (string= (oref issue close-reason) "done for demo"))
+    (should (string= (oref issue closed-by-session) "session-42"))
+    (should (string= (oref issue lease-granted-node) "node-1"))
+    (should (string= (oref issue source-system) "github"))
+    (should (string= (oref issue sender) "roman"))
+    (should (string= (oref issue wisp-type) "message"))
+    (should (string= (oref issue storage-class) "durable"))
+    (should (string= (oref issue await-type) "gh:run"))
+    (should (string= (oref issue await-id) "run-123"))
+    (should (string= (oref issue source-formula) "do-work"))
+    (should (string= (oref issue source-location) "steps[0]"))
+    (should (string= (oref issue mol-type) "swarm"))
+    (should (string= (oref issue work-type) "mutex"))
+    (should (string= (oref issue event-kind) "agent.started"))
+    (should (string= (oref issue actor) "agent:1"))
+    (should (string= (oref issue target) "be-yo0"))
+    (should (string= (oref issue payload) "{\"k\":\"v\"}"))
+    (should (string= (oref issue revision) "17"))))
+
+(ert-deftest beads-types-test-issue-130-timestamp-and-count-fields ()
+  "bd 1.3.0 timestamp/lease/count fields parse into typed slots."
+  (let ((issue (beads-issue-from-json beads-types-test--sample-issue-130-json)))
+    (should (string= (oref issue lease-expires-at) "2026-09-24T12:00:00Z"))
+    (should (string= (oref issue heartbeat-at) "2026-09-24T11:58:00Z"))
+    (should (string= (oref issue due-at) "2026-09-30T00:00:00Z"))
+    (should (string= (oref issue defer-until) "2026-09-25T00:00:00Z"))
+    (should (= (oref issue timeout) 300))
+    (should (= (oref issue comment-count) 2))
+    (should (= (oref issue dependency-count) 1))
+    (should (= (oref issue dependent-count) 4))))
+
+(ert-deftest beads-types-test-issue-130-boolean-fields ()
+  "bd 1.3.0 boolean fields coerce :json-false to nil and t to t."
+  (let ((issue (beads-issue-from-json beads-types-test--sample-issue-130-json)))
+    ;; explicit JSON false -> nil (not :json-false)
+    (should (null (oref issue ephemeral)))
+    (should (null (oref issue pinned)))
+    (should (null (oref issue is-template)))
+    (should (eq (oref issue no-history) t))
+    (should (eq (oref issue comments-omitted) t))))
+
+(ert-deftest beads-types-test-issue-130-metadata-map ()
+  "The metadata JSON object coerces to a plain alist with nested values."
+  (let* ((issue (beads-issue-from-json beads-types-test--sample-issue-130-json))
+         (metadata (oref issue metadata)))
+    (should (consp metadata))
+    (should (string= (alist-get 'gc.kind metadata) "workflow"))
+    (should (string= (alist-get 'gc.outcome metadata) "pass"))
+    (should (= (alist-get 'depth metadata) 3))
+    (should (null (alist-get 'flagged metadata)))
+    (should (= (alist-get 'a (alist-get 'nested metadata)) 1))))
+
+(ert-deftest beads-types-test-issue-130-list-fields ()
+  "Labels, waiters, and bonded_from parse as lists."
+  (let ((issue (beads-issue-from-json beads-types-test--sample-issue-130-json)))
+    (should (equal (oref issue labels) '("gc:control-quarantined")))
+    (should (equal (oref issue waiters) '("roman@example.com")))
+    (let ((bond (car (oref issue bonded-from))))
+      (should (consp bond))
+      (should (string= (alist-get 'source_id bond) "be-proto"))
+      (should (string= (alist-get 'bond_type bond) "contains")))))
+
+(ert-deftest beads-types-test-issue-130-composite-fields ()
+  "Dependencies, dependents, and comments parse into typed objects."
+  (let ((issue (beads-issue-from-json beads-types-test--sample-issue-130-json)))
+    (let ((dep (car (oref issue dependencies))))
+      (should (beads-dependency-p dep))
+      (should (string= (oref dep id) "dep-1"))
+      (should (string= (oref dep depends-on-id) "be-j2b"))
+      (should (string= (oref dep type) "blocks"))
+      (should (string= (oref dep metadata) "{\"w\":1}"))
+      (should (string= (oref dep thread-id) "th-1")))
+    (let ((dependent (car (oref issue dependents))))
+      (should (beads-dependency-p dependent))
+      ;; IssueWithDependencyMetadata carries dependency_type; the override
+      ;; maps it onto `type' alongside the plain `type' key.
+      (should (string= (oref dependent type) "parent-child")))
+    (let ((comment (car (oref issue comments))))
+      (should (beads-comment-p comment))
+      (should (string= (oref comment id) "c-1"))
+      (should (string= (oref comment author) "bob"))
+      (should (string= (oref comment text) "a comment")))))
+
+(ert-deftest beads-types-test-issue-130-absent-keys-leave-slots-nil ()
+  "Absent JSON keys leave slots nil (missing-key != empty semantics).
+bd 1.3.0 omits absent optional fields instead of emitting nulls; the
+parser only passes initargs for keys present in the JSON, so a slot
+left nil is the correct model of \"absent\"."
+  (let ((issue (beads-issue-from-json
+                '((id . "be-min")
+                  (title . "Minimal bead")
+                  (status . "open")
+                  (priority . 2)
+                  (issue_type . "task")
+                  (created_at . "2026-09-24T10:00:00Z")
+                  (updated_at . "2026-09-24T10:00:00Z")
+                  ;; labels deliberately ABSENT (not an empty array)
+                  ;; An explicitly empty JSON object: `json-read-from-string'
+                  ;; yields the empty list for {}.
+                  (metadata . ())))))
+    (should (null (oref issue labels)))
+    (should (null (oref issue notes)))
+    (should (null (oref issue design)))
+    (should (null (oref issue close-reason)))
+    (should (null (oref issue lease-expires-at)))
+    (should (null (oref issue waiters)))
+    (should (null (oref issue bonded-from)))
+    (should (null (oref issue comment-count)))
+    ;; An explicitly empty metadata object is present but empty.
+    (should (equal (oref issue metadata) nil))))
+
+(ert-deftest beads-types-test-issue-130-explicit-null-key ()
+  "An explicit JSON null sets the slot to nil (key present, value null)."
+  (let ((issue (beads-issue-from-json
+                '((id . "be-null")
+                  (title . "Null bead")
+                  (status . "open")
+                  (priority . 2)
+                  (issue_type . "task")
+                  (created_at . "2026-09-24T10:00:00Z")
+                  (updated_at . "2026-09-24T10:00:00Z")
+                  (notes . nil)
+                  (assignee . nil)))))
+    ;; bd never emits nulls today, but the parser treats an explicit null
+    ;; as key-present/value-nil rather than erroring.  (In a real parse,
+    ;; `json-read-from-string' with `json-null' bound to nil yields the
+    ;; symbol nil for a JSON null; the quoted alist here reproduces that
+    ;; key-present/value-nil shape.)
+    (should (null (oref issue notes)))
+    (should (null (oref issue assignee)))))
+
+(ert-deftest beads-types-test-issue-130-dependency-new-fields-serialize ()
+  "The new dependency fields appear in the from-json override."
+  (let ((dep (beads-dependency-from-json
+              '((id . "dep-row")
+                (issue_id . "be-a")
+                (depends_on_id . "be-b")
+                (type . "replies-to")
+                (created_at . "2026-09-24T10:00:00Z")
+                (metadata . "edge-data")
+                (thread_id . "thread-9")))))
+    (should (string= (oref dep id) "dep-row"))
+    (should (string= (oref dep metadata) "edge-data"))
+    (should (string= (oref dep thread-id) "thread-9"))))
+
+(ert-deftest beads-types-test-issue-130-to-alist-130-fields ()
+  "beads-issue-to-alist carries the bd 1.3.0 fields."
+  (let* ((issue (beads-issue-from-json beads-types-test--sample-issue-130-json))
+         (alist (beads-issue-to-alist issue)))
+    (should (string= (alist-get 'close_reason alist) "done for demo"))
+    (should (string= (alist-get 'closed_by_session alist) "session-42"))
+    (should (string= (alist-get 'lease_expires_at alist)
+                     "2026-09-24T12:00:00Z"))
+    (should (string= (alist-get 'spec_id alist) "be-spec"))
+    (should (string= (alist-get 'revision alist) "17"))
+    (should (= (alist-get 'comment_count alist) 2))
+    (should (= (alist-get 'dependent_count alist) 4))
+    (should (string= (alist-get 'gc.kind (alist-get 'metadata alist))
+                     "workflow"))
+    (should (equal (alist-get 'labels alist)
+                   '("gc:control-quarantined")))))
+
+(ert-deftest beads-types-test-issue-130-validate-new-statuses ()
+  "beads-validate accepts the new bd 1.3.0 status values."
+  (dolist (status '("deferred" "pinned" "hooked"))
+    (should (null (beads-validate
+                   (beads-issue :id "x" :title "t" :status status
+                                :priority 2 :issue-type "task")))))
+  ;; deferred/pinned/hooked beads are not closed, so closed_at is invalid.
+  (should (stringp (beads-validate
+                    (beads-issue :id "x" :title "t" :status "deferred"
+                                 :priority 2 :issue-type "task"
+                                 :closed-at "2026-09-24T10:00:00Z")))))
+
+(ert-deftest beads-types-test-issue-130-validate-new-issue-types ()
+  "beads-validate accepts the new bd 1.3.0 issue types."
+  (dolist (type '("decision" "message" "molecule" "gate" "spike"
+                  "story" "milestone"))
+    (should (null (beads-validate
+                   (beads-issue :id "x" :title "t" :status "open"
+                                :priority 2 :issue-type type))))))
+
+(ert-deftest beads-types-test-issue-130-status-and-type-predicates ()
+  "The new statuses integrate with the existing predicate helpers."
+  (let ((deferred (beads-issue :status beads-status-deferred))
+        (hooked (beads-issue :status beads-status-hooked)))
+    (should (beads-status-valid-p beads-status-deferred))
+    (should (beads-status-valid-p beads-status-pinned))
+    (should (beads-status-valid-p beads-status-hooked))
+    ;; deferred and hooked are neither open nor closed nor in-progress.
+    (should-not (beads-issue-open-p deferred))
+    (should-not (beads-issue-closed-p deferred))
+    (should-not (beads-issue-open-p hooked))
+    (should (beads-issue-type-valid-p beads-type-gate))))
+
+(ert-deftest beads-types-test-coerce-json-value-alist ()
+  "The alist coercion method normalizes JSON objects recursively."
+  (should (null (beads-coerce-json-value nil 'alist)))
+  (should (equal (beads-coerce-json-value '((a . 1)) 'alist)
+                 '((a . 1))))
+  (should (equal (beads-coerce-json-value
+                  '((a . ((b . :json-false))) (c . [1 2])) 'alist)
+                 '((a . ((b))) (c . (1 2))))))
+
+(ert-deftest beads-types-test-issue-130-live-shape-regression ()
+  "A minimal live bd 1.3.0 list-shape issue parses without loss."
+  (let ((issue (beads-issue-from-json
+                '((id . "be-7l5")
+                  (title . "drain unit 7 for be-b26")
+                  (status . "open")
+                  (priority . 1)
+                  (issue_type . "convoy")
+                  (owner . "roman@burningswell.com")
+                  (created_at . "2026-09-24T11:24:28Z")
+                  (created_by . "core__control-dispatcher")
+                  (updated_at . "2026-09-24T11:24:28Z")
+                  (metadata . ((gc.drain_count . "8")
+                               (gc.synthetic_kind . "drain-unit-convoy")))
+                  (comment_count . 0)
+                  (dependency_count . 0)
+                  (dependent_count . 0)
+                  (revision . "3")))))
+    ;; `convoy' is a live gc issue type outside the bd schema enum; the
+    ;; parser is schema-shape-driven and must not drop or reject it.
+    (should (string= (oref issue issue-type) "convoy"))
+    (should (string= (oref issue revision) "3"))
+    (should (string= (alist-get 'gc.drain_count (oref issue metadata)) "8"))
+    (should (= (oref issue comment-count) 0))))
 
 (provide 'beads-types-test)
 ;;; beads-types-test.el ends here
