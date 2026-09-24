@@ -18,6 +18,23 @@ rest of the audit's category-2 list).  New commands are registered on
 the main/ops/advanced menus.  The command-parity drift gate now passes
 against live `bd 1.3.0`.
 
+### Show buffer: full terminal `bd show` section parity
+
+The show buffer now renders every section terminal `bd show` displays
+for any bead: a METADATA map (sorted keys, clickable issue-id values),
+LABELS badges, a LEASE section (expiry with relative time, heartbeat,
+granting node), TRACKS / TRACKED BY sections for `tracks`-type edges
+in both directions, a COMMENTS section rendering full comment threads
+(the interactive show path now requests `--include-comments`), and —
+on closed beads — a CLOSE REASON section plus an `Outcome:` header
+line sourced from the `gc.outcome` metadata key.  DESCRIPTION, DESIGN,
+ACCEPTANCE CRITERIA and NOTES body sections are always rendered: an
+empty section shows a dim "(none)" placeholder under its header
+instead of being silently skipped, so the section inventory is
+identical for every bead.  An absent `labels` key and an explicitly
+empty label list render identically.  `beads-show-next-section` and
+`beads-show-previous-section` return nil when no section is found.
+>>>>>>> e926c10 (docs(news): show-buffer full terminal bd show section parity)
 ### Eldoc: asynchronous, base-36 ids, terminal buffers
 
 `beads-eldoc-mode` no longer runs `bd show` synchronously: it used to
