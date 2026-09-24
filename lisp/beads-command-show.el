@@ -306,6 +306,13 @@ Set to nil to disable truncation."
   "Face for dependency arrows (→, ↳)."
   :group 'beads-show)
 
+(defface beads-show-none-face
+  '((t :inherit shadow :slant italic))
+  "Face for the dim \"(none)\" empty-section placeholder.
+Every show-buffer section is always rendered; when a section has no
+content this placeholder is shown under the section header so the
+section inventory is identical for every issue.")
+
 ;;; Constants
 
 (defconst beads-show-issue-id-regexp beads-issue-id-regexp
@@ -841,21 +848,168 @@ Optional VALUE-FACE can be used for custom face."
                        'face (or value-face 'beads-show-value-face))))
   (insert "\n"))
 
+(defun beads-show--insert-none-line ()
+  "Insert the dim \"(none)\" empty-section placeholder line.
+The placeholder is the one consistent empty-section presentation
+used by every section in the show buffer (see
+`beads-show--insert-section-with')."
+  (insert "  ")
+  (insert (propertize "(none)" 'face 'beads-show-none-face))
+  (insert "\n"))
+
+(defun beads-show--insert-section-with (title renderer)
+  "Insert a section with TITLE and a body produced by RENDERER.
+RENDERER is a function that inserts the section body; when it
+inserts nothing, a dim \"(none)\" placeholder line is used instead
+so empty sections are visibly consistent rather than silently
+skipped.  Section header is uppercase without underline, matching
+DEPENDS ON style."
+  (insert beads-show-section-separator)
+  (insert (propertize (upcase title) 'face 'beads-show-header-face))
+  (insert "\n\n")
+  (let ((start (point)))
+    (funcall renderer)
+    (when (= (point) start)
+      (beads-show--insert-none-line))))
+
 (defun beads-show--insert-section (title content)
   "Insert a section with TITLE and CONTENT.
-CONTENT can be a string or nil (empty sections are skipped).
-Section header is uppercase without underline, matching DEPENDS ON style."
-  (when (and content (not (string-empty-p (string-trim content))))
-    (insert beads-show-section-separator)
-    (insert (propertize (upcase title) 'face 'beads-show-header-face))
-    (insert "\n\n")
-    (let ((start (point)))
-      (insert content)
-      (insert "\n")
-      ;; Apply markdown-like fontification
-      (beads-show--fontify-markdown start (point))
-      ;; Make issue references clickable
-      (beads-show--buttonize-references start (point)))))
+CONTENT is a string or nil.  The section is always rendered: when
+CONTENT is nil or blank a dim \"(none)\" placeholder is inserted
+under the header.  Content is fontified like markdown and issue
+references are made clickable."
+  (beads-show--insert-section-with title
+    (lambda ()
+      (when (and content (not (string-empty-p (string-trim content))))
+        (let ((start (point)))
+          (insert content)
+          (insert "\n")
+          ;; Apply markdown-like fontification
+          (beads-show--fontify-markdown start (point))
+          ;; Make issue references clickable
+          (beads-show--buttonize-references start (point)))))))
+
+(defun beads-show--insert-labels (labels)
+  "Insert the LABELS section as visually distinct badges.
+A nil LABELS (the absent `labels' JSON key) and an empty label list
+are rendered identically — the dim \"(none)\" placeholder — so the
+two shapes get consistent treatment."
+  (beads-show--insert-section-with "Labels"
+    (lambda ()
+      (when (and labels (not (seq-empty-p labels)))
+        (insert "  ")
+        (let ((first t))
+          (dolist (label labels)
+            (unless first (insert " "))
+            (insert (propertize (format "[%s]" label)
+                                'face 'beads-show-label-tag-face))
+            (setq first nil)))
+        (insert "\n")))))
+
+(defun beads-show--insert-metadata-section (metadata)
+  "Insert the METADATA map section for the METADATA alist.
+Keys are rendered sorted; string values verbatim, other JSON scalar
+values via their printed representation.  Nil METADATA (the absent
+`metadata' key) renders the dim \"(none)\" placeholder."
+  (beads-show--insert-section-with "Metadata"
+    (lambda ()
+      (when metadata
+        (let ((start (point)))
+          (dolist (pair (sort (copy-sequence metadata)
+                              (lambda (a b)
+                                (string< (beads-show--key-string (car a))
+                                         (beads-show--key-string (car b))))))
+            (insert "  ")
+            (insert (propertize (beads-show--key-string (car pair))
+                                'face 'beads-show-label-face))
+            (insert ": ")
+            (insert (beads-show--format-metadata-value (cdr pair)))
+            (insert "\n"))
+          (beads-show--buttonize-references start (point)))))))
+
+(defun beads-show--format-metadata-value (value)
+  "Format a METADATA map VALUE for display.
+Strings are shown verbatim; numbers and other scalars via their
+printed representation; a nil value (JSON false/null after
+coercion) shows as \"false\"; nested objects show as printed Elisp.
+Issue-id-looking values become clickable via the caller's
+buttonizing pass."
+  (cond
+   ((stringp value) value)
+   ((numberp value) (format "%s" value))
+   ((null value) "false")
+   (t (format "%s" value))))
+
+(defun beads-show--key-string (key)
+  "Return KEY as a display/lookup string.
+JSON object keys arrive interned as symbols (e.g. \"gc.outcome\" →
+the symbol named \"gc.outcome\"); `symbol-name' keeps dots intact
+while `format' would escape them (\"gc\\.outcome\")."
+  (if (symbolp key) (symbol-name key) (format "%s" key)))
+
+(defun beads-show--metadata-value (metadata key)
+  "Return the METADATA alist value whose key prints as the string KEY.
+JSON object keys are interned as symbols (e.g. \"gc.outcome\" → the
+symbol named \"gc.outcome\"), so comparison goes through the key's
+printed representation."
+  (when metadata
+    (cdr (cl-assoc key metadata
+                   :test (lambda (a b)
+                           (equal (beads-show--key-string a)
+                                  (beads-show--key-string b)))))))
+
+(defun beads-show--duration-label (minutes)
+  "Format MINUTES as a short human duration (\"4 mins\", \"2.5 hours\")."
+  (cond
+   ((< minutes 60) (format "%d min%s" minutes (if (= minutes 1) "" "s")))
+   ((< minutes 1440) (format "%.1f hours" (/ minutes 60.0)))
+   (t (format "%.1f days" (/ minutes 1440.0)))))
+
+(defun beads-show--relative-time-label (iso &optional future-p)
+  "Return a relative-time label for ISO timestamp string ISO.
+FUTURE-P non-nil renders time until (\"in 4 mins\"); otherwise time
+since (\"5 mins ago\", \"just now\").  Returns nil when ISO is nil
+or unparseable."
+  (let ((secs (when iso
+                (condition-case nil
+                    (round (- (float-time (date-to-time iso))
+                              (float-time (current-time))))
+                  (error nil)))))
+    (when secs
+      (let* ((abs (abs secs))
+             (minutes (round (/ abs 60.0))))
+        (cond
+         ((< abs 60) (if future-p "imminent" "just now"))
+         (future-p (format "in %s" (beads-show--duration-label minutes)))
+         (t (format "%s ago" (beads-show--duration-label minutes))))))))
+
+(defun beads-show--insert-lease-section (lease-expires-at heartbeat-at
+                                         lease-granted-node)
+  "Insert the LEASE section.
+LEASE-EXPIRES-AT, HEARTBEAT-AT and LEASE-GRANTED-NODE come from the
+issue's lease fields; when none is set (the common case for plain
+issues) the dim \"(none)\" placeholder is rendered."
+  (beads-show--insert-section-with "Lease"
+    (lambda ()
+      (when (or lease-expires-at heartbeat-at lease-granted-node)
+        (when lease-expires-at
+          (insert "  Expires: ")
+          (insert (beads-show--format-date lease-expires-at))
+          (let ((rel (beads-show--relative-time-label lease-expires-at t)))
+            (when rel
+              (insert (propertize (format " (%s)" rel) 'face 'shadow))))
+          (insert "\n"))
+        (when heartbeat-at
+          (insert "  Heartbeat: ")
+          (insert (beads-show--format-date heartbeat-at))
+          (let ((rel (beads-show--relative-time-label heartbeat-at)))
+            (when rel
+              (insert (propertize (format " (%s)" rel) 'face 'shadow))))
+          (insert "\n"))
+        (when lease-granted-node
+          (insert "  Granted by: ")
+          (insert lease-granted-node)
+          (insert "\n"))))))
 
 (defun beads-show--agent-session-state (active issue-outcome)
   "Return the display state symbol for an agent session.
@@ -1323,19 +1477,6 @@ Returns a two-line string:
      ;; Line 2: metadata
      (string-join meta-parts "  "))))
 
-(defun beads-show--insert-labels (labels)
-  "Insert LABELS as visually distinct badges."
-  (when labels
-    (insert (propertize "Labels" 'face 'beads-show-label-face))
-    (insert ": ")
-    (let ((first t))
-      (dolist (label labels)
-        (unless first (insert " "))
-        (insert (propertize (format "[%s]" label)
-                           'face 'beads-show-label-tag-face))
-        (setq first nil)))
-    (insert "\n")))
-
 (defun beads-show--insert-dependency-line (dep-id title status priority arrow)
   "Insert a dependency/dependent line with ARROW prefix.
 DEP-ID is the issue ID, TITLE is the issue title, STATUS and PRIORITY
@@ -1438,64 +1579,139 @@ Format matches CLI: ← ○ ID: (TYPE) Title ● P#"
     (insert "\n")))
 
 (defun beads-show--insert-dependencies-section (dependencies)
-  "Insert DEPENDS ON section for blocking DEPENDENCIES.
+  "Insert the DEPENDS ON section for blocking DEPENDENCIES.
 Uses dependency info from bd show --json output directly,
 avoiding N+1 queries.  The dependency objects from bd show include
-full issue details (title, status, priority)."
-  (when dependencies
-    ;; Filter for blocking dependencies (blocks and parent-child types)
-    (let ((blocking-deps (seq-filter
-                          (lambda (dep)
-                            (let ((type (oref dep type)))
-                              (or (string= type "blocks")
-                                  (string= type "parent-child"))))
-                          dependencies)))
-      (when blocking-deps
-        (insert beads-show-section-separator)
-        (insert (propertize "DEPENDS ON" 'face 'beads-show-header-face))
-        (insert "\n\n")
-        (dolist (dep blocking-deps)
-          ;; Use dependency info directly from bd show --json
-          ;; which includes full issue details via IssueWithDependencyMetadata
-          (let ((dep-id (oref dep depends-on-id))
-                (title (oref dep title))
-                (status (oref dep status))
-                (priority (oref dep priority)))
-            (beads-show--insert-dependency-line
-             dep-id title (or status "unknown") priority "→")))))))
+full issue details (title, status, priority).  The section is
+always rendered; no blocking dependencies shows the dim \"(none)\"
+placeholder."
+  (beads-show--insert-section-with "Depends On"
+    (lambda ()
+      ;; Filter for blocking dependencies (blocks and parent-child types)
+      (dolist (dep (seq-filter
+                    (lambda (dep)
+                      (let ((type (oref dep type)))
+                        (or (string= type "blocks")
+                            (string= type "parent-child"))))
+                    dependencies))
+        ;; Use dependency info directly from bd show --json
+        ;; which includes full issue details via IssueWithDependencyMetadata
+        (let ((dep-id (oref dep depends-on-id))
+              (title (oref dep title))
+              (status (oref dep status))
+              (priority (oref dep priority)))
+          (beads-show--insert-dependency-line
+           dep-id title (or status "unknown") priority "→"))))))
 
 (defun beads-show--insert-blocks-section (dependents)
   "Insert BLOCKS section showing issues blocked by this one.
 DEPENDENTS is a list of beads-dependency objects for issues that
-depend on the current issue (i.e., issues this one blocks)."
-  (when dependents
-    ;; Filter for blocking relationships (blocks and parent-child types)
-    ;; These are issues that DEPEND ON the current issue
-    (let ((blocked-issues (seq-filter
-                           (lambda (dep)
-                             (let ((type (oref dep type)))
-                               (or (string= type "blocks")
-                                   (string= type "parent-child"))))
-                           dependents)))
-      (when blocked-issues
-        (insert beads-show-section-separator)
-        (insert (propertize "BLOCKS" 'face 'beads-show-header-face))
-        (insert "\n\n")
-        (dolist (dep blocked-issues)
-          ;; For dependents, the dependent issue's ID was mapped to depends-on-id
-          ;; by beads-dependency-from-json (it uses 'id' from JSON for this)
-          (let ((dep-id (oref dep depends-on-id))
-                (title (oref dep title))
-                (status (oref dep status))
-                (priority (oref dep priority))
-                (issue-type (oref dep issue-type)))
-            (beads-show--insert-blocker-line
-             dep-id title status priority issue-type)))))))
+depend on the current issue (i.e., issues this one blocks).  The
+section is always rendered; no blockers shows the dim \"(none)\"
+placeholder."
+  (beads-show--insert-section-with "Blocks"
+    (lambda ()
+      ;; Filter for blocking relationships (blocks and parent-child types)
+      ;; These are issues that DEPEND ON the current issue
+      (dolist (dep (seq-filter
+                    (lambda (dep)
+                      (let ((type (oref dep type)))
+                        (or (string= type "blocks")
+                            (string= type "parent-child"))))
+                    dependents))
+        ;; For dependents, the dependent issue's ID was mapped to depends-on-id
+        ;; by beads-dependency-from-json (it uses 'id' from JSON for this)
+        (let ((dep-id (oref dep depends-on-id))
+              (title (oref dep title))
+              (status (oref dep status))
+              (priority (oref dep priority))
+              (issue-type (oref dep issue-type)))
+          (beads-show--insert-blocker-line
+           dep-id title status priority issue-type))))))
+
+(defun beads-show--insert-tracks-section (dependencies)
+  "Insert the TRACKS section for tracking DEPENDENCIES.
+DEPENDENCIES is the issue's dependency list; deps whose type is
+\"tracks\" are links this issue tracks forward (rendered with the →
+arrow).  Empty shows the dim \"(none)\" placeholder."
+  (beads-show--insert-section-with "Tracks"
+    (lambda ()
+      (dolist (dep (seq-filter
+                    (lambda (dep) (equal (oref dep type) "tracks"))
+                    dependencies))
+        (beads-show--insert-dependency-line
+         (oref dep depends-on-id)
+         (oref dep title)
+         (or (oref dep status) "unknown")
+         (oref dep priority)
+         "→")))))
+
+(defun beads-show--insert-tracked-by-section (dependents)
+  "Insert the TRACKED BY section for reverse tracking links.
+DEPENDENTS is the issue's dependents list; dependents whose edge
+type is \"tracks\" are beads that track this one (rendered with the
+← arrow).  Empty shows the dim \"(none)\" placeholder."
+  (beads-show--insert-section-with "Tracked By"
+    (lambda ()
+      (dolist (dep (seq-filter
+                    (lambda (dep) (equal (oref dep type) "tracks"))
+                    dependents))
+        (beads-show--insert-blocker-line
+         (oref dep depends-on-id)
+         (oref dep title)
+         (oref dep status)
+         (oref dep priority)
+         (oref dep issue-type))))))
+
+(defun beads-show--insert-comment (comment)
+  "Insert one COMMENT thread entry (author, date, indented body)."
+  (let ((author (oref comment author))
+        (date (oref comment created-at))
+        (text (or (oref comment text) "")))
+    (insert "  ")
+    (insert (propertize (or author "unknown")
+                        'face 'font-lock-constant-face))
+    (insert (propertize (format "  %s" (beads-show--format-date date))
+                        'face 'shadow))
+    (insert "\n")
+    (dolist (line (split-string text "\n"))
+      (insert "    ")
+      (let ((start (point)))
+        (insert line)
+        (insert "\n")
+        (beads-show--fontify-markdown start (point))
+        (beads-show--buttonize-references start (point))))
+    (insert "\n")))
+
+(defun beads-show--insert-comments-section (comments &optional count omitted)
+  "Insert the COMMENTS section for the issue's comment threads.
+COMMENTS is a list of `beads-comment' objects; COUNT is the issue's
+comment_count; OMITTED is the comments-omitted flag (comment
+bodies were not fetched).  When comments are omitted but COUNT is
+positive, a dim note is shown instead of silently hiding the
+thread; with no comments at all the dim \"(none)\" placeholder is
+used."
+  (beads-show--insert-section-with "Comments"
+    (lambda ()
+      (cond
+       ((and comments (not (seq-empty-p comments)))
+        (dolist (comment comments)
+          (beads-show--insert-comment comment)))
+       (omitted
+        (insert "  ")
+        (insert (propertize (format "(%s comments omitted)"
+                                    (or count "?"))
+                            'face 'beads-show-none-face))
+        (insert "\n"))))))
 
 (defun beads-show--render-issue (issue)
   "Render ISSUE data into current buffer.
 ISSUE must be a `beads-issue' EIEIO object.
-Section order matches CLI: DEPENDS ON → CHILDREN → BLOCKS → text sections."
+Section order matches the terminal `bd show' layout: header (with
+close/outcome lines on closed beads) → body sections → METADATA →
+LABELS → LEASE → dependency sections → COMMENTS.  Every section is
+always rendered; an empty one shows a dim \"(none)\" placeholder so
+the section inventory is consistent for any bead."
   (let ((inhibit-read-only t)
         (id (oref issue id))
         (title (oref issue title))
@@ -1503,14 +1719,23 @@ Section order matches CLI: DEPENDS ON → CHILDREN → BLOCKS → text sections.
         (priority (oref issue priority))
         (type (oref issue issue-type))
         (created (oref issue created-at))
+        (started (oref issue started-at))
         (updated (oref issue updated-at))
         (closed (oref issue closed-at))
         (assignee (oref issue assignee))
         (owner (oref issue created-by))
         (external-ref (oref issue external-ref))
+        (close-reason (oref issue close-reason))
+        (metadata (oref issue metadata))
         (labels (oref issue labels))
+        (lease-expires-at (oref issue lease-expires-at))
+        (heartbeat-at (oref issue heartbeat-at))
+        (lease-granted-node (oref issue lease-granted-node))
         (dependencies (oref issue dependencies))
         (dependents (oref issue dependents))
+        (comments (oref issue comments))
+        (comment-count (oref issue comment-count))
+        (comments-omitted (oref issue comments-omitted))
         (description (oref issue description))
         (acceptance (oref issue acceptance-criteria))
         (design (oref issue design))
@@ -1524,9 +1749,13 @@ Section order matches CLI: DEPENDS ON → CHILDREN → BLOCKS → text sections.
     (insert (beads-show--format-title-line id title status priority type owner))
     (insert "\n\n")  ; Blank line after header
 
-    ;; Created/Updated line - use short dates with help-echo for full timestamp
+    ;; Created/Started/Updated line - use short dates with help-echo for full
+    ;; timestamp
     (insert (propertize "Created: " 'face 'shadow))
     (insert (beads-show--format-date created t))
+    (when (and started (not (string-empty-p started)))
+      (insert (propertize "  Started: " 'face 'shadow))
+      (insert (beads-show--format-date started t)))
     (insert (propertize "  Updated: " 'face 'shadow))
     (insert (beads-show--format-date updated t))
     (when (and closed (not (string-empty-p closed)))
@@ -1542,25 +1771,46 @@ Section order matches CLI: DEPENDS ON → CHILDREN → BLOCKS → text sections.
     (when external-ref
       (beads-show--insert-header "External Ref" external-ref))
 
-    ;; Labels section
+    ;; Close reason/outcome header lines on closed beads.
+    ;; The outcome comes from the metadata map (gc.outcome); the close
+    ;; reason gets its own section like the terminal render.
+    (when (equal status "closed")
+      (let ((outcome (beads-show--metadata-value metadata "gc.outcome")))
+        (when outcome
+          (beads-show--insert-header "Outcome" outcome)))
+      (beads-show--insert-section "Close Reason" close-reason))
+
+    ;; Body sections (always rendered; empty ones show dim "(none)")
+    (beads-show--insert-section "Description" description)
+    (beads-show--insert-section "Design" design)
+    (beads-show--insert-section "Acceptance Criteria" acceptance)
+    (beads-show--insert-section "Notes" notes)
+
+    ;; Metadata map, labels, lease
+    (beads-show--insert-metadata-section metadata)
     (beads-show--insert-labels labels)
+    (beads-show--insert-lease-section lease-expires-at heartbeat-at
+                                     lease-granted-node)
 
     ;; === Section order matches CLI ===
     ;; 1. DEPENDS ON - what this issue depends on
     (beads-show--insert-dependencies-section dependencies)
 
-    ;; 2. CHILDREN - sub-issues for epics (with progress bar)
+    ;; 2. CHILDREN - sub-issues for epics (with progress bar); only fetched
+    ;;    for epics, so the section is epic-only like the terminal render
     (when (equal type "epic")
       (beads-show--insert-sub-issues-section id))
 
     ;; 3. BLOCKS - issues blocked by this one
     (beads-show--insert-blocks-section dependents)
 
-    ;; Text sections
-    (beads-show--insert-section "Description" description)
-    (beads-show--insert-section "Acceptance Criteria" acceptance)
-    (beads-show--insert-section "Design" design)
-    (beads-show--insert-section "Notes" notes)
+    ;; 4. TRACKS / TRACKED BY - tracking links in both directions
+    (beads-show--insert-tracks-section dependencies)
+    (beads-show--insert-tracked-by-section dependents)
+
+    ;; 5. COMMENTS - full comment threads (requires --include-comments data)
+    (beads-show--insert-comments-section comments comment-count
+                                         comments-omitted)
 
     ;; Agent sessions (if any)
     (beads-show--insert-agent-section id)
@@ -1706,7 +1956,8 @@ Uses the stored project directory for command execution."
         (progn
           (beginning-of-line)
           (recenter-top-bottom 0))
-      (message "No next section"))))
+      (message "No next section")
+      nil)))
 
 (defun beads-show-previous-section ()
   "Move to the previous section in the show buffer."
@@ -1718,7 +1969,8 @@ Uses the stored project directory for command execution."
         (progn
           (beginning-of-line)
           (recenter-top-bottom 0))
-      (message "No previous section"))))
+      (message "No previous section")
+      nil)))
 
 (defun beads-show-forward-paragraph ()
   "Move forward by one paragraph."
