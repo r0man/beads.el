@@ -1404,17 +1404,20 @@ an empty :stderr."
                           :spawn-error spawn-err)))
            (run-at-time 0 nil (lambda () (reject-all err))))
          (cl-return-from beads-command--spawn-async nil))))
-      ;; Spawn-failure detection: `make-process' may return a process
-      ;; that's already dead if the binary is missing.
-      (unless (process-live-p process)
+      ;; A process that already exited DID spawn: a fast bd call (an
+      ;; early error, a tiny output) can finish before this line, and its
+      ;; sentinel still delivers the result — exit status and output
+      ;; included (a missing binary arrives as its non-zero exit).  Only
+      ;; no process at all is a spawn failure.
+      (unless (processp process)
         (cleanup-buffers)
         (decrement)
         (let ((err (list (format "Failed to spawn bd command: %s" cmd-string)
                          :command cmd-string
-                         :spawn-error 'process-died-immediately)))
+                         :spawn-error 'no-process)))
           (run-at-time 0 nil (lambda () (reject-all err))))
         (cl-return-from beads-command--spawn-async nil))
-      ;; Wire single-flight entry now that we have a live process.
+      ;; Wire single-flight entry now that we have the process.
       (when cache-key
         (puthash cache-key
                  (list :process process :waiters nil)
