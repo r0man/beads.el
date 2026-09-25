@@ -269,19 +269,15 @@ This is needed because show buffers are now named by project, not issue."
       (should (string-match-p "\\[urgent\\]" text)))))
 
 (ert-deftest beads-show-test-insert-labels-empty ()
-  "Test that absent/empty labels render the dim \"(none)\" placeholder.
+  "Test that absent/empty labels skip the section entirely.
 An absent `labels' key (nil) and an explicitly empty list get the
-same consistent empty-section treatment."
+same hide-when-empty treatment: no header and no placeholder."
   (with-temp-buffer
     (beads-show--insert-labels nil)
-    (let ((text (buffer-substring-no-properties (point-min) (point-max))))
-      (should (string-match-p "LABELS" text))
-      (should (string-match-p "(none)" text))))
+    (should (zerop (buffer-size))))
   (with-temp-buffer
     (beads-show--insert-labels '())
-    (let ((text (buffer-substring-no-properties (point-min) (point-max))))
-      (should (string-match-p "LABELS" text))
-      (should (string-match-p "(none)" text)))))
+    (should (zerop (buffer-size)))))
 
 (ert-deftest beads-show-test-insert-labels-single ()
   "Test inserting a single label."
@@ -463,13 +459,11 @@ same consistent empty-section treatment."
           (should (string-match-p "bd-blocker" text)))))))
 
 (ert-deftest beads-show-test-insert-dependencies-section-empty ()
-  "Test that empty dependencies render the dim \"(none)\" placeholder."
+  "Test that empty dependencies skip the section entirely."
   (with-temp-buffer
     (let ((inhibit-read-only t))
       (beads-show--insert-dependencies-section nil)
-      (let ((text (buffer-substring-no-properties (point-min) (point-max))))
-        (should (string-match-p "DEPENDS ON" text))
-        (should (string-match-p "(none)" text))))))
+      (should (zerop (buffer-size))))))
 
 (ert-deftest beads-show-test-insert-dependencies-section-no-blocking ()
   "Test that non-blocking dependencies leave the section empty."
@@ -480,12 +474,9 @@ same consistent empty-section treatment."
                        :depends-on-id "bd-related"
                        :type "related"))))
       (beads-show--insert-dependencies-section deps)
-      ;; related type is filtered out, leaving only the section header
-      ;; and the consistent dim "(none)" placeholder
-      (let ((text (buffer-substring-no-properties (point-min) (point-max))))
-        (should (string-match-p "DEPENDS ON" text))
-        (should (string-match-p "(none)" text))
-        (should-not (string-match-p "bd-related" text))))))
+      ;; related type is filtered out, leaving nothing to render: the
+      ;; whole section including its header is skipped
+      (should (zerop (buffer-size))))))
 
 (ert-deftest beads-show-test-insert-dependencies-section-fetch-error ()
   "Test that dependency section handles fetch errors gracefully."
@@ -625,14 +616,13 @@ same consistent empty-section treatment."
        ;; Priority shown as P2 in title line badge
        (should (string-match-p "P2" text))
        (should (string-match-p "BUG" text))
-       ;; Empty body sections are always rendered with the dim "(none)"
-       ;; placeholder, so the section inventory is consistent for any bead
-       (should (string-match-p "DESCRIPTION" text))
-       (should (string-match-p "Acceptance Criteria" text))
-       (should (string-match-p "Design" text))
-       (should (string-match-p "Notes" text))
-       ;; The placeholder appears under each empty section
-       (should (> (beads-show-test--count-substring "(none)" text) 3))))))
+       ;; Empty body sections are skipped entirely: no headers and no
+       ;; "(none)" placeholders anywhere in the buffer
+       (should-not (string-match-p "DESCRIPTION" text))
+       (should-not (string-match-p "Acceptance Criteria" text))
+       (should-not (string-match-p "Design" text))
+       (should-not (string-match-p "Notes" text))
+       (should-not (string-match-p "(none)" text))))))
 
 (ert-deftest beads-show-test-render-closed-issue ()
   "Test rendering a closed issue with closed_at timestamp."
@@ -647,8 +637,8 @@ same consistent empty-section treatment."
        ;; Closed timestamp shown in metadata line
        (should (string-match-p "Closed:" text))))))
 
-(ert-deftest beads-show-test-render-empty-sections-placeholder ()
-  "Test that empty sections render with the dim \"(none)\" placeholder."
+(ert-deftest beads-show-test-render-empty-sections-skipped ()
+  "Test that empty sections are skipped entirely (no header, no placeholder)."
   (beads-show-test-with-temp-buffer
    (let* ((issue '((id . "bd-50")
                   (title . "No details")
@@ -664,16 +654,14 @@ same consistent empty-section treatment."
           (parsed (beads--parse-issue issue)))
      (beads-show--render-issue parsed)
      (let ((text (beads-show-test--get-buffer-text)))
-       (should (string-match-p "DESCRIPTION" text))
-       (should (string-match-p "Acceptance Criteria" text))
-       (should (string-match-p "Design" text))
-       (should (string-match-p "Notes" text))
-       ;; Every empty section gets the same dim placeholder
-       (should (> (beads-show-test--count-substring "(none)" text) 4))
-       ;; The placeholder carries the dim face (every region with the
-       ;; beads-show-none-face face in this render is placeholder text)
-       (should (beads-show-test--find-text-with-face
-                'beads-show-none-face))))))
+       (should-not (string-match-p "DESCRIPTION" text))
+       (should-not (string-match-p "Acceptance Criteria" text))
+       (should-not (string-match-p "Design" text))
+       (should-not (string-match-p "Notes" text))
+       ;; No "(none)" placeholders anywhere and no dim-face text left
+       (should-not (string-match-p "(none)" text))
+       (should-not (beads-show-test--find-text-with-face
+                    'beads-show-none-face))))))
 
 ;;; Tests for the Metadata Map Section (AC-3)
 
@@ -704,14 +692,13 @@ same consistent empty-section treatment."
        (should (< (string-match-p "gc.drain_count" text)
                   (string-match-p "gc.kind" text)))))))
 
-(ert-deftest beads-show-test-render-metadata-absent-placeholder ()
-  "Test that an absent metadata map renders the \"(none)\" placeholder."
+(ert-deftest beads-show-test-render-metadata-absent-skipped ()
+  "Test that an absent metadata map skips the METADATA section."
   (beads-show-test-with-temp-buffer
    (let ((parsed (beads--parse-issue beads-show-test--minimal-issue)))
      (beads-show--render-issue parsed)
-     (let ((text (beads-show-test--get-buffer-text)))
-       (should (string-match-p "METADATA" text))
-       (should (string-match-p "(none)" text))))))
+     (should-not (string-match-p "METADATA"
+                                 (beads-show-test--get-buffer-text))))))
 
 (ert-deftest beads-show-test-metadata-value-lookup ()
   "Test `beads-show--metadata-value' resolves symbol-keyed alists."
@@ -773,14 +760,13 @@ runs (the test executes minutes after the file was loaded, so a
          (should (string-match-p "(in [0-9.]+ mins?)" text))
          (should (string-match-p "(just now)" text)))))))
 
-(ert-deftest beads-show-test-render-lease-absent-placeholder ()
-  "Test that an issue without lease fields shows the placeholder."
+(ert-deftest beads-show-test-render-lease-absent-skipped ()
+  "Test that an issue without lease fields skips the LEASE section."
   (beads-show-test-with-temp-buffer
    (let ((parsed (beads--parse-issue beads-show-test--minimal-issue)))
      (beads-show--render-issue parsed)
-     (let ((text (beads-show-test--get-buffer-text)))
-       (should (string-match-p "LEASE" text))
-       (should (string-match-p "(none)" text))))))
+     (should-not (string-match-p "LEASE"
+                                 (beads-show-test--get-buffer-text))))))
 
 (ert-deftest beads-show-test-relative-time-label ()
   "Test `beads-show--relative-time-label' rendering."
@@ -839,15 +825,15 @@ runs (the test executes minutes after the file was loaded, so a
        (should (< (string-match-p "TRACKS" text)
                   (string-match-p "TRACKED BY" text)))))))
 
-(ert-deftest beads-show-test-render-tracks-empty-placeholder ()
-  "Test that absent tracking links render the \"(none)\" placeholder."
+(ert-deftest beads-show-test-render-tracks-empty-skipped ()
+  "Test that absent tracking links skip both tracking sections."
   (beads-show-test-with-temp-buffer
    (let ((parsed (beads--parse-issue beads-show-test--minimal-issue)))
      (beads-show--render-issue parsed)
      (let ((text (beads-show-test--get-buffer-text)))
-       (should (string-match-p "TRACKS" text))
-       (should (string-match-p "TRACKED BY" text))
-       (should (string-match-p "(none)" text))))))
+       (should-not (string-match-p "TRACKS" text))
+       (should-not (string-match-p "TRACKED BY" text))
+       (should-not (string-match-p "(none)" text))))))
 
 ;;; Tests for the Comments Section (AC-3)
 
@@ -902,14 +888,13 @@ runs (the test executes minutes after the file was loaded, so a
        (should (string-match-p "COMMENTS" text))
        (should (string-match-p "3 comments omitted" text))))))
 
-(ert-deftest beads-show-test-render-comments-none-placeholder ()
-  "Test that an issue without comments shows the \"(none)\" placeholder."
+(ert-deftest beads-show-test-render-comments-none-skipped ()
+  "Test that an issue without comments skips the COMMENTS section."
   (beads-show-test-with-temp-buffer
    (let ((parsed (beads--parse-issue beads-show-test--minimal-issue)))
      (beads-show--render-issue parsed)
-     (let ((text (beads-show-test--get-buffer-text)))
-       (should (string-match-p "COMMENTS" text))
-       (should (string-match-p "(none)" text))))))
+     (should-not (string-match-p "COMMENTS"
+                                 (beads-show-test--get-buffer-text))))))
 
 ;;; Tests for Close Reason / Outcome on Closed Beads (AC-3)
 
@@ -937,14 +922,13 @@ runs (the test executes minutes after the file was loaded, so a
        (should (string-match-p "Work completed and verified" text))
        (should (string-match-p "Outcome: pass" text))))))
 
-(ert-deftest beads-show-test-render-close-reason-empty-placeholder ()
-  "Test that a closed bead without a reason still shows the section."
+(ert-deftest beads-show-test-render-close-reason-empty-skipped ()
+  "Test that a closed bead without a reason skips the CLOSE REASON section."
   (beads-show-test-with-temp-buffer
    (let ((parsed (beads--parse-issue beads-show-test--closed-issue)))
      (beads-show--render-issue parsed)
-     (let ((text (beads-show-test--get-buffer-text)))
-       (should (string-match-p "CLOSE REASON" text))
-       (should (string-match-p "(none)" text))))))
+     (should-not (string-match-p "CLOSE REASON"
+                                 (beads-show-test--get-buffer-text))))))
 
 (ert-deftest beads-show-test-open-issue-has-no-close-reason ()
   "Test that open beads do not get a CLOSE REASON section."
@@ -957,24 +941,16 @@ runs (the test executes minutes after the file was loaded, so a
 
 ;;; Tests for the Absent-vs-Empty Labels Distinction (AC-3)
 
-(ert-deftest beads-show-test-render-labels-absent-key-placeholder ()
-  "Test that an issue without a labels key still renders a LABELS section.
-The absent key and an explicitly empty label list are rendered with
-the same dim \"(none)\" placeholder (consistent treatment)."
+(ert-deftest beads-show-test-render-labels-absent-key-skipped ()
+  "Test that an issue without a labels key skips the LABELS section.
+The absent key and an explicitly empty label list get the same
+hide-when-empty treatment: no header and no placeholder."
   (beads-show-test-with-temp-buffer
    ;; Fixture without any `labels' key at all
    (let ((parsed (beads--parse-issue beads-show-test--minimal-issue)))
      (beads-show--render-issue parsed)
-     (let ((text (beads-show-test--get-buffer-text)))
-       (should (string-match-p "LABELS" text))
-       (should (string-match-p "(none)" text))
-       ;; The placeholder under LABELS carries the dim face
-       (goto-char (string-match-p "LABELS" text))
-       (search-forward "(none)")
-       (should (memq 'beads-show-none-face
-                     (if (listp (get-text-property (- (point) 2) 'face))
-                         (get-text-property (- (point) 2) 'face)
-                       (list (get-text-property (- (point) 2) 'face)))))))))
+     (should-not (string-match-p "LABELS"
+                                 (beads-show-test--get-buffer-text))))))
 
 (ert-deftest beads-show-test-render-cursor-at-top ()
   "Test that cursor is positioned at top after rendering."

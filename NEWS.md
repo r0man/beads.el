@@ -4,6 +4,16 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### `beads show` hides empty sections
+
+Show-buffer sections with no data (empty description/design/notes,
+no dependencies, no labels, no metadata, no lease, no comments,
+…) are now skipped entirely instead of rendering a dim "(none)"
+placeholder under the header: no header, no placeholder, no noise.
+A closed bead without a close reason no longer gets a CLOSE REASON
+section either.  The "(N comments omitted)" note when comment
+bodies were not fetched is unchanged.
+
 ### Menu registration for the bd 1.3.x command additions
 
 The command transients added in the bd 1.3.x sync are now reachable

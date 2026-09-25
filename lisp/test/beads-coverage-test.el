@@ -798,12 +798,9 @@
                    (priority . 1)
                    (issue_type . "task")))))
       (beads-show--insert-blocks-section (list dep))
-      ;; Related deps are filtered out, leaving only the section header
-      ;; and the consistent dim "(none)" placeholder
-      (let ((text (buffer-substring-no-properties (point-min) (point-max))))
-        (should (string-match-p "BLOCKS" text))
-        (should (string-match-p "(none)" text))
-        (should-not (string-match-p "bd-42" text))))))
+      ;; Related deps are filtered out, leaving nothing to render: the
+      ;; whole section including its header is skipped
+      (should (zerop (buffer-size))))))
 
 ;;; ============================================================
 ;;; beads-command-show.el - In Fenced Code Block

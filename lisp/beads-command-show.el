@@ -308,10 +308,9 @@ Set to nil to disable truncation."
 
 (defface beads-show-none-face
   '((t :inherit shadow :slant italic))
-  "Face for the dim \"(none)\" empty-section placeholder.
-Every show-buffer section is always rendered; when a section has no
-content this placeholder is shown under the section header so the
-section inventory is identical for every issue.")
+  "Face for dim informational notes in the show buffer.
+Used for notes like \"(N comments omitted)\"; empty sections are
+now skipped entirely instead of showing a placeholder.")
 
 ;;; Constants
 
@@ -848,36 +847,30 @@ Optional VALUE-FACE can be used for custom face."
                        'face (or value-face 'beads-show-value-face))))
   (insert "\n"))
 
-(defun beads-show--insert-none-line ()
-  "Insert the dim \"(none)\" empty-section placeholder line.
-The placeholder is the one consistent empty-section presentation
-used by every section in the show buffer (see
-`beads-show--insert-section-with')."
-  (insert "  ")
-  (insert (propertize "(none)" 'face 'beads-show-none-face))
-  (insert "\n"))
-
 (defun beads-show--insert-section-with (title renderer)
   "Insert a section with TITLE and a body produced by RENDERER.
 RENDERER is a function that inserts the section body; when it
-inserts nothing, a dim \"(none)\" placeholder line is used instead
-so empty sections are visibly consistent rather than silently
-skipped.  Section header is uppercase without underline, matching
-DEPENDS ON style."
-  (insert beads-show-section-separator)
-  (insert (propertize (upcase title) 'face 'beads-show-header-face))
-  (insert "\n\n")
-  (let ((start (point)))
-    (funcall renderer)
-    (when (= (point) start)
-      (beads-show--insert-none-line))))
+inserts nothing the section is skipped entirely — no header and no
+placeholder — so empty sections never add noise to the show buffer.
+Section header is uppercase without underline, matching DEPENDS ON
+style."
+  (let ((section-start (point)))
+    (insert beads-show-section-separator)
+    (insert (propertize (upcase title) 'face 'beads-show-header-face))
+    (insert "\n\n")
+    (let ((body-start (point)))
+      (funcall renderer)
+      ;; Renderer inserted nothing: drop the just-inserted header so
+      ;; the empty section disappears completely.
+      (when (= (point) body-start)
+        (delete-region section-start (point))))))
 
 (defun beads-show--insert-section (title content)
   "Insert a section with TITLE and CONTENT.
-CONTENT is a string or nil.  The section is always rendered: when
-CONTENT is nil or blank a dim \"(none)\" placeholder is inserted
-under the header.  Content is fontified like markdown and issue
-references are made clickable."
+CONTENT is a string or nil.  When CONTENT is nil or blank the
+section is skipped entirely — no header and no placeholder.  When
+present, content is fontified like markdown and issue references
+are made clickable."
   (beads-show--insert-section-with title
     (lambda ()
       (when (and content (not (string-empty-p (string-trim content))))
@@ -892,8 +885,7 @@ references are made clickable."
 (defun beads-show--insert-labels (labels)
   "Insert the LABELS section as visually distinct badges.
 A nil LABELS (the absent `labels' JSON key) and an empty label list
-are rendered identically — the dim \"(none)\" placeholder — so the
-two shapes get consistent treatment."
+are rendered identically — the section is skipped entirely."
   (beads-show--insert-section-with "Labels"
     (lambda ()
       (when (and labels (not (seq-empty-p labels)))
@@ -910,7 +902,7 @@ two shapes get consistent treatment."
   "Insert the METADATA map section for the METADATA alist.
 Keys are rendered sorted; string values verbatim, other JSON scalar
 values via their printed representation.  Nil METADATA (the absent
-`metadata' key) renders the dim \"(none)\" placeholder."
+`metadata' key) skips the section entirely."
   (beads-show--insert-section-with "Metadata"
     (lambda ()
       (when metadata
@@ -987,8 +979,8 @@ or unparseable."
                                          lease-granted-node)
   "Insert the LEASE section.
 LEASE-EXPIRES-AT, HEARTBEAT-AT and LEASE-GRANTED-NODE come from the
-issue's lease fields; when none is set (the common case for plain
-issues) the dim \"(none)\" placeholder is rendered."
+ISSUE's lease fields; when none is set (the common case for plain
+issues) the section is skipped entirely."
   (beads-show--insert-section-with "Lease"
     (lambda ()
       (when (or lease-expires-at heartbeat-at lease-granted-node)
@@ -1585,8 +1577,7 @@ Format matches CLI: ← ○ ID: (TYPE) Title ● P#"
 Uses dependency info from bd show --json output directly,
 avoiding N+1 queries.  The dependency objects from bd show include
 full issue details (title, status, priority).  The section is
-always rendered; no blocking dependencies shows the dim \"(none)\"
-placeholder."
+skipped when there are no blocking dependencies."
   (beads-show--insert-section-with "Depends On"
     (lambda ()
       ;; Filter for blocking dependencies (blocks and parent-child types)
@@ -1609,8 +1600,7 @@ placeholder."
   "Insert BLOCKS section showing issues blocked by this one.
 DEPENDENTS is a list of beads-dependency objects for issues that
 depend on the current issue (i.e., issues this one blocks).  The
-section is always rendered; no blockers shows the dim \"(none)\"
-placeholder."
+section is skipped when there are no blockers."
   (beads-show--insert-section-with "Blocks"
     (lambda ()
       ;; Filter for blocking relationships (blocks and parent-child types)
@@ -1635,7 +1625,7 @@ placeholder."
   "Insert the TRACKS section for tracking DEPENDENCIES.
 DEPENDENCIES is the issue's dependency list; deps whose type is
 \"tracks\" are links this issue tracks forward (rendered with the →
-arrow).  Empty shows the dim \"(none)\" placeholder."
+arrow).  Empty means the whole section is skipped."
   (beads-show--insert-section-with "Tracks"
     (lambda ()
       (dolist (dep (seq-filter
@@ -1652,7 +1642,7 @@ arrow).  Empty shows the dim \"(none)\" placeholder."
   "Insert the TRACKED BY section for reverse tracking links.
 DEPENDENTS is the issue's dependents list; dependents whose edge
 type is \"tracks\" are beads that track this one (rendered with the
-← arrow).  Empty shows the dim \"(none)\" placeholder."
+← arrow).  Empty means the whole section is skipped."
   (beads-show--insert-section-with "Tracked By"
     (lambda ()
       (dolist (dep (seq-filter
@@ -1691,8 +1681,7 @@ COMMENTS is a list of `beads-comment' objects; COUNT is the issue's
 comment_count; OMITTED is the comments-omitted flag (comment
 bodies were not fetched).  When comments are omitted but COUNT is
 positive, a dim note is shown instead of silently hiding the
-thread; with no comments at all the dim \"(none)\" placeholder is
-used."
+thread; with no comments at all the section is skipped entirely."
   (beads-show--insert-section-with "Comments"
     (lambda ()
       (cond
@@ -1711,9 +1700,9 @@ used."
 ISSUE must be a `beads-issue' EIEIO object.
 Section order matches the terminal `bd show' layout: header (with
 close/outcome lines on closed beads) → body sections → METADATA →
-LABELS → LEASE → dependency sections → COMMENTS.  Every section is
-always rendered; an empty one shows a dim \"(none)\" placeholder so
-the section inventory is consistent for any bead."
+LABELS → LEASE → dependency sections → COMMENTS.  Empty sections
+are skipped entirely — no header and no placeholder — so the show
+buffer only shows sections that have data."
   (let ((inhibit-read-only t)
         (id (oref issue id))
         (title (oref issue title))
@@ -1782,7 +1771,7 @@ the section inventory is consistent for any bead."
           (beads-show--insert-header "Outcome" outcome)))
       (beads-show--insert-section "Close Reason" close-reason))
 
-    ;; Body sections (always rendered; empty ones show dim "(none)")
+    ;; Body sections (empty ones are skipped entirely)
     (beads-show--insert-section "Description" description)
     (beads-show--insert-section "Design" design)
     (beads-show--insert-section "Acceptance Criteria" acceptance)
