@@ -477,7 +477,7 @@ rows do not wrap to a continuation line in narrow / side-by-side splits."
       (kill-buffer tmp))))
 
 (ert-deftest beads-dashboard-test-magit-keys-bound ()
-  "`g', `r', `q', `c', `b', `RET', `TAB' have Magit-idiomatic bindings."
+  "`g', `r', `q', `c', `b', `RET' bind as before; `TAB'/`SPC' are §5.4 things."
   :tags '(:unit)
   (should (eq (lookup-key beads-dashboard-mode-map (kbd "g"))
               #'beads-dashboard-refresh-dispatch))
@@ -492,7 +492,15 @@ rows do not wrap to a continuation line in narrow / side-by-side splits."
   (should (eq (lookup-key beads-dashboard-mode-map (kbd "RET"))
               #'beads-dashboard-visit-at-point))
   (should (eq (lookup-key beads-dashboard-mode-map (kbd "TAB"))
-              #'beads-dashboard-toggle-section)))
+              #'beads-thing-forward))
+  (should (eq (lookup-key beads-dashboard-mode-map (kbd "<tab>"))
+              #'beads-thing-forward))
+  (should (eq (lookup-key beads-dashboard-mode-map (kbd "<backtab>"))
+              #'beads-thing-backward))
+  (should (eq (lookup-key beads-dashboard-mode-map (kbd "SPC"))
+              #'beads-thing-toggle))
+  (should (eq (lookup-key beads-dashboard-mode-map (kbd "N"))
+              #'beads-dashboard-next-section)))
 
 ;;; Transient Guard
 

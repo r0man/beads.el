@@ -726,7 +726,7 @@
       (cl-letf (((symbol-function 'beads-show--extract-issue-at-point)
                  (lambda () "bd-42"))
                 ((symbol-function 'beads-show--get-or-create-buffer)
-                 (lambda (id) (generate-new-buffer "*test*")))
+                 (lambda (id &rest _) (generate-new-buffer "*test*")))
                 ((symbol-function 'beads-show-update-buffer)
                  (lambda (id buf) (setq show-called id)))
                 ((symbol-function 'display-buffer)

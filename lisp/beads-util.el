@@ -306,6 +306,21 @@ genuinely requires git (worktrees, branches, sesman sessions)."
                        (beads--find-project-root))))
     (file-name-as-directory (expand-file-name root))))
 
+(defun beads-store-resolve (directory)
+  "Return DIRECTORY as a store directory name for this Emacs, or nil.
+Nil or empty DIRECTORY yields nil.  A host-local absolute DIRECTORY
+given while `default-directory' is remote is re-prefixed with that
+remote, so a caller passing bd's view of the path (as for --directory)
+still scopes the store on the right host.  Pure string operations, no
+file I/O."
+  (when (and (stringp directory) (not (string-empty-p directory)))
+    (file-name-as-directory
+     (if (and (not (file-remote-p directory))
+              (file-name-absolute-p directory)
+              (file-remote-p default-directory))
+         (concat (file-remote-p default-directory) directory)
+       directory))))
+
 (defun beads--project-name-for-root (root)
   "Return the project name (basename) for ROOT directory.
 ROOT is a directory name (a trailing slash, as produced by

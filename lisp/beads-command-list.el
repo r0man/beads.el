@@ -49,6 +49,7 @@
 (require 'beads-types)
 (require 'transient)
 (require 'beads-prefix)
+(require 'beads-thing)
 
 ;; Forward declarations for UI code
 (declare-function beads-update "beads-command-update" (&optional issue-id))
@@ -64,6 +65,9 @@
 (declare-function beads-agent--get-issue-outcome "beads-agent-backend")
 (declare-function beads-agent-session-backend-name "beads-agent-backend")
 (declare-function beads-agent-session-type-name "beads-agent-backend")
+(declare-function beads-show--get-or-create-buffer "beads-command-show"
+                  (issue-id &optional title project-dir))
+(defvar beads-show--issue-id)
 (declare-function beads-show--find-visible-buffer "beads-command-show"
                   (&optional project-dir))
 (declare-function beads-show-update-buffer "beads-command-show"
@@ -779,11 +783,13 @@ Return buffer or nil if not found."
               (eq beads-list--command buffer-type))))
      (buffer-list))))
 
-(defun beads-list--get-or-create-buffer (buffer-type)
+(defun beads-list--get-or-create-buffer (buffer-type &optional project-dir)
   "Get or create list buffer for current project context.
 BUFFER-TYPE is a symbol: `list', `ready', `blocked', or `search'.
+PROJECT-DIR, when non-nil, is the project directory (e.g. an explicit
+store); otherwise it is resolved from `default-directory'.
 Reuses existing buffer for same project-dir (directory is identity)."
-  (let* ((project-dir (or (beads--project-root) default-directory))
+  (let* ((project-dir (or project-dir (beads--project-root) default-directory))
          (existing (beads-list--find-buffer-for-project buffer-type project-dir)))
     (or existing
         (let* ((proj-name (beads--project-name-for-root project-dir))
@@ -885,6 +891,29 @@ Thin wrapper over `beads-agent-display-format-issue-agents' so the
 issue list, dashboard, and any other surface that wants the same
 badge group render through the single shared formatter."
   (beads-agent-display-format-issue-agents issue-id))
+
+(defun beads-list--toggle-detail (&optional _thing)
+  "Toggle a detail window showing the issue at point, without selecting it.
+The `beads-thing-toggle-functions' handler of `beads-list-mode': SPC on
+a row shows the issue in another window, or closes that window when it
+already shows this issue.  Returns non-nil when it handled the row."
+  (when-let* ((id (beads-list--current-issue-id)))
+    (require 'beads-command-show)
+    (if-let* ((win (seq-find
+                    (lambda (w)
+                      (with-current-buffer (window-buffer w)
+                        (and (derived-mode-p 'beads-show-mode)
+                             (equal beads-show--issue-id id))))
+                    (window-list))))
+        (quit-window nil win)
+      (let* ((store beads-store-directory)
+             (buf (beads-show--get-or-create-buffer
+                   id nil beads-list--project-dir)))
+        (with-current-buffer buf
+          (setq-local beads-store-directory store))
+        (beads-show-update-buffer id buf)
+        (display-buffer buf '(nil (inhibit-same-window . t)))))
+    t))
 
 (defun beads-list--issue-to-entry (issue)
   "Convert ISSUE (beads-issue object) to tabulated-list entry."
@@ -1460,6 +1489,36 @@ list buffer.  This is the primary suffix for the Pattern 2
       (beads-list--refresh spec))
     (beads-list--display-buffer buffer)))
 
+;;;###autoload
+(cl-defun beads-list-issues (&key directory spec)
+  "Display issues matching SPEC in the list buffer, programmatically.
+SPEC is a `beads-issue-spec' (default `beads-list-default-spec').
+With DIRECTORY non-nil, list the bead store at DIRECTORY and scope the
+buffer to it (`beads-store-directory', see `beads-show'); without it,
+a call from a store-scoped buffer inherits its store, else the store
+resolves from `default-directory'.  This is the entry point for
+consumers; the `beads-list' transient reads its arguments later, from
+the buffer it was opened in."
+  (require 'beads-spec)
+  (beads-check-executable)
+  (let* ((store (or (beads-store-resolve directory) beads-store-directory))
+         (beads-store-directory store)
+         (default-directory (or store default-directory))
+         (caller-dir default-directory)
+         (project-dir (or store (beads--project-root) default-directory))
+         (buffer (beads-list--get-or-create-buffer 'list project-dir)))
+    (with-current-buffer buffer
+      (unless (derived-mode-p 'beads-list-mode)
+        (beads-list-mode))
+      (setq beads-list--project-dir project-dir)
+      (setq beads-list--branch (beads-git-get-branch))
+      (setq beads-list--proj-name (beads--project-name-for-root project-dir))
+      (setq default-directory caller-dir)
+      (setq-local beads-store-directory store)
+      (beads-list--refresh spec))
+    (beads-list--display-buffer buffer)
+    buffer))
+
 (defun beads-list-ready-suffix ()
   "List ready (unblocked) issues.
 This is a convenience suffix in the `beads-list' transient."
@@ -1755,6 +1814,10 @@ Uses an idle timer to debounce rapid navigation, similar to
     ;; Sesman session management (CIDER/ESS convention)
     (define-key map (kbd "C-c C-s") beads-sesman-map)
 
+    ;; TAB/S-TAB move by row, SPC toggles the detail window
+    ;; (dashboard-v3 §5.4); replaces tabulated-list's SPC = next-line.
+    (beads-thing-define-keys map)
+
     ;; Bulk operations (like Magit) - create prefix map for B
     (let ((bulk-map (make-sparse-keymap)))
       (define-key bulk-map (kbd "s") #'beads-list-bulk-update-status)
@@ -1783,19 +1846,26 @@ Uses an idle timer to debounce rapid navigation, similar to
   (setq tabulated-list-sort-key (cons "Updated" t))
   (tabulated-list-init-header)
   (hl-line-mode 1)
-  (beads-pager-mode 1))
+  (beads-pager-mode 1)
+  (add-hook 'beads-thing-toggle-functions #'beads-list--toggle-detail nil t))
 
 ;;; Public Commands
 
 ;;;###autoload
-(defun beads-ready ()
+(cl-defun beads-ready (&key directory)
   "Display ready Beads issues in a tabulated list.
-Uses directory-aware buffer identity: same project = same buffer."
+Uses directory-aware buffer identity: same project = same buffer.
+With DIRECTORY non-nil, list the bead store at DIRECTORY and scope the
+buffer to it (`beads-store-directory', see `beads-show'); without it,
+a call from a store-scoped buffer inherits its store."
   (interactive)
   (beads-check-executable)
-  (let* ((caller-dir default-directory)
-         (project-dir (or (beads--project-root) default-directory))
-         (buffer (beads-list--get-or-create-buffer 'ready))
+  (let* ((store (or (beads-store-resolve directory) beads-store-directory))
+         (beads-store-directory store)
+         (default-directory (or store default-directory))
+         (caller-dir default-directory)
+         (project-dir (or store (beads--project-root) default-directory))
+         (buffer (beads-list--get-or-create-buffer 'ready project-dir))
          (issues (beads-issue-ready)))
     (with-current-buffer buffer
       (unless (derived-mode-p 'beads-list-mode)
@@ -1805,6 +1875,7 @@ Uses directory-aware buffer identity: same project = same buffer."
       (setq beads-list--branch (beads-git-get-branch))
       (setq beads-list--proj-name (beads--project-name-for-root project-dir))
       (setq default-directory caller-dir)
+      (setq-local beads-store-directory store)
       (if (not issues)
           (progn
             (setq tabulated-list-entries nil)
@@ -1830,14 +1901,20 @@ Uses directory-aware buffer identity: same project = same buffer."
     (beads-list--display-buffer buffer)))
 
 ;;;###autoload
-(defun beads-blocked ()
+(cl-defun beads-blocked (&key directory)
   "Display blocked Beads issues in a tabulated list.
-Uses directory-aware buffer identity: same project = same buffer."
+Uses directory-aware buffer identity: same project = same buffer.
+With DIRECTORY non-nil, list the bead store at DIRECTORY and scope the
+buffer to it (`beads-store-directory', see `beads-show'); without it,
+a call from a store-scoped buffer inherits its store."
   (interactive)
   (beads-check-executable)
-  (let* ((caller-dir default-directory)
-         (project-dir (or (beads--project-root) default-directory))
-         (buffer (beads-list--get-or-create-buffer 'blocked))
+  (let* ((store (or (beads-store-resolve directory) beads-store-directory))
+         (beads-store-directory store)
+         (default-directory (or store default-directory))
+         (caller-dir default-directory)
+         (project-dir (or store (beads--project-root) default-directory))
+         (buffer (beads-list--get-or-create-buffer 'blocked project-dir))
          (issues (beads-blocked-issue-list)))
     (with-current-buffer buffer
       (unless (derived-mode-p 'beads-list-mode)
@@ -1847,6 +1924,7 @@ Uses directory-aware buffer identity: same project = same buffer."
       (setq beads-list--branch (beads-git-get-branch))
       (setq beads-list--proj-name (beads--project-name-for-root project-dir))
       (setq default-directory caller-dir)
+      (setq-local beads-store-directory store)
       (if (not issues)
           (progn
             (setq tabulated-list-entries nil)

@@ -1025,6 +1025,20 @@ Returns a string or nil if value should not be included."
   "List of slot names that are global bd CLI options.
 These slots are defined in `beads-command-global-options' class.")
 
+(defvar-local beads-store-directory nil
+  "The bead store this buffer acts on, or nil to resolve from the cwd.
+A directory name as Emacs sees it (TRAMP-prefixed for a remote store).
+Set by entry points given an explicit :directory (`beads-show',
+`beads-list-issues', `beads-ready', `beads-blocked',
+`beads-dashboard').  While such a buffer is current, every bd command
+whose `directory' slot is unset runs with --directory set to this
+store (host-local), so refreshes and in-buffer actions keep acting on
+the store the buffer was opened for, instead of whatever
+`default-directory' resolves to through bd's cwd mode (a shared Dolt
+server can misroute that).  Buffers opened from a scoped buffer
+inherit its store.")
+(put 'beads-store-directory 'permanent-local t)
+
 (defconst beads-meta--global-path-slots '(db directory)
   "Global option slots whose value is a file name on bd's own host.
 Serialized through `file-local-name': bd runs where the store lives,
@@ -1127,7 +1141,10 @@ Uses slot metadata (:long-option, :short-option, :option-type) to build args."
     (dolist (slot-name beads-meta--global-option-slots)
       (when (and (slot-exists-p command slot-name)
                  (slot-boundp command slot-name))
-        (let* ((value (eieio-oref command slot-name))
+        (let* ((value (or (eieio-oref command slot-name)
+                          ;; The buffer's store scopes unscoped commands.
+                          (and (eq slot-name 'directory)
+                               beads-store-directory)))
                (long-opt (beads-meta-slot-property class-name slot-name
                                                    :long-option))
                (option-type (or (beads-meta-slot-property class-name slot-name

@@ -34,6 +34,7 @@
 (require 'cl-lib)
 (require 'transient)
 (require 'beads-prefix)
+(require 'beads-thing)
 
 ;; Forward declarations
 (declare-function beads-show "beads-command-show")
@@ -296,7 +297,11 @@ Format: ((epic-id . (expanded-p . children)) ...)")
       (insert (propertize title 'face 'beads-epic-status-title-face))
       (insert "\n")
       ;; Add epic-id property to entire line
-      (put-text-property start (point) 'epic-id epic-id))
+      (put-text-property start (point) 'epic-id epic-id)
+      ;; A fold thing: SPC expands/collapses its children.
+      (put-text-property start (1- (point)) 'beads-thing
+                         (list :kind 'fold :id epic-id
+                               :toggle #'beads-epic-status-toggle-expand)))
     ;; Progress line
     (insert "   Progress: ")
     (let ((progress-str (format "%d/%d children closed (%d%%)"
@@ -345,7 +350,9 @@ Format: ((epic-id . (expanded-p . children)) ...)")
       (insert title)
       (insert "\n")
       ;; Add issue-id property to entire child line
-      (put-text-property start (point) 'issue-id id))))
+      (put-text-property start (point) 'issue-id id)
+      (put-text-property start (1- (point)) 'beads-thing
+                         (list :kind 'row :id id)))))
 
 ;;; Interactive Commands
 
@@ -480,10 +487,10 @@ Format: ((epic-id . (expanded-p . children)) ...)")
 
 (defvar beads-epic-status-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "SPC") #'beads-epic-status-toggle-expand)
-    (define-key map (kbd "TAB") #'beads-epic-status-next-item)
-    (define-key map (kbd "<backtab>") #'beads-epic-status-previous-item)
-    (define-key map (kbd "S-TAB") #'beads-epic-status-previous-item)
+    ;; TAB/S-TAB move by epic or child, SPC expands (dashboard-v3 §5.4)
+    (beads-thing-define-keys map)
+    (define-key map (kbd "N") #'beads-epic-status-next)
+    (define-key map (kbd "P") #'beads-epic-status-previous)
     (define-key map (kbd "RET") #'beads-epic-status-show-at-point)
     (define-key map (kbd "n") #'beads-epic-status-next)
     (define-key map (kbd "p") #'beads-epic-status-previous)

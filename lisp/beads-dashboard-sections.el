@@ -128,7 +128,9 @@ on the empty-state placeholder (none of which carry per-row keys)."
                         (if count (format " (%d)" count) "")))
          (head  (if section-key
                     (propertize head 'beads-dashboard-section-key section-key)
-                  head)))
+                  head))
+         ;; A foldable thing: SPC pushes the header button.
+         (head  (beads-thing-propertize head '(:kind section))))
     (vui-button head
       :no-decoration t
       :face 'bold

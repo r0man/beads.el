@@ -48,6 +48,7 @@
 (require 'beads-command-list)
 (require 'beads-command-ready)
 (require 'beads-types)
+(require 'beads-thing)
 
 ;;; Forward Declarations
 
@@ -75,7 +76,9 @@
 When EXTRA-PROPS is non-nil, it is a plist of additional text properties
 merged into the result (callers stamp surface-specific keys like
 `beads-dashboard-section-key' without polluting this module)."
-  (apply #'propertize str 'beads-section section extra-props))
+  ;; Every section row is also a thing for TAB/S-TAB motion.
+  (apply #'propertize str 'beads-section section 'beads-thing section
+         extra-props))
 
 (defun beads-section-issue-id-at-point ()
   "Return the issue ID at point via text property, or nil.
@@ -143,12 +146,14 @@ When ISSUES is nil this component renders nothing."
   (when issues
     (vui-vstack
      (vui-button
-      (format "%s %s (%d)"
-              (if expanded
-                  beads-section-glyph-expanded
-                beads-section-glyph-collapsed)
-              title
-              (length issues))
+      (beads-thing-propertize
+       (format "%s %s (%d)"
+               (if expanded
+                   beads-section-glyph-expanded
+                 beads-section-glyph-collapsed)
+               title
+               (length issues))
+       '(:kind section))
       :no-decoration t
       :face 'bold
       :help-echo (if expanded
@@ -165,6 +170,9 @@ When ISSUES is nil this component renders nothing."
   :parent vui-mode-map
   "RET" #'beads-section-visit-issue)
 
+;; TAB/S-TAB move by thing, SPC toggles (dashboard-v3 §5.4).
+(beads-thing-define-keys beads-section-mode-map)
+
 (define-derived-mode beads-section-mode vui-mode "Beads"
   "Major mode for browsing beads issues using vui.el.
 
@@ -173,8 +181,9 @@ keyboard navigation.  Sections are rendered by collecting vnodes
 from `beads-status-sections-hook' and mounting them via vui.
 
 Key bindings:
-  TAB     — Move to next widget (button/field)
-  S-TAB   — Move to previous widget
+  TAB     — Move to the next thing (section header or issue line)
+  S-TAB   — Move to the previous thing
+  SPC     — Toggle the thing at point (fold a section)
   RET     — Visit issue at point (on issue lines)"
   :interactive nil)
 

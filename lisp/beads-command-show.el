@@ -54,10 +54,14 @@
 (require 'transient)
 (require 'beads-prefix)
 (require 'xref)
+(require 'beads-thing)
 (require 'bookmark)
 
 ;; Forward declarations
 (declare-function org-link-set-parameters "org" (type &rest parameters))
+(declare-function outline-invisible-p "outline" (&optional pos))
+(declare-function outline-show-subtree "outline" (&optional event))
+(declare-function outline-hide-subtree "outline" (&optional event))
 (declare-function org-link-store-props "org" (&rest args))
 
 ;;; Show Command
@@ -397,12 +401,14 @@ Returns the buffer or nil if none is visible."
                                    proj-dir)))))
               (buffer-list))))
 
-(defun beads-show--get-or-create-buffer (issue-id &optional title)
+(defun beads-show--get-or-create-buffer (issue-id &optional title project-dir)
   "Get or create show buffer for ISSUE-ID.
 TITLE is used for buffer name display (truncated if too long).
+PROJECT-DIR, when non-nil, is the project directory (e.g. an explicit
+store); otherwise it is resolved from `default-directory'.
 Reuses existing buffer for same (project-dir, issue-id) pair.
 Buffer is named *beads-show[PROJECT]/ISSUE-ID TITLE*."
-  (let* ((project-dir (or (beads--project-root) default-directory))
+  (let* ((project-dir (or project-dir (beads--project-root) default-directory))
          (existing (beads-show--find-buffer-for-issue issue-id project-dir)))
     (or existing
         (let* ((proj-name (beads--project-name-for-root project-dir))
@@ -514,9 +520,8 @@ Called from `kill-buffer-hook' to clean up session state."
     ;; Reference navigation (like compilation-mode)
     (define-key map (kbd "[") #'beads-show-previous-reference)
     (define-key map (kbd "]") #'beads-show-next-reference)
-    (define-key map (kbd "TAB") #'beads-show-next-button)
-    (define-key map (kbd "<backtab>") #'beads-show-previous-button)
-    (define-key map (kbd "S-TAB") #'beads-show-previous-button)
+    ;; TAB/S-TAB/SPC: thing motion and folding (dashboard-v3 §5.4)
+    (beads-thing-define-keys map)
 
     ;; Markdown-mode-style aliases for reference navigation
     (define-key map (kbd "M-n") #'beads-show-next-reference)
@@ -1810,14 +1815,47 @@ buffer only shows sections that have data."
     ;; Footer with keybinding hints
     (insert beads-show-section-separator)
     (insert (propertize
-             "g:refresh  q:quit  RET:follow  ?:actions  M-.:xref  TAB:next"
+             "g:refresh  q:quit  RET:follow  ?:actions  M-.:xref  TAB:next  SPC:fold"
              'face 'shadow))
     (insert "\n")
 
     ;; Enable URL linkification
     (goto-address-mode 1)
 
+    (beads-show--stamp-things)
     (goto-char (point-min))))
+
+(defun beads-show--stamp-things ()
+  "Mark the section headings and buttons of this buffer as things.
+TAB/S-TAB move between them and SPC on a heading folds its section
+\(`beads-thing', dashboard-v3 §5.4)."
+  (let ((inhibit-read-only t)
+        (case-fold-search nil))
+    (save-excursion
+      (goto-char (point-min))
+      (while (re-search-forward "^[A-Z][A-Z ]+$" nil t)
+        (put-text-property (match-beginning 0) (match-end 0) 'beads-thing
+                           (list :kind 'section
+                                 :toggle #'beads-show-toggle-section)))
+      (goto-char (point-min))
+      (let (button)
+        (while (setq button (next-button (point)))
+          (put-text-property (button-start button) (button-end button)
+                             'beads-thing (list :kind 'button))
+          (goto-char (button-end button)))))))
+
+(defun beads-show-toggle-section ()
+  "Fold or unfold the section whose heading is on the current line."
+  (interactive)
+  (require 'outline)
+  ;; Headings are UPPERCASE: without this, outline's `looking-at' would
+  ;; take every capitalised body line for a heading.
+  (let ((case-fold-search nil))
+    (save-excursion
+      (forward-line 0)
+      (if (outline-invisible-p (line-end-position))
+          (outline-show-subtree)
+        (outline-hide-subtree)))))
 
 ;;; Commands
 
@@ -1831,24 +1869,33 @@ by (project-dir, issue-id) pair - each issue gets its own buffer.
 Commands are executed in the caller's directory context, ensuring
 correct project detection (important for git worktrees).
 
-With DIRECTORY non-nil, act on the bead store at DIRECTORY: the value
-is passed to bd as --directory / -C (via the `beads-command-show'
-:directory slot) instead of relying solely on `default-directory'.
-This lets a consumer scope the lookup to a specific project's store
-even when the shared Dolt server would otherwise misroute the working
-directory.  Existing one-argument callers are unaffected."
+With DIRECTORY non-nil, act on the bead store at DIRECTORY: it becomes
+the buffer's `default-directory' and `beads-store-directory', so bd is
+run there with --directory / -C (host-local) for this lookup and for
+every later refresh and action in the buffer, instead of relying on
+bd's cwd resolution (which a shared Dolt server can misroute).
+DIRECTORY may be a TRAMP name; a host-local path given while
+`default-directory' is remote is taken on that host
+\(`beads-store-resolve').  Without DIRECTORY, a call from a
+store-scoped buffer inherits its store."
   (interactive
    (list (beads-completion-read-issue "Show issue: " nil t nil
                                       'beads--issue-id-history)))
   ;; Capture caller's directory for command execution context
-  (let* ((caller-dir default-directory)
-         (project-dir (or (beads--project-root) default-directory))
+  (let* ((store (or (beads-store-resolve directory) beads-store-directory))
+         (caller-dir (or store default-directory))
+         (default-directory caller-dir)
+         ;; An explicit store is the project: no root walk (sync I/O
+         ;; over TRAMP) needed.
+         (project-dir (or store (beads--project-root) default-directory))
          ;; Get or create buffer keyed by (project-dir, issue-id)
-         (buffer (beads-show--get-or-create-buffer issue-id)))
+         (buffer (beads-show--get-or-create-buffer issue-id nil project-dir)))
     (with-current-buffer buffer
       (setq default-directory caller-dir)
       (unless (derived-mode-p 'beads-show-mode)
         (beads-show-mode))
+      ;; After the mode call: `kill-all-local-variables' would drop it.
+      (setq-local beads-store-directory store)
       ;; Update directory-aware state
       (setq beads-show--issue-id issue-id
             beads-show--project-dir project-dir
@@ -1874,7 +1921,8 @@ directory.  Existing one-argument callers are unaffected."
                               :long t
                               :include-comments t
                               :include-dependents t
-                              (when directory (list :directory directory)))))
+                              (when store
+                                (list :directory (directory-file-name store))))))
             (setq beads-show--issue-data issue)
             ;; Rename buffer to include title now that we have it
             (let* ((title (oref issue title))

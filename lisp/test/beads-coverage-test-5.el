@@ -296,7 +296,7 @@
               ((symbol-function 'beads-git-get-project-name)
                (lambda () "test"))
               ((symbol-function 'beads-show--get-or-create-buffer)
-               (lambda (_id) (setq buf (generate-new-buffer " *beads-test*"))))
+               (lambda (_id &rest _) (setq buf (generate-new-buffer " *beads-test*"))))
               ((symbol-function 'beads-show--register-with-session)
                (lambda () nil))
               ((symbol-function 'beads-execute)

@@ -169,7 +169,7 @@ strip short on the common path."
 (defun beads-dashboard--footer-vnode ()
   "Return the dashboard footer vnode (key hints)."
   (vui-text
-   "KEYS: n/p item · M-n/M-p section · TAB toggle · M-0..M-4 depth · +/-/* rows · g refresh · c claim · b blocker · a agent · RET visit · q quit"
+   "KEYS: TAB/S-TAB next/prev · SPC fold · N/P section · M-0..M-4 depth · +/-/* rows · g refresh · c claim · b blocker · a agent · RET visit · q quit"
    :face 'shadow))
 
 (defun beads-dashboard--no-project-vnode ()
@@ -894,13 +894,14 @@ one-shot way to expand everything without TAB-ing each section."
 
 (defvar-keymap beads-dashboard-mode-map
   :parent beads-section-mode-map
-  "TAB" #'beads-dashboard-toggle-section
   "g"   #'beads-dashboard-refresh-dispatch
   "r"   #'beads-dashboard-toggle-auto-refresh
   "c"   #'beads-dashboard-claim-at-point
   "b"   #'beads-dashboard-jump-to-blocker
   "n"   #'beads-dashboard-next-item
   "p"   #'beads-dashboard-previous-item
+  "N"   #'beads-dashboard-next-section
+  "P"   #'beads-dashboard-previous-section
   "M-n" #'beads-dashboard-next-section
   "M-p" #'beads-dashboard-previous-section
   ;; Bind both `RET' (TTY/C-m) and `<return>' (GUI) so visit fires in
@@ -923,6 +924,10 @@ one-shot way to expand everything without TAB-ing each section."
   ;; `beads-agent--detect-issue-id'.
   "a"   beads-agent-prefix-map
   "q"   #'quit-window)
+
+;; TAB/S-TAB move by thing, SPC folds (dashboard-v3 §5.4).  Installed
+;; here too, not only inherited: vui binds <tab> in a parent map.
+(beads-thing-define-keys beads-dashboard-mode-map)
 
 (defun beads-dashboard-refresh-dispatch (&optional arg)
   "Refresh the dashboard.  With prefix ARG, do a hard refresh.
@@ -1069,12 +1074,15 @@ With DIRECTORY non-nil, scope the board to the bead store at DIRECTORY
 instead of resolving from `default-directory'.  This is the explicit
 replacement for binding `default-directory' around a `beads-dashboard'
 call; the project root and database path are both resolved relative to
-DIRECTORY.  Existing zero-argument callers are unaffected.
+DIRECTORY, and the buffer's bd calls run with --directory
+\(`beads-store-directory').  Existing zero-argument callers are
+unaffected.
 
 Without DIRECTORY, a call from the menu of `project-switch-project'
 opens the board of the chosen project, not of the current buffer."
   (interactive)
-  (let* ((default-directory (or directory
+  (let* ((store (beads-store-resolve directory))
+         (default-directory (or store
                                 (beads-prefix-invocation-directory)))
          (root (beads-dashboard--project-root))
          (buf-name (beads-dashboard--buffer-name-for root))
@@ -1082,7 +1090,10 @@ opens the board of the chosen project, not of the current buffer."
          (db (ignore-errors (beads--get-database-path))))
     (with-current-buffer buf
       (unless (eq major-mode 'beads-dashboard-mode)
-        (beads-dashboard-mode)))
+        (beads-dashboard-mode))
+      ;; Scope every bd call of the board (loaders, refreshes, actions)
+      ;; to the explicit store, see `beads-store-directory'.
+      (setq-local beads-store-directory store))
     ;; Probe the policy lazily (cached after first run).
     (unless beads-command--policy
       (beads-command--policy-probe (lambda (_p) (ignore))))
