@@ -43,6 +43,7 @@
 (declare-function tramp-file-name-host "tramp")
 (declare-function tramp-file-name-port "tramp")
 (declare-function tramp-file-name-hop "tramp")
+(declare-function tramp-file-name-localname "tramp")
 (declare-function tramp-tramp-file-p "tramp")
 
 ;;; Cache
@@ -268,6 +269,74 @@ The ssh options are `beads-remote-ssh-mux-options'.  Signals a
          (argv (beads-remote-ssh-pipe-argv
                 dir argv (and (not (string-empty-p prefix)) prefix))))
     (append (list (car argv)) (beads-remote-ssh-mux-options) (cdr argv))))
+
+(defcustom beads-remote-sync-timeout 30
+  "Seconds a synchronous command over the ssh pipe may run."
+  :type 'natnum
+  :group 'beads)
+
+(cl-defun beads-remote-ssh-call (dir argv &key cd env out-buffer)
+  "Run ARGV on DIR's host over a local ssh pipe and wait for it.
+The synchronous twin of `beads-remote-ssh-command' (CD and ENV as
+there).  Returns (EXIT STDOUT STDERR), EXIT nil on timeout
+\(`beads-remote-sync-timeout'; the process is killed).  With
+OUT-BUFFER, stdout goes there and STDOUT is nil.  The wait polls the
+process's liveness, never waits on a dead process (whose sentinel a
+process-bound wait may not run), and does no TRAMP I/O."
+  (let* ((command (beads-remote-ssh-command dir argv :cd cd :env env))
+         (out (or out-buffer (generate-new-buffer " *beads-ssh-out*")))
+         (err (generate-new-buffer " *beads-ssh-err*"))
+         (default-directory temporary-file-directory)
+         (deadline (+ (float-time) beads-remote-sync-timeout))
+         (proc (make-process :name "beads-ssh" :buffer out :stderr err
+                             :command command :connection-type 'pipe
+                             :noquery t :file-handler nil :sentinel #'ignore)))
+    (unwind-protect
+        (progn
+          (while (and (process-live-p proc) (< (float-time) deadline))
+            (accept-process-output proc 0.05))
+          (if (process-live-p proc)
+              (progn (delete-process proc) (list nil nil nil))
+            ;; Collect what is still in flight on the pipes.
+            (accept-process-output nil 0)
+            (when-let* ((errp (get-buffer-process err)))
+              (while (and (process-live-p errp)
+                          (accept-process-output errp 0.01 nil t))))
+            (list (process-exit-status proc)
+                  (unless out-buffer
+                    (with-current-buffer out (buffer-string)))
+                  (with-current-buffer err (buffer-string)))))
+      (let ((kill-buffer-query-functions nil))
+        (unless out-buffer (kill-buffer out))
+        (kill-buffer err)))))
+
+(defconst beads-remote--find-up-script
+  (concat "d=$1; shift; while :; do for m in \"$@\"; do "
+          "if [ -e \"$d/$m\" ]; then printf '%s\\n' \"$d\"; exit 0; fi; done; "
+          "[ \"$d\" = / ] && exit 1; d=$(dirname \"$d\"); done")
+  "sh script: print the nearest directory at or above $1 holding one of $2...")
+
+(defun beads-remote-ssh-find-up (dir markers)
+  "Return the nearest directory at or above DIR holding one of MARKERS, or nil.
+DIR is a TRAMP name on an ssh-transport host; the walk runs there in
+one command over the ssh pipe (`beads-remote-ssh-call'), with no TRAMP
+I/O.  The result is a TRAMP directory name.  Signals an error when the
+host does not answer within `beads-remote-sync-timeout'."
+  (require 'tramp)
+  (let* ((vec (tramp-dissect-file-name dir))
+         (local (directory-file-name (tramp-file-name-localname vec)))
+         (result (beads-remote-ssh-call
+                  dir (append (list "sh" "-c" beads-remote--find-up-script "sh"
+                                    (if (string-empty-p local) "/" local))
+                              markers))))
+    (pcase result
+      (`(nil . ,_) (error "No answer from %s within %ss"
+                          (file-remote-p dir) beads-remote-sync-timeout))
+      (`(0 ,out . ,_)
+       (let ((found (string-trim-right out "\n")))
+         (and (not (string-empty-p found))
+              (file-name-as-directory (concat (file-remote-p dir) found)))))
+      (_ nil))))
 
 ;;; Local ssh argv for a remote host
 

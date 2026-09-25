@@ -1103,14 +1103,18 @@ opens the board of the chosen project, not of the current buffer."
          (buf (get-buffer-create buf-name))
          ;; The db path is display metadata and a directory scan; a
          ;; remote store's bd finds its database from --directory.
-         (db (unless (and store (file-remote-p store))
+         (db (unless (file-remote-p default-directory)
                (ignore-errors (beads--get-database-path)))))
     (with-current-buffer buf
       (unless (eq major-mode 'beads-dashboard-mode)
         (beads-dashboard-mode))
       ;; Scope every bd call of the board (loaders, refreshes, actions)
       ;; to the explicit store, see `beads-store-directory'.
-      (setq-local beads-store-directory store)
+      ;; A remote board without an explicit store is scoped to the
+      ;; root it resolved: bd gets --directory instead of the database
+      ;; path, which is not looked up remotely (a directory scan).
+      (setq-local beads-store-directory
+                  (or store (and root (file-remote-p root) root)))
       (setq-local beads-dashboard--root root))
     ;; Probe the policy lazily (cached after first run).
     (unless beads-command--policy

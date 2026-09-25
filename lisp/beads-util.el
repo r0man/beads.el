@@ -16,6 +16,7 @@
 
 (require 'beads-custom)
 (require 'beads-git)
+(require 'beads-remote)
 
 ;; Forward declarations for optional dependencies
 (declare-function beads-from-json "beads-types")
@@ -286,6 +287,52 @@ probed here — callers that prefer VC detection should try
     (when root
       (file-name-as-directory (expand-file-name root)))))
 
+(defvar beads--remote-root-cache (make-hash-table :test 'equal)
+  "Remote start directory -> project root, or :none.
+Root discovery on a remote directory costs one TRAMP round trip per
+marker and level; its answers, negative ones included, are remembered
+until `beads-forget-project-roots'.")
+
+(defun beads-forget-project-roots ()
+  "Forget the remembered project roots of remote directories.
+Call after creating a project (bd init) under a directory already
+looked up, or after moving one."
+  (interactive)
+  (clrhash beads--remote-root-cache))
+
+(defun beads--walk-up-for-markers (start markers)
+  "Return the nearest directory at or above START holding one of MARKERS.
+A pure-name walk (`file-name-directory' of `directory-file-name'):
+unlike `locate-dominating-file' it never calls `abbreviate-file-name',
+which stats the file system, so the only I/O is one `file-exists-p'
+per marker and level."
+  (let ((dir (file-name-as-directory start))
+        (found nil))
+    (while (and dir (not found))
+      (when (seq-some (lambda (m) (file-exists-p (concat dir m))) markers)
+        (setq found dir))
+      (let ((parent (file-name-directory (directory-file-name dir))))
+        (setq dir (and parent (not (equal parent dir)) parent))))
+    found))
+
+(defun beads--remote-project-root (dir)
+  "Return the project root of remote directory DIR, or nil; remembered.
+No VC detection (`project-current' walks and runs git over TRAMP): the
+markers of `beads-project-root-markers' plus \".git\", nearest wins.
+On an ssh-transport host the walk is one shell command over the ssh
+pipe (`beads-remote-ssh-find-up'), no TRAMP at all; elsewhere a
+pure-name walk with one `file-exists-p' per marker and level."
+  (let ((cached (gethash dir beads--remote-root-cache)))
+    (cond ((eq cached :none) nil)
+          (cached cached)
+          (t (let* ((markers (append beads-project-root-markers '(".git")))
+                    (root (if (beads-remote-ssh-pipe-p dir)
+                              ;; One command over the ssh pipe: no TRAMP.
+                              (beads-remote-ssh-find-up dir markers)
+                            (beads--walk-up-for-markers dir markers))))
+               (puthash dir (or root :none) beads--remote-root-cache)
+               root)))))
+
 (defun beads--project-root ()
   "Return the canonical project root, or nil if not in a project.
 Tries VC/git detection first via `beads-git-find-project-root'
@@ -301,10 +348,18 @@ normalized the git result itself; that work now lives here).
 
 This is the package-wide resolver: prefer it over calling
 `beads-git-find-project-root' directly, except where an operation
-genuinely requires git (worktrees, branches, sesman sessions)."
-  (when-let* ((root (or (ignore-errors (beads-git-find-project-root))
-                       (beads--find-project-root))))
-    (file-name-as-directory (expand-file-name root))))
+genuinely requires git (worktrees, branches, sesman sessions).
+
+On a remote `default-directory' no VC detection runs: the markers of
+`beads-project-root-markers' and \".git\" are looked up with a
+pure-name walk, and the answer is remembered per directory
+\(`beads--remote-project-root', `beads-forget-project-roots')."
+  (if (file-remote-p default-directory)
+      ;; Remote: a bounded, remembered marker walk (first contact only).
+      (beads--remote-project-root (file-name-as-directory default-directory))
+    (when-let* ((root (or (ignore-errors (beads-git-find-project-root))
+                         (beads--find-project-root))))
+      (file-name-as-directory (expand-file-name root)))))
 
 (defun beads-store-resolve (directory)
   "Return DIRECTORY as a store directory name for this Emacs, or nil.
@@ -448,9 +503,12 @@ take precedence over defcustom settings."
 
 (defun beads-check-executable ()
   "Check if bd executable is available.
-Returns t if found, signals error otherwise."
+Returns t if found, signals error otherwise.  On a remote store
+reached over the ssh pipe (`beads-remote-ssh-pipe-p') no probe runs:
+bd is found on the host's PATH when a command runs."
   (interactive)
-  (if (executable-find beads-executable)
+  (if (or (beads-remote-ssh-pipe-p)       ; found on the host's PATH, no probe
+          (executable-find beads-executable))
       (progn
         (when (called-interactively-p 'interactive)
           (message "Found bd executable: %s" beads-executable))

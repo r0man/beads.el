@@ -747,6 +747,31 @@ auto-starting its own instance."
 
 ;;; Base Command Execution - Non-JSON Commands
 
+(defun beads-command--ssh-sync (cmd cmd-string out-buffer stderr-file)
+  "Run bd argv CMD over the ssh pipe and wait for it; return its exit code.
+The synchronous twin of the async ssh transport: cd to the store,
+BEADS_DOLT_PORT, then bd (`beads-remote-ssh-call').  Stdout goes to
+OUT-BUFFER, stderr to the local file STDERR-FILE, as `process-file'
+would.  Signals `beads-command-error' when bd does not finish within
+`beads-remote-sync-timeout'; CMD-STRING names the command then."
+  (pcase-let ((`(,exit ,_out ,err)
+               (beads-remote-ssh-call
+                default-directory cmd
+                :cd t
+                :env (when (and (boundp 'beads-dolt-port) beads-dolt-port)
+                       (list (cons "BEADS_DOLT_PORT"
+                                   (number-to-string beads-dolt-port))))
+                :out-buffer out-buffer)))
+    (unless exit
+      (signal 'beads-command-error
+              (list (format "Command timed out after %ss"
+                            beads-remote-sync-timeout)
+                    :command cmd-string :timed-out t)))
+    (with-temp-buffer
+      (insert err)
+      (write-region nil nil stderr-file nil 'silent))
+    exit))
+
 (cl-defmethod beads-command-execute ((command beads-command))
   "Execute COMMAND and return the parsed result directly.
 Runs the bd CLI command, parses output via `beads-command-parse',
@@ -767,7 +792,9 @@ Signals `beads-json-parse-error' if JSON parsing fails (for JSON commands)."
                     :error errors))))
 
   ;; Build full command line
-  (let* ((cmd (beads-command-line command))
+  (let* ((ssh (beads-remote-ssh-pipe-p))
+         (cmd (let ((beads-command--ssh-pipe ssh))
+                (beads-command-line command)))
          (cmd-string (mapconcat #'shell-quote-argument cmd " "))
          (stderr-file (make-temp-file "beads-stderr-"))
          (start-time (current-time)))
@@ -779,10 +806,16 @@ Signals `beads-json-parse-error' if JSON parsing fails (for JSON commands)."
     (unwind-protect
         (with-temp-buffer
           (let* ((process-environment (beads-command--process-environment))
-                 (proc-exit-code (apply #'process-file
-                                        (car cmd) nil
-                                        (list (current-buffer) stderr-file)
-                                        nil (cdr cmd)))
+                 (proc-exit-code
+                  (if ssh
+                      ;; Remote over the ssh pipe: no TRAMP, no
+                      ;; executable probe (bd is found on the host).
+                      (beads-command--ssh-sync cmd cmd-string
+                                               (current-buffer) stderr-file)
+                    (apply #'process-file
+                           (car cmd) nil
+                           (list (current-buffer) stderr-file)
+                           nil (cdr cmd))))
                  (end-time (current-time))
                  (elapsed (float-time (time-subtract end-time start-time)))
                  (proc-stdout (buffer-string))

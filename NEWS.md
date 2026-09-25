@@ -53,6 +53,16 @@ host-local path is taken on the caller's host.
   and `beads-remote-ssh-control-path`.  The pipes run with `-n` and
   `-o ForwardX11=no`.  ssh runs in BatchMode: key or agent
   authentication (or an open master) is required.
+- Opening a remote store does no TRAMP I/O on an ssh-transport host.
+  The project root is found by one shell command over the ssh pipe
+  (markers `beads-project-root-markers` and `.git`, no VC walk) and
+  remembered per directory, negative answers included
+  (`beads-forget-project-roots` clears them).  A remote dashboard
+  without `:directory` is scoped to that root with `--directory`
+  instead of scanning for the database path.  Synchronous bd commands
+  run over the pipe too (`beads-remote-sync-timeout`), so no executable
+  probe runs.  The one remaining wait is the first ssh handshake to a
+  host (~0.7 s on localhost, ~10 ms once its master is up).
 - `beads-show` fetches asynchronously for a remote store
   (`beads-show-async`, default `remote`; `beads-show-async-timeout`),
   and neither it nor `beads-dashboard` runs git or walks the directory

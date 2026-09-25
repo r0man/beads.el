@@ -80,6 +80,8 @@ Three generics, all dispatching on the command object; command objects are never
 
 Remote (TRAMP) stores are supported. On a single-hop ssh-family store, async spawns run as a LOCAL `ssh -T` pipe process built by `beads-remote-ssh-command` (cd to the store, pure PATH fragment, no TRAMP round trip; `beads-remote-transport`), never a tramp-sh `make-process`, whose pty mux clients can deadlock the shared ssh master against TRAMP's waits. Other methods go through the TRAMP file handler (remote stderr discarded). `--db`/`--directory` are localized, and buffer names are qualified with the remote prefix (`beads-buffer.el`). `beads-remote.el` owns executable resolution, the PATH fragment and the ssh argv builders; gascity.el uses them too. Opening, rendering and folding a view must do no file I/O on a remote store: `lisp/test/beads-render-guard-test.el` enforces that with a file-name handler that signals on any non-name operation.
 
+First contact with a remote host is the one synchronous exception: a view opened without `:directory` must know its project root to name its buffer (buffer identity is the root), so `beads--project-root` waits for it, but over the ssh pipe (`beads-remote-ssh-find-up`, one host command, bounded by `beads-remote-sync-timeout`) and only once per directory (remembered, negatives too). Other methods walk with pure names and one `file-exists-p` per marker and level, never `locate-dominating-file`/`abbreviate-file-name`.
+
 Store scoping: `beads-show`, `beads-ready`, `beads-blocked`, `beads-list-issues` and `beads-dashboard` take `:directory`, which becomes the buffer-local `beads-store-directory`; `beads-meta-build-global-options` adds `--directory` from it to every command whose slot is unset.
 
 ### Slot Metadata (`beads-meta.el`)
