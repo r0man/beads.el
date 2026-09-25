@@ -18,6 +18,7 @@
 (require 'beads-meta)
 (require 'beads-option)
 (require 'transient)
+(require 'beads-prefix)
 
 ;;; ============================================================
 ;;; Command Class: beads-command-hooks-install
@@ -86,7 +87,7 @@
 ;;; Parent Transient Menu
 
 ;;;###autoload (autoload 'beads-hooks "beads-command-hooks" nil t)
-(transient-define-prefix beads-hooks ()
+(beads-define-prefix beads-hooks ()
   "Manage bd git hooks.
 
 Git hooks provide automatic sync on git operations."

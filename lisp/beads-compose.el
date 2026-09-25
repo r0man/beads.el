@@ -30,6 +30,7 @@
 (require 'beads-command)
 (require 'beads-types)
 (require 'transient)
+(require 'beads-prefix)
 
 ;; Forward declarations
 (declare-function beads-check-executable "beads-util")
@@ -304,7 +305,7 @@ Kills the buffer and restores the previous window configuration."
 ;;; Metadata Transient
 
 ;;;###autoload (autoload 'beads-compose-metadata "beads-compose" nil t)
-(transient-define-prefix beads-compose-metadata ()
+(beads-define-prefix beads-compose-metadata ()
   "Set metadata for the current compose buffer."
   :transient-suffix 'transient--do-stay
   ["Metadata"

@@ -17,6 +17,7 @@
 
 (require 'ert)
 (require 'cl-lib)
+(require 'project)
 (require 'vui)
 (require 'beads-command)
 (require 'beads-dashboard)
@@ -1344,6 +1345,28 @@ stores with the same basename share one buffer (bde-jwxv)."
          (key-a (plist-get (vui-vnode-component-props vnode-a) :async-key))
          (key-b (plist-get (vui-vnode-component-props vnode-b) :async-key)))
     (should-not (equal key-a key-b))))
+
+;;; Opened from `project-switch-project'
+
+(ert-deftest beads-dashboard-test-opens-board-of-switched-project ()
+  "From the menu of `project-switch-project', the dashboard resolves
+root and database from the chosen project, not the current buffer.
+Without the override, and with an explicit DIRECTORY, nothing changes."
+  :tags '(:unit)
+  (cl-flet ((resolved-in (home override &optional directory)
+              (catch 'resolved
+                (cl-letf (((symbol-function 'beads-dashboard--project-root)
+                           (lambda () (throw 'resolved default-directory))))
+                  (with-temp-buffer
+                    (setq default-directory home)
+                    (let ((project-current-directory-override override))
+                      (if directory
+                          (beads-dashboard :directory directory)
+                        (beads-dashboard))))))))
+    (should (equal (resolved-in "/tmp/home/" "/tmp/project") "/tmp/project/"))
+    (should (equal (resolved-in "/tmp/home/" nil) "/tmp/home/"))
+    (should (equal (resolved-in "/tmp/home/" "/tmp/project" "/tmp/explicit/")
+                   "/tmp/explicit/"))))
 
 (provide 'beads-dashboard-test)
 ;;; beads-dashboard-test.el ends here

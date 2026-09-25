@@ -37,6 +37,7 @@
 (require 'beads-option)
 (require 'beads-types)
 (require 'transient)
+(require 'beads-prefix)
 
 ;; Forward declaration
 (declare-function beads--invalidate-completion-cache "beads-util")
@@ -679,7 +680,7 @@ covers all fields including claim, add-label, etc."
 
 ;;; Transient Menu - Main Menu
 
-(transient-define-prefix beads-update--menu ()
+(beads-define-prefix beads-update--menu ()
   "Transient menu for updating an issue in Beads."
   ["Issue Details"
    ["Status & Priority"

@@ -57,6 +57,7 @@
 
 (require 'eieio)
 (require 'transient)
+(require 'beads-prefix)
 (require 'beads-custom)
 (require 'beads-command)
 (require 'beads-command-list)
@@ -383,7 +384,7 @@ BUF must be a live buffer with `beads-list-mode' active."
 
 ;; Custom transient prefix class that initialises from the buffer spec.
 
-(defclass beads-list-filter-prefix (transient-prefix) ()
+(defclass beads-list-filter-prefix (beads-prefix) ()
   "Transient prefix class for `beads-list-filter-menu'.
 
 Overrides `transient-init-value' to pre-populate the menu from the
@@ -465,7 +466,7 @@ calling buffer's `beads-list--spec'.")
 ;;; Main Transient Menu
 
 ;;;###autoload (autoload 'beads-list-filter-menu "beads-spec" nil t)
-(transient-define-prefix beads-list-filter-menu ()
+(beads-define-prefix beads-list-filter-menu ()
   "Adjust filters for the current beads list buffer.
 
 Pre-populates from the buffer's `beads-list--spec' (or

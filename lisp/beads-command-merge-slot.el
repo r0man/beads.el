@@ -34,6 +34,7 @@
 (require 'beads-command)
 (require 'beads-option)
 (require 'transient)
+(require 'beads-prefix)
 
 ;;; ============================================================
 ;;; Command Class: beads-command-merge-slot-create
@@ -101,7 +102,7 @@ Sets status back to open and clears the holder field."
 ;;; Parent Transient Menu
 
 ;;;###autoload (autoload 'beads-merge-slot "beads-command-merge-slot" nil t)
-(transient-define-prefix beads-merge-slot ()
+(beads-define-prefix beads-merge-slot ()
   "Merge-slot gate management for serialized conflict resolution.
 
 Merge slots prevent monkey knife fights: only one agent can hold

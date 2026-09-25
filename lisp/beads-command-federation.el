@@ -23,6 +23,7 @@
 (require 'beads-command)
 (require 'beads-option)
 (require 'transient)
+(require 'beads-prefix)
 
 ;;; ============================================================
 ;;; Command Class: beads-command-federation-add-peer
@@ -163,7 +164,7 @@ Requires Dolt backend.")
 ;;; Parent Menu
 
 ;;;###autoload (autoload 'beads-federation "beads-command-federation" nil t)
-(transient-define-prefix beads-federation ()
+(beads-define-prefix beads-federation ()
   "Peer-to-peer federation management.
 
 Manage federation peers and synchronize data between

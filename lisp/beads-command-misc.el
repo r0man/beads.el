@@ -20,6 +20,7 @@
 (require 'beads-reader)
 (require 'beads-types)
 (require 'transient)
+(require 'beads-prefix)
 
 ;;; ============================================================
 ;;; Command Class: beads-command-duplicate
@@ -626,7 +627,7 @@ Delegates to mail provider.")
 ;;; Transient Menus
 
 ;;;###autoload (autoload 'beads-upgrade "beads-command-misc" nil t)
-(transient-define-prefix beads-upgrade ()
+(beads-define-prefix beads-upgrade ()
   "Check and manage bd version upgrades.
 
 Version tracking is automatic - bd updates metadata.json on every run.
@@ -1101,7 +1102,7 @@ Restores the database from JSONL backup files.")
 ;;; ============================================================
 
 ;;;###autoload (autoload 'beads-backup "beads-command-misc" nil t)
-(transient-define-prefix beads-backup ()
+(beads-define-prefix beads-backup ()
   "Back up and restore your beads database.
 
 JSONL backup commands (portable snapshot):
@@ -1788,7 +1789,7 @@ Merges related rules into composites."
 ;;; Parent Transient Menu: beads-rules
 
 ;;;###autoload (autoload 'beads-rules "beads-command-misc" nil t)
-(transient-define-prefix beads-rules ()
+(beads-define-prefix beads-rules ()
   "Audit and compact Claude rules."
   ["Rules Commands"
    ("a" "Audit rules" beads-rules-audit)

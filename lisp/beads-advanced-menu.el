@@ -19,6 +19,7 @@
 ;;; Code:
 
 (require 'transient)
+(require 'beads-prefix)
 
 ;; Forward declarations
 (declare-function beads-doctor "beads-command-doctor" nil)
@@ -75,7 +76,7 @@
 (declare-function beads-provenance "beads-command-provenance" nil)
 
 ;;;###autoload (autoload 'beads-advanced-menu "beads-advanced-menu" nil t)
-(transient-define-prefix beads-advanced-menu ()
+(beads-define-prefix beads-advanced-menu ()
   "Low-frequency maintenance, setup, and integration commands.
 
 Accessible via > from the main beads dispatch.  Contains

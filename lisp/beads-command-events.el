@@ -33,6 +33,7 @@
 (require 'beads-meta)
 (require 'beads-option)
 (require 'beads-types)
+(require 'beads-prefix)
 
 ;;; Events Tail Command
 
@@ -114,7 +115,7 @@ pruning never affects issue data."
 ;;; Parent Router Transient (no class, per project policy)
 
 ;;;###autoload (autoload 'beads-events "beads-command-events" nil t)
-(transient-define-prefix beads-events ()
+(beads-define-prefix beads-events ()
   "Read and manage the durable events journal.
 
 Parent transient for the `bd events' group; per project policy the

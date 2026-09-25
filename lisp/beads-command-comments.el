@@ -28,6 +28,7 @@
 (require 'beads-meta)
 (require 'beads-option)
 (require 'beads-types)
+(require 'beads-prefix)
 
 ;; Forward declarations
 (declare-function beads--invalidate-completion-cache "beads-util")
@@ -124,7 +125,7 @@ Adds a comment to an issue.")
 ;;; Parent Transient Menu
 
 ;;;###autoload (autoload 'beads-comments-menu "beads-command-comments" nil t)
-(transient-define-prefix beads-comments-menu ()
+(beads-define-prefix beads-comments-menu ()
   "Manage issue comments.
 
 Comments allow adding notes, updates, and discussions to issues.

@@ -17,6 +17,7 @@
 (require 'beads-command)
 (require 'beads-option)
 (require 'transient)
+(require 'beads-prefix)
 
 ;;; Migrate Command
 
@@ -227,7 +228,7 @@ scenarios."
 ;;; Parent Transient Menu
 
 ;;;###autoload (autoload 'beads-migrate-menu "beads-command-migrate" nil t)
-(transient-define-prefix beads-migrate-menu ()
+(beads-define-prefix beads-migrate-menu ()
   "Database migration commands."
   ["Migrate Commands"
    ("m" "Auto-migrate" beads-migrate)

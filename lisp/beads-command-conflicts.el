@@ -33,6 +33,7 @@
 (require 'beads-meta)
 (require 'beads-option)
 (require 'beads-types)
+(require 'beads-prefix)
 
 ;;; Conflicts List Command
 
@@ -185,7 +186,7 @@ holds as a list."
 ;;; Parent Router Transient (no class, per project policy)
 
 ;;;###autoload (autoload 'beads-conflicts "beads-command-conflicts" nil t)
-(transient-define-prefix beads-conflicts ()
+(beads-define-prefix beads-conflicts ()
   "Inspect and resolve live merge conflicts.
 
 Parent transient for the `bd conflicts' group; per project policy the

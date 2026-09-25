@@ -18,6 +18,7 @@
 (require 'beads-meta)
 (require 'beads-option)
 (require 'transient)
+(require 'beads-prefix)
 
 ;;; ============================================================
 ;;; Command Class: beads-command-gate-create
@@ -222,7 +223,7 @@
 ;;; Parent Transient Menu
 
 ;;;###autoload (autoload 'beads-gate "beads-command-gate" nil t)
-(transient-define-prefix beads-gate ()
+(beads-define-prefix beads-gate ()
   "Manage async coordination gates.
 
 Gate types: human, timer, gh:run, gh:pr, bead"

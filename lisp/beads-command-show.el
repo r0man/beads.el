@@ -52,6 +52,7 @@
 (require 'cl-lib)
 (require 'goto-addr)
 (require 'transient)
+(require 'beads-prefix)
 (require 'xref)
 (require 'bookmark)
 
@@ -2485,7 +2486,7 @@ Prompts for field to edit and opens an editing buffer."
 
 (require 'transient)
 
-(transient-define-prefix beads-show-actions ()
+(beads-define-prefix beads-show-actions ()
   "Quick actions for current issue."
   :transient-suffix 'transient--do-stay
   ["Issue Actions"

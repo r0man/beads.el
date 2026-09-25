@@ -38,6 +38,7 @@
 (require 'beads-meta)
 (require 'beads-option)
 (require 'transient)
+(require 'beads-prefix)
 
 ;; Forward declarations
 (declare-function beads--sanitize-string "beads-util")
@@ -395,7 +396,7 @@ Returns list of error messages, or nil if all valid."
 ;;; Main Transient Menu
 
 ;;;###autoload (autoload 'beads-init "beads-command-init" nil t)
-(transient-define-prefix beads-init ()
+(beads-define-prefix beads-init ()
   "Initialize a new Beads project.
 
 This command provides a transient interface for initializing a

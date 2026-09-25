@@ -18,6 +18,7 @@
 (require 'beads-meta)
 (require 'beads-option)
 (require 'transient)
+(require 'beads-prefix)
 
 ;;; ============================================================
 ;;; Command Class: beads-command-swarm-create
@@ -76,7 +77,7 @@
 ;;; Parent Transient Menu
 
 ;;;###autoload (autoload 'beads-swarm "beads-command-swarm" nil t)
-(transient-define-prefix beads-swarm ()
+(beads-define-prefix beads-swarm ()
   "Swarm management for structured epics.
 
 A swarm is parallel work coordination on an epic's DAG."

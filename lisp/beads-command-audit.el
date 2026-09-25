@@ -18,6 +18,7 @@
 (require 'beads-meta)
 (require 'beads-option)
 (require 'beads-reader)
+(require 'beads-prefix)
 
 ;;; ============================================================
 ;;; Command Class: beads-command-audit-record
@@ -118,7 +119,7 @@ Appends a label entry referencing an existing interaction.")
 ;;; Parent Transient Menu
 
 ;;;###autoload (autoload 'beads-audit "beads-command-audit" nil t)
-(transient-define-prefix beads-audit ()
+(beads-define-prefix beads-audit ()
   "Audit log management.
 
 Audit entries are appended to .beads/interactions.jsonl."

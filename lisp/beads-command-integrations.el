@@ -20,6 +20,7 @@
 (require 'beads-meta)
 (require 'beads-option)
 (require 'transient)
+(require 'beads-prefix)
 
 ;;; ============================================================
 ;;; Jira Commands
@@ -531,7 +532,7 @@ Equivalent to: bd gitlab sync --push-only --issues <ids>.")
 ;;; Parent Transient Menus
 
 ;;;###autoload (autoload 'beads-jira "beads-command-integrations" nil t)
-(transient-define-prefix beads-jira ()
+(beads-define-prefix beads-jira ()
   "Jira integration commands."
   ["Jira Commands"
    ("s" "Sync" beads-jira-sync)
@@ -540,7 +541,7 @@ Equivalent to: bd gitlab sync --push-only --issues <ids>.")
    ("S" "Status" beads-jira-status)])
 
 ;;;###autoload (autoload 'beads-linear "beads-command-integrations" nil t)
-(transient-define-prefix beads-linear ()
+(beads-define-prefix beads-linear ()
   "Linear integration commands."
   ["Linear Commands"
    ("s" "Sync" beads-linear-sync)
@@ -550,7 +551,7 @@ Equivalent to: bd gitlab sync --push-only --issues <ids>.")
    ("t" "Teams" beads-linear-teams)])
 
 ;;;###autoload (autoload 'beads-repo "beads-command-integrations" nil t)
-(transient-define-prefix beads-repo ()
+(beads-define-prefix beads-repo ()
   "Multi-repo management commands."
   ["Repo Commands"
    ("a" "Add repo" beads-repo-add)
@@ -559,7 +560,7 @@ Equivalent to: bd gitlab sync --push-only --issues <ids>.")
    ("s" "Sync all" beads-repo-sync)])
 
 ;;;###autoload (autoload 'beads-gitlab "beads-command-integrations" nil t)
-(transient-define-prefix beads-gitlab ()
+(beads-define-prefix beads-gitlab ()
   "GitLab integration commands."
   ["GitLab Commands"
    ("s" "Sync" beads-gitlab-sync)
@@ -666,7 +667,7 @@ Push one or more beads issues to GitHub.
 Equivalent to: bd github sync --push-only --issues <ids>.")
 
 ;;;###autoload (autoload 'beads-github "beads-command-integrations" nil t)
-(transient-define-prefix beads-github ()
+(beads-define-prefix beads-github ()
   "GitHub integration commands."
   ["GitHub Commands"
    ("s" "Sync" beads-github-sync)
@@ -826,7 +827,7 @@ Equivalent to: bd ado sync --push-only --issues <ids>."
   :cli-command "ado push")
 
 ;;;###autoload (autoload 'beads-ado "beads-command-integrations" nil t)
-(transient-define-prefix beads-ado ()
+(beads-define-prefix beads-ado ()
   "Azure DevOps integration commands."
   ["Azure DevOps Commands"
    ("s" "Sync" beads-ado-sync)
@@ -979,7 +980,7 @@ Equivalent to: bd notion sync --push --issues <ids>.")
 
 
 ;;;###autoload (autoload 'beads-notion "beads-command-integrations" nil t)
-(transient-define-prefix beads-notion ()
+(beads-define-prefix beads-notion ()
   "Notion integration commands."
   ["Notion Commands"
    ("c" "Connect" beads-notion-connect)

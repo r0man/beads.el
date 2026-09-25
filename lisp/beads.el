@@ -38,6 +38,7 @@
 (require 'json)
 (require 'project)
 (require 'transient)
+(require 'beads-prefix)
 
 ;;; Forward Declarations (for context detection without hard deps)
 
@@ -209,8 +210,10 @@ Cache is keyed by directory to avoid stale data when switching projects."
 
 (defun beads-main--format-project-header ()
   "Format project header for transient menu.
-Returns a propertized string showing project and database info."
-  (let ((info (beads-main--get-project-info)))
+Returns a propertized string showing project and database info
+for the directory the menu was opened for."
+  (let* ((default-directory (or (beads-prefix-directory) default-directory))
+         (info (beads-main--get-project-info)))
     (if info
         (let* ((root (car info))
                (db (cdr info))
@@ -271,7 +274,7 @@ Used as :if predicate for context-aware transient groups."
 ;; This is kept temporarily for backwards compatibility.
 
 ;;;###autoload (autoload 'beads-more-menu "beads" nil t)
-(transient-define-prefix beads-more-menu ()
+(beads-define-prefix beads-more-menu ()
   "Additional beads commands not in the main dispatch.
 
 This menu contains less frequently used commands organized
@@ -375,7 +378,7 @@ into logical groups for easy access."
 ;;; Main Transient Menu
 
 ;;;###autoload (autoload 'beads "beads" nil t)
-(transient-define-prefix beads ()
+(beads-define-prefix beads ()
   "Main transient menu for Beads issue tracker.
 
 This is the primary entry point for beads.el, providing a Magit-like

@@ -21,6 +21,7 @@
 (require 'beads-meta)
 (require 'beads-option)
 (require 'transient)
+(require 'beads-prefix)
 
 ;;; ============================================================
 ;;; Command Class: beads-command-vc-commit
@@ -88,7 +89,7 @@ Requires Dolt backend.")
 ;;; Parent Menu
 
 ;;;###autoload (autoload 'beads-vc "beads-command-vc" nil t)
-(transient-define-prefix beads-vc ()
+(beads-define-prefix beads-vc ()
   "Version control operations for the beads Dolt database.
 
 Provides git-like version control for issue data."

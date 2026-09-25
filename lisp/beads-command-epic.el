@@ -33,6 +33,7 @@
 (require 'beads-types)
 (require 'cl-lib)
 (require 'transient)
+(require 'beads-prefix)
 
 ;; Forward declarations
 (declare-function beads-show "beads-command-show")
@@ -129,7 +130,7 @@ Use --dry-run to preview what would be closed without making changes."
 ;;; ============================================================
 
 ;;;###autoload (autoload 'beads-epic-menu "beads-command-epic" nil t)
-(transient-define-prefix beads-epic-menu ()
+(beads-define-prefix beads-epic-menu ()
   "Manage epics.
 
 View epic status and close eligible epics."

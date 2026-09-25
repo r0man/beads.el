@@ -88,6 +88,7 @@
 (require 'eieio)
 (require 'eieio-core)
 (require 'cl-lib)
+(require 'beads-prefix)
 
 ;; Forward declarations for generic methods from beads-command.el
 ;; These are used in the generated suffix code
@@ -1379,7 +1380,7 @@ SPEC should contain :name, :level, :description, and :infixes."
         (level (plist-get spec :level))
         (desc (plist-get spec :description))
         (infixes (plist-get spec :infixes)))
-    `(transient-define-group ,name
+    `(beads-define-group ,name
        [:level ,level ,desc
                ,@(mapcar (lambda (infix) `(,infix)) infixes)])))
 
@@ -1450,7 +1451,7 @@ Example:
        ;; Define groups
        (beads-meta-define-groups ,class ,prefix)
        ;; Define prefix
-       (transient-define-prefix ,prefix-sym ()
+       (beads-define-prefix ,prefix-sym ()
          ,(or (eval docstring)
               (format "Transient menu for %s." prefix-val))
          ,@(mapcar (lambda (gs) (plist-get gs :name)) group-specs)
@@ -1644,7 +1645,7 @@ with a single macro call."
              ;; Define standard suffixes (execute, preview, reset)
              (beads-meta-define-standard-suffixes ,class ,prefix)
              ;; Define prefix
-             (transient-define-prefix ,prefix-sym ()
+             (beads-define-prefix ,prefix-sym ()
                ,(or (eval docstring)
                     (format "Transient menu for %s." prefix-val))
                ,@(mapcar (lambda (gs) (plist-get gs :name)) group-specs)
@@ -1981,7 +1982,7 @@ Generates a `transient-define-prefix' form and evaluates it."
       (let ((body (if (= (length group-vectors) 1)
                       group-vectors
                     (nreverse group-vectors))))
-        (eval `(transient-define-prefix ,transient-name ()
+        (eval `(beads-define-prefix ,transient-name ()
                  ,docstring
                  ,@body
                  ["Actions"
@@ -2008,7 +2009,7 @@ Called once at startup after all command files are required."
 This is for composing auto-generated infixes into hand-written transients.
 
 Example:
-  (transient-define-prefix beads-list ()
+  (beads-define-prefix beads-list ()
     \"List issues.\"
     (beads-meta-infix-group \\='beads-command-list \"Filters\")
     [\"List\"

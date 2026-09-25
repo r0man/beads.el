@@ -18,6 +18,7 @@
 (require 'beads-meta)
 (require 'beads-option)
 (require 'transient)
+(require 'beads-prefix)
 
 ;; Forward declarations
 (declare-function beads-list--current-issue-id "beads-command-list")
@@ -181,7 +182,7 @@ Returns list of error messages, or nil if all valid."
 
 ;;; Main Transient Menu
 
-(transient-define-prefix beads-edit--menu ()
+(beads-define-prefix beads-edit--menu ()
   "Transient menu for editing an issue field in Beads."
   ["Edit Issue"
    (beads-edit--infix-issue-id)]

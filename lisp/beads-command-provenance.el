@@ -28,6 +28,7 @@
 (require 'beads-option)
 (require 'beads-types)
 (require 'beads-reader)
+(require 'beads-prefix)
 
 ;;; Provenance Log Command
 
@@ -159,7 +160,7 @@ so re-running the same record is a no-op.  An event recorded without
 ;;; Parent Router Transient (no class, per project policy)
 
 ;;;###autoload (autoload 'beads-provenance "beads-command-provenance" nil t)
-(transient-define-prefix beads-provenance ()
+(beads-define-prefix beads-provenance ()
   "Append-only provenance event log.
 
 Parent transient for the `bd provenance' group; per project policy the

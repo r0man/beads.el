@@ -99,6 +99,7 @@
 (require 'beads-agent-type)
 (require 'beads-agent-types)
 (require 'transient)
+(require 'beads-prefix)
 
 ;; Forward declarations
 (declare-function beads-list--current-issue-id "beads-command-list")
@@ -915,7 +916,7 @@ visible alongside the existing \"Type#N (backend)\" display name."
       [("" "No active agents" ignore)])))
 
 ;;;###autoload (autoload 'beads-agent-issue "beads-agent" nil t)
-(transient-define-prefix beads-agent-issue (issue-id)
+(beads-define-prefix beads-agent-issue (issue-id)
   "Manage AI agents for a specific issue.
 
 Shows all active agents for ISSUE-ID with jump keys to switch
@@ -1034,7 +1035,7 @@ ISSUE-ID is required; detected from context or prompted."
   (message "Parameters reset"))
 
 ;;;###autoload (autoload 'beads-agent-start-menu "beads-agent" nil t)
-(transient-define-prefix beads-agent-start-menu ()
+(beads-define-prefix beads-agent-start-menu ()
   "Start an AI agent on an issue.
 
 This menu allows configuring the agent start parameters:
@@ -1249,7 +1250,7 @@ PROJECT-DIR is the main project directory."
   (transient--redisplay))
 
 ;;;###autoload (autoload 'beads-agent "beads-agent" nil t)
-(transient-define-prefix beads-agent ()
+(beads-define-prefix beads-agent ()
   "AI Agent integration for Beads issues."
   [:description
    (lambda () (beads-agent--format-header))

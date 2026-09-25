@@ -49,6 +49,7 @@
 (require 'beads-pager)
 (require 'beads-types)
 (require 'transient)
+(require 'beads-prefix)
 
 ;; Forward declarations
 (declare-function beads-list--current-issue-id "beads-command-list")
@@ -677,7 +678,7 @@ Key bindings:
 ;;; User-Facing Transient Menus
 
 ;;;###autoload (autoload 'beads-label-add "beads-command-label" nil t)
-(transient-define-prefix beads-label-add ()
+(beads-define-prefix beads-label-add ()
   "Add a label to one or more issues.
 
 This transient menu provides an interactive interface for adding
@@ -696,7 +697,7 @@ labels to issues using the bd label add command."
    (beads-label-add--reset)])
 
 ;;;###autoload (autoload 'beads-label-remove "beads-command-label" nil t)
-(transient-define-prefix beads-label-remove ()
+(beads-define-prefix beads-label-remove ()
   "Remove a label from one or more issues.
 
 This transient menu provides an interactive interface for removing
@@ -717,7 +718,7 @@ labels from issues using the bd label remove command."
 ;;; Parent Transient Menu
 
 ;;;###autoload (autoload 'beads-label-menu "beads-command-label" nil t)
-(transient-define-prefix beads-label-menu ()
+(beads-define-prefix beads-label-menu ()
     "Manage labels for issues.
 
 This transient menu provides access to all label management commands:

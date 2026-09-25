@@ -32,6 +32,7 @@
 (require 'beads-meta)
 (require 'beads-option)
 (require 'transient)
+(require 'beads-prefix)
 
 ;;; ============================================================
 ;;; Command Class: beads-command-dolt-show
@@ -330,7 +331,7 @@ remotes)."
 ;;; Dolt Remote Submenu (hand-written)
 
 ;;;###autoload (autoload 'beads-dolt-remote "beads-command-dolt" nil t)
-(transient-define-prefix beads-dolt-remote ()
+(beads-define-prefix beads-dolt-remote ()
   "Manage Dolt remotes."
   ["Dolt Remotes"
    ("a" "Add remote" beads-dolt-remote-add)
@@ -377,7 +378,7 @@ canonical PID file for the current repo's Dolt data directory."
 ;;; Parent Menu (hand-written)
 
 ;;;###autoload (autoload 'beads-dolt "beads-command-dolt" nil t)
-(transient-define-prefix beads-dolt ()
+(beads-define-prefix beads-dolt ()
   "Dolt database configuration and server management.
 
 Provides commands for configuring the Dolt backend, managing

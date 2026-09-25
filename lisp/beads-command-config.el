@@ -22,6 +22,7 @@
 (require 'beads-meta)
 (require 'beads-option)
 (require 'transient)
+(require 'beads-prefix)
 
 ;;; Config Get
 
@@ -168,7 +169,7 @@ Exit codes:
 ;;; Parent Transient Menu
 
 ;;;###autoload (autoload 'beads-config "beads-command-config" nil t)
-(transient-define-prefix beads-config ()
+(beads-define-prefix beads-config ()
   "Manage beads configuration.
 
 Configuration is stored per-project in .beads/*.db.

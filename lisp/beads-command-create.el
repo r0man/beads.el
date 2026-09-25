@@ -37,6 +37,7 @@
 (require 'beads-option)
 (require 'beads-types)
 (require 'transient)
+(require 'beads-prefix)
 
 ;; Forward declaration
 (declare-function beads-show "beads-command-show")
@@ -673,24 +674,24 @@ This uses transient's standard argument parsing with dash-style flags."
 
 ;;; Transient Menu - Groups
 
-(transient-define-group beads-create--required-section
+(beads-define-group beads-create--required-section
   [:level 1 "Required"
           (beads-option-issue-title)])
 
-(transient-define-group beads-create--issue-attributes-section
+(beads-define-group beads-create--issue-attributes-section
   [:level 2 "Issue attributes"
           (beads-option-issue-type)
           (beads-option-issue-priority)
           (beads-option-issue-assignee)
           (beads-option-issue-labels)])
 
-(transient-define-group beads-create--content-section
+(beads-define-group beads-create--content-section
   [:level 3 "Content"
           (beads-option-issue-description)
           (beads-option-issue-acceptance)
           (beads-option-issue-design)])
 
-(transient-define-group beads-create--advanced-section
+(beads-define-group beads-create--advanced-section
   [:level 4 "Advanced"
           (beads-option-issue-external-ref)
           (beads-option-create-custom-id)
@@ -703,7 +704,7 @@ This uses transient's standard argument parsing with dash-style flags."
 ;;; Transient Menu - Main Menu
 
 ;;;###autoload (autoload 'beads-create "beads-command-create" nil t)
-(transient-define-prefix beads-create ()
+(beads-define-prefix beads-create ()
   "Create a new issue in Beads.
 
 This transient menu provides an interactive interface for setting

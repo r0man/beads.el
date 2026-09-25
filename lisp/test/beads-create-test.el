@@ -253,7 +253,7 @@ definition causes 'Wrong type argument: number-or-marker-p' error."
   (let ((prefix (get 'beads-create 'transient--prefix)))
     ;; The prefix should exist and be a transient-prefix object
     (should prefix)
-    (should (transient-prefix-p prefix))))
+    (should (cl-typep prefix 'transient-prefix))))
 
 (ert-deftest beads-create-test-transient-can-be-called ()
   "Test that beads-create can be called without error.

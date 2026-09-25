@@ -25,6 +25,7 @@
 (require 'beads-meta)
 (require 'beads-option)
 (require 'transient)
+(require 'beads-prefix)
 
 ;; Forward declarations
 
@@ -119,7 +120,7 @@ Returns exit code 0 if the graph is clean, 1 if issues are found."
 ;;; ============================================================
 
 ;;;###autoload (autoload 'beads-graph-menu "beads-command-graph" nil t)
-(transient-define-prefix beads-graph-menu ()
+(beads-define-prefix beads-graph-menu ()
   "Manage dependency graph operations."
   ["Graph Commands"
    ("d" "Display graph (bd graph)" beads-graph-transient)

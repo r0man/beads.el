@@ -107,8 +107,8 @@ This is needed because transient can leave state that affects subsequent tests."
     (setq transient--exitp nil))
   (when (boundp 'transient--stack)
     (setq transient--stack nil))
-  (when (boundp 'transient--buffer-name)
-    (setq transient--buffer-name nil))
+  ;; Not `transient--buffer-name': that is the constant name of the
+  ;; menu buffer, and every later `transient-setup' needs it.
   (when (boundp 'transient--window)
     (setq transient--window nil))
   (when (boundp 'transient--showp)

@@ -48,6 +48,7 @@
 (require 'beads-sesman)
 (require 'beads-types)
 (require 'transient)
+(require 'beads-prefix)
 
 ;; Forward declarations for UI code
 (declare-function beads-update "beads-command-update" (&optional issue-id))
@@ -1115,21 +1116,21 @@ Uses directory-aware buffer identity: same project = same buffer."
 
 ;;; Transient Groups
 
-(transient-define-group beads-list--basic-filters-section
+(beads-define-group beads-list--basic-filters-section
   [:level 1 "Basic Filters"
           (beads-option-list-status)
           (beads-option-list-priority)
           (beads-option-list-type)
           (beads-option-list-assignee)])
 
-(transient-define-group beads-list--text-search-section
+(beads-define-group beads-list--text-search-section
   [:level 2 "Text Search"
           (beads-option-list-title)
           (beads-option-list-title-contains)
           (beads-option-list-desc-contains)
           (beads-option-list-notes-contains)])
 
-(transient-define-group beads-list--date-filters-section
+(beads-define-group beads-list--date-filters-section
   [:level 3 "Date Filters"
           (beads-option-list-created-after)
           (beads-option-list-created-before)
@@ -1138,7 +1139,7 @@ Uses directory-aware buffer identity: same project = same buffer."
           (beads-option-list-closed-after)
           (beads-option-list-closed-before)])
 
-(transient-define-group beads-list--advanced-filters-section
+(beads-define-group beads-list--advanced-filters-section
   [:level 4 "Advanced Filters"
           (beads-option-list-priority-min)
           (beads-option-list-priority-max)
@@ -1149,7 +1150,7 @@ Uses directory-aware buffer identity: same project = same buffer."
           (beads-option-list-empty-description)
           (beads-option-list-no-labels)])
 
-(transient-define-group beads-list--output-options-section
+(beads-define-group beads-list--output-options-section
   [:level 5 "Output Options"
           (beads-option-list-limit)
           (beads-option-list-long)
@@ -1159,7 +1160,7 @@ Uses directory-aware buffer identity: same project = same buffer."
 ;;; Main Transient (Pattern 2: switch-based with curated infixes)
 
 ;;;###autoload (autoload 'beads-list "beads-command-list" nil t)
-(transient-define-prefix beads-list ()
+(beads-define-prefix beads-list ()
   "List issues with filters.
 
 A magit-style switch-based transient for listing issues.
@@ -1188,7 +1189,7 @@ l -s open l  — list only open issues."
    ("c" "Closed" beads-list-closed-suffix)])
 
 ;;;###autoload (autoload 'beads-list-advanced "beads-command-list" nil t)
-(transient-define-prefix beads-list-advanced ()
+(beads-define-prefix beads-list-advanced ()
   "List issues with all available filter options.
 
 This is the full-featured list transient with all bd list flags.

@@ -21,6 +21,7 @@
 (require 'beads-meta)
 (require 'beads-option)
 (require 'transient)
+(require 'beads-prefix)
 
 ;;; ============================================================
 ;;; Command Class: beads-command-mol-show
@@ -504,7 +505,7 @@ Show the most recent activity timestamp for a molecule."
 ;;; Parent Transient Menu
 
 ;;;###autoload (autoload 'beads-mol "beads-command-mol" nil t)
-(transient-define-prefix beads-mol ()
+(beads-define-prefix beads-mol ()
   "Manage molecules (work templates).
 
 Proto: template epic, Molecule: instantiated work."

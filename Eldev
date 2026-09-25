@@ -140,7 +140,9 @@ ORIG-FN is the original function, STATS is the test statistics."
 ;; from the expansion.
 (advice-add 'loaddefs-generate :before
             (lambda (&rest _)
-              (let ((lisp-dir (expand-file-name "lisp" eldev-project-dir)))
+              (let* ((lisp-dir (expand-file-name "lisp" eldev-project-dir))
+                     ;; beads-meta requires its siblings (beads-prefix).
+                     (load-path (cons lisp-dir load-path)))
                 (when (file-exists-p (expand-file-name "beads-meta.el" lisp-dir))
                   (load (expand-file-name "beads-meta.el" lisp-dir) nil t)))))
 

@@ -68,6 +68,7 @@
 (require 'beads-reader)
 (require 'beads-types)
 (require 'transient)
+(require 'beads-prefix)
 
 ;; Forward declarations
 (declare-function beads--invalidate-completion-cache "beads-util")
@@ -280,7 +281,7 @@ tombstone information, and other database statistics."
 ;;; ============================================================
 
 ;;;###autoload (autoload 'beads-compact "beads-command-compact" nil t)
-(transient-define-prefix beads-compact ()
+(beads-define-prefix beads-compact ()
   "Compact old closed issues using semantic summarization.
 
 Compaction reduces database size by summarizing closed issues that

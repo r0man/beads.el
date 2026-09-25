@@ -32,6 +32,7 @@
 (require 'beads-option)
 (require 'beads-types)
 (require 'transient)
+(require 'beads-prefix)
 
 ;; Forward declarations
 (declare-function beads--invalidate-completion-cache "beads-util")
@@ -523,7 +524,7 @@ Returns error message string if invalid, nil if valid."
     (transient--redisplay)
     (message "All fields reset")))
 
-(transient-define-prefix beads-dep-add--menu ()
+(beads-define-prefix beads-dep-add--menu ()
   "Transient menu for adding a dependency."
   :value (lambda ()
            (let ((detected-id (beads-dep--detect-issue-id)))
@@ -625,7 +626,7 @@ Returns error message string if invalid, nil if valid."
     (transient--redisplay)
     (message "All fields reset")))
 
-(transient-define-prefix beads-dep-remove--menu ()
+(beads-define-prefix beads-dep-remove--menu ()
   "Transient menu for removing a dependency."
   :value (lambda ()
            (let ((detected-id (beads-dep--detect-issue-id)))
@@ -901,7 +902,7 @@ array-of-ids shape is also accepted."
 ;;; Main Menu
 
 ;;;###autoload (autoload 'beads-dep "beads-command-dep" nil t)
-(transient-define-prefix beads-dep ()
+(beads-define-prefix beads-dep ()
   "Manage dependencies in Beads.
 
 This menu provides access to all dependency management operations:

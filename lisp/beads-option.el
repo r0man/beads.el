@@ -28,6 +28,7 @@
 (require 'beads-util)
 (require 'beads-state)
 (require 'transient)
+(require 'beads-prefix)
 
 ;; Ensure beads-command functions are available at macro-expansion time
 (eval-when-compile
@@ -1086,7 +1087,7 @@ an unknown flag, so beads.el passes the new one."
   :key "=v"
   :argument "--verbose")
 
-(transient-define-group beads-option-global-section
+(beads-define-group beads-option-global-section
   [:level 5 "Global Options"
           (beads-option-global-actor)
           (beads-option-global-db)

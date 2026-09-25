@@ -134,6 +134,7 @@ Modules:
 - Each `bd` subcommand gets its own `beads-command-<name>.el` file.
 - All bd commands use `--json` for structured output; UI never parses human-readable text.
 - Transient menus are auto-generated from slot metadata where possible; use `:transient :manual` only when custom layout is needed.
+- Define menus with `beads-define-prefix` / `beads-define-group` (`beads-prefix.el`), never bare `transient-define-prefix` / `transient-define-group`: the wrappers make every suffix run in the directory the menu was opened for, which is what keeps menus opened via `project-switch-project` working.  A custom prefix `:class` must derive from `beads-prefix`.
 - Every EIEIO class and every slot carries a `:documentation` string.
 - Dependencies: Emacs 29.1+, transient 0.10.1+, sesman 0.3.2+, vui 1.0.0+ (from MELPA). Declared in `lisp/beads.el` `Package-Requires` and mirrored in `Eldev` and `guix.scm`; keep all three in sync.
 - Autoloads: `;;;###autoload` works directly on `beads-defcommand` and `beads-meta-define-transient` forms (the `Eldev` file preloads `beads-meta.el` for the autoload generator).

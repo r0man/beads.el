@@ -20,6 +20,7 @@
 (require 'beads-meta)
 (require 'beads-option)
 (require 'transient)
+(require 'beads-prefix)
 
 ;;; ============================================================
 ;;; Command Class: beads-command-set-state
@@ -92,7 +93,7 @@ Lists all state dimensions on an issue.")
 ;;; Parent Transient Menu
 
 ;;;###autoload (autoload 'beads-state-menu "beads-command-state" nil t)
-(transient-define-prefix beads-state-menu ()
+(beads-define-prefix beads-state-menu ()
   "State management for issues.
 
 State labels: dimension:value (e.g., patrol:active, mode:degraded)."

@@ -54,6 +54,7 @@
 (require 'beads-reader)
 (require 'cl-lib)
 (require 'transient)
+(require 'beads-prefix)
 
 ;;; ============================================================
 ;;; State Variables (for transient menu compatibility)
@@ -373,7 +374,7 @@ and beads configuration state."
 ;;; Parent Transient Menu
 
 ;;;###autoload (autoload 'beads-worktree-menu "beads-command-worktree" nil t)
-(transient-define-prefix beads-worktree-menu ()
+(beads-define-prefix beads-worktree-menu ()
   "Manage git worktrees with beads configuration.
 
 Git worktrees allow parallel development on multiple branches.

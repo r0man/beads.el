@@ -35,6 +35,7 @@
 (require 'beads-pager)
 (require 'beads-types)
 (require 'transient)
+(require 'beads-prefix)
 
 ;;; Forward Declarations
 
@@ -690,7 +691,7 @@ When called interactively with a prefix argument, prompts for TYPE."
     (beads-formula-list type)))
 
 ;;;###autoload (autoload 'beads-formula-menu "beads-command-formula" nil t)
-(transient-define-prefix beads-formula-menu ()
+(beads-define-prefix beads-formula-menu ()
   "Manage workflow formulas."
   ["Filters"
    ("-t" "Type" "--type="

@@ -18,6 +18,7 @@
 (require 'beads-option)
 (require 'beads-reader)
 (require 'transient)
+(require 'beads-prefix)
 
 ;;; ============================================================
 ;;; Command Class: beads-command-admin-cleanup
@@ -190,7 +191,7 @@ Removes all beads data and configuration. DANGEROUS!")
 ;;; Parent Transient Menu
 
 ;;;###autoload (autoload 'beads-admin "beads-command-admin" nil t)
-(transient-define-prefix beads-admin ()
+(beads-define-prefix beads-admin ()
   "Administrative commands for database maintenance.
 
 Use with caution - prefer 'bd doctor --fix' for routine operations."

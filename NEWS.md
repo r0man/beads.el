@@ -4,6 +4,24 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Menus remember the project they were opened for
+
+Transient menus now run their commands in the directory they were
+opened for.  Before, opening `beads` for another project from
+`project-switch-project` (`C-x p p`) or `project-any-command` ran the
+chosen command against the buffer you started from, because the menu
+returns before you pick a command.  `beads-dashboard` called from the
+switch menu likewise opens the chosen project's board, with root and
+database from the same project.
+
+For package authors: define beads menus with `beads-define-prefix` and
+`beads-define-group` (`beads-prefix.el`) instead of
+`transient-define-prefix` and `transient-define-group`.  The menu
+records the directory under `:directory` in its scope plist
+(`beads-prefix-directory`), and every group gets `:advice*
+beads-prefix-call-in-directory`.  A custom prefix `:class` must derive
+from `beads-prefix`.
+
 ### `beads show` hides empty sections
 
 Show-buffer sections with no data (empty description/design/notes,

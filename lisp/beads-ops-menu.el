@@ -19,6 +19,7 @@
 ;;; Code:
 
 (require 'transient)
+(require 'beads-prefix)
 
 ;; Forward declarations — all suffixes are autoloaded from their modules
 (declare-function beads-defer "beads-command-defer" nil)
@@ -51,7 +52,7 @@
 (declare-function beads-heartbeat "beads-command-heartbeat" nil)
 
 ;;;###autoload (autoload 'beads-ops-menu "beads-ops-menu" nil t)
-(transient-define-prefix beads-ops-menu ()
+(beads-define-prefix beads-ops-menu ()
   "Mid-frequency operations for beads issue tracking.
 
 Accessible via ! from the main beads dispatch.  Contains issue

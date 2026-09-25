@@ -22,6 +22,7 @@
 (require 'vui)
 (require 'beads-section)
 (require 'beads-command)
+(require 'beads-prefix)
 (require 'beads-command-dep)
 (require 'beads-dashboard-sections)
 (require 'beads-status)
@@ -1068,9 +1069,13 @@ With DIRECTORY non-nil, scope the board to the bead store at DIRECTORY
 instead of resolving from `default-directory'.  This is the explicit
 replacement for binding `default-directory' around a `beads-dashboard'
 call; the project root and database path are both resolved relative to
-DIRECTORY.  Existing zero-argument callers are unaffected."
+DIRECTORY.  Existing zero-argument callers are unaffected.
+
+Without DIRECTORY, a call from the menu of `project-switch-project'
+opens the board of the chosen project, not of the current buffer."
   (interactive)
-  (let* ((default-directory (or directory default-directory))
+  (let* ((default-directory (or directory
+                                (beads-prefix-invocation-directory)))
          (root (beads-dashboard--project-root))
          (buf-name (beads-dashboard--buffer-name-for root))
          (buf (get-buffer-create buf-name))
