@@ -715,7 +715,11 @@ so that `beads-agent-start' gets a valid project root."
   "Return the show buffer of ISSUE-ID once its issue has loaded, else nil."
   (cl-find-if (lambda (b)
                 (and (string-match-p (regexp-quote issue-id) (buffer-name b))
-                     (buffer-local-value 'beads-show--issue-data b)))
+                     (buffer-local-value 'beads-show--issue-data b)
+                     (not (with-current-buffer b
+                            (save-excursion
+                              (goto-char (point-min))
+                              (looking-at-p "Loading "))))))
               (buffer-list)))
 
 (defun beads-live-test--open-show-buffer (issue-id)
