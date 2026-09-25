@@ -1061,7 +1061,7 @@ the same dim \"(none)\" placeholder (consistent treatment)."
            (found-bd-2 nil)
            (found-bd-3 nil))
        (while (not (eobp))
-         (when-let ((button (button-at (point))))
+         (when-let* ((button (button-at (point))))
            (let ((id (button-get button 'issue-id)))
              (cond ((string= id "bd-1") (setq found-bd-1 t))
                    ((string= id "bd-2") (setq found-bd-2 t))

@@ -173,7 +173,7 @@ ACP client shutdown, heartbeat termination, and viewport buffer cleanup.
 Uses the stored session buffer for precise cleanup, ensuring only this
 session's buffer is killed even when multiple agents share the same
 working directory."
-  (when-let ((buf (beads-agent-backend-get-buffer backend session)))
+  (when-let* ((buf (beads-agent-backend-get-buffer backend session)))
     (when (buffer-live-p buf)
       (with-current-buffer buf
         ;; Optionally interrupt any running request for better UX
@@ -199,7 +199,7 @@ and has a live process."
 (cl-defmethod beads-agent-backend-switch-to-buffer
     ((backend beads-agent-backend-agent-shell) session)
   "Switch to agent-shell buffer for SESSION using BACKEND."
-  (if-let ((buffer (beads-agent-backend-get-buffer backend session)))
+  (if-let* ((buffer (beads-agent-backend-get-buffer backend session)))
       (if (buffer-live-p buffer)
           (beads-agent--pop-to-buffer-other-window buffer)
         (user-error "Agent buffer has been killed"))

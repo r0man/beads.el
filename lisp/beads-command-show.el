@@ -160,7 +160,7 @@ of instances when multiple IDs provided)."
   :result (list-of beads-issue)
   :transient :manual)
 
-(cl-defmethod beads-command-parse ((command beads-command-show) stdout)
+(cl-defmethod beads-command-parse ((command beads-command-show) _stdout)
   "Parse show COMMAND output from STDOUT.
 Delegates JSON→domain parsing to the base method via :result,
 then unwraps single-element results for caller convenience.
@@ -461,13 +461,13 @@ navigating in beads-list.  Returns BUFFER."
 (defun beads-show--register-with-session ()
   "Register current buffer with worktree session.
 Should be called after the buffer is fully initialized."
-  (when-let ((session (beads-sesman--ensure-worktree-session)))
+  (when-let* ((session (beads-sesman--ensure-worktree-session)))
     (beads-worktree-session-add-buffer session (current-buffer))))
 
 (defun beads-show--unregister-from-session ()
   "Remove current buffer from worktree session.
 Called from `kill-buffer-hook' to clean up session state."
-  (when-let ((session (beads-sesman--buffer-worktree-session (current-buffer))))
+  (when-let* ((session (beads-sesman--buffer-worktree-session (current-buffer))))
     (beads-worktree-session-remove-buffer session (current-buffer))
     (beads-sesman--maybe-cleanup-worktree-session session)))
 

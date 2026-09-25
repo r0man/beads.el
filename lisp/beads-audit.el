@@ -302,7 +302,7 @@ Mirrors the long-option resolution used by the audit: the explicit
 CLASSES is the list of class symbols targeting CLI-PATH; it must match
 the member set recorded in `beads-meta-parity-intentional-collisions'
 exactly, so a drifted member set is still reported."
-  (when-let ((entry (cdr (assoc cli-path beads-meta-parity-intentional-collisions))))
+  (when-let* ((entry (cdr (assoc cli-path beads-meta-parity-intentional-collisions))))
     (let ((expected (plist-get entry :classes)))
       (equal (sort (mapcar #'symbol-name (copy-sequence expected)) #'string<)
              (sort (mapcar #'symbol-name (copy-sequence classes)) #'string<)))))

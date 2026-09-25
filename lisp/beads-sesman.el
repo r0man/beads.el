@@ -233,7 +233,7 @@ Return beads-worktree-session or nil."
   "Add AGENT-SESSION to appropriate worktree session.
 Creates the worktree session if needed.  Uses agent's project-dir
 for lookup."
-  (when-let ((project-dir (oref agent-session project-dir)))
+  (when-let* ((project-dir (oref agent-session project-dir)))
     (let ((worktree-session (or (beads-sesman--session-for-directory project-dir)
                                 (beads-sesman--create-worktree-session project-dir))))
       (unless (memq agent-session (oref worktree-session agent-sessions))
@@ -252,7 +252,7 @@ Also cleans up the worktree session if it becomes empty."
 (defun beads-sesman--get-agents-for-project (project-dir)
   "Return list of agent sessions for PROJECT-DIR.
 Returns nil if no agents found."
-  (when-let ((worktree-session (beads-sesman--session-for-directory project-dir)))
+  (when-let* ((worktree-session (beads-sesman--session-for-directory project-dir)))
     (oref worktree-session agent-sessions)))
 
 (defun beads-sesman--agent-worktree-session (agent-session)
@@ -270,7 +270,7 @@ Return beads-worktree-session or nil."
 Delegates to `beads-agent-backend-session-name' for backend-specific naming.
 Falls back to \"<session-id>@<working-dir>\" if backend not found,
 where session-id is in `issue-id#N' format."
-  (if-let ((backend (beads-agent--get-backend (oref session backend-name))))
+  (if-let* ((backend (beads-agent--get-backend (oref session backend-name))))
       (beads-agent-backend-session-name backend session)
     ;; Fallback if backend not found (defensive)
     (let ((session-id (oref session id))
@@ -296,13 +296,13 @@ the agent has started to get the session."
 (cl-defmethod sesman-quit-session ((_system (eql Beads)) session)
   "Quit beads SESSION.
 SESSION is a sesman session list (name backend-handle beads-agent-session)."
-  (when-let ((beads-session (nth 2 session)))
+  (when-let* ((beads-session (nth 2 session)))
     (beads-agent-stop (oref beads-session id))))
 
 (cl-defmethod sesman-restart-session ((_system (eql Beads)) session)
   "Restart beads SESSION.
 Stop the session then start a new one for the same issue."
-  (when-let ((beads-session (nth 2 session)))
+  (when-let* ((beads-session (nth 2 session)))
     (let ((issue-id (oref beads-session issue-id)))
       (sesman-quit-session beads-sesman-system session)
       ;; Small delay to allow cleanup
@@ -382,7 +382,7 @@ Display includes:
     (when beads-session
       ;; Get the agent buffer for :buffers (used by sesman-goto)
       (let* ((agent-buffer
-              (when-let ((backend (beads-agent--get-backend
+              (when-let* ((backend (beads-agent--get-backend
                                    (oref beads-session backend-name))))
                 (beads-agent-backend-get-buffer backend beads-session)))
              ;; Extract session info
@@ -433,7 +433,7 @@ Display includes:
                          (when current-issue
                            (format "Focus: %s" current-issue))
                          ;; Touched issues
-                         (when-let ((touched-str (beads-sesman--format-touched-issues touched-issues)))
+                         (when-let* ((touched-str (beads-sesman--format-touched-issues touched-issues)))
                            (format "Touched: %s" touched-str))
                          ;; Human-readable start time
                          (format "Started: %s"
@@ -512,7 +512,7 @@ before the buffer is available (during session creation), so the buffer
 linking is deferred until after `beads-agent--rename-and-store-buffer'."
   (when (and buffer (buffer-live-p buffer))
     (let ((name (beads-sesman--session-name beads-session)))
-      (when-let ((sesman-session (sesman-session beads-sesman-system name)))
+      (when-let* ((sesman-session (sesman-session beads-sesman-system name)))
         ;; Link buffer to session
         (sesman-link-session beads-sesman-system sesman-session 'buffer buffer)
         ;; Set up buffer for session management
@@ -540,7 +540,7 @@ from attempting a redundant cleanup when the buffer is eventually killed."
     ;; Note: sesman-session returns nil if session not found by name.
     ;; This could happen if the session name changed between registration
     ;; and unregistration (e.g., path normalization differences).
-    (if-let ((ses (sesman-session beads-sesman-system name)))
+    (if-let* ((ses (sesman-session beads-sesman-system name)))
         (sesman-unregister beads-sesman-system ses)
       ;; Session not found by name - this is unexpected but not fatal.
       ;; Only log in debug mode to avoid noise in normal usage.
@@ -578,7 +578,7 @@ This handler:
 (defun beads-sesman-quit ()
   "Quit the current beads session."
   (interactive)
-  (if-let ((session (sesman-current-session beads-sesman-system)))
+  (if-let* ((session (sesman-current-session beads-sesman-system)))
       (sesman-quit-session beads-sesman-system session)
     (user-error "No current beads session")))
 
@@ -586,7 +586,7 @@ This handler:
 (defun beads-sesman-restart ()
   "Restart the current beads session."
   (interactive)
-  (if-let ((session (sesman-current-session beads-sesman-system)))
+  (if-let* ((session (sesman-current-session beads-sesman-system)))
       (sesman-restart-session beads-sesman-system session)
     (user-error "No current beads session")))
 

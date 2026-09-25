@@ -68,7 +68,7 @@ Enables debug logging if not already enabled."
 (defun beads-clear-debug-buffer ()
   "Clear the *beads-debug* buffer."
   (interactive)
-  (when-let ((buf (get-buffer "*beads-debug*")))
+  (when-let* ((buf (get-buffer "*beads-debug*")))
     (with-current-buffer buf
       (let ((inhibit-read-only t))
         (erase-buffer)))
@@ -132,7 +132,7 @@ Checks contexts in order:
               (fboundp 'beads-section-issue-id-at-point))
      (beads-section-issue-id-at-point))
    ;; 4. Buffer name parsing (*beads-show[PROJECT]/ISSUE-ID*)
-   (when-let ((parsed (beads-buffer-parse-show (buffer-name))))
+   (when-let* ((parsed (beads-buffer-parse-show (buffer-name))))
      (plist-get parsed :issue-id))
    ;; 5. Text at point (button or regexp)
    (beads--issue-id-at-text-point)))
@@ -149,7 +149,7 @@ using `beads-completion-read-issue'."
   "Return the beads project root directory for the current buffer, or nil.
 The project root is the directory that contains the .beads directory.
 Returns nil when not inside a beads project."
-  (when-let ((beads-dir (beads--find-beads-dir)))
+  (when-let* ((beads-dir (beads--find-beads-dir)))
     (file-name-directory (directory-file-name beads-dir))))
 
 ;;;###autoload
@@ -270,7 +270,7 @@ Used as :if predicate for context-aware transient groups."
 ;; All commands are now in beads-ops-menu and beads-advanced-menu.
 ;; This is kept temporarily for backwards compatibility.
 
-;;;###autoload
+;;;###autoload (autoload 'beads-more-menu "beads" nil t)
 (transient-define-prefix beads-more-menu ()
   "Additional beads commands not in the main dispatch.
 
@@ -374,7 +374,7 @@ into logical groups for easy access."
 
 ;;; Main Transient Menu
 
-;;;###autoload
+;;;###autoload (autoload 'beads "beads" nil t)
 (transient-define-prefix beads ()
   "Main transient menu for Beads issue tracker.
 

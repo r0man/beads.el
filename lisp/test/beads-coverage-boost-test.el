@@ -244,7 +244,7 @@
           (progn
             (beads-delete "test-1")
             (should deleted))
-        (when-let ((buf (get-buffer "*test-preview*")))
+        (when-let* ((buf (get-buffer "*test-preview*")))
           (kill-buffer buf))))))
 
 (ert-deftest beads-coverage-boost-delete-main-cancelled ()
@@ -266,7 +266,7 @@
           (progn
             (beads-delete "test-1")
             (should-not deleted))
-        (when-let ((buf (get-buffer "*test-preview2*")))
+        (when-let* ((buf (get-buffer "*test-preview2*")))
           (kill-buffer buf))))))
 
 (ert-deftest beads-coverage-boost-delete-main-error ()

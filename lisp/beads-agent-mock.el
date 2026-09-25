@@ -154,7 +154,7 @@ Marks the session handle as inactive and kills the buffer."
               (handle (gethash handle-id beads-agent-mock--sessions)))
     (oset handle active nil)
     ;; Kill the buffer if it exists
-    (when-let ((buffer (oref handle buffer)))
+    (when-let* ((buffer (oref handle buffer)))
       (when (buffer-live-p buffer)
         (kill-buffer buffer)))))
 
@@ -169,7 +169,7 @@ Marks the session handle as inactive and kills the buffer."
 (cl-defmethod beads-agent-backend-switch-to-buffer
     ((backend beads-agent-backend-mock) session)
   "Switch to buffer for mock SESSION via BACKEND."
-  (if-let ((buffer (beads-agent-backend-get-buffer backend session)))
+  (if-let* ((buffer (beads-agent-backend-get-buffer backend session)))
       (if (buffer-live-p buffer)
           (beads-agent--pop-to-buffer-other-window buffer)
         (user-error "Agent buffer has been killed"))
@@ -233,7 +233,7 @@ Clears sessions (killing buffers), call logs, and configuration."
   (setq beads-agent-mock--session-counter 0)
   ;; Kill all mock session buffers before clearing
   (maphash (lambda (_id handle)
-             (when-let ((buffer (oref handle buffer)))
+             (when-let* ((buffer (oref handle buffer)))
                (when (buffer-live-p buffer)
                  (kill-buffer buffer))))
            beads-agent-mock--sessions)

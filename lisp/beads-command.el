@@ -534,17 +534,17 @@ Returns a list of error strings, or nil if all slots are valid."
         (when props
           (let ((value (and (slot-boundp cmd slot-name)
                             (slot-value cmd slot-name))))
-            (when-let ((err (beads-command-validate-slot
+            (when-let* ((err (beads-command-validate-slot
                              cmd slot-name value)))
               (push err errors))))))
     (nreverse errors)))
 
-(cl-defmethod beads-command-validate ((_command beads-command))
+(cl-defmethod beads-command-validate ((command beads-command))
   "Validate base COMMAND.
 Default implementation delegates to `beads-command-validate-slots'.
 Returns a list of error strings, or nil if valid.
 Subclasses may override for cross-field validation rules."
-  (beads-command-validate-slots _command))
+  (beads-command-validate-slots command))
 
 (cl-defgeneric beads-command-subcommand (command)
   "Return the CLI subcommand name for COMMAND.
@@ -605,9 +605,14 @@ Returns nil for abstract base classes."
   (let* ((class (eieio-object-class command))
          (class-name (symbol-name class)))
     (unless (memq class '(beads-command beads-command-global-options))
-      (let ((cli-cmd (and (slot-exists-p command 'cli-command)
-                          (slot-boundp command 'cli-command)
-                          (with-no-warnings (oref command cli-command)))))
+      ;; `cli-command' exists on subclasses only (declared via
+      ;; `beads-defcommand' machinery), so the slot name must stay
+      ;; dynamic: a constant here would trip Emacs 31.1's compile-time
+      ;; unknown-slot check on the abstract base classes.
+      (let* ((slot 'cli-command)
+             (cli-cmd (and (slot-exists-p command slot)
+                           (slot-boundp command slot)
+                           (slot-value command slot))))
         (or cli-cmd
             ;; Hierarchy-based: use when parent is a real command class
             ;; (not global-options, which is infrastructure)
@@ -775,7 +780,7 @@ Signals `beads-validation-error' if command validation fails.
 Signals `beads-command-error' if process exits with non-zero code.
 Signals `beads-json-parse-error' if JSON parsing fails (for JSON commands)."
   ;; Validate first
-  (when-let ((errors (beads-command-validate command)))
+  (when-let* ((errors (beads-command-validate command)))
     (let ((error-msg (beads-command--format-validation-errors errors)))
       (signal 'beads-validation-error
               (list (format "Command validation failed: %s" error-msg)
@@ -1118,7 +1123,7 @@ accepts `:queue', `:cache-key', and `:timeout' as documented on the
 generic.  Signals `beads-validation-error' immediately if validation
 fails.  Returns a process object, `coalesced', or `queued'."
   ;; Validate first - raise error immediately
-  (when-let ((errors (beads-command-validate command)))
+  (when-let* ((errors (beads-command-validate command)))
     (let ((error-msg (beads-command--format-validation-errors errors)))
       (signal 'beads-validation-error
               (list (format "Command validation failed: %s" error-msg)

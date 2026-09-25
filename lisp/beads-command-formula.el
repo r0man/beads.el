@@ -531,16 +531,16 @@ Uses `beads-formula-list--normalize-directory' for path comparison."
                                          (number-to-string (oref formula version))))
     (beads-formula-show--render-header "Source" (oref formula source))
     ;; Description
-    (when-let ((desc (oref formula description)))
+    (when-let* ((desc (oref formula description)))
       (beads-formula-show--render-section "Description")
       (insert (string-trim-right desc) "\n"))
     ;; Variables
-    (when-let ((vars (oref formula vars)))
+    (when-let* ((vars (oref formula vars)))
       (beads-formula-show--render-section "Variables")
       (dolist (var vars)
         (beads-formula-show--render-var (oref var name) var)))
     ;; Steps
-    (when-let ((steps (oref formula steps)))
+    (when-let* ((steps (oref formula steps)))
       (beads-formula-show--render-section
        (format "Steps (%d)" (length steps)))
       (cl-loop for step in steps

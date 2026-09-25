@@ -439,7 +439,7 @@ the full agent type name (e.g. \"Task\") and OUTCOME is `finished' or
 `failed'.  For backward compatibility, the stored value may also be just
 the outcome symbol."
   ;; Record outcome for UI display
-  (when-let ((issue-id (and session (oref session issue-id))))
+  (when-let* ((issue-id (and session (oref session issue-id))))
     (let ((type-name (or (oref session agent-type-name) "")))
       (pcase action
         ('started
@@ -535,7 +535,7 @@ Returns 1 if no sessions exist for the issue.
 Session numbers never reuse - gaps in numbering are ignored."
   (let ((max-num 0))
     (dolist (session (beads-agent--get-sessions-for-issue issue-id))
-      (when-let ((num (beads-agent--session-number-from-id (oref session id))))
+      (when-let* ((num (beads-agent--session-number-from-id (oref session id))))
         (setq max-num (max max-num num))))
     (1+ max-num)))
 
@@ -630,7 +630,7 @@ The hook handler in beads-sesman.el registers the session with sesman."
   "Remove session SESSION-ID from tracking.
 Looks up the session from sesman and runs the state change hook,
 which triggers unregistration from sesman."
-  (when-let ((session (beads-agent--get-session session-id)))
+  (when-let* ((session (beads-agent--get-session session-id)))
     ;; Run state change hook - this triggers sesman unregistration
     (beads-agent--run-state-change-hook 'stopped session)))
 
@@ -661,7 +661,7 @@ Searches all sesman sessions for a beads-agent-session with matching ID."
 
 (defun beads-agent--session-active-p (session)
   "Check if SESSION is still active."
-  (when-let ((backend (beads-agent--get-backend
+  (when-let* ((backend (beads-agent--get-backend
                        (oref session backend-name))))
     (beads-agent-backend-session-active-p backend session)))
 
@@ -891,7 +891,7 @@ returns that buffer's name instead of generating a new one.  This
 prevents the typed instance counter from being incremented multiple
 times for the same session."
   ;; Idempotent: return existing buffer name if session already has one
-  (if-let ((existing-buffer (oref session buffer)))
+  (if-let* ((existing-buffer (oref session buffer)))
       (buffer-name existing-buffer)
     ;; Generate new name (increments typed counter)
     ;; Prefer worktree-dir for display name when available
@@ -917,7 +917,7 @@ Returns plist with :project-name, :branch, :type-name,
 
 This wraps the centralized `beads-buffer-parse-agent' function,
 mapping its return keys to the legacy names used in this module."
-  (when-let ((parsed (beads-buffer-parse-agent buffer-name)))
+  (when-let* ((parsed (beads-buffer-parse-agent buffer-name)))
     ;; Map centralized keys to legacy keys for compatibility
     (list :project-name (plist-get parsed :project)
           :branch (plist-get parsed :branch)

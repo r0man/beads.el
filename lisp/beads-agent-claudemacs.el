@@ -275,7 +275,7 @@ Uses the stored session buffer for precise cleanup, ensuring only this
 session's buffer is killed even when multiple agents share the same
 working directory."
   (require 'claudemacs)
-  (when-let ((buf (beads-agent-backend-get-buffer backend session)))
+  (when-let* ((buf (beads-agent-backend-get-buffer backend session)))
     (when (buffer-live-p buf)
       (with-current-buffer buf
         ;; Bind inhibit-read-only to allow process sentinel to modify buffer.
@@ -296,14 +296,14 @@ working directory."
 Returns non-nil if the session buffer exists, is live, and has an
 active process.  Uses the stored session buffer rather than searching
 by name pattern, since the buffer is renamed after creation."
-  (when-let ((buffer (beads-agent-backend-get-buffer backend session)))
+  (when-let* ((buffer (beads-agent-backend-get-buffer backend session)))
     (and (buffer-live-p buffer)
          (beads-agent-claudemacs--buffer-has-process-p buffer))))
 
 (cl-defmethod beads-agent-backend-switch-to-buffer
     ((backend beads-agent-backend-claudemacs) session)
   "Switch to claudemacs buffer for SESSION using BACKEND."
-  (if-let ((buffer (beads-agent-backend-get-buffer backend session)))
+  (if-let* ((buffer (beads-agent-backend-get-buffer backend session)))
       (if (buffer-live-p buffer)
           (beads-agent--pop-to-buffer-other-window buffer)
         (user-error "Agent buffer has been killed"))

@@ -192,9 +192,9 @@ orchestrator's later `rename-buffer' is a harmless no-op."
 (cl-defmethod beads-agent-backend-stop
   ((backend beads-agent-backend-terminal) session)
   "Stop SESSION on BACKEND: delete the buffer process, kill the buffer."
-  (when-let ((buffer (beads-agent-backend-get-buffer backend session)))
+  (when-let* ((buffer (beads-agent-backend-get-buffer backend session)))
     (when (buffer-live-p buffer)
-      (when-let ((proc (get-buffer-process buffer)))
+      (when-let* ((proc (get-buffer-process buffer)))
         (when (process-live-p proc)
           (delete-process proc)))
       (kill-buffer buffer))))
@@ -202,16 +202,16 @@ orchestrator's later `rename-buffer' is a harmless no-op."
 (cl-defmethod beads-agent-backend-session-active-p
   ((backend beads-agent-backend-terminal) session)
   "Return non-nil when SESSION's buffer process is live on BACKEND."
-  (when-let ((buffer (beads-agent-backend-get-buffer backend session)))
+  (when-let* ((buffer (beads-agent-backend-get-buffer backend session)))
     (and (buffer-live-p buffer)
-         (when-let ((proc (get-buffer-process buffer)))
+         (when-let* ((proc (get-buffer-process buffer)))
            (process-live-p proc))
          t)))
 
 (cl-defmethod beads-agent-backend-switch-to-buffer
   ((backend beads-agent-backend-terminal) session)
   "Pop to SESSION's terminal buffer (BACKEND resolves the buffer)."
-  (when-let ((buffer (beads-agent-backend-get-buffer backend session)))
+  (when-let* ((buffer (beads-agent-backend-get-buffer backend session)))
     (when (buffer-live-p buffer)
       (pop-to-buffer buffer))))
 

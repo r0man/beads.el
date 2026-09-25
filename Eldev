@@ -84,7 +84,7 @@ transient-define-group."
 (defun beads--fix-junit-report-path (orig-fn stats)
   "Advice to write JUnit report to EMACS_TEST_JUNIT_REPORT path.
 ORIG-FN is the original function, STATS is the test statistics."
-  (if-let ((report-path (getenv "EMACS_TEST_JUNIT_REPORT")))
+  (if-let* ((report-path (getenv "EMACS_TEST_JUNIT_REPORT")))
       ;; Write to the specified path instead of the default location
       (let ((ert-load-file-name report-path))
         (funcall orig-fn stats)
@@ -123,7 +123,7 @@ ORIG-FN is the original function, STATS is the test statistics."
 (setf eldev-standard-excludes
       `(:or ,eldev-standard-excludes "worktree/**" "share/**"
             "transient-reference/**" "beads-reference/**" "efrit-reference/**"
-            "bde-*/**" "eca-support/**"))
+            "bde-*/**" "eca-support/**" "worktrees/**"))
 
 ;; Test files location
 (setf eldev-test-fileset '("lisp/test/*.el"))

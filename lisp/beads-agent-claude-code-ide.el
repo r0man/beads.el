@@ -158,11 +158,11 @@ Returns cons cell (BACKEND-SESSION . BUFFER)."
 Explicitly kills the underlying process then the session buffer.
 We kill the buffer directly because beads renames it and
 `claude-code-ide-stop' won't find it by the original name."
-  (when-let ((buffer (beads-agent-backend-get-buffer backend session)))
+  (when-let* ((buffer (beads-agent-backend-get-buffer backend session)))
     (when (buffer-live-p buffer)
       ;; Kill process first to avoid zombies - buffer kill may not
       ;; terminate the claude CLI if the terminal emulator detached it
-      (when-let ((proc (get-buffer-process buffer)))
+      (when-let* ((proc (get-buffer-process buffer)))
         (delete-process proc))
       (kill-buffer buffer))))
 
@@ -180,7 +180,7 @@ We kill the buffer directly because beads renames it and
 (cl-defmethod beads-agent-backend-switch-to-buffer
     ((backend beads-agent-backend-claude-code-ide) session)
   "Switch to claude-code-ide buffer for SESSION using BACKEND."
-  (if-let ((buffer (beads-agent-backend-get-buffer backend session)))
+  (if-let* ((buffer (beads-agent-backend-get-buffer backend session)))
       (if (buffer-live-p buffer)
           (beads-agent--pop-to-buffer-other-window buffer)
         (user-error "Agent buffer has been killed"))

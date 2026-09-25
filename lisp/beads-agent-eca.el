@@ -213,14 +213,14 @@ Returns cons cell (BACKEND-SESSION . BUFFER)."
 Since beads renames the buffer, we cannot use `eca-stop' directly.
 We kill the buffer directly and terminate the process explicitly."
   ;; Get the renamed buffer from the session
-  (when-let ((buffer (beads-agent-backend-get-buffer backend session)))
+  (when-let* ((buffer (beads-agent-backend-get-buffer backend session)))
     (when (buffer-live-p buffer)
       ;; Kill process first to avoid zombies
-      (when-let ((proc (get-buffer-process buffer)))
+      (when-let* ((proc (get-buffer-process buffer)))
         (delete-process proc))
       (kill-buffer buffer)))
   ;; Also try to clean up via ECA's native stop if the backend-session is valid
-  (when-let ((eca-session (oref session backend-session)))
+  (when-let* ((eca-session (oref session backend-session)))
     (condition-case err
         (when (and (featurep 'eca) (fboundp 'eca-stop))
           ;; This may fail if the session is already gone, which is fine
@@ -233,19 +233,19 @@ We kill the buffer directly and terminate the process explicitly."
     ((_backend beads-agent-backend-eca) session)
   "Check if ECA SESSION is active.
 Returns non-nil if the ECA server process is running for this session."
-  (when-let ((eca-session (oref session backend-session)))
+  (when-let* ((eca-session (oref session backend-session)))
     (and (beads-agent-eca--has-feature-p 'eca-process 'eca-process-running-p)
          (eca-process-running-p eca-session))))
 
 (cl-defmethod beads-agent-backend-switch-to-buffer
     ((backend beads-agent-backend-eca) session)
   "Switch to ECA buffer for SESSION using BACKEND."
-  (if-let ((buffer (beads-agent-backend-get-buffer backend session)))
+  (if-let* ((buffer (beads-agent-backend-get-buffer backend session)))
       (if (buffer-live-p buffer)
           (beads-agent--pop-to-buffer-other-window buffer)
         (user-error "Agent buffer has been killed"))
     ;; Fallback: try to open via ECA's native function
-    (if-let ((eca-session (oref session backend-session)))
+    (if-let* ((eca-session (oref session backend-session)))
         (when (beads-agent-eca--has-feature-p 'eca-chat 'eca-chat-open)
           (eca-chat-open eca-session))
       (user-error "No buffer found for session %s" (oref session id)))))

@@ -346,7 +346,7 @@ Returns plist with :type, :remote, :project, :branch, :suffix, or nil."
   (cl-remove-if-not
    (lambda (buf)
      (let ((name (buffer-name buf)))
-       (when-let ((parsed (beads-buffer-parse-list name)))
+       (when-let* ((parsed (beads-buffer-parse-list name)))
          (or (null project)
              (string= project (plist-get parsed :project))))))
    (buffer-list)))
@@ -356,7 +356,7 @@ Returns plist with :type, :remote, :project, :branch, :suffix, or nil."
   (cl-remove-if-not
    (lambda (buf)
      (let ((name (buffer-name buf)))
-       (when-let ((parsed (beads-buffer-parse-show name)))
+       (when-let* ((parsed (beads-buffer-parse-show name)))
          (and (or (null project)
                   (string= project (plist-get parsed :project)))
               (or (null issue-id)
@@ -368,7 +368,7 @@ Returns plist with :type, :remote, :project, :branch, :suffix, or nil."
   (cl-remove-if-not
    (lambda (buf)
      (let ((name (buffer-name buf)))
-       (when-let ((parsed (beads-buffer-parse-agent name)))
+       (when-let* ((parsed (beads-buffer-parse-agent name)))
          (and (or (null project)
                   (string= project (plist-get parsed :project)))
               (or (null type)
@@ -380,7 +380,7 @@ Returns plist with :type, :remote, :project, :branch, :suffix, or nil."
   (cl-remove-if-not
    (lambda (buf)
      (let ((name (buffer-name buf)))
-       (when-let ((parsed (beads-buffer-parse-utility name)))
+       (when-let* ((parsed (beads-buffer-parse-utility name)))
          (and (or (null project)
                   (string= project (plist-get parsed :project)))
               (or (null type)
@@ -434,7 +434,7 @@ This is for showing list views or when you want to replace the current buffer.
 Display strategy:
 1. If BUFFER is visible, select its window
 2. Otherwise, display in current window"
-  (if-let ((window (get-buffer-window buffer)))
+  (if-let* ((window (get-buffer-window buffer)))
       (select-window window)
     (switch-to-buffer buffer)))
 

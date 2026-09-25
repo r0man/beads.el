@@ -975,7 +975,7 @@ EIEIO enforces (list-of string) at construction time."
                (lambda (id) (setq deleted id))))
       (beads-delete "bd-42")
       (should (equal deleted "bd-42"))
-      (when-let ((buf (get-buffer "*test-preview*")))
+      (when-let* ((buf (get-buffer "*test-preview*")))
         (kill-buffer buf)))))
 
 (ert-deftest beads-delete-test-delete-cancelled ()
@@ -994,7 +994,7 @@ EIEIO enforces (list-of string) at construction time."
                (lambda (id) (setq deleted id))))
       (beads-delete "bd-42")
       (should (null deleted))
-      (when-let ((buf (get-buffer "*test-preview*")))
+      (when-let* ((buf (get-buffer "*test-preview*")))
         (kill-buffer buf)))))
 
 (ert-deftest beads-delete-test-delete-error ()

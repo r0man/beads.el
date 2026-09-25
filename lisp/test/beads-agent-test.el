@@ -2133,7 +2133,7 @@ When worktrees are disabled, uses beads-agent-start directly."
 (defun beads-agent-test--suffix-transient-p (suffix-symbol)
   "Return the :transient property of SUFFIX-SYMBOL.
 Returns t if suffix stays open, nil if it closes (unbound or nil)."
-  (when-let ((suffix (get suffix-symbol 'transient--suffix)))
+  (when-let* ((suffix (get suffix-symbol 'transient--suffix)))
     (and (slot-boundp suffix 'transient)
          (slot-value suffix 'transient))))
 

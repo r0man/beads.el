@@ -38,6 +38,7 @@
 (declare-function beads-show "beads-command-show")
 (declare-function beads-list-mode "beads-command-list")
 (declare-function beads-list--populate-buffer "beads-command-list")
+(declare-function beads-command-list "beads-command-list" (&rest args))
 (declare-function beads-buffer-name-list "beads-buffer")
 
 ;;; Epic Status Command

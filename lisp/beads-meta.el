@@ -464,15 +464,15 @@ Positional slots skip :long-option inference."
          (props (cdr slot-def))
          (result (copy-sequence props)))
     ;; Infer :initarg
-    (when-let ((initarg (beads-meta--infer-initarg name result)))
+    (when-let* ((initarg (beads-meta--infer-initarg name result)))
       (setq result (plist-put result :initarg initarg)))
     ;; Infer :type from :option-type
-    (when-let ((type-spec (beads-meta--infer-type result)))
+    (when-let* ((type-spec (beads-meta--infer-type result)))
       (setq result (plist-put result :type type-spec)))
     ;; Infer :option-type from :type (for CLI serialization).
     ;; All beads-defcommand slots are CLI options, so :option-type is
     ;; always needed for beads-meta-build-command-line.
-    (when-let ((opt-type (beads-meta--infer-option-type result)))
+    (when-let* ((opt-type (beads-meta--infer-option-type result)))
       (setq result (plist-put result :option-type opt-type)))
     ;; Infer :initform (nil default for command options)
     (when (eq :infer-nil (beads-meta--infer-initform result))
@@ -491,7 +491,7 @@ Positional slots skip :long-option inference."
     ;; Strip EIEIO-conflicting concise aliases (:reader, :group)
     ;; by expanding them to legacy names and removing the concise keys
     (dolist (alias beads-meta--eieio-conflicting-aliases)
-      (when-let ((value (plist-get result (car alias))))
+      (when-let* ((value (plist-get result (car alias))))
         (setq result (plist-put result (cdr alias) value))
         (setq result (beads-meta--plist-remove result (car alias)))))
     (cons name result)))
@@ -517,13 +517,13 @@ This function is available at macro-expansion time."
          (result (copy-sequence props)))
     ;; === Phase 1: EIEIO core inference ===
     ;; Infer :initarg from slot name
-    (when-let ((initarg (beads-meta--infer-initarg name result)))
+    (when-let* ((initarg (beads-meta--infer-initarg name result)))
       (setq result (plist-put result :initarg initarg)))
     ;; Infer :type from :option-type
-    (when-let ((type-spec (beads-meta--infer-type result)))
+    (when-let* ((type-spec (beads-meta--infer-type result)))
       (setq result (plist-put result :type type-spec)))
     ;; Infer :option-type from :type
-    (when-let ((opt-type (beads-meta--infer-option-type result)))
+    (when-let* ((opt-type (beads-meta--infer-option-type result)))
       (setq result (plist-put result :option-type opt-type)))
     ;; Infer :initform (nil default for command options)
     (when (eq :infer-nil (beads-meta--infer-initform result))
@@ -546,16 +546,16 @@ This function is available at macro-expansion time."
     ;; === Phase 3: Transient inference (only for command options) ===
     (when (beads-meta--slot-is-command-option-p result)
       ;; Infer :transient-argument
-      (when-let ((argument (beads-meta--infer-argument result)))
+      (when-let* ((argument (beads-meta--infer-argument result)))
         (unless (or (plist-get result :transient-argument)
                     (plist-get result :argument))
           (setq result (plist-put result :transient-argument argument))))
       ;; Infer :transient-class
-      (when-let ((class (beads-meta--infer-class result)))
+      (when-let* ((class (beads-meta--infer-class result)))
         (unless (plist-get result :transient-class)
           (setq result (plist-put result :transient-class class))))
       ;; Infer :transient-prompt
-      (when-let ((prompt (beads-meta--infer-prompt name result)))
+      (when-let* ((prompt (beads-meta--infer-prompt name result)))
         (unless (or (plist-get result :transient-prompt)
                     (plist-get result :prompt))
           (setq result (plist-put result :transient-prompt prompt))))
@@ -571,7 +571,7 @@ This function is available at macro-expansion time."
 
     ;; === Phase 4: Strip EIEIO-conflicting aliases ===
     (dolist (alias beads-meta--eieio-conflicting-aliases)
-      (when-let ((value (plist-get result (car alias))))
+      (when-let* ((value (plist-get result (car alias))))
         (setq result (plist-put result (cdr alias) value))
         (setq result (beads-meta--plist-remove result (car alias)))))
     (cons name result))))
@@ -609,7 +609,7 @@ Uses the first sentence of :documentation if available, otherwise
 falls back to humanizing the slot name.
 Returns nil if :transient-description is already set."
   (when (not (plist-get slot-options :transient-description))
-    (or (when-let ((doc (plist-get slot-options :documentation)))
+    (or (when-let* ((doc (plist-get slot-options :documentation)))
           (beads-meta-first-sentence doc))
         (beads-meta--humanize-slot-name slot-name))))
 
@@ -649,11 +649,11 @@ Returns a new plist with both concise and legacy names.
       (let ((concise (car alias))
             (legacy (cdr alias)))
         ;; If concise is set but legacy is not, copy value to legacy
-        (when-let ((value (plist-get result concise)))
+        (when-let* ((value (plist-get result concise)))
           (unless (plist-get result legacy)
             (setq result (plist-put result legacy value))))
         ;; If legacy is set but concise is not, copy value to concise
-        (when-let ((value (plist-get result legacy)))
+        (when-let* ((value (plist-get result legacy)))
           (unless (plist-get result concise)
             (setq result (plist-put result concise value))))))
     ;; Infer :transient-key from :short-option (bde-vta5: :short-option
@@ -702,20 +702,20 @@ or transient menu items (have :long-option, :transient-key, etc.)."
   (when (beads-meta--slot-is-command-option-p slot-options)
     (let ((inferred nil))
       ;; Infer option-type first since other inferences depend on it
-      (when-let ((option-type (beads-meta--infer-option-type slot-options)))
+      (when-let* ((option-type (beads-meta--infer-option-type slot-options)))
         (push (cons :option-type option-type) inferred))
       ;; Infer argument (depends on long-option and option-type)
-      (when-let ((argument (beads-meta--infer-argument slot-options)))
+      (when-let* ((argument (beads-meta--infer-argument slot-options)))
         (push (cons :transient-argument argument) inferred)
         (push (cons :argument argument) inferred))
       ;; Infer description
-      (when-let ((desc (beads-meta--infer-description slot-name slot-options)))
+      (when-let* ((desc (beads-meta--infer-description slot-name slot-options)))
         (push (cons :transient-description desc) inferred))
       ;; Infer class
-      (when-let ((class (beads-meta--infer-class slot-options)))
+      (when-let* ((class (beads-meta--infer-class slot-options)))
         (push (cons :transient-class class) inferred))
       ;; Infer prompt
-      (when-let ((prompt (beads-meta--infer-prompt slot-name slot-options)))
+      (when-let* ((prompt (beads-meta--infer-prompt slot-name slot-options)))
         (push (cons :transient-prompt prompt) inferred)
         (push (cons :prompt prompt) inferred))
       inferred)))

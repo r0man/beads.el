@@ -250,8 +250,8 @@ the defcustom."
 
 (defun beads-agent-list--current-issue-id ()
   "Return the issue ID for the session at point, or nil."
-  (when-let ((session-id (beads-agent-list--current-session-id)))
-    (when-let ((session (beads-agent--get-session session-id)))
+  (when-let* ((session-id (beads-agent-list--current-session-id)))
+    (when-let* ((session (beads-agent--get-session session-id)))
       (oref session issue-id))))
 
 ;;; Commands
@@ -267,21 +267,21 @@ the defcustom."
 (defun beads-agent-list-jump ()
   "Jump to the agent buffer for session at point."
   (interactive)
-  (if-let ((session-id (beads-agent-list--current-session-id)))
+  (if-let* ((session-id (beads-agent-list--current-session-id)))
       (beads-agent-jump session-id)
     (user-error "No session at point")))
 
 (defun beads-agent-list-show-issue ()
   "Show details for the issue associated with session at point."
   (interactive)
-  (if-let ((issue-id (beads-agent-list--current-issue-id)))
+  (if-let* ((issue-id (beads-agent-list--current-issue-id)))
       (beads-show issue-id)
     (user-error "No session at point")))
 
 (defun beads-agent-list-stop ()
   "Stop the agent session at point."
   (interactive)
-  (if-let ((session-id (beads-agent-list--current-session-id)))
+  (if-let* ((session-id (beads-agent-list--current-session-id)))
       (progn
         (beads-agent-stop session-id)
         (beads-agent-list-refresh))
@@ -305,7 +305,7 @@ the defcustom."
   "Restart the agent session at point.
 Stops the current session and starts a new one for the same issue."
   (interactive)
-  (if-let ((session-id (beads-agent-list--current-session-id)))
+  (if-let* ((session-id (beads-agent-list--current-session-id)))
       (let* ((session (beads-agent--get-session session-id))
              (issue-id (and session (oref session issue-id))))
         (if (not issue-id)
@@ -324,7 +324,7 @@ Stops the current session and starts a new one for the same issue."
 (defun beads-agent-list-copy-session-id ()
   "Copy the session ID at point to the kill ring."
   (interactive)
-  (if-let ((session-id (beads-agent-list--current-session-id)))
+  (if-let* ((session-id (beads-agent-list--current-session-id)))
       (progn
         (kill-new session-id)
         (message "Copied session ID: %s" session-id))
@@ -333,7 +333,7 @@ Stops the current session and starts a new one for the same issue."
 (defun beads-agent-list-copy-issue-id ()
   "Copy the issue ID at point to the kill ring."
   (interactive)
-  (if-let ((issue-id (beads-agent-list--current-issue-id)))
+  (if-let* ((issue-id (beads-agent-list--current-issue-id)))
       (progn
         (kill-new issue-id)
         (message "Copied issue ID: %s" issue-id))

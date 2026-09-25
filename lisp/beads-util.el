@@ -186,7 +186,7 @@ The log format is compatible with `log-view-mode':
           (let ((inhibit-read-only t))
             (insert log-line)))
         ;; Auto-scroll if buffer is visible in a window
-        (when-let ((win (get-buffer-window buf)))
+        (when-let* ((win (get-buffer-window buf)))
           (with-selected-window win
             (goto-char (point-max))
             (recenter -1)))))))
@@ -235,7 +235,7 @@ Search order:
       (let ((beads-dir (locate-dominating-file start-dir ".beads")))
         ;; If not found locally, check if we're in a worktree
         (unless beads-dir
-          (when-let ((main-repo (beads-git-find-main-repo)))
+          (when-let* ((main-repo (beads-git-find-main-repo)))
             (let ((main-beads (expand-file-name ".beads" main-repo)))
               (when (file-directory-p main-beads)
                 (setq beads-dir main-repo)))))
@@ -302,7 +302,7 @@ normalized the git result itself; that work now lives here).
 This is the package-wide resolver: prefer it over calling
 `beads-git-find-project-root' directly, except where an operation
 genuinely requires git (worktrees, branches, sesman sessions)."
-  (when-let ((root (or (ignore-errors (beads-git-find-project-root))
+  (when-let* ((root (or (ignore-errors (beads-git-find-project-root))
                        (beads--find-project-root))))
     (file-name-as-directory (expand-file-name root))))
 
@@ -318,7 +318,7 @@ root is already in hand so the root is not resolved a second time."
 Resolves the root via `beads--project-root' (git first, then the
 non-git marker walk), so Gas City and other non-git beads projects get
 a real name instead of \"unknown\"."
-  (when-let ((root (beads--project-root)))
+  (when-let* ((root (beads--project-root)))
     (beads--project-name-for-root root)))
 
 (defun beads--resolve-beads-dir (beads-dir)
@@ -376,7 +376,7 @@ take precedence over defcustom settings."
     (push beads-executable parts)
 
     ;; Actor: beads-global-actor > beads-actor > $USER
-    (when-let ((actor (or beads-global-actor beads-actor)))
+    (when-let* ((actor (or beads-global-actor beads-actor)))
       ;; Convert to string in case it's a symbol
       (let ((actor-str (if (stringp actor) actor (format "%s" actor))))
         (unless (string-empty-p (string-trim actor-str))
@@ -384,7 +384,7 @@ take precedence over defcustom settings."
           (push actor-str parts))))
 
     ;; Database: beads-global-db > beads--get-database-path
-    (when-let ((db (or beads-global-db (beads--get-database-path))))
+    (when-let* ((db (or beads-global-db (beads--get-database-path))))
       ;; Convert to string in case it's a symbol
       (let ((db-str (if (stringp db) db (format "%s" db))))
         (unless (string-empty-p (string-trim db-str))
@@ -393,7 +393,7 @@ take precedence over defcustom settings."
           (push (file-local-name db-str) parts))))
 
     ;; Working directory (like git -C)
-    (when-let ((dir beads-global-directory))
+    (when-let* ((dir beads-global-directory))
       (let ((dir-str (if (stringp dir) dir (format "%s" dir))))
         (unless (string-empty-p (string-trim dir-str))
           (push "--directory" parts)

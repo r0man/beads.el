@@ -207,7 +207,7 @@ Returns issue ID string or nil if not found."
    (when (derived-mode-p 'beads-show-mode)
      beads-show--issue-id)
    ;; From buffer name (*beads-show[PROJECT]/ISSUE-ID*)
-   (when-let ((parsed (beads-buffer-parse-show (buffer-name))))
+   (when-let* ((parsed (beads-buffer-parse-show (buffer-name))))
      (plist-get parsed :issue-id))))
 
 (defun beads-delete--get-preview (issue-id)
@@ -263,7 +263,7 @@ Returns the preview buffer."
     ;; Close preview buffer
     (let ((preview-buf-name (beads-buffer-name-utility "delete-preview"
                                                        issue-id)))
-      (when-let ((preview-buffer (get-buffer preview-buf-name)))
+      (when-let* ((preview-buffer (get-buffer preview-buf-name)))
         (kill-buffer preview-buffer)))
     ;; Refresh any open beads buffers
     (when beads-auto-refresh

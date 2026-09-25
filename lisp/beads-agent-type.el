@@ -298,7 +298,7 @@ Returns TYPE for convenient chaining."
     ;; Validate letter uniqueness
     (beads-agent-type--validate-letter letter name)
     ;; If replacing existing type, unregister its letter first
-    (when-let ((existing (gethash lower-name beads-agent-type--registry)))
+    (when-let* ((existing (gethash lower-name beads-agent-type--registry)))
       (remhash (upcase (oref existing letter)) beads-agent-type--letter-registry))
     ;; Register the type and letter
     (puthash lower-name type beads-agent-type--registry)
@@ -344,7 +344,7 @@ session.  Test files reach into this internal entry point
 deliberately to undo per-test registrations in teardown."
   (beads-agent-type--ensure-registry)
   (let ((lower-name (downcase name)))
-    (when-let ((type (gethash lower-name beads-agent-type--registry)))
+    (when-let* ((type (gethash lower-name beads-agent-type--registry)))
       (remhash (upcase (oref type letter)) beads-agent-type--letter-registry)
       (remhash lower-name beads-agent-type--registry))))
 
@@ -359,7 +359,7 @@ Includes annotations showing description for each type."
           `(metadata
             (annotation-function
              . ,(lambda (candidate)
-                  (when-let ((type (beads-agent-type-get candidate)))
+                  (when-let* ((type (beads-agent-type-get candidate)))
                     (concat " - " (oref type description)))))
             (category . beads-agent-type))
         (complete-with-action
@@ -383,7 +383,7 @@ Returns the selected type name as a string."
   "Get agent type by LETTER (case-insensitive).
 Returns the `beads-agent-type' instance, or nil if not found."
   (beads-agent-type--ensure-registry)
-  (when-let ((name (gethash (upcase letter) beads-agent-type--letter-registry)))
+  (when-let* ((name (gethash (upcase letter) beads-agent-type--letter-registry)))
     (beads-agent-type-get name)))
 
 ;;;###autoload

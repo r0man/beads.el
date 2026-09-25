@@ -31,6 +31,9 @@
 (defvar beads-completion-show-unavailable-backends)
 (declare-function beads-list-execute "beads-command-list" (&rest args))
 (declare-function beads--get-database-path "beads-util" ())
+(declare-function beads-agent--get-available-backends "beads-agent-backend" ())
+(declare-function beads-agent--get-all-backends "beads-agent-backend" ())
+(declare-function beads-agent-backend-available-p "beads-agent-backend" (backend))
 
 ;;; Completion Cache
 
@@ -995,7 +998,7 @@ The returned string is one of:
 (defun beads-completion--marginalia-annotate-issue (cand)
   "Marginalia annotator for beads issue candidates.
 CAND is the candidate string with beads-issue text property."
-  (when-let ((issue (get-text-property 0 'beads-issue cand)))
+  (when-let* ((issue (get-text-property 0 'beads-issue cand)))
     (let ((status (oref issue status))
           (priority (oref issue priority))
           (type (or (oref issue issue-type) "task"))
@@ -1021,7 +1024,7 @@ CAND is the candidate string with beads-issue text property."
 (defun beads-completion--marginalia-annotate-backend (cand)
   "Marginalia annotator for beads agent backend candidates.
 CAND is the candidate string with beads-backend text property."
-  (when-let ((backend (get-text-property 0 'beads-backend cand)))
+  (when-let* ((backend (get-text-property 0 'beads-backend cand)))
     (let ((available (get-text-property 0 'beads-available cand))
           (priority (oref backend priority))
           (description (or (oref backend description) "")))
@@ -1035,7 +1038,7 @@ CAND is the candidate string with beads-backend text property."
 (defun beads-completion--marginalia-annotate-worktree (cand)
   "Marginalia annotator for beads worktree candidates.
 CAND is the candidate string with beads-worktree text property."
-  (when-let ((worktree (get-text-property 0 'beads-worktree cand)))
+  (when-let* ((worktree (get-text-property 0 'beads-worktree cand)))
     (let ((branch (or (oref worktree branch) ""))
           (state (or (oref worktree beads-state) "none"))
           (is-main (oref worktree is-main))
@@ -1059,7 +1062,7 @@ issue (issue ID), or no type."
   (let ((type (get-text-property 0 'beads-type cand)))
     (pcase type
       ('worktree
-       (when-let ((wt (get-text-property 0 'beads-worktree cand)))
+       (when-let* ((wt (get-text-property 0 'beads-worktree cand)))
          (let ((branch (or (oref wt branch) ""))
                (state (or (oref wt beads-state) "none")))
            (marginalia--fields
@@ -1067,7 +1070,7 @@ issue (issue ID), or no type."
             (branch :face 'font-lock-keyword-face :width 20 :truncate 20)
             (state :face 'shadow :width 8)))))
       ('issue
-       (when-let ((issue (get-text-property 0 'beads-issue cand)))
+       (when-let* ((issue (get-text-property 0 'beads-issue cand)))
          (let ((status (oref issue status))
                (priority (oref issue priority))
                (title (or (oref issue title) "")))
@@ -1104,7 +1107,7 @@ CAND may have beads-agent-wt-type of none, worktree, or issue."
        (marginalia--fields
         ("(current project)" :face 'font-lock-comment-face :width 20)))
       ('worktree
-       (when-let ((wt (get-text-property 0 'beads-worktree cand)))
+       (when-let* ((wt (get-text-property 0 'beads-worktree cand)))
          (let ((branch (or (oref wt branch) ""))
                (state (or (oref wt beads-state) "none")))
            (marginalia--fields
@@ -1112,7 +1115,7 @@ CAND may have beads-agent-wt-type of none, worktree, or issue."
             (branch :face 'font-lock-keyword-face :width 20 :truncate 20)
             (state :face 'shadow :width 8)))))
       ('issue
-       (when-let ((issue (get-text-property 0 'beads-issue cand)))
+       (when-let* ((issue (get-text-property 0 'beads-issue cand)))
          (let ((status (oref issue status))
                (priority (oref issue priority))
                (title (or (oref issue title) "")))

@@ -46,6 +46,7 @@
 ;; load cycle; the function below pulls beads-util in at call time so it
 ;; works even when beads-git is loaded in isolation.
 (declare-function beads--project-name "beads-util")
+(declare-function beads-execute "beads-command")
 
 ;;; Forward Declarations
 
@@ -95,7 +96,7 @@ This is METADATA for display, not identity.  Works over Tramp."
   "Return non-nil if current directory is in a git worktree.
 In worktrees, .git is a file containing `gitdir: ...' instead of a directory.
 Works from nested directories within the worktree."
-  (when-let ((git-dir (locate-dominating-file default-directory ".git")))
+  (when-let* ((git-dir (locate-dominating-file default-directory ".git")))
     (let ((dot-git (expand-file-name ".git" git-dir)))
       (and (file-exists-p dot-git)
            (not (file-directory-p dot-git))))))
@@ -248,7 +249,7 @@ Creates one if it doesn't exist.  Returns the worktree path."
 (defun beads-git-ensure-worktree-async (issue-id callback)
   "Ensure a worktree exists for ISSUE-ID asynchronously.
 CALLBACK receives (success worktree-path-or-error)."
-  (if-let ((existing (beads-git-find-worktree-for-issue issue-id)))
+  (if-let* ((existing (beads-git-find-worktree-for-issue issue-id)))
       ;; Worktree already exists
       (funcall callback t existing)
     ;; Need to create worktree

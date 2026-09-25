@@ -55,6 +55,7 @@
 (declare-function beads-list--populate-buffer "beads-command-list")
 (declare-function beads-list-mode "beads-command-list")
 (declare-function beads-list-refresh "beads-command-list")
+(declare-function beads-command-list "beads-command-list" (&rest args))
 (declare-function beads-refresh-show "beads-command-show")
 (declare-function beads-reader-label-issue-ids "beads-reader")
 (declare-function beads-reader-label-name "beads-reader")
@@ -315,7 +316,7 @@ Returns issue ID string or nil if not found."
    (when (derived-mode-p 'beads-show-mode)
      beads-show--issue-id)
    ;; From buffer name (*beads-show[PROJECT]/ISSUE-ID*)
-   (when-let ((parsed (beads-buffer-parse-show (buffer-name))))
+   (when-let* ((parsed (beads-buffer-parse-show (buffer-name))))
      (plist-get parsed :issue-id))))
 
 ;;; Label Add Workflow

@@ -47,6 +47,9 @@
 (defvar ghostel-kill-buffer-on-exit)
 (defvar eat-kill-buffer-on-exit)
 (declare-function vterm "vterm" (&optional buffer-name))
+(declare-function term-mode "term" ())
+(declare-function term-exec "term" (buffer name command startfile switches))
+(declare-function term-char-mode "term" ())
 (declare-function eat-mode "eat" ())
 (declare-function eat-exec "eat" (buffer name command startfile switches))
 (declare-function ghostel-exec "ghostel" (buffer program &optional args))
@@ -126,6 +129,31 @@ package owns TERM/terminfo.
 Returns the live spawn buffer.  The buffer name is owned from spawn
 \(no rename), so the caller need not rely on any post-spawn rename.")
 
+;; Long-lived terminals must never prompt on `kill-buffer'.  Emacs's
+;; `process-kill-buffer-query-function' asks "has a running process" when
+;; the buffer's process still carries its `process-query-on-exit' flag
+;; (the `make-process'/`start-process' default).  Backends are
+;; inconsistent about this: eat clears the flag, but vterm, term and
+;; ghostel leave it set — and over TRAMP the attach runs a local ssh
+;; client, so every remote agent buffer kill nagged for confirmation.
+;; An :around method on the base class fixes it once, for every backend
+;; (including `auto', which delegates) and every caller (gascity attach
+;; and the beads agent terminal backend).
+(cl-defmethod beads-terminal-spawn :around ((_t beads-terminal)
+                                            _buffer-name _argv _working-dir _env)
+  "Clear `process-query-on-exit' on the spawned process.
+Delegates to the backend-specific method, then clears the query flag
+of BUFFER-NAME's process so killing the buffer never asks for
+confirmation.  A dead buffer or a process-less buffer is left alone.
+These terminals host tmux attaches and agent CLIs — the thing being
+killed is a local client (ssh/tmux/pty), never the user's intent to
+confirm again and again."
+  (let ((buf (cl-call-next-method)))
+    (when (and (bufferp buf) (buffer-live-p buf))
+      (when-let* ((proc (get-buffer-process buf)))
+        (set-process-query-on-exit-flag proc nil)))
+    buf))
+
 (cl-defgeneric beads-terminal-send-input (terminal buffer text)
   "Send TEXT to the process in TERMINAL's BUFFER.
 Deferred in this release; the default signals an error.  The real
@@ -152,7 +180,7 @@ ENV is an alist of (NAME . VALUE).  A NAME of \"TERM\" is dropped
 
 (defun beads-terminal--kill-stale-process (buf)
   "Delete any live process in BUF so a fresh exec can take over."
-  (when-let ((proc (get-buffer-process buf)))
+  (when-let* ((proc (get-buffer-process buf)))
     (when (process-live-p proc)
       (delete-process proc))))
 

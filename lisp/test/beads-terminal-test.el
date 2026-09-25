@@ -186,7 +186,7 @@ with a live process, and leaves no `<2>'/extra-`*' variant."
           ;; No collision-renamed variant got created.
           (should-not (get-buffer (concat name "<2>"))))
       (when (buffer-live-p buf)
-        (when-let ((p (get-buffer-process buf))) (delete-process p))
+        (when-let* ((p (get-buffer-process buf))) (delete-process p))
         (kill-buffer buf))
       (delete-directory dir t))))
 
@@ -208,7 +208,34 @@ Runs for real with a trivial `cat' (term is built in)."
           (should (eq buf pre))
           (should-not (get-buffer (concat name "<2>"))))
       (when (buffer-live-p buf)
-        (when-let ((p (get-buffer-process buf))) (delete-process p))
+        (when-let* ((p (get-buffer-process buf))) (delete-process p))
+        (kill-buffer buf))
+      (delete-directory dir t))))
+
+;;; Kill without confirmation
+
+(ert-deftest beads-terminal-test-spawn-clears-query-on-exit ()
+  "Every spawn path clears the spawned process's query-on-exit flag.
+Emacs's `process-kill-buffer-query-function' otherwise asks
+\"Buffer has a running process; kill it?\" on every `kill-buffer' —
+nagged for remote attaches (long-lived local ssh clients) since vterm
+and term never clear the flag themselves (eat does).  The `fake'
+terminal spawns a plain `cat', so this needs no real terminal."
+  (let* ((dir (make-temp-file "bde-term-" t))
+         (name "*beads-agent[no-query]*")
+         (process-environment process-environment)
+         (default-directory dir)
+         buf)
+    (unwind-protect
+        (progn
+          (setq buf (beads-terminal-spawn (beads-terminal-fake)
+                                          name '("cat") dir nil))
+          (should (bufferp buf))
+          (when-let* ((proc (get-buffer-process buf)))
+            (should (process-live-p proc))
+            (should-not (process-query-on-exit-flag proc))))
+      (when (buffer-live-p buf)
+        (when-let* ((p (get-buffer-process buf))) (delete-process p))
         (kill-buffer buf))
       (delete-directory dir t))))
 

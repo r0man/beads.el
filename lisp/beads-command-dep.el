@@ -186,7 +186,7 @@ Lists dependencies or dependents of an issue."
   :result (list-of beads-dependency)
   :transient :manual)
 
-(cl-defmethod beads-command-parse ((command beads-command-dep-list) stdout)
+(cl-defmethod beads-command-parse ((command beads-command-dep-list) _stdout)
   "Parse dep list COMMAND output from STDOUT.
 Returns list of beads-dependency instances.
 When :json is nil, falls back to parent (returns raw stdout).
@@ -374,10 +374,10 @@ Use --type to filter by dependency type."
 ;; The default-value function is called by transient when initializing
 ;; the prefix, allowing beads-dep-list and buffer-context detection
 ;; to pre-populate --id= via beads-dep--pending-issue-id.
-(when-let ((proto (get 'beads-dep-list-transient 'transient--prefix)))
+(when-let* ((proto (get 'beads-dep-list-transient 'transient--prefix)))
   (oset proto default-value
         (lambda ()
-          (when-let ((id (beads-dep--detect-issue-id)))
+          (when-let* ((id (beads-dep--detect-issue-id)))
             (list (concat "--id=" id))))))
 
 ;;;###autoload (autoload 'beads-dep-tree-transient "beads-command-dep" nil t)

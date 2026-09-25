@@ -91,7 +91,7 @@ Returns issue ID string or nil if not found."
    (when (derived-mode-p 'beads-show-mode)
      beads-show--issue-id)
    ;; From buffer name (*beads-show[PROJECT]/ISSUE-ID*)
-   (when-let ((parsed (beads-buffer-parse-show (buffer-name))))
+   (when-let* ((parsed (beads-buffer-parse-show (buffer-name))))
      (plist-get parsed :issue-id))))
 
 (defun beads-edit--parse-transient-args (args)

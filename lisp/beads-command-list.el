@@ -53,6 +53,7 @@
 (declare-function beads-update "beads-command-update" (&optional issue-id))
 (declare-function beads-reopen "beads-command-reopen" (&optional issue-id))
 (declare-function beads-list-filter-menu "beads-spec")
+(declare-function beads-issue-spec "beads-spec" (&rest args))
 (declare-function beads-list--refresh "beads-spec" (&optional spec))
 (declare-function beads--transient-args-to-spec "beads-spec" (args))
 (declare-function beads-agent--get-sessions-for-issue "beads-agent-backend")
@@ -986,40 +987,40 @@ Returns a beads-command-list object with all applicable filters set."
     (when (member "--long" args)
       (oset command long t))
     ;; String options
-    (when-let ((assignee (transient-arg-value "--assignee=" args)))
+    (when-let* ((assignee (transient-arg-value "--assignee=" args)))
       (oset command assignee assignee))
-    (when-let ((closed-after (transient-arg-value "--closed-after=" args)))
+    (when-let* ((closed-after (transient-arg-value "--closed-after=" args)))
       (oset command closed-after closed-after))
-    (when-let ((closed-before (transient-arg-value "--closed-before=" args)))
+    (when-let* ((closed-before (transient-arg-value "--closed-before=" args)))
       (oset command closed-before closed-before))
-    (when-let ((created-after (transient-arg-value "--created-after=" args)))
+    (when-let* ((created-after (transient-arg-value "--created-after=" args)))
       (oset command created-after created-after))
-    (when-let ((created-before (transient-arg-value
+    (when-let* ((created-before (transient-arg-value
                                  "--created-before=" args)))
       (oset command created-before created-before))
-    (when-let ((desc-contains (transient-arg-value
+    (when-let* ((desc-contains (transient-arg-value
                                 "--desc-contains=" args)))
       (oset command desc-contains desc-contains))
-    (when-let ((format (transient-arg-value "--format=" args)))
+    (when-let* ((format (transient-arg-value "--format=" args)))
       (oset command format format))
-    (when-let ((id (transient-arg-value "--id=" args)))
+    (when-let* ((id (transient-arg-value "--id=" args)))
       (oset command id id))
-    (when-let ((notes-contains (transient-arg-value
+    (when-let* ((notes-contains (transient-arg-value
                                  "--notes-contains=" args)))
       (oset command notes-contains notes-contains))
-    (when-let ((status (transient-arg-value "--status=" args)))
+    (when-let* ((status (transient-arg-value "--status=" args)))
       (oset command status status))
-    (when-let ((title (transient-arg-value "--title=" args)))
+    (when-let* ((title (transient-arg-value "--title=" args)))
       (oset command title title))
-    (when-let ((title-contains (transient-arg-value
+    (when-let* ((title-contains (transient-arg-value
                                  "--title-contains=" args)))
       (oset command title-contains title-contains))
-    (when-let ((type (transient-arg-value "--type=" args)))
+    (when-let* ((type (transient-arg-value "--type=" args)))
       (oset command issue-type type))
-    (when-let ((updated-after (transient-arg-value
+    (when-let* ((updated-after (transient-arg-value
                                 "--updated-after=" args)))
       (oset command updated-after updated-after))
-    (when-let ((updated-before (transient-arg-value
+    (when-let* ((updated-before (transient-arg-value
                                  "--updated-before=" args)))
       (oset command updated-before updated-before))
     ;; Repeatable options (collect all values)
@@ -1036,15 +1037,15 @@ Returns a beads-command-list object with all applicable filters set."
         (oset command label-any (nreverse label-any-values))))
     ;; Numeric options - apply default limit if not specified
     (oset command limit
-          (if-let ((limit-str (transient-arg-value "--limit=" args)))
+          (if-let* ((limit-str (transient-arg-value "--limit=" args)))
               (string-to-number limit-str)
             beads-list-default-limit))
-    (when-let ((priority-str (transient-arg-value "--priority=" args)))
+    (when-let* ((priority-str (transient-arg-value "--priority=" args)))
       (oset command priority priority-str))
-    (when-let ((priority-min-str (transient-arg-value
+    (when-let* ((priority-min-str (transient-arg-value
                                     "--priority-min=" args)))
       (oset command priority-min priority-min-str))
-    (when-let ((priority-max-str (transient-arg-value
+    (when-let* ((priority-max-str (transient-arg-value
                                     "--priority-max=" args)))
       (oset command priority-max priority-max-str))
     ;; Enable JSON for structured data access (display pipeline needs objects)
@@ -1230,7 +1231,7 @@ When SILENT is non-nil, suppress messages (for hook-triggered refreshes)."
                    ('blocked
                     (beads-blocked-issue-list))
                    ('search
-                    (when-let ((cmd (and (boundp 'beads-search--command-obj)
+                    (when-let* ((cmd (and (boundp 'beads-search--command-obj)
                                         beads-search--command-obj)))
                       (oset cmd json t)
                       (beads-command-execute cmd)))
@@ -1401,26 +1402,34 @@ Uses tabulated-list built-in sorting."
 If in a beads-list buffer, the current spec is used to pre-populate
 the transient menu options."
   (interactive)
+  (require 'beads-spec)
   (when (and (boundp 'beads-list--spec) beads-list--spec)
     ;; Convert current spec to transient args for the Pattern 2 transient
     (let ((spec beads-list--spec)
           (args nil))
-      (when-let ((s (oref spec status)))
+      (when-let* ((s (oref spec status)))
         (push (format "--status=%s" s) args))
-      (when-let ((tp (oref spec type)))
+      (when-let* ((tp (oref spec type)))
         (push (format "--type=%s" tp) args))
-      (when-let ((p (oref spec priority)))
+      (when-let* ((p (oref spec priority)))
         (push (format "--priority=%d" p) args))
-      (when-let ((a (oref spec assignee)))
+      (when-let* ((a (oref spec assignee)))
         (push (format "--assignee=%s" a) args))
-      (when-let ((l (oref spec label)))
+      (when-let* ((l (oref spec label)))
         (push (format "--label=%s" l) args))
-      (unless (eq (oref spec order) 'newest)
-        (push (format "--order=%s" (oref spec order)) args))
+      ;; `order' and `ready-only' were added to `beads-issue-spec' after
+      ;; the `beads' 0.1.0 ELPA release; a constant slot name here trips
+      ;; Emacs 31.1's compile-time unknown-slot check against that older
+      ;; class definition, so the slot names stay dynamic (they exist at
+      ;; runtime — see beads-spec.el).
+      (let ((slot 'order))
+        (unless (eq (slot-value spec slot) 'newest)
+          (push (format "--order=%s" (slot-value spec slot)) args)))
       (unless (= (oref spec limit) 50)
         (push (format "--limit=%d" (oref spec limit)) args))
-      (when (oref spec ready-only)
-        (push "--ready" args))
+      (let ((slot 'ready-only))
+        (when (slot-value spec slot)
+          (push "--ready" args)))
       (put 'beads-list 'transient--value (nreverse args))))
   ;; Open the transient menu
   (call-interactively #'beads-list))

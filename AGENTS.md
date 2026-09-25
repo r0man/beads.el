@@ -190,3 +190,20 @@ the exact constant to edit. The `:integration` gate tests skip when
 `bd` is absent; the `:unit` tests cover the diff logic without it.
 Historical audit snapshots live in `.cli-audit/<timestamp>/` and the
 design notes in `.designs/command-parity/`.
+
+## Remote store testing (TRAMP)
+
+beads.el already supports remote (TRAMP) stores; keep it that way. The
+`bright-lights` city at `/home/roman/bright-lights` is the standing test
+target: open it from a local Emacs as
+`/ssh:localhost:/home/roman/bright-lights` (default user) and confirm bead views
+(dashboard, list, show, slings, transient menus) work identically there.
+Any change touching `default-directory` handling, process spawning, path
+localization, or buffer-name keying must be verified over that TRAMP path,
+not only locally.
+
+End-to-end tests of user-facing flows run in a **fresh Emacs inside tmux**
+(`tmux new-session -d -s e2e 'emacs'`, optionally `-Q` with `lisp/` on the
+`load-path`) connected to the remote path above. ERT covers mocked units;
+the tmux-Emacs TRAMP session is the acceptance gate for interactive
+features.

@@ -35,6 +35,8 @@
 ;; Forward declare label functions (loaded later to avoid circular deps)
 (declare-function beads--label-completion-table "beads-command-label")
 (declare-function beads-label--detect-issue-id "beads-command-label")
+(declare-function beads-agent--get-available-backends "beads-agent-backend" ())
+(declare-function beads-agent--get-all-backends "beads-agent-backend" ())
 
 ;; Forward declare list/show functions (loaded later to avoid circular deps)
 (declare-function beads-list--current-issue-id "beads-command-list")

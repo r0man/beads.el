@@ -171,7 +171,7 @@ just that portion.
 
 Returns the JSON substring, or the original OUTPUT if no JSON
 delimiter is found."
-  (if-let ((json-start (string-match "[\\[{]" output)))
+  (if-let* ((json-start (string-match "[\\[{]" output)))
       (substring output json-start)
     output))
 
@@ -248,7 +248,7 @@ CALLBACK receives (success worktree-path-or-error) where:
   "Return backend with NAME if available, nil otherwise.
 NAME is a backend name string.  Returns the backend object if
 it exists and is available, nil otherwise."
-  (when-let ((backend (beads-agent--get-backend name)))
+  (when-let* ((backend (beads-agent--get-backend name)))
     (when (beads-agent-backend-available-p backend)
       backend)))
 
@@ -278,7 +278,7 @@ See: https://github.com/anthropics/claude-code"))
     (or
      ;; 1. Try type-specific backend if agent-type provided
      (when agent-type
-       (when-let ((type-pref (beads-agent-type-preferred-backend agent-type)))
+       (when-let* ((type-pref (beads-agent-type-preferred-backend agent-type)))
          (beads-agent--backend-available-and-get type-pref)))
      ;; 2. Try global default backend
      (when beads-agent-default-backend
@@ -403,7 +403,7 @@ Looks in this order:
    ;; the value before returning an id.
    (when (fboundp 'beads-section-issue-id-at-point)
      (beads-section-issue-id-at-point))
-   (when-let ((parsed (beads-buffer-parse-show (buffer-name))))
+   (when-let* ((parsed (beads-buffer-parse-show (buffer-name))))
      (plist-get parsed :issue-id))))
 
 (defun beads-agent--read-issue-id ()
@@ -646,10 +646,10 @@ If SESSION-ID is nil, prompts for selection from active sessions."
          (session (beads-agent--get-session session-id)))
     (unless session
       (user-error "Session not found: %s" session-id))
-    (when-let ((backend (beads-agent--get-backend (oref session backend-name))))
+    (when-let* ((backend (beads-agent--get-backend (oref session backend-name))))
       ;; Clear buffer-local session ID BEFORE killing buffer to prevent
       ;; kill-buffer-hook from calling beads-agent-stop recursively.
-      (when-let ((buffer (beads-agent-backend-get-buffer backend session)))
+      (when-let* ((buffer (beads-agent-backend-get-buffer backend session)))
         (when (buffer-live-p buffer)
           (with-current-buffer buffer
             (setq-local beads-sesman--buffer-session-id nil))))
@@ -671,7 +671,7 @@ This function returns immediately without blocking."
             (progn
               ;; Clear buffer-local session ID BEFORE killing buffer to prevent
               ;; kill-buffer-hook from calling beads-agent-stop recursively.
-              (when-let ((buffer (beads-agent-backend-get-buffer backend session)))
+              (when-let* ((buffer (beads-agent-backend-get-buffer backend session)))
                 (when (buffer-live-p buffer)
                   (with-current-buffer buffer
                     (setq-local beads-sesman--buffer-session-id nil))))
@@ -729,7 +729,7 @@ If SESSION-ID is nil, prompts for selection from active sessions."
          (session (beads-agent--get-session session-id)))
     (unless session
       (user-error "Session not found: %s" session-id))
-    (when-let ((backend (beads-agent--get-backend (oref session backend-name))))
+    (when-let* ((backend (beads-agent--get-backend (oref session backend-name))))
       (beads-agent-backend-switch-to-buffer backend session))))
 
 ;;;###autoload
@@ -740,8 +740,8 @@ If SESSION-ID is nil, uses session for current issue or prompts."
   (let* ((sessions (beads-agent--get-all-sessions))
          (session-id (or session-id
                          ;; Try to find session for current issue
-                         (when-let ((issue-id (beads-agent--detect-issue-id)))
-                           (when-let ((issue-sessions
+                         (when-let* ((issue-id (beads-agent--detect-issue-id)))
+                           (when-let* ((issue-sessions
                                        (beads-agent--get-sessions-for-issue
                                         issue-id)))
                              (oref (car issue-sessions) id)))
@@ -766,7 +766,7 @@ If SESSION-ID is nil, uses session for current issue or prompts."
          (session (beads-agent--get-session session-id)))
     (unless session
       (user-error "Session not found: %s" session-id))
-    (when-let ((backend (beads-agent--get-backend (oref session backend-name))))
+    (when-let* ((backend (beads-agent--get-backend (oref session backend-name))))
       (beads-agent-backend-send-prompt backend session prompt)
       (message "Sent prompt to session %s" session-id))))
 
@@ -1284,7 +1284,7 @@ with smart defaults (issue ID for both).
 When called from `beads-list-mode' or `beads-show-mode', the list/show
 buffer is kept visible and the agent buffer opens in the other window."
   (interactive)
-  (if-let ((id (beads-agent--detect-issue-id)))
+  (if-let* ((id (beads-agent--detect-issue-id)))
       ;; Check for existing sessions first
       (if (beads-agent--get-sessions-for-issue id)
           ;; Sessions exist - show management menu
@@ -1325,15 +1325,15 @@ The completion shows format \"Type#N (backend)\" for each session."
 If no session exists for the current issue, starts a new agent session.
 If multiple sessions exist, prompts for which one to jump to."
   (interactive)
-  (if-let ((id (beads-agent--detect-issue-id)))
-      (if-let ((sessions (beads-agent--get-sessions-for-issue id)))
+  (if-let* ((id (beads-agent--detect-issue-id)))
+      (if-let* ((sessions (beads-agent--get-sessions-for-issue id)))
           (cond
            ;; Single session - jump directly
            ((= (length sessions) 1)
             (beads-agent-jump (oref (car sessions) id)))
            ;; Multiple sessions - prompt for selection
            (t
-            (if-let ((selected (beads-agent--select-session-completing-read
+            (if-let* ((selected (beads-agent--select-session-completing-read
                                 sessions
                                 (format "Jump to agent for %s: " id))))
                 (beads-agent-jump (oref selected id))
@@ -1366,7 +1366,7 @@ When existing sessions of the same type exist and FORCE-NEW is nil:
 When starting a new agent with worktrees enabled, prompts for worktree
 name and branch with smart defaults (issue ID for both).
 This is the core implementation for all type-specific start commands."
-  (if-let ((id (beads-agent--detect-issue-id)))
+  (if-let* ((id (beads-agent--detect-issue-id)))
       (let ((existing (beads-agent--get-sessions-for-issue-type id type-name)))
         (if (and existing (not force-new))
             ;; Jump to existing session of this type
@@ -1376,7 +1376,7 @@ This is the core implementation for all type-specific start commands."
               (beads-agent-jump (oref (car existing) id)))
              ;; Multiple sessions - prompt for selection
              (t
-              (if-let ((selected (beads-agent--select-session-completing-read
+              (if-let* ((selected (beads-agent--select-session-completing-read
                                   existing
                                   (format "Jump to %s agent for %s: " type-name id))))
                   (beads-agent-jump (oref selected id))
@@ -1444,15 +1444,15 @@ Prompts for a custom prompt string to send to the agent."
 If multiple agents exist, prompts for which one to stop.
 If no agent exists, shows a message."
   (interactive)
-  (if-let ((id (beads-agent--detect-issue-id)))
-      (if-let ((sessions (beads-agent--get-sessions-for-issue id)))
+  (if-let* ((id (beads-agent--detect-issue-id)))
+      (if-let* ((sessions (beads-agent--get-sessions-for-issue id)))
           (cond
            ;; Single session - stop it directly
            ((= (length sessions) 1)
             (beads-agent-stop (oref (car sessions) id)))
            ;; Multiple sessions - prompt for selection
            (t
-            (if-let ((selected (beads-agent--select-session-completing-read
+            (if-let* ((selected (beads-agent--select-session-completing-read
                                 sessions
                                 (format "Stop agent for %s: " id))))
                 (beads-agent-stop (oref selected id))
@@ -1470,7 +1470,7 @@ If no agent exists, shows a message."
   "Get the current directory-bound session for the project.
 Looks for sessions matching the current project directory.
 Returns the most recent session if multiple exist, or nil if none."
-  (when-let ((project-dir (or (beads-git-find-project-root)
+  (when-let* ((project-dir (or (beads-git-find-project-root)
                                default-directory)))
     (let ((sessions (beads-agent--get-sessions-for-project project-dir)))
       (car sessions))))  ; Most recent session
@@ -1481,7 +1481,7 @@ Returns the most recent session if multiple exist, or nil if none."
 Adds ISSUE-ID to touched-issues if not already present.
 Uses the current directory-bound session for this project."
   (interactive (list (beads-completion-read-issue "Focus on issue: ")))
-  (if-let ((session (beads-agent--get-current-project-session)))
+  (if-let* ((session (beads-agent--get-current-project-session)))
       (progn
         (beads-agent-session-set-current-issue session issue-id)
         (message "Agent now focused on %s" issue-id))
@@ -1493,7 +1493,7 @@ Uses the current directory-bound session for this project."
 Agent continues in general project context without focus.
 Uses the current directory-bound session for this project."
   (interactive)
-  (if-let ((session (beads-agent--get-current-project-session)))
+  (if-let* ((session (beads-agent--get-current-project-session)))
       (progn
         (oset session current-issue nil)
         (message "Agent focus cleared (project context)"))
@@ -1504,7 +1504,7 @@ Uses the current directory-bound session for this project."
   "Show all issues touched by the current agent session.
 Displays the list of issues that have been focused on during this session."
   (interactive)
-  (if-let ((session (beads-agent--get-current-project-session)))
+  (if-let* ((session (beads-agent--get-current-project-session)))
       (let ((touched (beads-agent-session-touched-issues session))
             (current (beads-agent-session-current-issue session)))
         (if touched
@@ -1634,7 +1634,7 @@ in TTY frames, and mode-line callers use `(or icon agent-type)'
 text.  The contract here is nil = \"no glyph, fall back to the
 full type-name\", not nil = \"no icon configured\"."
   (when (and agent-type (beads-agent-icons-supported-p))
-    (when-let ((type (beads-agent-type-get agent-type)))
+    (when-let* ((type (beads-agent-type-get agent-type)))
       (beads-agent-type-icon-or-letter type))))
 
 (defun beads-agent--mode-line-format-default (ctx)

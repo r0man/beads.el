@@ -1009,7 +1009,7 @@ issue when no blocker exists.  Errors are reported via `message'."
         (beads-command-execute-async
          cmd
          (lambda (deps)
-           (if-let ((blocker (beads-dashboard--blocker-of deps)))
+           (if-let* ((blocker (beads-dashboard--blocker-of deps)))
                (beads-show (oref blocker depends-on-id))
              (message "No active blocker for %s; visiting issue." id)
              (beads-show id)))

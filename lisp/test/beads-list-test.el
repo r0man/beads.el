@@ -541,7 +541,7 @@ ISSUES should be a list of alists (test data format)."
   (beads-list-test--with-temp-buffer
    beads-list-test--empty-issues 'list
    (goto-char (point-min))
-   ;; Should not signal error (beads-list-mark uses when-let)
+   ;; Should not signal error (beads-list-mark uses when-let*)
    (beads-list-mark)
    (should (= (length beads-list--marked-issues) 0))))
 
