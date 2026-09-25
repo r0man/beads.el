@@ -31,19 +31,32 @@ in your PATH, or a full path to the executable."
 (defcustom beads-remote-search-path
   '("~/.guix-home/profile/bin"
     "~/.guix-profile/bin"
+    "/run/current-system/profile/bin"
     "~/.nix-profile/bin"
     "~/.local/bin"
     "~/bin")
-  "Directories probed for `beads-executable' on a remote host.
-When a command runs against a remote store (a TRAMP
-`default-directory') and `beads-executable' is a bare name, TRAMP
-resolves it against `tramp-remote-path' — which covers system
-directories but not per-user profile directories, so a bd installed
-via Guix Home, Nix, or pip lands in exit 127.  These directories are
-probed (in order, on the remote host, cached per connection) after
-`tramp-remote-path' fails.  Relative to the remote user's home
-directory when they start with `~'."
+  "Directories probed for programs on a remote host.
+When a program (bd, or gc/tmux for packages built on beads.el) runs
+against a remote TRAMP `default-directory' under a bare name, TRAMP
+resolves it against `tramp-remote-path', which covers system
+directories but not per-user profile directories, so a program
+installed via Guix, Nix or pip lands in exit 127.  These directories
+are probed (in order, on the remote host, cached per connection) after
+`tramp-remote-path' fails (`beads-remote-find-executable'), and are
+prepended to the PATH of remote commands so the program's own
+children resolve too (`beads-remote-path-assignment').  A leading `~'
+is the remote user's home.  Run `beads-remote-forget' after changing
+it mid-session."
   :type '(repeat string)
+  :group 'beads)
+
+(defcustom beads-remote-miss-ttl 60
+  "Seconds a failed remote executable lookup is remembered, 0 to disable.
+Resolving a bare program name on a remote host costs one synchronous
+channel round trip per `beads-remote-search-path' entry.  A definite
+miss is remembered this long, then re-probed, so installing the
+program on the host heals itself.  Probe errors are never cached."
+  :type 'natnum
   :group 'beads)
 
 (defcustom beads-database-path nil

@@ -38,6 +38,7 @@
 
 (require 'eieio)
 (require 'beads-meta)  ; Must be before defclass to install advice
+(require 'beads-remote)
 (require 'beads-types)
 (require 'beads-error)
 (require 'cl-lib)
@@ -424,48 +425,17 @@ or nil if all slots are valid.")
 
 ;;; Remote Executable Resolution
 
-(defvar beads-remote-search-path)       ; beads-custom.el
-
-(defvar beads-command--remote-executable-cache (make-hash-table :test 'equal)
-  "Cache of resolved bd programs, keyed by TRAMP connection prefix.
-Maps the `file-remote-p' of a spawn's `default-directory' to the
-host-local absolute bd path resolved by
-`beads-command-resolve-executable'.  Only successful resolutions are
-cached, so installing bd on the host is picked up by the next
-command.  `clrhash' this if bd moves on a host mid-session.")
-
-(defun beads-command--remote-find-executable (remote)
-  "Resolve `beads-executable' to a host-local absolute path on REMOTE.
-REMOTE is a TRAMP connection prefix (the `file-remote-p' of the
-store's directory); `default-directory' must already be on that
-connection.  Tries `tramp-remote-path' first (`executable-find''s
-remote search), then probes the `beads-remote-search-path' profile
-directories on the host.  Returns nil when neither finds it."
-  (or (executable-find beads-executable t)
-      (cl-some (lambda (dir)
-                 (let ((cand (expand-file-name
-                              beads-executable (concat remote dir))))
-                   (and (file-executable-p cand)
-                        (file-local-name cand))))
-               (and (boundp 'beads-remote-search-path)
-                    beads-remote-search-path))))
-
 (defun beads-command-resolve-executable ()
   "Return the bd program to spawn from `default-directory'.
 A local directory, or an absolute `beads-executable', passes through
 unchanged.  On a remote directory a bare name is resolved to a
-host-local absolute path, cached per connection: `tramp-remote-path'
-omits per-user profile directories (Guix Home, Nix, pip --user), so a
-bare \"bd\" that works in the user's login shell still exits 127
-through TRAMP (bde-hku).  An unresolvable name is returned bare, so
-the spawn fails with beads.el's usual error surface."
-  (let ((remote (file-remote-p default-directory)))
-    (if (or (not remote) (file-name-absolute-p beads-executable))
-        beads-executable
-      (or (gethash remote beads-command--remote-executable-cache)
-          (when-let* ((found (beads-command--remote-find-executable remote)))
-            (puthash remote found beads-command--remote-executable-cache))
-          beads-executable))))
+host-local absolute path by `beads-remote-find-executable' (cached per
+connection): `tramp-remote-path' omits per-user profile directories
+\(Guix Home, Nix, pip --user), so a bare \"bd\" that works in the
+user's login shell still exits 127 through TRAMP (bde-hku).  An
+unresolvable name is returned bare, so the spawn fails with beads.el's
+usual error surface."
+  (beads-remote-find-executable beads-executable))
 
 ;;; Base Implementation - Global Flags
 

@@ -75,7 +75,7 @@ An actor value that merely looks like a remote name must survive."
   "A local `default-directory' returns `beads-executable' untouched."
   (let ((beads-executable "bd")
         (default-directory temporary-file-directory)
-        (beads-command--remote-executable-cache
+        (beads-remote--cache
          (make-hash-table :test 'equal)))
     (should (equal "bd" (beads-command-resolve-executable)))))
 
@@ -84,7 +84,7 @@ An actor value that merely looks like a remote name must survive."
   (let ((beads-executable "/opt/bin/bd")
         (default-directory (concat beads-command-remote-test--prefix
                                    "/home/user/"))
-        (beads-command--remote-executable-cache
+        (beads-remote--cache
          (make-hash-table :test 'equal)))
     (cl-letf (((symbol-function 'executable-find)
                (lambda (&rest _) (error "Must not probe"))))
@@ -95,7 +95,7 @@ An actor value that merely looks like a remote name must survive."
   (let ((beads-executable "bd")
         (default-directory (concat beads-command-remote-test--prefix
                                    "/home/user/"))
-        (beads-command--remote-executable-cache
+        (beads-remote--cache
          (make-hash-table :test 'equal)))
     (cl-letf (((symbol-function 'executable-find)
                (lambda (_name &optional _remote) "/usr/bin/bd")))
@@ -112,7 +112,7 @@ An actor value that merely looks like a remote name must survive."
         (default-directory (concat beads-command-remote-test--prefix
                                    "/home/user/"))
         (beads-remote-search-path '("/opt/profile/bin"))
-        (beads-command--remote-executable-cache
+        (beads-remote--cache
          (make-hash-table :test 'equal))
         (probed nil))
     (cl-letf (((symbol-function 'executable-find)
@@ -127,19 +127,25 @@ An actor value that merely looks like a remote name must survive."
                                     "/opt/profile/bin/bd"))))))
 
 (ert-deftest beads-command-remote-test-resolve-miss-returns-bare ()
-  "An unresolvable bare name falls back unchanged — and the failure
-is not cached, so a later install is picked up."
+  "An unresolvable bare name falls back unchanged.  The miss is
+remembered for `beads-remote-miss-ttl' seconds, then re-probed, so a
+later install is picked up."
   (let ((beads-executable "bd")
         (default-directory (concat beads-command-remote-test--prefix
                                    "/home/user/"))
         (beads-remote-search-path '("/opt/profile/bin"))
-        (beads-command--remote-executable-cache
-         (make-hash-table :test 'equal)))
-    (cl-letf (((symbol-function 'executable-find) (lambda (&rest _) nil))
+        (beads-remote-miss-ttl 60)
+        (beads-remote--cache (make-hash-table :test 'equal))
+        (probes 0))
+    (cl-letf (((symbol-function 'executable-find)
+               (lambda (&rest _) (cl-incf probes) nil))
               ((symbol-function 'file-executable-p) (lambda (_) nil)))
-      (should (equal "bd" (beads-command-resolve-executable))))
-    (should (zerop (hash-table-count
-                    beads-command--remote-executable-cache)))))
+      (should (equal "bd" (beads-command-resolve-executable)))
+      (should (equal "bd" (beads-command-resolve-executable)))
+      (should (= probes 1))
+      (let ((beads-remote-miss-ttl 0))
+        (should (equal "bd" (beads-command-resolve-executable)))
+        (should (= probes 2))))))
 
 (provide 'beads-command-remote-test)
 ;;; beads-command-remote-test.el ends here
