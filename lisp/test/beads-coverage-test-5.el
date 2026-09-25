@@ -299,7 +299,8 @@
                (lambda (_id &rest _) (setq buf (generate-new-buffer " *beads-test*"))))
               ((symbol-function 'beads-show--register-with-session)
                (lambda () nil))
-              ((symbol-function 'beads-execute)
+              ((symbol-value 'beads-show-async) nil) ; the sync path
+               ((symbol-function 'beads-execute)
                (lambda (_class &rest _args) (error "Connection failed")))
               ((symbol-function 'beads-buffer-display-detail)
                (lambda (_buf _mode) nil))

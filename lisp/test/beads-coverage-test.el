@@ -826,7 +826,8 @@
   (beads-coverage-test-with-show-buffer "test"
     (setq beads-show--issue-id "bd-42")
     (setq beads-show--project-dir "/tmp")
-    (cl-letf (((symbol-function 'beads-execute)
+    (cl-letf (((symbol-value 'beads-show-async) nil) ; the sync path
+               ((symbol-function 'beads-execute)
                (lambda (_class &rest _args) (error "Command failed"))))
       ;; Should not propagate error
       (beads-refresh-show))))

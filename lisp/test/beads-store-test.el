@@ -34,6 +34,15 @@
                 (if (object-of-class-p cmd 'beads-command-show)
                     (beads-issue-from-json beads-store-test--issue)
                   (list (beads-issue-from-json beads-store-test--issue)))))
+             ;; The async path (`beads-show''s default): same answer.
+             ((symbol-function 'beads-command-execute-async)
+              (lambda (cmd on-success &rest _)
+                (push (beads-command-line cmd) ,var)
+                (funcall on-success
+                         (if (object-of-class-p cmd 'beads-command-show)
+                             (beads-issue-from-json beads-store-test--issue)
+                           (list (beads-issue-from-json beads-store-test--issue))))
+                nil))
              ((symbol-function 'beads-git-get-branch) (lambda () "main"))
              ((symbol-function 'beads-check-executable) #'ignore)
              ((symbol-function 'beads-buffer-display-detail) #'ignore)

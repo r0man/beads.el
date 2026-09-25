@@ -711,12 +711,19 @@ so that `beads-agent-start' gets a valid project root."
                   (derived-mode-p 'beads-list-mode)))
               (buffer-list)))
 
-(defun beads-live-test--open-show-buffer (issue-id)
-  "Open a show buffer for ISSUE-ID and return it."
-  (beads-show issue-id)
+(defun beads-live-test--show-buffer-loaded (issue-id)
+  "Return the show buffer of ISSUE-ID once its issue has loaded, else nil."
   (cl-find-if (lambda (b)
-                (string-match-p (regexp-quote issue-id) (buffer-name b)))
+                (and (string-match-p (regexp-quote issue-id) (buffer-name b))
+                     (buffer-local-value 'beads-show--issue-data b)))
               (buffer-list)))
+
+(defun beads-live-test--open-show-buffer (issue-id)
+  "Open a show buffer for ISSUE-ID and return it once loaded.
+`beads-show' fetches asynchronously; wait for the answer."
+  (beads-show issue-id)
+  (beads-live-test--wait-until
+   (lambda () (beads-live-test--show-buffer-loaded issue-id))))
 
 (defun beads-live-test--wait-until (pred &optional timeout)
   "Poll every 0.1 s until PRED returns non-nil or TIMEOUT (default 15) s pass.
@@ -1100,11 +1107,9 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
             (let ((issue-id (beads-issue-at-point)))
               (should issue-id)
               (beads-list-show)
-              (let ((show-buf (cl-find-if
-                               (lambda (b)
-                                 (string-match-p
-                                  (regexp-quote issue-id) (buffer-name b)))
-                               (buffer-list))))
+              (let ((show-buf (beads-live-test--wait-until
+                               (lambda ()
+                                 (beads-live-test--show-buffer-loaded issue-id)))))
                 (should show-buf)
                 (unwind-protect
                     (with-current-buffer show-buf
@@ -1499,10 +1504,9 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
                 (ignore-errors (beads-show-follow-reference))
                 ;; If a new show buffer for id-a opened, verify it
                 (let ((show-buf-a
-                       (cl-find-if
-                        (lambda (b)
-                          (string-match-p (regexp-quote id-a) (buffer-name b)))
-                        (buffer-list))))
+                       (beads-live-test--wait-until
+                        (lambda () (beads-live-test--show-buffer-loaded id-a))
+                        5)))
                   (when show-buf-a
                     (unwind-protect
                         (with-current-buffer show-buf-a
@@ -1650,10 +1654,12 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
             ;; Update the issue externally
             (beads-execute 'beads-command-update :issue-ids (list issue-id)
                            :title "Refresh show updated")
-            ;; Refresh the show buffer
+            ;; Refresh the show buffer (asynchronous)
             (beads-refresh-show)
             ;; Content should now show the updated title
-            (should (string-match-p "Refresh show updated" (buffer-string))))
+            (should (beads-live-test--wait-until
+                     (lambda () (string-match-p "Refresh show updated"
+                                                (buffer-string))))))
         (when (buffer-live-p show-buf)
           (kill-buffer show-buf))))))
 

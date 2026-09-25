@@ -441,12 +441,13 @@ navigating in beads-list.  Returns BUFFER."
 
 ;;; Loading
 
-(defcustom beads-show-async 'remote
+(defcustom beads-show-async t
   "Whether show buffers fetch their issue asynchronously.
-`remote' (the default): only for a store on a remote host, where a
-synchronous bd call would block Emacs on the network; t: always; nil:
-never.  An async fetch opens the buffer at once with a loading line
-and fills it when bd answers, bounded by `beads-show-async-timeout'."
+t (the default): always — `bd show' takes about a second even on a
+local store, and nothing that needs no input may block Emacs; `remote':
+only for a store on a remote host; nil: never (synchronous).  An async
+fetch opens the buffer at once with a loading line and fills it when bd
+answers, bounded by `beads-show-async-timeout'."
   :type '(choice (const :tag "Remote stores only" remote)
                  (const :tag "Always" t)
                  (const :tag "Never" nil))
@@ -502,7 +503,9 @@ Ignored when BUFFER was killed or switched to another issue meanwhile."
       (let ((inhibit-read-only t))
         (erase-buffer)
         (insert (propertize "Error loading issue\n\n" 'face 'error))
-        (insert (format "%s" (error-message-string err)))
+        ;; A sync failure is an error condition; an async one arrives
+        ;; as the failure text (from a sentinel: must never signal).
+        (insert (if (stringp err) err (error-message-string err)))
         (goto-char (point-min))))))
 
 (cl-defun beads-show--load (buffer issue-id &key after on-error)

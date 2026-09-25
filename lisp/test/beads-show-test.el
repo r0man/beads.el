@@ -85,8 +85,12 @@
 
 (defmacro beads-show-test-with-git-mocks (&rest body)
   "Execute BODY with git functions mocked to return test-project.
-This is needed because show buffers are now named by project, not issue."
-  `(cl-letf (((symbol-function 'beads-git-find-project-root)
+This is needed because show buffers are now named by project, not issue.
+The rendering tests stub the synchronous bd path
+\(`beads-command-execute'), so `beads-show-async' is off here; the
+async path has its own tests."
+  `(cl-letf (((symbol-value 'beads-show-async) nil)
+             ((symbol-function 'beads-git-find-project-root)
               (lambda () "/tmp/test-project"))
              ((symbol-function 'beads-git-get-project-name)
               (lambda () "test-project"))
@@ -1386,7 +1390,8 @@ This keeps the emitted command line identical for existing callers."
 With per-issue naming, each issue in a project gets its own buffer."
   (let ((bd1-buffer-name "*beads-show[test-project]/bd-1 Minimal issue*"))
     (beads-show-test-with-git-mocks
-     (cl-letf (((symbol-function 'beads-execute)
+     (cl-letf (((symbol-value 'beads-show-async) nil) ; the sync path
+               ((symbol-function 'beads-execute)
                 (lambda (_class &rest args)
                   (let ((id (car (plist-get args :issue-ids))))
                     (cond
@@ -2396,6 +2401,53 @@ With per-issue naming, each issue in a project gets its own buffer."
 
 ;;; Integration Test for Field Editing
 
+(ert-deftest beads-show-test-async-by-default ()
+  "`beads-show' never runs bd synchronously by default (D9): the buffer
+opens at once with a loading line, then fills from the async answer; an
+async failure (a string) is shown, never signalled."
+  (should (eq (default-value 'beads-show-async) t))
+  (let (on-success on-error)
+    (cl-letf (((symbol-function 'beads-git-find-project-root)
+               (lambda () "/tmp/test-project"))
+              ((symbol-function 'beads-git-get-project-name)
+               (lambda () "test-project"))
+              ((symbol-function 'beads-git-get-branch) (lambda () "main"))
+              ((symbol-function 'beads-command-execute)
+               (lambda (&rest _) (error "Synchronous bd")))
+              ((symbol-function 'beads-execute)
+               (lambda (&rest _) (error "Synchronous bd")))
+              ((symbol-function 'beads-command-execute-async)
+               (lambda (_cmd ok err &rest _) (setq on-success ok on-error err) nil))
+              ((symbol-function 'beads-buffer-display-detail) #'ignore))
+      (beads-show "bd-1")
+      (let ((buf (seq-find (lambda (b) (string-match-p "beads-show\\[test-project\\]/bd-1"
+                                                       (buffer-name b)))
+                           (buffer-list))))
+        (unwind-protect
+            (progn
+              (should buf)
+              (should (string-match-p "Loading bd-1" (with-current-buffer buf (buffer-string))))
+              (funcall on-success (beads-issue-from-json beads-show-test--minimal-issue))
+              (should (equal beads-show-test--minimal-buffer-name (buffer-name buf)))
+              (with-current-buffer buf
+                (should-not (string-match-p "Loading" (buffer-string))))
+              ;; A later async failure: shown in the buffer, no signal.
+              (funcall on-error "bd show failed: exit 1")
+              (with-current-buffer buf
+                (should (string-match-p "bd show failed: exit 1" (buffer-string)))))
+          (when (buffer-live-p buf) (kill-buffer buf)))))))
+
+(defun beads-show-test--wait-loaded (buf-name &optional seconds)
+  "Wait (at most SECONDS, default 30) until BUF-NAME shows its issue.
+`beads-show' fetches asynchronously: the buffer takes its final name
+and data when bd answers."
+  (let ((deadline (+ (float-time) (or seconds 30))))
+    (while (and (< (float-time) deadline)
+                (not (and (get-buffer buf-name)
+                          (buffer-local-value 'beads-show--issue-data
+                                              (get-buffer buf-name)))))
+      (accept-process-output nil 0.05))))
+
 (ert-deftest beads-show-test-edit-multiline-field-integration ()
   "Integration test: Edit multiline field and verify update.
 Tests the full workflow: create issue -> update description -> verify update."
@@ -2416,8 +2468,9 @@ Tests the full workflow: create issue -> update description -> verify update."
            (proj-name (beads-git-get-project-name))
            (buf-name (beads-buffer-name-show issue-id issue-title proj-name)))
 
-      ;; Show the issue
+      ;; Show the issue (fetched asynchronously)
       (beads-show issue-id)
+      (beads-show-test--wait-loaded buf-name)
       (unwind-protect
           (with-current-buffer buf-name
             (should (eq major-mode 'beads-show-mode))
@@ -2460,8 +2513,9 @@ Tests editing a different multiline field to ensure all fields work."
            (proj-name (beads-git-get-project-name))
            (buf-name (beads-buffer-name-show issue-id issue-title proj-name)))
 
-      ;; Show the issue
+      ;; Show the issue (fetched asynchronously)
       (beads-show issue-id)
+      (beads-show-test--wait-loaded buf-name)
       (unwind-protect
           (with-current-buffer buf-name
             (should (eq major-mode 'beads-show-mode))
@@ -2509,8 +2563,9 @@ Note: Notes cannot be set at creation time, only via update."
        (beads-command-update :issue-ids (list issue-id)
                             :notes initial-notes))
 
-      ;; Show the issue
+      ;; Show the issue (fetched asynchronously)
       (beads-show issue-id)
+      (beads-show-test--wait-loaded buf-name)
       (unwind-protect
           (with-current-buffer buf-name
             (should (eq major-mode 'beads-show-mode))
@@ -2663,7 +2718,8 @@ Note: Notes cannot be set at creation time, only via update."
 
 (ert-deftest beads-show-test-get-sub-issues-returns-depth-1-only ()
   "Test that beads-show--get-sub-issues filters to depth=1 only."
-  (cl-letf (((symbol-function 'beads-execute)
+  (cl-letf (((symbol-value 'beads-show-async) nil) ; the sync path
+               ((symbol-function 'beads-execute)
              (lambda (_class &rest _args)
                beads-show-test--sub-issues-data)))
     (let ((sub-issues (beads-show--get-sub-issues "bd-epic-1")))
@@ -2675,7 +2731,8 @@ Note: Notes cannot be set at creation time, only via update."
 
 (ert-deftest beads-show-test-get-sub-issues-handles-error ()
   "Test that beads-show--get-sub-issues returns nil on error."
-  (cl-letf (((symbol-function 'beads-execute)
+  (cl-letf (((symbol-value 'beads-show-async) nil) ; the sync path
+               ((symbol-function 'beads-execute)
              (lambda (_class &rest _args)
                (error "Command failed"))))
     (let ((sub-issues (beads-show--get-sub-issues "bd-epic-1")))
@@ -2683,7 +2740,8 @@ Note: Notes cannot be set at creation time, only via update."
 
 (ert-deftest beads-show-test-get-sub-issues-empty-tree ()
   "Test that beads-show--get-sub-issues handles epic with no children."
-  (cl-letf (((symbol-function 'beads-execute)
+  (cl-letf (((symbol-value 'beads-show-async) nil) ; the sync path
+               ((symbol-function 'beads-execute)
              (lambda (_class &rest _args)
                ;; Only root, no children
                (list (beads-tree-node
@@ -2702,7 +2760,8 @@ Note: Notes cannot be set at creation time, only via update."
 (ert-deftest beads-show-test-insert-sub-issues-section-renders ()
   "Test that sub-issues section renders correctly in CLI-style format."
   (beads-show-test-with-temp-buffer
-   (cl-letf (((symbol-function 'beads-execute)
+   (cl-letf (((symbol-value 'beads-show-async) nil) ; the sync path
+               ((symbol-function 'beads-execute)
               (lambda (_class &rest _args)
                 beads-show-test--sub-issues-data)))
      (let ((inhibit-read-only t))
@@ -2728,7 +2787,8 @@ Note: Notes cannot be set at creation time, only via update."
 (ert-deftest beads-show-test-insert-sub-issues-section-no-children ()
   "Test that sub-issues section is not rendered when no children."
   (beads-show-test-with-temp-buffer
-   (cl-letf (((symbol-function 'beads-execute)
+   (cl-letf (((symbol-value 'beads-show-async) nil) ; the sync path
+               ((symbol-function 'beads-execute)
               (lambda (_class &rest _args)
                 (list (beads-tree-node
                        :id "bd-epic-1" :depth 0 :status "open"
@@ -2742,7 +2802,8 @@ Note: Notes cannot be set at creation time, only via update."
 (ert-deftest beads-show-test-insert-sub-issues-clickable-ids ()
   "Test that sub-issue IDs are clickable buttons."
   (beads-show-test-with-temp-buffer
-   (cl-letf (((symbol-function 'beads-execute)
+   (cl-letf (((symbol-value 'beads-show-async) nil) ; the sync path
+               ((symbol-function 'beads-execute)
               (lambda (_class &rest _args)
                 beads-show-test--sub-issues-data)))
      (let ((inhibit-read-only t))
@@ -2758,7 +2819,8 @@ Note: Notes cannot be set at creation time, only via update."
   "Test that render-issue includes sub-issues section for epics."
   (beads-show-test-with-temp-buffer
    (let ((parsed-issue (beads--parse-issue beads-show-test--epic-issue)))
-     (cl-letf (((symbol-function 'beads-execute)
+     (cl-letf (((symbol-value 'beads-show-async) nil) ; the sync path
+               ((symbol-function 'beads-execute)
                 (lambda (_class &rest _args)
                   beads-show-test--sub-issues-data))
                ((symbol-function 'beads-agent--get-sessions-for-issue)
@@ -2776,7 +2838,8 @@ Note: Notes cannot be set at creation time, only via update."
    (let ((parsed-issue (beads--parse-issue beads-show-test--full-issue)))
      ;; This should NOT be called for non-epics
      (let ((dep-tree-called nil))
-       (cl-letf (((symbol-function 'beads-execute)
+       (cl-letf (((symbol-value 'beads-show-async) nil) ; the sync path
+               ((symbol-function 'beads-execute)
                   (lambda (_class &rest _args)
                     (setq dep-tree-called t)
                     nil))
@@ -2789,7 +2852,8 @@ Note: Notes cannot be set at creation time, only via update."
 (ert-deftest beads-show-test-sub-issues-grouped-by-status ()
   "Test that sub-issues are grouped by status (in_progress first)."
   (beads-show-test-with-temp-buffer
-   (cl-letf (((symbol-function 'beads-execute)
+   (cl-letf (((symbol-value 'beads-show-async) nil) ; the sync path
+               ((symbol-function 'beads-execute)
               (lambda (_class &rest _args)
                 beads-show-test--sub-issues-data)))
      (let ((inhibit-read-only t))
@@ -4202,6 +4266,7 @@ Empty sessions are automatically cleaned up."
      (setq-local beads-show--issue-id "bd-42")
      (cl-letf (((symbol-function 'read-string)
                 (lambda (_prompt) "reason"))
+               ((symbol-value 'beads-show-async) nil) ; the sync path
                ((symbol-function 'beads-execute)
                 (lambda (_class &rest _args)
                   (error "Network error"))))
@@ -4276,6 +4341,7 @@ Empty sessions are automatically cleaned up."
      (setq-local beads-show--issue-id "bd-42")
      (cl-letf (((symbol-function 'read-string)
                 (lambda (_prompt) "bug"))
+               ((symbol-value 'beads-show-async) nil) ; the sync path
                ((symbol-function 'beads-execute)
                 (lambda (_class &rest _args)
                   (error "Label error"))))
