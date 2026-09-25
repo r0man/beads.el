@@ -180,6 +180,8 @@ When viewing issue lists (via `beads-list`, `beads-ready`, `beads-blocked`):
 
 **Navigation:**
 - `n` / `p` - Next/previous issue
+- `TAB` / `S-TAB` - Next/previous row (wraps)
+- `SPC` - Show the issue at point in another window, or close it again
 - `RET` / `s` - Show issue details
 - `g` - Refresh list
 - `q` - Quit buffer
@@ -199,12 +201,32 @@ When viewing issue details (via `beads-show` or pressing `RET` in list):
 
 **Navigation:**
 - `n` / `p` - Next/previous section
-- `TAB` - Jump to issue reference at point (bd-N links)
+- `TAB` / `S-TAB` - Next/previous heading or issue reference (wraps)
+- `SPC` - Fold/unfold the section whose heading is at point
 - `g` - Refresh issue
 - `q` - Quit buffer
 
 **Actions:**
 - Issue references (bd-N) are clickable - press `RET` or click to jump
+
+### Movement in every view
+
+All beads.el buffers (dashboard, show, lists, epic status) share one
+scheme: `TAB` / `S-TAB` move to the next / previous *thing* (section
+header, issue row, reference, `… N more` line) and wrap, `SPC` toggles
+the thing at point (folds a section, expands an epic, shows a list row's
+issue beside the list), `RET` acts on it.  In the dashboard `N` / `P`
+jump between sections.
+
+### Remote projects
+
+Open beads.el from a TRAMP directory (`/ssh:host:/path/to/project/`)
+and it acts on that host's store.  Asynchronous reads (the dashboard,
+show buffers) run as local `ssh -T` processes that never block Emacs
+(`beads-remote-transport`; ssh needs key or agent authentication), and
+opening or folding a view does no file access over TRAMP.  bd is found
+on the host through `tramp-remote-path` and `beads-remote-search-path`
+(Guix, Nix and `~/.local/bin` profiles by default).
 
 ### Eldoc Support
 

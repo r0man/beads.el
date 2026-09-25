@@ -547,7 +547,7 @@ The property is stamped on every issue/epic-status line by
   "Move point to the start of the next line satisfying PREDICATE.
 DIRECTION is +1 to move forward, -1 to move backward.  Stops at the
 target line, leaving point on the first non-glyph character so RET
-visit / TAB toggle land on the widget.  Returns t when a line was
+visit and SPC fold land on the widget.  Returns t when a line was
 found, nil when point did not move."
   (let ((origin (point))
         (found nil))
@@ -893,7 +893,7 @@ CLI's default cap.  Point is re-anchored after the rerender."
 The natural inverse of \\[beads-dashboard-depth-1] (`M-1' shows only
 the first); since the dashboard has more sections (9) than depth
 keys (M-1..M-4 only cover the first 4), this gives the user a
-one-shot way to expand everything without TAB-ing each section."
+one-shot way to expand everything without unfolding each section by hand."
   (interactive)
   ;; `most-positive-fixnum' is well above any plausible section count
   ;; and avoids hard-coding the order length here.  `seq-take' clamps

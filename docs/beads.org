@@ -272,6 +272,16 @@ ranges, text search, priority ranges, output formats), the
 advanced transient is available via {{{kbd(! l)}}} from the more
 menu, or {{{kbd(M-x beads-list-advanced)}}}.
 
+** Moving Between Rows
+
+#+KINDEX: TAB
+#+KINDEX: SPC
+{{{kbd(TAB)}}} and {{{kbd(S-TAB)}}} move to the next and previous row,
+wrapping at the ends; {{{kbd(n)}}} and {{{kbd(p)}}} move by line.
+{{{kbd(SPC)}}} shows the issue at point in another window without
+selecting it, and closes that window again when it already shows this
+issue.
+
 ** Sorting
 
 #+KINDEX: S
@@ -365,7 +375,9 @@ markdown-like rendering and clickable =bd-N= references.
 ** Navigation
 
 - {{{kbd(n)}}} / {{{kbd(p)}}} :: Next / previous section
-- {{{kbd(TAB)}}} :: Toggle section visibility
+- {{{kbd(TAB)}}} / {{{kbd(S-TAB)}}} :: Next / previous heading or
+  issue reference (wraps)
+- {{{kbd(SPC)}}} :: Fold or unfold the section whose heading is at point
 - {{{kbd(RET)}}} :: Follow reference at point (opens linked issue)
 - {{{kbd(o)}}} :: Follow reference in other window
 - {{{kbd(g)}}} :: Refresh the buffer
@@ -837,6 +849,28 @@ for available keys.
 - {{{var(beads-actor)}}} :: Actor name for audit trail.  Defaults
   to the git =user.name= or =$USER=.
 
+#+VINDEX: beads-remote-search-path
+- {{{var(beads-remote-search-path)}}} :: Directories probed for programs
+  on a remote host when =tramp-remote-path= misses (Guix, Nix,
+  =~/.local/bin=, =~/bin= by default), also prepended to the PATH of
+  remote commands.
+
+#+VINDEX: beads-remote-transport
+- {{{var(beads-remote-transport)}}} :: =ssh= (default): asynchronous bd
+  on an ssh-family store runs as a local =ssh -T= pipe; =tramp=: use
+  TRAMP's =make-process=.
+
+#+VINDEX: beads-remote-ssh-options
+#+VINDEX: beads-remote-ssh-control-path
+- {{{var(beads-remote-ssh-options)}}},
+  {{{var(beads-remote-ssh-control-path)}}} :: ssh options (ControlMaster,
+  ControlPersist) and the ControlPath of those pipe processes.
+
+#+VINDEX: beads-show-async
+- {{{var(beads-show-async)}}} :: When show buffers fetch asynchronously:
+  =remote= (default), =t= or =nil=; bounded by
+  =beads-show-async-timeout=.
+
 ** Faces
 
 Beads.el defines faces for issue status, priority, type, and
@@ -862,7 +896,9 @@ executes, and returns the result in one call.
 
 ** Process Execution
 
-Commands are executed via =process-file= for Tramp compatibility.
+Synchronous commands are executed via =process-file= for Tramp
+compatibility; asynchronous ones via =make-process= (a local ssh pipe
+for ssh-family remote stores).
 The =beads-command-execute= method handles CLI argument building,
 JSON parsing, and error reporting.
 
@@ -949,9 +985,33 @@ Deriving from =beads-section-mode= inherits its vui machinery and
 navigation behavior; the =:parent= keymap inherits beads.el's section
 bindings, so the consumer only adds its own.
 
+** Thing motion
+
+Every beads.el view moves with one primitive, =beads-thing.el=, and a
+consumer view can use it too.  A /thing/ is a run of text carrying the
+=beads-thing= text property (in a =tabulated-list-mode= buffer every
+row is one).  The property value is a toggle function, a plist
+=(:kind KIND :toggle FN)=, or any other non-nil value.
+
+#+BEGIN_SRC emacs-lisp
+(beads-thing-define-keys my-section-mode-map) ; TAB, S-TAB, SPC, DEL/S-SPC
+
+(beads-thing-propertize "Agents  3 running"
+                        (list :kind 'section :toggle #'my-fold))
+(add-hook 'beads-thing-toggle-functions #'my-toggle-drawer nil t)
+#+END_SRC
+
+=beads-thing-forward= and =beads-thing-backward= move and wrap
+(echoing =Wrapped=).  =beads-thing-toggle= calls the thing's own
+toggle, then the buffer-local hook =beads-thing-toggle-functions=, then
+pushes the button at point for kinds =section= and =fold=.  A =:toggle=
+closure that calls =vui-set-state= must capture its component context
+(=vui-with-async-context=).
+
 ** Store scoping with :directory
 
-The high-level entry points =beads-show= and =beads-dashboard= accept an
+The high-level entry points =beads-show=, =beads-ready=,
+=beads-blocked=, =beads-list-issues= and =beads-dashboard= accept an
 optional =:directory= keyword.  When non-nil it scopes the operation to
 the bead store at that directory instead of resolving from
 =default-directory=.  This is the supported way to act on a specific
@@ -963,10 +1023,14 @@ misroute the working directory to another project's database:
 (beads-dashboard :directory "/path/to/project")
 #+END_SRC
 
-=beads-show= passes the directory to =bd= as =--directory= / =-C= (via
-the =beads-command-show= =:directory= slot); =beads-dashboard= scopes
-both project-root and database-path resolution to the directory.
-Existing zero- and one-argument calls are unaffected.
+The directory becomes the buffer's store (the buffer-local
+=beads-store-directory=): every =bd= command run from that buffer whose
+=directory= slot is unset gets =--directory= (the host-local path), so
+refreshes and actions keep acting on that store, and buffers opened
+from it inherit it.  A TRAMP name is fine; a host-local path given while
+=default-directory= is remote is taken on that host
+(=beads-store-resolve=).  Existing zero- and one-argument calls are
+unaffected.
 
 ** Reusable pagination
 
@@ -993,9 +1057,16 @@ consistency between the Emacs UI and command-line workflows.
 
 ** How do I use beads.el with remote projects?
 
-Beads.el uses =process-file= and =start-file-process= instead
-of =call-process=, so it works transparently over Tramp.  The
-=--db= path is automatically adjusted via =file-local-name=.
+Open beads.el from a TRAMP directory and it acts on that host's store.
+Synchronous commands use =process-file=.  Asynchronous reads (the
+dashboard, show buffers) on a single-hop ssh-family method run as local
+=ssh -T= processes that =cd= to the store (=beads-remote-transport=);
+they never block Emacs and never share TRAMP's pty-backed ssh master.
+Other methods use TRAMP's =make-process=.  ssh runs in BatchMode, so key
+or agent authentication is required.  Opening, rendering and folding a
+view do no file access over TRAMP.  =bd= is found on the host through
+=tramp-remote-path= and =beads-remote-search-path=; =--db= and
+=--directory= paths are passed host-local.
 
 * Keystroke Index
 :PROPERTIES:

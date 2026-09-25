@@ -78,7 +78,9 @@ Three generics, all dispatching on the command object; command objects are never
 - `beads-command-execute-interactive` — entry point for transient suffixes. Default runs the command in a `compilation-mode` buffer with human-readable output; commands override it to show/refresh buffers.
 - `beads-command-execute-async` — non-blocking with `on-success`/`on-error` callbacks. Optional `:queue` enables the global concurrency cap (`beads-command-async-max-concurrent`), `:cache-key` coalesces concurrent identical requests. All dashboard loaders and eldoc go through this.
 
-Remote (TRAMP) stores are supported: async spawns go through the TRAMP file handler when `default-directory` is remote, `--db`/`--directory` are localized, and buffer names are qualified with the remote prefix (`beads-buffer.el`). Remote stderr is discarded.
+Remote (TRAMP) stores are supported. On a single-hop ssh-family store, async spawns run as a LOCAL `ssh -T` pipe process built by `beads-remote-ssh-command` (cd to the store, pure PATH fragment, no TRAMP round trip; `beads-remote-transport`), never a tramp-sh `make-process`, whose pty mux clients can deadlock the shared ssh master against TRAMP's waits. Other methods go through the TRAMP file handler (remote stderr discarded). `--db`/`--directory` are localized, and buffer names are qualified with the remote prefix (`beads-buffer.el`). `beads-remote.el` owns executable resolution, the PATH fragment and the ssh argv builders; gascity.el uses them too. Opening, rendering and folding a view must do no file I/O on a remote store: `lisp/test/beads-render-guard-test.el` enforces that with a file-name handler that signals on any non-name operation.
+
+Store scoping: `beads-show`, `beads-ready`, `beads-blocked`, `beads-list-issues` and `beads-dashboard` take `:directory`, which becomes the buffer-local `beads-store-directory`; `beads-meta-build-global-options` adds `--directory` from it to every command whose slot is unset.
 
 ### Slot Metadata (`beads-meta.el`)
 
@@ -100,6 +102,7 @@ Modules:
 
 - **`beads-command-list.el`** / **`beads-spec.el`**: Tabulated list mode with `beads-issue-spec` filter objects (status/type/priority/sort/limit) that convert to CLI args. `beads-pager.el` adds window-sized pagination to tabulated-list buffers.
 - **`beads-command-show.el`** / **`beads-section.el`**: Issue detail view using magit-section-style rendering.
+- **`beads-thing.el`**: the one movement scheme of every view: the `beads-thing` text property marks things; `beads-thing-forward`/`-backward` (TAB/S-TAB, wrap) and `beads-thing-toggle` (SPC); `beads-thing-define-keys` installs the keys. Tabulated rows are things without stamping.
 - **`beads-dashboard.el`** / **`beads-dashboard-sections.el`**: vui-based project pulse buffer; each section loads asynchronously inside a `vui-error-boundary`. `beads-status` forwards here.
 - **`beads-eldoc.el`**: Hover-to-preview issue references anywhere, async with per-store caching and negative caching. Issue ids are matched by the shared `beads-issue-id-regexp` (base-36 hash part) restricted by `beads-issue-id-prefixes`.
 - **`beads-agent.el`** + backends: AI agent integration with sesman session management and git worktree isolation. A session = agent type (`beads-agent-type.el`: Task/Review/Plan/QA/Custom) + backend (`beads-agent-backend.el` registry: claude-code, claude-code-ide, claudemacs, eca, agent-shell, mock, terminal). The prompt protocol is split into a role-only **system** prompt (`beads-agent-type-system-prompt`) and an issue-envelope **user** prompt (`beads-agent-type-build-user-prompt`); `beads-agent-backend-start` is 4-arity `(backend issue system-prompt user-prompt)`.

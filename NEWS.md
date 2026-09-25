@@ -4,6 +4,73 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### One movement scheme: TAB/S-TAB next thing, SPC toggles (breaking keys)
+
+Every beads.el view now moves the same way.  `TAB` (and `<tab>`) goes
+to the next *thing*, `S-TAB` (`<backtab>`, `S-<tab>`) to the previous
+one; both wrap and echo `Wrapped`.  `SPC` toggles the thing at point,
+and `DEL` / `S-SPC` are unbound.  Things are section headers, issue
+rows, the `… and N more (+)` line, show-buffer headings and references,
+epics, and every row of a list buffer.
+
+- Dashboard: `TAB` no longer folds the section at point: `SPC` on a
+  header folds it, `N`/`P` jump between sections (`M-n`/`M-p` still
+  work).  Folding never re-reads: a folded section keeps its data and
+  its header count.  Fold glyphs are now `▾`/`▸`.
+- Show: `TAB` moves between headings and references; `SPC` on a
+  heading folds its section.
+- Lists: `TAB` moves by row; `SPC` shows the issue at point in another
+  window, or closes that window again (it no longer means next-line).
+- Epic status: `SPC` expands an epic as before; `N`/`P` jump between
+  epics.
+
+For package authors: `beads-thing.el` is the primitive behind it.
+Stamp the `beads-thing` text property on what should be a thing (a
+toggle function, or a plist `(:kind KIND :toggle FN)`), install the
+keys with `beads-thing-define-keys`, and plug extra toggles into the
+buffer-local hook `beads-thing-toggle-functions`.
+
+### Explicit store scoping with `:directory`
+
+`beads-show`, `beads-ready`, `beads-blocked`, the new programmatic
+`beads-list-issues` (`&key directory spec`) and `beads-dashboard`
+take `:directory`.  It becomes the buffer's store
+(`beads-store-directory`): every bd command run from that buffer --
+refreshes and actions included -- gets `--directory`, so a shared Dolt
+server cannot route it to another project's database.  Buffers opened
+from a scoped buffer inherit its store.  A TRAMP name is fine; a
+host-local path is taken on the caller's host.
+
+### Remote stores: no blocking, no TRAMP pty for bd
+
+- Asynchronous bd on a single-hop ssh-family store (`/ssh:`, `/scp:`
+  ...) now runs as a local `ssh -T` pipe process that `cd`s to the
+  store on the host, instead of a TRAMP `make-process`.  Starting it
+  never blocks Emacs, and it no longer shares TRAMP's pty-backed ssh
+  master, which could deadlock.  New options: `beads-remote-transport`
+  (`ssh`, or `tramp` for the old behaviour; other methods always use
+  TRAMP), `beads-remote-ssh-options` (ControlMaster, ControlPersist)
+  and `beads-remote-ssh-control-path`.  The pipes run with `-n` and
+  `-o ForwardX11=no`.  ssh runs in BatchMode: key or agent
+  authentication (or an open master) is required.
+- `beads-show` fetches asynchronously for a remote store
+  (`beads-show-async`, default `remote`; `beads-show-async-timeout`),
+  and neither it nor `beads-dashboard` runs git or walks the directory
+  tree over TRAMP when opening, rendering or folding.
+- New `beads-remote.el`: one remote executable resolver
+  (`beads-remote-find-executable`, per-connection cache, a failed
+  lookup remembered for `beads-remote-miss-ttl` seconds), the PATH
+  fragment for remote commands, and the ssh argv builders
+  (`beads-remote-ssh-argv`, `beads-remote-ssh-pipe-argv`,
+  `beads-remote-ssh-command`).  `beads-remote-search-path` now also
+  covers `/run/current-system/profile/bin`.
+
+### `beads-show` links only real bead ids
+
+With `beads-issue-id-prefixes` unset, a show buffer recognises the
+prefixes of the shown bead and its dependencies, so hyphenated words
+such as `build-basic` are no longer links.
+
 ### Menus remember the project they were opened for
 
 Transient menus now run their commands in the directory they were
