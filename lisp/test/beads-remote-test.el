@@ -168,7 +168,10 @@ dispatch took that path), which accepts only nil or a buffer as
 LOCAL stderr buffer is wanted after all: the spawned process is a
 fresh local login program whose own chatter (the mock method's
 `sh -i' reliably emits job-control noise) would otherwise merge into
-stdout and corrupt the JSON."
+stdout and corrupt the JSON.
+On Emacs 29 the dispatch consults only the legacy connection
+property named direct-async-process — the connection-local variable
+is 30+ — so both are set; the property is flushed in the teardown."
   (skip-unless (fboundp 'tramp-direct-async-process-p))
   (beads-remote-test--with-mock-remote
     (unwind-protect
@@ -179,6 +182,8 @@ stdout and corrupt the JSON."
           (connection-local-set-profiles
            '(:application tramp :protocol "mock")
            'beads-remote-test-direct-async)
+          (let ((vec (tramp-dissect-file-name default-directory)))
+            (tramp-set-connection-property vec "direct-async-process" t))
           (let* ((direct-calls 0)
                  (spawn-args nil)
                  (real-direct (symbol-function 'tramp-handle-make-process))
@@ -210,7 +215,10 @@ stdout and corrupt the JSON."
               (should (equal (plist-get beads-spawn :name) "beads-async"))
               (should (bufferp (plist-get beads-spawn :stderr))))))
       (beads-remote-test--remove-direct-async-profile
-       'beads-remote-test-direct-async))))
+       'beads-remote-test-direct-async)
+      (tramp-flush-connection-property
+       (tramp-dissect-file-name default-directory)
+       "direct-async-process"))))
 
 (ert-deftest beads-remote-test-spawn-async-missing-remote-directory ()
   "A missing remote directory is rejected up front, not wedged forever.
