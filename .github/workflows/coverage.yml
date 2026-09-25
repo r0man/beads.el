@@ -17,7 +17,7 @@ jobs:
       - name: Set up Emacs
         uses: purcell/setup-emacs@master
         with:
-          version: '30.2'
+          version: '31.1'
 
       - name: Cache Eldev dependencies
         uses: actions/cache@v4
@@ -30,13 +30,13 @@ jobs:
       - name: Install Eldev
         run: curl --fail --silent --show-error --location https://raw.github.com/doublep/eldev/master/webinstall/github-eldev | sh
 
-      - name: Install Beads v1.0.5
+      # bd v1.3.0 from gastownhall/beads (the repo moved from steveyegge/beads,
+      # whose release URLs are dead). Bump by changing the version in the URL.
+      - name: Install Beads v1.3.0
         run: |
-          curl -fsSL https://github.com/steveyegge/beads/releases/download/v1.0.5/beads_1.0.5_linux_amd64.tar.gz \
-            | sudo tar -xz -C /usr/local/bin bd
-
-      - name: Verify Beads installation
-        run: bd version
+          curl -fsSL https://github.com/gastownhall/beads/releases/download/v1.3.0/beads_1.3.0_linux_amd64.tar.gz \
+            | tar -xz -C /usr/local/bin bd
+          bd --version
 
       - name: Install Dolt
         run: sudo bash -c 'curl -L https://github.com/dolthub/dolt/releases/latest/download/install.sh | bash'
