@@ -82,6 +82,16 @@ Thin wrapper over `beads--project-root'; see it and
 `beads-project-root-markers' for the detection details."
   (beads--project-root))
 
+(defvar-local beads-dashboard--root nil
+  "The project root this dashboard was opened for, resolved once at open.
+Fold state, row overrides and refreshes key on it, so toggling a
+section never walks the tree again (a synchronous TRAMP walk for a
+remote store, dashboard-v3 §8.3 R2).")
+
+(defun beads-dashboard--current-root ()
+  "Return this dashboard's root: the one cached at open, else resolved."
+  (or beads-dashboard--root (beads-dashboard--project-root)))
+
 (defun beads-dashboard--buffer-name-for (root)
   "Return the dashboard buffer name for project ROOT.
 A remote ROOT is qualified with its TRAMP prefix
@@ -215,16 +225,16 @@ the previous store's cached payload — see bde-jwxv)."
       :title title
       :section-key key
       :icon (plist-get plist :icon)
-      ;; Including `collapsed' in the async-key forces `vui-use-async'
-      ;; to re-run the loader on the first expand — otherwise the
-      ;; collapsed section's no-op result (nil) would be cached and
-      ;; survive expansion.  EXTRA-ROWS is included so a `+' press
+      ;; EXTRA-ROWS is included in the async-key so a `+' press
       ;; (which raises the CLI fetch limit) invalidates the cache and
       ;; pulls the additional rows from bd.  DB-PATH is included so a
       ;; buffer remounted for a different store re-runs the loader
       ;; rather than serving the previous store's cached payload.
-      :async-key (list key generation db-path collapsed extra-rows)
-      :load (if collapsed (lambda (resolve _reject) (funcall resolve nil)) loader)
+      ;; Folding never re-reads: the loader runs whether or not the
+      ;; section is folded, and the key leaves `collapsed' out, so
+      ;; unfolding shows the payload already loaded (§5.4).
+      :async-key (list key generation db-path extra-rows)
+      :load loader
       :render-ready render-ready
       :render-empty (plist-get plist :render-empty)
       :render-error (plist-get plist :render-error)
@@ -244,7 +254,7 @@ the previous store's cached payload — see bde-jwxv)."
                            (assq-delete-all key collapsed))))
           (vui-set-state :collapsed next)
           (beads-dashboard--save-visibility
-           (beads-dashboard--project-root) next))))))
+           (beads-dashboard--current-root) next))))))
 
 ;;; Root Component
 
@@ -426,7 +436,7 @@ re-probes the policy without raising on the missing root state."
   (interactive)
   (clrhash beads-command--single-flight)
   (when (derived-mode-p 'beads-dashboard-mode)
-    (let ((root (beads-dashboard--project-root)))
+    (let ((root (beads-dashboard--current-root)))
       (beads-dashboard--save-extra root nil)
       (beads-dashboard--bump :extra nil))
     ;; Hard refresh = drop the stale-while-revalidate cache too so the
@@ -656,7 +666,7 @@ symbol `reset' (remove the entry entirely)."
                  stripped)))
     (beads-dashboard--bump :extra next)
     (beads-dashboard--save-extra
-     (beads-dashboard--project-root) next)))
+     (beads-dashboard--current-root) next)))
 
 (defun beads-dashboard--issue-id-at-line ()
   "Return the issue id stamped via `beads-section' on the current line, or nil.
@@ -860,7 +870,7 @@ CLI's default cap.  Point is re-anchored after the rerender."
                 order)))
     (beads-dashboard--bump :collapsed next)
     (beads-dashboard--save-visibility
-     (beads-dashboard--project-root) next)))
+     (beads-dashboard--current-root) next)))
 
 (defun beads-dashboard-depth-1 ()
   "Show only the top-level sections."
@@ -1100,7 +1110,8 @@ opens the board of the chosen project, not of the current buffer."
         (beads-dashboard-mode))
       ;; Scope every bd call of the board (loaders, refreshes, actions)
       ;; to the explicit store, see `beads-store-directory'.
-      (setq-local beads-store-directory store))
+      (setq-local beads-store-directory store)
+      (setq-local beads-dashboard--root root))
     ;; Probe the policy lazily (cached after first run).
     (unless beads-command--policy
       (beads-command--policy-probe (lambda (_p) (ignore))))

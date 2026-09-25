@@ -389,21 +389,20 @@ This is what invalidates `vui-use-async' on hard refresh."
     (should-not (equal (plist-get props-1 :async-key)
                        (plist-get props-2 :async-key)))))
 
-(ert-deftest beads-dashboard-test-section-collapsed-skips-fetch ()
-  "A collapsed section installs a no-op loader that resolves to nil.
-Default-collapsed sections must not fetch their data until expanded."
+(ert-deftest beads-dashboard-test-section-fold-keeps-loaded-data ()
+  "Folding never re-reads (§5.4): a folded section keeps its loader, and
+its async-key is the same folded or not, so unfolding shows the
+payload already loaded."
   :tags '(:unit)
-  (let* ((collapsed '((blocked . t)))
-         (vnode (beads-dashboard--section
-                 'blocked "Blocked"
-                 (lambda (_resolve _reject)
-                   (error "Loader fired despite collapse"))
-                 #'identity collapsed 0 (current-buffer)))
-         (props (vui-vnode-component-props vnode))
-         (loader (plist-get props :load))
-         (resolved 'nope))
-    (funcall loader (lambda (v) (setq resolved v)) #'ignore)
-    (should (null resolved))))
+  (let* ((loader (lambda (resolve _reject) (funcall resolve '(1 2))))
+         (props (lambda (collapsed)
+                  (vui-vnode-component-props
+                   (beads-dashboard--section
+                    'blocked "Blocked" loader #'identity collapsed 0
+                    (current-buffer))))))
+    (should (eq (plist-get (funcall props '((blocked . t))) :load) loader))
+    (should (equal (plist-get (funcall props '((blocked . t))) :async-key)
+                   (plist-get (funcall props nil) :async-key)))))
 
 ;;; Magit-style Depth Keys
 
@@ -432,10 +431,10 @@ Default-collapsed sections must not fetch their data until expanded."
               #'beads-dashboard-previous-section)))
 
 (ert-deftest beads-dashboard-test-header-line-p-detects-glyphs ()
-  "`beads-dashboard--header-line-p' recognises ▼/▶ section glyphs."
+  "`beads-dashboard--header-line-p' recognises ▾/▸ section glyphs."
   :tags '(:unit)
   (with-temp-buffer
-    (insert "▼ Stats\n  body\n▶ Blocked\n")
+    (insert "▾ Stats\n  body\n▸ Blocked\n")
     (goto-char (point-min))
     (should (beads-dashboard--header-line-p))
     (forward-line 1)
@@ -447,7 +446,7 @@ Default-collapsed sections must not fetch their data until expanded."
   "`beads-dashboard--issue-line-p' detects the `beads-section' property."
   :tags '(:unit)
   (with-temp-buffer
-    (insert "▼ Ready\n")
+    (insert "▾ Ready\n")
     (let ((line (propertize "  bd-1   open  Title"
                             'beads-section
                             (beads-issue-section
@@ -972,7 +971,7 @@ glyph and the stamped title text."
   (with-temp-buffer
     ;; First two chars unstamped (simulates the chevron + space),
     ;; the rest carries the section-key like a header label would.
-    (insert "▼ "
+    (insert "▾ "
             (propertize "Ready (10)" 'beads-dashboard-section-key 'ready))
     ;; Land point on the unstamped prefix.
     (goto-char (point-min))
@@ -984,7 +983,7 @@ detection walks back to the header chevron line and reads the key
 from there."
   :tags '(:unit)
   (with-temp-buffer
-    (insert "▼ "
+    (insert "▾ "
             (propertize "Stale (3)" 'beads-dashboard-section-key 'stale)
             "\n"
             "  bde-1   P0   task   open   row\n"
@@ -999,7 +998,7 @@ from there."
 the bare chevron at column 0 must still resolve to the section."
   :tags '(:unit)
   (with-temp-buffer
-    (insert "▼ "
+    (insert "▾ "
             (propertize "Stale (3)" 'beads-dashboard-section-key 'stale)
             "\n"
             "  bde-1   P0   task   open   row\n")
@@ -1015,7 +1014,7 @@ section-key (no per-row `beads-section' issue object) — covers the
 `Nothing to show.' / `No work claimed.' placeholders."
   :tags '(:unit)
   (with-temp-buffer
-    (insert "▼ "
+    (insert "▾ "
             (propertize "Orphans (0)" 'beads-dashboard-section-key 'orphans)
             "\n"
             (propertize "  Nothing to show."
@@ -1079,9 +1078,9 @@ stamped on the current line via the `beads-section' property contract."
                              :priority 0 :issue-type "task"))
          (section (beads-issue-section :issue issue)))
     (with-temp-buffer
-      (insert "▼ header\n"
+      (insert "▾ header\n"
               (propertize "  bd-7  row text\n" 'beads-section section)
-              "▼ next header\n")
+              "▾ next header\n")
       (goto-char (point-max))
       (should (beads-dashboard--goto-issue-line "bd-7"))
       (should (looking-at "bd-7"))
@@ -1095,11 +1094,11 @@ stamped on the current line via the `beads-section' property contract."
 on the header line for the given key."
   :tags '(:unit)
   (with-temp-buffer
-    (insert "▼ "
+    (insert "▾ "
             (propertize "Ready (5)" 'beads-dashboard-section-key 'ready)
             "\n"
             "  row\n"
-            "▼ "
+            "▾ "
             (propertize "Stale (3)" 'beads-dashboard-section-key 'stale)
             "\n"
             "  another row\n")
@@ -1121,11 +1120,11 @@ exists in the buffer."
                              :priority 0 :issue-type "task"))
          (section (beads-issue-section :issue issue)))
     (with-temp-buffer
-      (insert "▼ "
+      (insert "▾ "
               (propertize "Ready (1)" 'beads-dashboard-section-key 'ready)
               "\n"
               (propertize "  bd-9 row\n" 'beads-section section)
-              "▼ "
+              "▾ "
               (propertize "Stale (0)" 'beads-dashboard-section-key 'stale)
               "\n")
       (goto-char (point-min))
@@ -1137,7 +1136,7 @@ exists in the buffer."
 when the issue is no longer in the buffer."
   :tags '(:unit)
   (with-temp-buffer
-    (insert "▼ "
+    (insert "▾ "
             (propertize "Ready (0)" 'beads-dashboard-section-key 'ready)
             "\n")
     (goto-char (point-min))
@@ -1148,7 +1147,7 @@ when the issue is no longer in the buffer."
   "`beads-dashboard--on-more-line-p' is t on a `… and N more (+)' row."
   :tags '(:unit)
   (with-temp-buffer
-    (insert "▼ "
+    (insert "▾ "
             (propertize "Ready (15)" 'beads-dashboard-section-key 'ready)
             "\n"
             (propertize "  … and 5 more (+)" 'beads-dashboard-section-key 'ready)
@@ -1172,7 +1171,7 @@ sites drifting if the button label ever changes."
     ;; Other rows that share the section-key contract must NOT match
     ;; (header, empty-state, issue line).
     (erase-buffer)
-    (insert "▼ Ready (15)")
+    (insert "▾ Ready (15)")
     (forward-line 0)
     (should-not (beads-dashboard--more-line-text-p))
     (erase-buffer)
@@ -1184,13 +1183,13 @@ sites drifting if the button label ever changes."
   "`beads-dashboard--goto-more-line' jumps to the more-line for the key."
   :tags '(:unit)
   (with-temp-buffer
-    (insert "▼ "
+    (insert "▾ "
             (propertize "Ready (15)" 'beads-dashboard-section-key 'ready)
             "\n"
             (propertize "  … and 5 more (+)"
                         'beads-dashboard-section-key 'ready)
             "\n"
-            "▼ "
+            "▾ "
             (propertize "Stale (3)" 'beads-dashboard-section-key 'stale)
             "\n")
     (goto-char (point-max))
@@ -1206,7 +1205,7 @@ sites drifting if the button label ever changes."
 in the same section over the section header fallback."
   :tags '(:unit)
   (with-temp-buffer
-    (insert "▼ "
+    (insert "▾ "
             (propertize "Ready (20)" 'beads-dashboard-section-key 'ready)
             "\n"
             (propertize "  … and 10 more (+)"

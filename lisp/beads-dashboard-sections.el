@@ -256,11 +256,10 @@ failure in one section never blanks the dashboard."
             (cond ((eq status 'ready) 'ready)
                   ((and (eq status 'pending) has-cache) 'ready)
                   (t status)))
-           ;; Collapsed sections install a no-op loader returning nil,
-           ;; so their length would be 0 — suppress the count until expanded.
+           ;; A folded section still loads, so its header keeps the
+           ;; count (§6.1).
            (count  (cond
                     (hide-count nil)
-                    (collapsed nil)
                     ((eq effective-status 'ready)
                      (cond ((listp effective-data) (length effective-data))
                            ((vectorp effective-data) (length effective-data))
@@ -331,7 +330,15 @@ stored as a text property on the button label."
     (let ((label (propertize
                   (format "  … and %d more (+)" hidden)
                   'face 'shadow
-                  'beads-dashboard-section-key section-key)))
+                  'beads-dashboard-section-key section-key
+                  ;; A thing (§5.4): TAB stops here, SPC shows more
+                  ;; rows in place, like `+' and a click.
+                  'beads-thing
+                  (list :kind 'more
+                        :toggle (lambda ()
+                                  (beads-dashboard--bump-extra
+                                   section-key
+                                   beads-dashboard-section-batch))))))
       (beads-section--plain-button
        label
        ;; Lexical binding (declared at top of file) captures

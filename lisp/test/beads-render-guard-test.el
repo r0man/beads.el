@@ -208,7 +208,30 @@ The async callbacks run from a timer, as real sentinels do."
               (with-current-buffer buf
                 (should (string-match-p "rig" (buffer-string)))
                 ;; Sections rendered from the canned reads.
-                (should (string-match-p "Guarded issue" (buffer-string))))))))
+                (should (string-match-p "Guarded issue" (buffer-string)))
+                ;; Folding and unfolding (SPC, depth keys) stay off the
+                ;; host and never re-read: the data is already loaded
+                ;; (§5.4, QA B-1/B-2).
+                (let ((reads 0))
+                  (cl-letf (((symbol-function 'beads-command-execute-async)
+                             (lambda (&rest _) (cl-incf reads) 'queued)))
+                    (goto-char (point-min))
+                    (re-search-forward "^▾ .*Ready (")
+                    (beads-thing-toggle)
+                    (beads-render-guard--drain)
+                    (goto-char (point-min))
+                    (should (re-search-forward "^▸ .*Ready (1)" nil t))
+                    (forward-line 0)
+                    (beads-thing-toggle)
+                    (beads-render-guard--drain)
+                    (goto-char (point-min))
+                    (should (re-search-forward "^▾ .*Ready (1)" nil t))
+                    (should (string-match-p "Guarded issue" (buffer-string)))
+                    (beads-dashboard-depth-1)
+                    (beads-render-guard--drain)
+                    (beads-dashboard-depth-all)
+                    (beads-render-guard--drain))
+                  (should (= reads 0))))))))
     (beads-render-guard--kill-remote-buffers)))
 
 (ert-deftest beads-render-guard-test-show-async-deadline ()

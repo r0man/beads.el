@@ -1316,6 +1316,32 @@ Shows direct child issues in CLI-style format with progress bar:
       (put-text-property (match-beginning 1) (match-end 1)
                         'face 'font-lock-builtin-face))))
 
+(defvar-local beads-show--derived-prefixes nil
+  "Issue id prefixes derived from the shown bead, or nil.
+Used when `beads-issue-id-prefixes' is nil: the shown bead's prefix
+and those of its dependency ids, so ordinary hyphenated words
+\(\"bright-lights\", \"build-basic\") are not taken for bead ids.")
+
+(defun beads-show--id-prefix (id)
+  "Return the prefix of issue ID (everything before its last hyphen)."
+  (when (and (stringp id) (string-match "\\`\\(.+\\)-[^-]+\\'" id))
+    (match-string 1 id)))
+
+(defun beads-show--issue-prefixes (issue)
+  "Return the id prefixes of ISSUE and of the ids it references."
+  (let (ids)
+    (push (oref issue id) ids)
+    (dolist (obj (append (oref issue dependencies) (oref issue dependents)))
+      (dolist (slot '(id issue-id depends-on-id))
+        (when (and (eieio-object-p obj)
+                   (slot-exists-p obj slot) (slot-boundp obj slot))
+          (push (eieio-oref obj slot) ids))))
+    (delete-dups (delq nil (mapcar #'beads-show--id-prefix ids)))))
+
+(defun beads-show--prefixes ()
+  "Return the id prefixes this show buffer recognises (nil means any)."
+  (or beads-issue-id-prefixes beads-show--derived-prefixes))
+
 (defun beads-show--buttonize-references (start end)
   "Make issue references clickable between START and END.
 Ids are found with `beads-issue-id-search-forward' (PREFIX-HASH[.CHILD],
@@ -1323,7 +1349,7 @@ base-36 hash: bs-lc1lb, bd-a1b2.1, beads.el-7bea), honouring the
 buffer's `beads-issue-id-prefixes'."
   (save-excursion
     (goto-char start)
-    (while (beads-issue-id-search-forward end nil beads-issue-id-prefixes)
+    (while (beads-issue-id-search-forward end nil (beads-show--prefixes))
       (let ((issue-id (match-string 1)))
         (make-button (match-beginning 1) (match-end 1)
                     'issue-id issue-id
@@ -1342,7 +1368,7 @@ buffer's `beads-issue-id-prefixes'."
 Returns the issue ID or nil if none found: a button's `issue-id'
 first, else an id on the current line overlapping point
 \(`beads-issue-id-at-point')."
-  (beads-issue-id-at-point beads-issue-id-prefixes))
+  (beads-issue-id-at-point (beads-show--prefixes)))
 
 ;;; Outline Navigation
 
@@ -1824,6 +1850,7 @@ buffer only shows sections that have data."
         (notes (oref issue notes)))
 
     (erase-buffer)
+    (setq beads-show--derived-prefixes (beads-show--issue-prefixes issue))
 
     ;; Two-line header:
     ;; bde-go3g: beads.el: Magit-like Emacs interface for Beads
@@ -2388,7 +2415,7 @@ Set mark at beginning of section, move point to end, and activate region."
         (let ((case-fold-search nil))
           (re-search-forward beads-issue-id-regexp nil t)))
       ;; Search for next reference
-      (when (beads-issue-id-search-forward nil nil beads-issue-id-prefixes)
+      (when (beads-issue-id-search-forward nil nil (beads-show--prefixes))
         (setq found (match-beginning 1))))
     (if found
         (goto-char found)
@@ -2404,7 +2431,7 @@ Set mark at beginning of section, move point to end, and activate region."
       (when (beads-show--extract-issue-at-point)
         (goto-char (line-beginning-position)))
       ;; Search for previous reference
-      (when (beads-issue-id-search-backward nil nil beads-issue-id-prefixes)
+      (when (beads-issue-id-search-backward nil nil (beads-show--prefixes))
         (setq found (match-beginning 1))))
     (if found
         (goto-char found)

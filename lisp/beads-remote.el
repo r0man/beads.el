@@ -169,10 +169,108 @@ prepended as an assignment prefix:
           "exec "
           (mapconcat #'shell-quote-argument argv " ")))
 
-;;; Local ssh argv for a remote host
+;;; Transport
 
 (defconst beads-remote-ssh-methods '("ssh" "sshx" "scp" "scpx")
   "TRAMP methods whose host a plain local `ssh' can reach.")
+
+(defcustom beads-remote-transport 'ssh
+  "How asynchronous bd processes reach a remote store.
+`ssh' (the default): for a single-hop ssh-family TRAMP directory
+\(`beads-remote-ssh-methods'), bd runs as a LOCAL `ssh -T' pipe process
+\(`beads-remote-ssh-command'): starting it never blocks Emacs, and it
+never shares a pty-backed TRAMP ControlMaster, whose mux clients can
+deadlock against TRAMP's own waits.  `tramp': use TRAMP's
+`make-process' (other methods always do)."
+  :type '(choice (const :tag "Local ssh pipe" ssh)
+                 (const :tag "TRAMP make-process" tramp))
+  :group 'beads)
+
+(defcustom beads-remote-ssh-options
+  '("-o" "ControlMaster=auto" "-o" "ControlPersist=60")
+  "Extra ssh options of the pipe processes `beads-remote-ssh-command' builds.
+Unless a ControlPath is given here, `beads-remote-ssh-control-path' is
+added, so concurrent processes to one host share one ssh master."
+  :type '(repeat string)
+  :group 'beads)
+
+(defcustom beads-remote-ssh-control-path
+  (expand-file-name "beads-ssh-%C" temporary-file-directory)
+  "ControlPath of the ssh masters of `beads-remote-ssh-command'.
+Distinct from TRAMP's \"tramp.%C\": TRAMP's masters relay pty mux
+clients, and a pipe process must never queue behind them.  Packages
+built on beads.el (gascity.el) use the same value, so all their pipe
+processes to a host share one master."
+  :type 'string
+  :group 'beads)
+
+(defun beads-remote-ssh-pipe-p (&optional dir)
+  "Return non-nil when async processes for DIR run over a local ssh pipe.
+DIR defaults to `default-directory'.  Pure: parses the name only."
+  (let ((dir (or dir default-directory)))
+    (and (eq beads-remote-transport 'ssh)
+         (file-remote-p dir)
+         (member (file-remote-p dir 'method) beads-remote-ssh-methods)
+         (progn (require 'tramp)
+                (not (tramp-file-name-hop (tramp-dissect-file-name dir)))))))
+
+(defun beads-remote-pure-path-assignment ()
+  "Return a \"PATH=DIRS:$PATH\" fragment built WITHOUT touching the host.
+Like `beads-remote-path-assignment', but a `~/'-relative
+`beads-remote-search-path' entry becomes \"$HOME\"/... for the remote
+shell to expand: pure string operations, so a pipe process can be
+built with no TRAMP connection at all.  Nil for an empty search path."
+  (when beads-remote-search-path
+    (format "PATH=%s:\"$PATH\""
+            (mapconcat
+             (lambda (entry)
+               (cond ((string-match "\\`~/\\(.*\\)\\'" entry)
+                      (concat "\"$HOME\"/"
+                              (shell-quote-argument (match-string 1 entry))))
+                     ((equal entry "~") "\"$HOME\"")
+                     (t (shell-quote-argument entry))))
+             beads-remote-search-path ":"))))
+
+(defun beads-remote-ssh-mux-options ()
+  "Return the ssh options every pipe process of `beads-remote-ssh-command' gets.
+\"-n\" (stdin from /dev/null), \"-o ForwardX11=no\" (a `ForwardX11 yes'
+in ~/.ssh/config makes the master print xauth warnings), then
+`beads-remote-ssh-options' and the ControlPath."
+  (append (list "-n" "-o" "ForwardX11=no")
+          beads-remote-ssh-options
+          (unless (cl-some (lambda (o) (string-prefix-p "ControlPath" o))
+                           beads-remote-ssh-options)
+            (list "-o" (concat "ControlPath=" beads-remote-ssh-control-path)))))
+
+(cl-defun beads-remote-ssh-command (dir argv &key cd env)
+  "Return a local ssh argv running ARGV on the host of DIR, with no TRAMP I/O.
+The remote command `cd's to CD (a TRAMP or host-local directory; t
+means DIR), sets the ENV assignments (an alist of (VAR . VALUE)),
+prepends `beads-remote-pure-path-assignment' to PATH, then execs ARGV;
+ARGV's program is used as given (a bare name is found on that PATH).
+The ssh options are `beads-remote-ssh-mux-options'.  Signals a
+`user-error' for a non-ssh method or a multi-hop DIR."
+  (let* ((cd (if (eq cd t) dir cd))
+         (prefix (mapconcat
+                  #'identity
+                  (delq nil
+                        (list (and cd (concat "cd " (shell-quote-argument
+                                                     (file-local-name cd))
+                                              " &&"))
+                              (and env
+                                   (mapconcat (lambda (pair)
+                                                (concat (car pair) "="
+                                                        (shell-quote-argument
+                                                         (cdr pair))))
+                                              env " "))
+                              (beads-remote-pure-path-assignment)))
+                  " "))
+         (argv (beads-remote-ssh-pipe-argv
+                dir argv (and (not (string-empty-p prefix)) prefix))))
+    (append (list (car argv)) (beads-remote-ssh-mux-options) (cdr argv))))
+
+;;; Local ssh argv for a remote host
+
 
 (defun beads-remote--ssh-target (name)
   "Return ([\"-l\" USER] [\"-p\" PORT] HOST) for TRAMP name NAME.

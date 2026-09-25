@@ -56,10 +56,10 @@
 
 ;;; Glyphs
 
-(defconst beads-section-glyph-expanded "▼"
+(defconst beads-section-glyph-expanded "▾"
   "Glyph rendered on expanded section headers.")
 
-(defconst beads-section-glyph-collapsed "▶"
+(defconst beads-section-glyph-collapsed "▸"
   "Glyph rendered on collapsed section headers.")
 
 ;;; Faces

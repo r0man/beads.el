@@ -425,6 +425,11 @@ or nil if all slots are valid.")
 
 ;;; Remote Executable Resolution
 
+(defvar beads-command--ssh-pipe nil
+  "Non-nil while building a command line for the ssh pipe transport.
+`beads-command-resolve-executable' then leaves `beads-executable' as
+configured instead of resolving it on the host through TRAMP.")
+
 (defun beads-command-resolve-executable ()
   "Return the bd program to spawn from `default-directory'.
 A local directory, or an absolute `beads-executable', passes through
@@ -435,7 +440,11 @@ connection): `tramp-remote-path' omits per-user profile directories
 user's login shell still exits 127 through TRAMP (bde-hku).  An
 unresolvable name is returned bare, so the spawn fails with beads.el's
 usual error surface."
-  (beads-remote-find-executable beads-executable))
+  (if beads-command--ssh-pipe
+      ;; An ssh pipe finds bd on the remote PATH it extends itself
+      ;; (`beads-remote-ssh-command'): no TRAMP probe.
+      beads-executable
+    (beads-remote-find-executable beads-executable)))
 
 ;;; Base Implementation - Global Flags
 
@@ -898,6 +907,18 @@ clean for JSON parsing under both tramp-sh and direct-async.
 \"$@\" its arguments."
   (append (list "/bin/sh" "-c" "exec \"$0\" \"$@\" 2>/dev/null") cmd))
 
+(defun beads-command--ssh-command (cmd)
+  "Return the local ssh argv running bd argv CMD in `default-directory'.
+The ssh pipe transport (`beads-remote-ssh-pipe-p'): cd to the store on
+its host, BEADS_DOLT_PORT when `beads-dolt-port' is set, then bd.
+Built without any TRAMP round trip (`beads-remote-ssh-command')."
+  (beads-remote-ssh-command
+   default-directory cmd
+   :cd t
+   :env (when (and (boundp 'beads-dolt-port) beads-dolt-port)
+          (list (cons "BEADS_DOLT_PORT"
+                      (number-to-string beads-dolt-port))))))
+
 (defun beads-command--async-stderr-buffer-p (remote)
   "Return non-nil when an async spawn may use a local stderr buffer.
 REMOTE is `file-remote-p' of the spawn's `default-directory'.
@@ -922,11 +943,17 @@ own dispatch consults; call this within
 Calls CALLBACK with `(:backend SYM :max-concurrent N)'.  Maps
 `mode=server' to 8 and anything else to 1 — the safe default.  Calls
 CALLBACK with nil if probe spawn fails."
-  (let* ((cmd (list (if (boundp 'beads-executable)
-                        (beads-command-resolve-executable)
+  (let* ((ssh (beads-remote-ssh-pipe-p))
+         (cmd (list (if (boundp 'beads-executable)
+                        (let ((beads-command--ssh-pipe ssh))
+                          (beads-command-resolve-executable))
                       "bd")
                     "dolt" "status" "--json"))
          (remote (file-remote-p default-directory))
+         (ssh-command (and ssh (beads-command--ssh-command cmd)))
+         ;; A local ssh process needs a local working directory.
+         (default-directory (if ssh temporary-file-directory default-directory))
+         (remote (and (not ssh) remote))
          (stdout (generate-new-buffer " *beads-policy-probe-stdout*"))
          (stderr nil)
          (process-environment (beads-command--process-environment))
@@ -942,9 +969,11 @@ CALLBACK with nil if probe spawn fails."
                :name "beads-policy-probe"
                :buffer stdout
                :stderr stderr
-               :command (if remote (beads-command--remote-async-command cmd) cmd)
+               :command (cond (ssh ssh-command)
+                              (remote (beads-command--remote-async-command cmd))
+                              (t cmd))
                :connection-type 'pipe
-               :file-handler t
+               :file-handler (not ssh)
                :sentinel
                (lambda (p _event)
                  (when (memq (process-status p) '(exit signal))
@@ -1155,9 +1184,12 @@ stderr separated on the host (`beads-command--remote-async-command')
 and a local stderr buffer only where it is safe
 \(`beads-command--async-stderr-buffer-p'); error reports then carry
 an empty :stderr."
-  (let* ((cmd (beads-command-line command))
+  (let* ((ssh (beads-remote-ssh-pipe-p))
+         (cmd (let ((beads-command--ssh-pipe ssh))
+                (beads-command-line command)))
          (cmd-string (mapconcat #'shell-quote-argument cmd " "))
-         (remote (file-remote-p default-directory))
+         (ssh-command (and ssh (beads-command--ssh-command cmd)))
+         (remote (and (not ssh) (file-remote-p default-directory)))
          (stdout-buffer (generate-new-buffer " *beads-async-stdout*"))
          (stderr-buffer nil)
          (process-environment (beads-command--process-environment))
@@ -1255,13 +1287,19 @@ an empty :stderr."
          (setq stderr-buffer (generate-new-buffer " *beads-async-stderr*")))
        (condition-case spawn-err
           (setq process
-                (make-process
+                ;; The ssh pipe is a local process: it needs a local
+                ;; working directory (the remote one is its `cd').
+                (let ((default-directory (if ssh temporary-file-directory
+                                           default-directory)))
+                 (make-process
                  :name "beads-async"
                  :buffer stdout-buffer
                  :stderr stderr-buffer
-                 :command (if remote (beads-command--remote-async-command cmd) cmd)
+                 :command (cond (ssh ssh-command)
+                                (remote (beads-command--remote-async-command cmd))
+                                (t cmd))
                  :connection-type 'pipe
-                 :file-handler t
+                 :file-handler (not ssh)
                  :sentinel
                  (lambda (proc _event)
                    (when (memq (process-status proc) '(exit signal))
@@ -1323,7 +1361,7 @@ an empty :stderr."
                                 :command cmd-string
                                 :exit-code proc-exit-code
                                 :stdout proc-stdout
-                                :stderr proc-stderr))))))) ))
+                                :stderr proc-stderr)))))))) ))
         (error
          (cleanup-buffers)
          (decrement)
