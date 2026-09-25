@@ -18,6 +18,9 @@
 
 (require 'ert)
 (require 'beads-command)
+(require 'beads-command-list)
+(require 'beads-command-create)
+(require 'beads-command-dep)
 
 ;;; ============================================================
 ;;; beads-defcommand :result and :json Tests
