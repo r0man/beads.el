@@ -1505,7 +1505,9 @@ the buffer it was opened in."
          (beads-store-directory store)
          (default-directory (or store default-directory))
          (caller-dir default-directory)
-         (project-dir (or store (beads--project-root) default-directory))
+         (project-dir (if store
+                          (beads-store-project-root store)
+                        (or (beads--project-root) default-directory)))
          (buffer (beads-list--get-or-create-buffer 'list project-dir)))
     (with-current-buffer buffer
       (unless (derived-mode-p 'beads-list-mode)
@@ -1864,7 +1866,9 @@ a call from a store-scoped buffer inherits its store."
          (beads-store-directory store)
          (default-directory (or store default-directory))
          (caller-dir default-directory)
-         (project-dir (or store (beads--project-root) default-directory))
+         (project-dir (if store
+                          (beads-store-project-root store)
+                        (or (beads--project-root) default-directory)))
          (buffer (beads-list--get-or-create-buffer 'ready project-dir))
          (issues (beads-issue-ready)))
     (with-current-buffer buffer
@@ -1913,7 +1917,9 @@ a call from a store-scoped buffer inherits its store."
          (beads-store-directory store)
          (default-directory (or store default-directory))
          (caller-dir default-directory)
-         (project-dir (or store (beads--project-root) default-directory))
+         (project-dir (if store
+                          (beads-store-project-root store)
+                        (or (beads--project-root) default-directory)))
          (buffer (beads-list--get-or-create-buffer 'blocked project-dir))
          (issues (beads-blocked-issue-list)))
     (with-current-buffer buffer

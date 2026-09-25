@@ -321,6 +321,17 @@ file I/O."
          (concat (file-remote-p default-directory) directory)
        directory))))
 
+(defun beads-store-project-root (store)
+  "Return the project root for the explicit store directory STORE.
+A remote STORE is its own root: finding a root walks the VC tree and
+markers, synchronous TRAMP I/O at open time (dashboard-v3 §12 B3), and
+bd resolves the store from --directory anyway.  A local STORE resolves
+as usual from STORE, falling back to STORE itself."
+  (if (file-remote-p store)
+      store
+    (let ((default-directory store))
+      (or (beads--project-root) store))))
+
 (defun beads--project-name-for-root (root)
   "Return the project name (basename) for ROOT directory.
 ROOT is a directory name (a trailing slash, as produced by

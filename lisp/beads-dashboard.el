@@ -1084,10 +1084,17 @@ opens the board of the chosen project, not of the current buffer."
   (let* ((store (beads-store-resolve directory))
          (default-directory (or store
                                 (beads-prefix-invocation-directory)))
-         (root (beads-dashboard--project-root))
+         ;; A remote explicit store is its own root: no VC/marker
+         ;; walk, which is synchronous TRAMP I/O (§12 B3).
+         (root (if (and store (file-remote-p store))
+                   store
+                 (beads-dashboard--project-root)))
          (buf-name (beads-dashboard--buffer-name-for root))
          (buf (get-buffer-create buf-name))
-         (db (ignore-errors (beads--get-database-path))))
+         ;; The db path is display metadata and a directory scan; a
+         ;; remote store's bd finds its database from --directory.
+         (db (unless (and store (file-remote-p store))
+               (ignore-errors (beads--get-database-path)))))
     (with-current-buffer buf
       (unless (eq major-mode 'beads-dashboard-mode)
         (beads-dashboard-mode))

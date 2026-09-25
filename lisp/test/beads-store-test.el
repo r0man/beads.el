@@ -39,8 +39,7 @@
              ((symbol-function 'beads-buffer-display-detail) #'ignore)
              ((symbol-function 'beads-list--display-buffer) #'ignore)
              ((symbol-function 'beads-show--register-with-session) #'ignore)
-             ((symbol-function 'beads--project-root)
-              (lambda () (error "Explicit store must not walk for a root"))))
+             ((symbol-function 'beads--project-root) (lambda () nil)))
      ,@body))
 
 (defun beads-store-test--directory-arg (line)
@@ -102,7 +101,7 @@
             (setq lines nil)
             (beads-show-update-buffer "bd-1" buf)
             (should (equal (beads-store-test--directory-arg (car lines))
-                           "/tmp/store-a/"))))
+                           "/tmp/store-a"))))
       (beads-store-test--kill (list buf)))))
 
 (ert-deftest beads-store-test-show-inherits-store ()
@@ -120,6 +119,17 @@
                                      'beads-store-directory b)
                                     "/tmp/store-b/"))
                  (buffer-list)))))
+
+(ert-deftest beads-store-test-project-root ()
+  "A remote store is its own root; a local one resolves from itself."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads--project-root)
+             (lambda () (if (file-remote-p default-directory)
+                            (error "No walk over TRAMP")
+                          (concat default-directory "root/")))))
+    (should (equal (beads-store-project-root "/ssh:u@h:/srv/rig/")
+                   "/ssh:u@h:/srv/rig/"))
+    (should (equal (beads-store-project-root "/tmp/x/") "/tmp/x/root/"))))
 
 (ert-deftest beads-store-test-list-entry-points-scope ()
   "`beads-ready', `beads-blocked' and `beads-list-issues' take :directory."

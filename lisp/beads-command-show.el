@@ -424,7 +424,7 @@ Buffer is named *beads-show[PROJECT]/ISSUE-ID TITLE*."
             (setq default-directory (file-name-as-directory project-dir))
             (setq beads-show--project-dir project-dir)
             (setq beads-show--issue-id issue-id)
-            (setq beads-show--branch (beads-git-get-branch))
+            (setq beads-show--branch (beads-show--branch-for project-dir))
             (setq beads-show--proj-name proj-name))
           buffer))))
 
@@ -435,29 +435,114 @@ navigating in beads-list.  Returns BUFFER."
   (with-current-buffer buffer
     (unless (derived-mode-p 'beads-show-mode)
       (beads-show-mode))
-    (setq beads-show--issue-id issue-id)
-    (condition-case err
-        ;; Same data source as `beads-show': the buffer sections render
-        ;; from --long metadata, comment bodies, and dependents[].
-        (let ((issue (beads-execute 'beads-command-show :issue-ids (list issue-id)
-                                    :long t
-                                    :include-comments t
-                                    :include-dependents t)))
-          (setq beads-show--issue-data issue)
-          ;; Rename buffer to include title
-          (let* ((title (oref issue title))
-                 (new-name (beads-buffer-name-show
-                            issue-id title beads-show--proj-name)))
-            (unless (string= (buffer-name) new-name)
-              (rename-buffer new-name t)))
-          (beads-show--render-issue beads-show--issue-data))
-      (error
-       (let ((inhibit-read-only t))
-         (erase-buffer)
-         (insert (propertize "Error loading issue\n\n" 'face 'error))
-         (insert (format "%s" (error-message-string err)))
-         (goto-char (point-min))))))
+    (setq beads-show--issue-id issue-id))
+  (beads-show--load buffer issue-id)
   buffer)
+
+;;; Loading
+
+(defcustom beads-show-async 'remote
+  "Whether show buffers fetch their issue asynchronously.
+`remote' (the default): only for a store on a remote host, where a
+synchronous bd call would block Emacs on the network; t: always; nil:
+never.  An async fetch opens the buffer at once with a loading line
+and fills it when bd answers, bounded by `beads-show-async-timeout'."
+  :type '(choice (const :tag "Remote stores only" remote)
+                 (const :tag "Always" t)
+                 (const :tag "Never" nil))
+  :group 'beads)
+
+(defcustom beads-show-async-timeout 30
+  "Seconds before an asynchronous show fetch is abandoned."
+  :type 'natnum
+  :group 'beads)
+
+(defun beads-show--branch-for (project-dir)
+  "Return the git branch of PROJECT-DIR, or nil for a remote one.
+The branch is display metadata; finding it walks the VC tree and runs
+git, synchronous TRAMP I/O at open time for a remote store."
+  (unless (file-remote-p project-dir)
+    (let ((default-directory project-dir))
+      (beads-git-get-branch))))
+
+(defun beads-show--async-p ()
+  "Return non-nil when this buffer should fetch asynchronously."
+  (pcase beads-show-async
+    ('remote (and (file-remote-p default-directory) t))
+    ('nil nil)
+    (_ t)))
+
+(defun beads-show--command-args (issue-id)
+  "Return the `beads-command-show' initargs for rendering ISSUE-ID.
+The buffer's store, if any, is passed as :directory."
+  (append (list :issue-ids (list issue-id)
+                :long t :include-comments t :include-dependents t)
+          (when beads-store-directory
+            (list :directory (directory-file-name beads-store-directory)))))
+
+(defun beads-show--display-issue (buffer issue-id issue)
+  "Render ISSUE (fetched for ISSUE-ID) into BUFFER.
+Ignored when BUFFER was killed or switched to another issue meanwhile."
+  (when (buffer-live-p buffer)
+    (with-current-buffer buffer
+      (when (equal beads-show--issue-id issue-id)
+        (setq beads-show--issue-data issue)
+        ;; Rename buffer to include title now that we have it
+        (let ((new-name (beads-buffer-name-show
+                         issue-id (oref issue title) beads-show--proj-name)))
+          (unless (string= (buffer-name) new-name)
+            (rename-buffer new-name t)))
+        (beads-show--render-issue issue)
+        t))))
+
+(defun beads-show--display-error (buffer err)
+  "Replace BUFFER's contents with the error ERR."
+  (when (buffer-live-p buffer)
+    (with-current-buffer buffer
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (insert (propertize "Error loading issue\n\n" 'face 'error))
+        (insert (format "%s" (error-message-string err)))
+        (goto-char (point-min))))))
+
+(cl-defun beads-show--load (buffer issue-id &key after on-error)
+  "Fetch ISSUE-ID and render it into BUFFER.
+Runs bd with BUFFER current, so its `default-directory' and
+`beads-store-directory' pick the store.  Synchronous, or asynchronous
+with a `beads-show-async-timeout' deadline per `beads-show--async-p';
+an async first load shows a loading line meanwhile.  AFTER, when
+non-nil, is called with BUFFER current once the issue is rendered.
+ON-ERROR, when non-nil, is called with the error instead of showing it
+in BUFFER."
+  (let ((fail (lambda (err)
+                (if on-error
+                    (funcall on-error err)
+                  (beads-show--display-error buffer err))))
+        (done (lambda (issue)
+                (when (and (beads-show--display-issue buffer issue-id issue)
+                           after)
+                  (with-current-buffer buffer (funcall after))))))
+    (with-current-buffer buffer
+      (if (beads-show--async-p)
+          (progn
+            (unless beads-show--issue-data
+              (let ((inhibit-read-only t))
+                (erase-buffer)
+                (insert (propertize (format "Loading %s…\n" issue-id)
+                                    'face 'shadow))))
+            (condition-case err
+                (beads-command-execute-async
+                 (apply #'beads-command-show :json t
+                        (beads-show--command-args issue-id))
+                 done
+                 (lambda (err)
+                   (when (buffer-live-p buffer) (funcall fail err)))
+                 :timeout beads-show-async-timeout)
+              (error (funcall fail err))))
+        (condition-case err
+            (funcall done (apply #'beads-execute 'beads-command-show
+                                 (beads-show--command-args issue-id)))
+          (error (funcall fail err)))))))
 
 ;;; Worktree Session Integration
 ;;
@@ -1885,9 +1970,9 @@ store-scoped buffer inherits its store."
   (let* ((store (or (beads-store-resolve directory) beads-store-directory))
          (caller-dir (or store default-directory))
          (default-directory caller-dir)
-         ;; An explicit store is the project: no root walk (sync I/O
-         ;; over TRAMP) needed.
-         (project-dir (or store (beads--project-root) default-directory))
+         (project-dir (if store
+                          (beads-store-project-root store)
+                        (or (beads--project-root) default-directory)))
          ;; Get or create buffer keyed by (project-dir, issue-id)
          (buffer (beads-show--get-or-create-buffer issue-id nil project-dir)))
     (with-current-buffer buffer
@@ -1899,46 +1984,17 @@ store-scoped buffer inherits its store."
       ;; Update directory-aware state
       (setq beads-show--issue-id issue-id
             beads-show--project-dir project-dir
-            beads-show--branch (beads-git-get-branch)
+            beads-show--branch (beads-show--branch-for project-dir)
             beads-show--proj-name (beads--project-name-for-root project-dir))
-      ;; Register with worktree session for lifecycle management
-      (beads-show--register-with-session)
-      (condition-case err
-          ;; Execute command in caller's directory context.  When a
-          ;; DIRECTORY was supplied, splice it in as the :directory slot
-          ;; so bd is invoked with --directory / -C (only when non-nil,
-          ;; so existing callers' command lines are unchanged).
-          ;;
-          ;; The buffer needs the full rendering data, so the interactive
-          ;; path requests --long --include-comments --include-dependents
-          ;; (JSON-only flags; plain `bd show --json' omits the extended
-          ;; metadata, comment bodies, and dependents[] the sections
-          ;; render from).  --include-comments may be slow on
-          ;; comment-heavy beads (bd 1.3.0 help note).
-          (let ((default-directory caller-dir)
-                (issue (apply #'beads-execute 'beads-command-show
-                              :issue-ids (list issue-id)
-                              :long t
-                              :include-comments t
-                              :include-dependents t
-                              (when store
-                                (list :directory (directory-file-name store))))))
-            (setq beads-show--issue-data issue)
-            ;; Rename buffer to include title now that we have it
-            (let* ((title (oref issue title))
-                   (new-name (beads-buffer-name-show
-                              issue-id title beads-show--proj-name)))
-              (unless (string= (buffer-name) new-name)
-                (rename-buffer new-name t)))
-            (beads-show--render-issue beads-show--issue-data))
-        (error
-         (let ((inhibit-read-only t))
-           (erase-buffer)
-           (insert (propertize "Error loading issue\n\n"
-                             'face 'error))
-           (insert (format "%s" (error-message-string err)))
-           (goto-char (point-min))))))
-
+      ;; Worktree sessions are a local concept, and registering one
+      ;; walks git over TRAMP for a remote store.
+      (unless (file-remote-p project-dir)
+        (beads-show--register-with-session))
+      ;; The buffer needs the full rendering data: --long
+      ;; --include-comments --include-dependents (JSON-only flags;
+      ;; plain `bd show --json' omits the extended metadata, comment
+      ;; bodies, and dependents[] the sections render from).
+      (beads-show--load buffer issue-id))
     (beads-buffer-display-detail buffer 'beads-show-mode)))
 
 ;;;###autoload
@@ -1962,29 +2018,23 @@ Extracts the issue ID from text at point and calls `beads-show'."
 ;;;###autoload
 (defun beads-refresh-show ()
   "Refresh the current show buffer from bd CLI.
-Uses the stored project directory for command execution."
+Runs in the buffer's store (see `beads-show--load'): asynchronously
+for a remote store."
   (interactive)
   (unless (derived-mode-p 'beads-show-mode)
     (user-error "Not in a beads-show buffer"))
   (unless beads-show--issue-id
     (user-error "No issue ID associated with this buffer"))
-
   (let ((pos (point))
-        (project-dir (or beads-show--project-dir default-directory)))
-    (condition-case err
-        (let* ((default-directory project-dir)
-               ;; Same data source as `beads-show': the sections render
-               ;; from --long metadata, comment bodies, and dependents[].
-               (issue (beads-execute 'beads-command-show :issue-ids (list beads-show--issue-id)
-                                     :long t
-                                     :include-comments t
-                                     :include-dependents t)))
-          (setq beads-show--issue-data issue)
-          (beads-show--render-issue beads-show--issue-data)
-          (goto-char (min pos (point-max)))
-          (message "Refreshed %s" beads-show--issue-id))
-      (error
-       (message "Failed to refresh: %s" (error-message-string err))))))
+        (id beads-show--issue-id))
+    (beads-show--load
+     (current-buffer) id
+     :after (lambda ()
+              (goto-char (min pos (point-max)))
+              (message "Refreshed %s" id))
+     :on-error (lambda (err)
+                 (message "Failed to refresh: %s"
+                          (error-message-string err))))))
 
 (defun beads-show-next-section ()
   "Move to the next section in the show buffer."
