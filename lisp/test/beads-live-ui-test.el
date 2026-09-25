@@ -52,6 +52,11 @@
 (require 'beads)
 (require 'beads-integration-test)
 (require 'beads-reader)
+(require 'beads-command-list)          ; beads-list-execute, beads-list-all
+(require 'beads-command-show)          ; show classes and buffers
+(require 'beads-command-dep)           ; dep add/remove classes
+(require 'beads-agent)                 ; beads-agent-start, stop, detection
+(require 'beads-agent-mock)            ; the mock agent backend tests
 
 ;;; ============================================================
 ;;; Infrastructure: Skip helper
