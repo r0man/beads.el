@@ -61,5 +61,15 @@ jobs:
       - name: Install Graphviz
         run: sudo apt-get update && sudo apt-get install -y graphviz
 
+      # Install the dependencies (and the project package) in a session of
+      # their own.  On Emacs 29/30, whose built-in transient predates
+      # `transient-define-group', the session that first installs the
+      # project package compiles it against the built-in transient even
+      # though transient 0.13 was just installed; a later session starts
+      # with the installed transient activated.  This step's compile errors
+      # are expected there and harmless; the test run below must be clean.
+      - name: Install dependencies
+        run: eldev -p prepare test
+
       - name: Run tests
         run: eldev -p -dtT test
