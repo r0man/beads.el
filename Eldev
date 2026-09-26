@@ -60,17 +60,17 @@ transient-define-group."
 ;; so we cannot load transient there. Instead, we use eval-after-load
 ;; which triggers when transient is actually loaded (after installation).
 ;;
-;; The eval-after-load above handles setting edebug specs, but we also
-;; need to ensure transient-define-group is available as a function
-;; (not just as an edebug spec) when undercover instruments files.
-;;
-;; Hook into eldev's dependency loading to ensure transient is required
-;; after it's installed but before files are instrumented.
+;; Hook into eldev's dependency loading to apply the spec fix before
+;; files are instrumented.  Do NOT `require' transient here: this runs
+;; before the package dependencies are activated, so on Emacs 29/30 it
+;; loaded the BUILT-IN transient (0.7, no `transient-define-group'),
+;; and every later `require' got that one -- the Test job on 29.4/30.2
+;; failed with "void-function transient-define-group".  The files
+;; require transient themselves, and `def-edebug-spec' does not need it
+;; loaded.
 (advice-add 'eldev-load-extra-dependencies :after
             (lambda (&rest _)
               (when (eq eldev-project-loading-mode 'source)
-                ;; Now transient should be installed, require it
-                (require 'transient nil t)
                 ;; Apply edebug spec fix
                 (beads--fix-transient-edebug-specs))))
 

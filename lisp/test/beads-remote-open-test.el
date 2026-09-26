@@ -71,33 +71,32 @@ fake runs it with sh -c instead of handing it to ssh."
 
 (ert-deftest beads-remote-open-test-project-root-remembered ()
   "A remote project root is found without TRAMP and remembered, the
-negative answer too, until `beads-forget-project-roots'."
+negative answer too, until `beads-forget-project-roots'.  The host walk
+is stubbed: what lies above a real temp directory depends on the
+machine (on a CI runner a marker sits in the home directory)."
   :tags '(:unit)
-  (let ((dir (beads-remote-open-test--tree))
-        (beads-remote-transport 'ssh)
-        (calls 0))
+  (let ((beads-remote-transport 'ssh)
+        (calls nil))
     (unwind-protect
-        (let ((real-find-up (symbol-function 'beads-remote-ssh-find-up)))
+        (cl-letf (((symbol-function 'beads-remote-ssh-find-up)
+                   (lambda (dir _markers)
+                     (push dir calls)
+                     (and (string-prefix-p "/ssh:h:/srv/proj/" dir)
+                          "/ssh:h:/srv/proj/"))))
           (beads-forget-project-roots)
-          (beads-remote-open-test--with-local-ssh
-            (cl-letf (((symbol-function 'beads-remote-ssh-find-up)
-                       (lambda (&rest args) (cl-incf calls) (apply real-find-up args))))
-              (beads-remote-open-test--no-tramp
-                (let ((default-directory (concat "/ssh:h:" dir "/proj/sub/")))
-                  (should (equal (beads--project-root)
-                                 (concat "/ssh:h:" dir "/proj/")))
-                  (should (equal (beads--project-root)
-                                 (concat "/ssh:h:" dir "/proj/"))))
-                (let ((default-directory (concat "/ssh:h:" dir "/")))
-                  (should-not (beads--project-root))
-                  (should-not (beads--project-root)))
-                (should (= calls 2))
-                (beads-forget-project-roots)
-                (let ((default-directory (concat "/ssh:h:" dir "/")))
-                  (beads--project-root))
-                (should (= calls 3))))))
-      (beads-forget-project-roots)
-      (delete-directory dir t))))
+          (beads-remote-open-test--no-tramp
+            (let ((default-directory "/ssh:h:/srv/proj/sub/"))
+              (should (equal (beads--project-root) "/ssh:h:/srv/proj/"))
+              (should (equal (beads--project-root) "/ssh:h:/srv/proj/")))
+            (let ((default-directory "/ssh:h:/srv/"))
+              (should-not (beads--project-root))
+              (should-not (beads--project-root)))
+            (should (= (length calls) 2))
+            (beads-forget-project-roots)
+            (let ((default-directory "/ssh:h:/srv/"))
+              (beads--project-root))
+            (should (= (length calls) 3))))
+      (beads-forget-project-roots))))
 
 (ert-deftest beads-remote-open-test-sync-command-over-ssh ()
   "A synchronous bd command on an ssh store runs over the pipe: cd to the

@@ -314,7 +314,7 @@ process-bound wait may not run), and does no TRAMP I/O."
   (concat "d=$1; shift; while :; do for m in \"$@\"; do "
           "if [ -e \"$d/$m\" ]; then printf '%s\\n' \"$d\"; exit 0; fi; done; "
           "[ \"$d\" = / ] && exit 1; d=$(dirname \"$d\"); done")
-  "sh script: print the nearest directory at or above $1 holding one of $2...")
+  "Shell script: print the nearest directory at or above $1 holding one of $2...")
 
 (defun beads-remote-ssh-find-up (dir markers)
   "Return the nearest directory at or above DIR holding one of MARKERS, or nil.
