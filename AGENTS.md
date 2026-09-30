@@ -200,9 +200,10 @@ design notes in `.designs/command-parity/`.
 ## Remote store testing (TRAMP)
 
 beads.el already supports remote (TRAMP) stores; keep it that way. The
-`bright-lights` city at `/home/roman/bright-lights` is the standing test
-target: open it from a local Emacs as
-`/ssh:localhost:/home/roman/bright-lights` (default user) and confirm bead views
+standing test target is a local Gas City test store — the convention is a
+`bright-lights` city under your home directory (`~/bright-lights`), but any
+local store works: open it from a local Emacs as
+`/ssh:localhost:~/bright-lights` (default user) and confirm bead views
 (dashboard, list, show, slings, transient menus) work identically there.
 Any change touching `default-directory` handling, process spawning, path
 localization, or buffer-name keying must be verified over that TRAMP path,

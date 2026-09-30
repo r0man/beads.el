@@ -31,7 +31,7 @@
   (let ((test-buf (generate-new-buffer "*claude-code[test]*")))
     (unwind-protect
         (let ((found (beads-agent-claude-code-ide--find-buffers
-                      "/home/roman/workspace/test/")))
+                      "/home/user/workspace/test/")))
           (should (= 1 (length found)))
           (should (equal (buffer-name (car found)) "*claude-code[test]*")))
       (kill-buffer test-buf))))
@@ -41,7 +41,7 @@
   (let ((test-buf (generate-new-buffer "*claude-code[test]*")))
     (unwind-protect
         (let ((found (beads-agent-claude-code-ide--find-buffers
-                      "/home/roman/workspace/test")))
+                      "/home/user/workspace/test")))
           (should (= 1 (length found)))
           (should (equal (buffer-name (car found)) "*claude-code[test]*")))
       (kill-buffer test-buf))))
@@ -52,7 +52,7 @@
         (other-buf (generate-new-buffer "*claude-code[other]*")))
     (unwind-protect
         (let ((found (beads-agent-claude-code-ide--find-buffers
-                      "/home/roman/workspace/test/")))
+                      "/home/user/workspace/test/")))
           (should (= 1 (length found)))
           (should (equal (buffer-name (car found)) "*claude-code[test]*")))
       (kill-buffer our-buf)
@@ -63,7 +63,7 @@
   (let ((other-buf (generate-new-buffer "*claude-code[other]*")))
     (unwind-protect
         (let ((found (beads-agent-claude-code-ide--find-buffers
-                      "/home/roman/workspace/test/")))
+                      "/home/user/workspace/test/")))
           (should (null found)))
       (kill-buffer other-buf))))
 
@@ -73,7 +73,7 @@
   (let ((extended-buf (generate-new-buffer "*claude-code[test-extended]*")))
     (unwind-protect
         (let ((found (beads-agent-claude-code-ide--find-buffers
-                      "/home/roman/workspace/test/")))
+                      "/home/user/workspace/test/")))
           (should (null found)))
       (kill-buffer extended-buf))))
 

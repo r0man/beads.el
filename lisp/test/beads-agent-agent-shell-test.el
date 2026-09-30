@@ -66,9 +66,9 @@
         (progn
           (with-current-buffer test-buf
             (agent-shell-mode)
-            (setq default-directory "/home/roman/workspace/test/"))
+            (setq default-directory "/home/user/workspace/test/"))
           (let ((found (beads-agent-agent-shell--find-buffers
-                        "/home/roman/workspace/test/")))
+                        "/home/user/workspace/test/")))
             (should (= 1 (length found)))
             (should (eq (car found) test-buf))))
       (kill-buffer test-buf))))
@@ -80,9 +80,9 @@
         (progn
           (with-current-buffer test-buf
             (agent-shell-mode)
-            (setq default-directory "/home/roman/workspace/test/"))
+            (setq default-directory "/home/user/workspace/test/"))
           (let ((found (beads-agent-agent-shell--find-buffers
-                        "/home/roman/workspace/test")))
+                        "/home/user/workspace/test")))
             (should (= 1 (length found)))
             (should (eq (car found) test-buf))))
       (kill-buffer test-buf))))
@@ -98,9 +98,9 @@
           (dolist (buf (list buf1 buf2 buf3))
             (with-current-buffer buf
               (agent-shell-mode)
-              (setq default-directory "/home/roman/workspace/test/")))
+              (setq default-directory "/home/user/workspace/test/")))
           (let ((found (beads-agent-agent-shell--find-buffers
-                        "/home/roman/workspace/test/")))
+                        "/home/user/workspace/test/")))
             (should (= 3 (length found)))
             (should (memq buf1 found))
             (should (memq buf2 found))
@@ -117,12 +117,12 @@
         (progn
           (with-current-buffer our-buf
             (agent-shell-mode)
-            (setq default-directory "/home/roman/workspace/test/"))
+            (setq default-directory "/home/user/workspace/test/"))
           (with-current-buffer other-buf
             (agent-shell-mode)
-            (setq default-directory "/home/roman/workspace/other/"))
+            (setq default-directory "/home/user/workspace/other/"))
           (let ((found (beads-agent-agent-shell--find-buffers
-                        "/home/roman/workspace/test/")))
+                        "/home/user/workspace/test/")))
             (should (= 1 (length found)))
             (should (eq (car found) our-buf))))
       (kill-buffer our-buf)
@@ -135,9 +135,9 @@
         (progn
           (with-current-buffer other-buf
             (agent-shell-mode)
-            (setq default-directory "/home/roman/workspace/other/"))
+            (setq default-directory "/home/user/workspace/other/"))
           (let ((found (beads-agent-agent-shell--find-buffers
-                        "/home/roman/workspace/test/")))
+                        "/home/user/workspace/test/")))
             (should (null found))))
       (kill-buffer other-buf))))
 
@@ -148,9 +148,9 @@
         (progn
           (with-current-buffer test-buf
             ;; Buffer has right directory but wrong mode
-            (setq default-directory "/home/roman/workspace/test/"))
+            (setq default-directory "/home/user/workspace/test/"))
           (let ((found (beads-agent-agent-shell--find-buffers
-                        "/home/roman/workspace/test/")))
+                        "/home/user/workspace/test/")))
             (should (null found))))
       (kill-buffer test-buf))))
 
@@ -269,13 +269,13 @@
                   :id "test-session"
                   :issue-id "test-1"
                   :backend-name "agent-shell"
-                  :project-dir "/home/roman/workspace/test/"
+                  :project-dir "/home/user/workspace/test/"
                   :started-at "2025-01-01T00:00:00+0000")))
     (unwind-protect
         (progn
           (with-current-buffer test-buf
             (agent-shell-mode)
-            (setq default-directory "/home/roman/workspace/test/"))
+            (setq default-directory "/home/user/workspace/test/"))
           (let ((proc (start-process "test" test-buf "sleep" "10")))
             (should (beads-agent-backend-session-active-p backend session))
             (delete-process proc)))
@@ -304,14 +304,14 @@
                    :id "test-session"
                    :issue-id "test-1"
                    :backend-name "agent-shell"
-                   :project-dir "/home/roman/workspace/test/"
+                   :project-dir "/home/user/workspace/test/"
                    :started-at "2025-01-01T00:00:00+0000"
                    :buffer test-buf)))
     (unwind-protect
         (progn
           (with-current-buffer test-buf
             (agent-shell-mode)
-            (setq default-directory "/home/roman/workspace/test/"))
+            (setq default-directory "/home/user/workspace/test/"))
           ;; Buffer exists but no process
           (should (not (beads-agent-backend-session-active-p backend session))))
       (kill-buffer test-buf))))
@@ -328,14 +328,14 @@
                    :id "test-session"
                    :issue-id "test-1"
                    :backend-name "agent-shell"
-                   :project-dir "/home/roman/workspace/test/"
+                   :project-dir "/home/user/workspace/test/"
                    :started-at "2025-01-01T00:00:00+0000"
                    :buffer test-buf)))
     (unwind-protect
         (progn
           (with-current-buffer test-buf
             (agent-shell-mode)
-            (setq default-directory "/home/roman/workspace/test/"))
+            (setq default-directory "/home/user/workspace/test/"))
           (let ((proc (start-process "test" test-buf "sleep" "10")))
             (should (eq test-buf (beads-agent-backend-get-buffer
                                   backend session)))
@@ -367,8 +367,8 @@
                    :id "test-session"
                    :issue-id "test-1"
                    :backend-name "agent-shell"
-                   :project-dir "/home/roman/workspace/main/"
-                   :worktree-dir "/home/roman/workspace/worktree/"
+                   :project-dir "/home/user/workspace/main/"
+                   :worktree-dir "/home/user/workspace/worktree/"
                    :started-at "2025-01-01T00:00:00+0000"
                    :buffer test-buf)))
     (unwind-protect
@@ -376,7 +376,7 @@
           ;; Buffer is in worktree-dir, not project-dir
           (with-current-buffer test-buf
             (agent-shell-mode)
-            (setq default-directory "/home/roman/workspace/worktree/"))
+            (setq default-directory "/home/user/workspace/worktree/"))
           (let ((proc (start-process "test" test-buf "sleep" "10")))
             ;; Should find buffer stored in session
             (should (beads-agent-backend-session-active-p backend session))
@@ -398,7 +398,7 @@
                    :id "test-session"
                    :issue-id "test-1"
                    :backend-name "agent-shell"
-                   :project-dir "/home/roman/workspace/test/"
+                   :project-dir "/home/user/workspace/test/"
                    :started-at "2025-01-01T00:00:00+0000"
                    :buffer test-buf)))
     (unwind-protect
@@ -407,7 +407,7 @@
           (dolist (buf (list test-buf other-buf))
             (with-current-buffer buf
               (agent-shell-mode)
-              (setq default-directory "/home/roman/workspace/test/")))
+              (setq default-directory "/home/user/workspace/test/")))
           ;; Stop should only kill the stored buffer, not other-buf
           (beads-agent-backend-stop backend session)
           ;; Stored buffer should be killed
@@ -429,7 +429,7 @@
                    :id "test-session"
                    :issue-id "test-1"
                    :backend-name "agent-shell"
-                   :project-dir "/home/roman/workspace/test/"
+                   :project-dir "/home/user/workspace/test/"
                    :started-at "2025-01-01T00:00:00+0000")))
     ;; Should not error when buffer is nil
     (should-not (beads-agent-backend-stop backend session))))

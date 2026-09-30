@@ -382,7 +382,7 @@ run separately from the main `eldev test` suite (which runs `:unit` and
 
 ```bash
 # Start dev Emacs server (do this once)
-WORKTREE=/home/roman/gt/beads_el/polecats/furiosa/beads_el
+WORKTREE=${WORKTREE:-$HOME/src/beads.el}
 emacs --daemon=beads-live -Q --eval \
   "(progn (add-to-list 'load-path \"$WORKTREE/lisp\") (require 'beads))"
 

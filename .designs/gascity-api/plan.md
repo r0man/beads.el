@@ -18,8 +18,8 @@ independently shippable behind a backward-compatible alias.
 
 | Repo | Role | Path | Size (lisp/) |
 |------|------|------|--------------|
-| beads.el | library (this rig) | `/home/roman/workspace/beads.el/lisp/` | ~90 modules |
-| gascity.el | consumer (other rig) | `/home/roman/workspace/gascity.el/lisp/` | 15 modules, ~4,885 lines |
+| beads.el | library (this rig) | `./lisp/` (beads.el checkout) | ~90 modules |
+| gascity.el | consumer (other rig) | `../gascity.el/lisp/` (sibling checkout) | 15 modules, ~4,885 lines |
 
 `gascity.el` already builds on `beads.el`: it `require`s `beads-meta`,
 `beads-command`, `beads-section`, `beads-terminal`, and soft-requires
