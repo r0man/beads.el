@@ -1,19 +1,33 @@
 ---
 schema: beads.ui-redesign.requirements.v1
 workflow:
-  id: be-59fe
+  id: be-mv8d
+  predecessor: be-59fe
   kind: planning
+  refinement: 2
 artifact: requirements
 status: draft-for-review
 scope: planning-only
 implementation: out-of-scope-until-signoff
+decisions_folded: [F2, F3]
 ---
 
 # beads.el UI Redesign — Requirements
 
 Input: bead `be-59fe` ("Redesign beads.el UI (Magit-style, world-class) —
-PLAN"). This artifact restates the target bead and the approved UI direction
-as verifiable requirements for design, mockups, decomposition and review.
+PLAN"), refined by bead `be-mv8d` (deeper design + multi-state mockups;
+fold F2 rename and F3 remove QA/Custom). This artifact restates the target
+bead and the approved UI direction as verifiable requirements for design,
+mockups, decomposition and review.
+
+**Refinement-2 decisions (user, 2026-10-01): F2 and F3 are now decided, not
+open.** F2: `M-x beads` opens the status buffer; the old transient is renamed
+`beads-dispatch`, bound to `?`. F3: **remove QA and Custom entirely** (delete
+the classes, prompts, `*-backend` defcustoms, start commands, keybindings,
+registration calls and affected tests) — QA folds into Review as a QA mode
+after the whole testing prompt is moved to Review's QA mode; Custom's freeform
+prompt moves to sling's freeform path; the freed `q` and `c` keys are
+released.
 **No implementation is in scope for this planning task**; these
 requirements bind the *later, separately-approved* implementation.
 
@@ -40,7 +54,12 @@ Magit-like Emacs porcelain for the `bd` bead store: deliberately designed,
 keyboard-driven, sectioned buffers, with zero auto-generated transients as
 the primary interface, a real magit/forge extension model, a standalone sling
 abstraction, first-class formula UX, and an explicit slimming pass that
-removes as well as adds.
+removes as well as adds. Refinement 2 raises the bar: `design.md` must be
+implementation-ready (module map, full seam list with signatures, data/async
+model, navigation/keymap contract, faces, sling/agent/formula, terminal
+migration) and `menu-mockups.md` must render **every** surface in **multiple
+states** (loading/empty/populated/folded/error and the sling/agent/formula
+shapes) with no TBDs.
 
 ## Hard constraints (already decided; not open)
 
@@ -56,6 +75,11 @@ removes as well as adds.
   stores, agent/session views); when absent every core beads flow works.
 - **Planning only.** Docs under `plans/beads-ui-redesign/` only; no source
   file is modified by this task.
+- **F2 (decided).** `M-x beads` opens the status buffer; the transient becomes
+  `beads-dispatch` on `?`; `beads-dashboard` stays the full board.
+- **F3 (decided).** QA and Custom are removed entirely (not hidden); QA is a
+  Review mode; Custom is the sling freeform path; `beads-agent-*` registries
+  stay open for third-party re-registration.
 
 ## W6H
 
@@ -107,6 +131,8 @@ removes as well as adds.
   into internals.
 - **US-9 (slimming)**: As a new user, the surface I am shown is smaller and
   better designed than today's; removed commands point at their replacement.
+  QA is reachable as a Review mode, Custom as the sling freeform path, and
+  the freed `a q` / `a c` keys are released.
 - **US-10 (terminal)**: As an operator attaching to an agent, the tmux
   attach/status/mouse/scroll behaviour ships in beads.el and works whether or
   not gascity.el is installed.
@@ -193,9 +219,19 @@ removes as well as adds.
   display/attach). It is distinct from sling (launch is the direct local
   start; sling is dispatch-to-a-target) but shares target discovery, the
   preview footer, and session/attach handling.
-- **REQ-012 — Curated roster and backends.** The exposed role roster and
-  backend surface are slimmed per `slimming.md`; the full registries remain
-  as extension seams.
+- **REQ-012 — Curated roster and backends (F3, remove-entirely).** The
+  exposed role roster is Task, Review (with a QA mode), Plan. The QA and
+  Custom **classes** and everything that only serves them are **deleted**:
+  `beads-agent-type-qa`, `beads-agent-type-custom`, their system/user
+  prompts and `beads-agent-qa-backend` (the QA testing prompt is moved onto
+  Review's QA mode), `beads-agent-start-qa`, `beads-agent-start-custom`, the
+  `a q` / `a c` keybindings, and the registration calls. Custom's freeform
+  prompt becomes the sling work-picker freeform escape. The `beads-agent-type`
+  and `beads-agent-backend` **registries remain open** as extension seams,
+  and the QA/Custom prompts are preserved on a documented path (Review QA
+  mode / sling freeform). The affected tests are updated, not merely
+  skipped. Backends are curated per `slimming.md` §3 (claude-code,
+  agent-shell, terminal exposed; the rest behind `… other`).
 
 ### Formulas
 
@@ -313,7 +349,8 @@ removes as well as adds.
 
 None blocking. Residual detail (exact reserved extension key prefix, exact
 face names, exact shim symbol aliases) is resolved in `design.md` and is an
-implementation detail, not a requirements question. Where a genuine
-user decision remains — chiefly the role-roster cut depth — `slimming.md`
-states the proposed cut, its rationale, and the conservative fallback, and
-`plan-review.md` flags it for explicit sign-off.
+implementation detail, not a requirements question. **The role-roster cut is
+no longer open:** F3 is decided (remove QA and Custom entirely; QA → Review
+QA mode; Custom → sling freeform). `slimming.md` §3 records the
+remove-entirely wording and the freed `q`/`c` keys; `plan-review.md` records
+the decision and its one-release aliases.

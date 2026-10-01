@@ -1,10 +1,13 @@
 ---
 schema: beads.ui-redesign.decomposition.v1
 workflow:
-  id: be-59fe
+  id: be-mv8d
+  predecessor: be-59fe
 artifact: decomposition
 status: draft-for-review
 scope: planning-only
+refinement: 2
+decisions_folded: [F2, F3]
 note: work items are described here only; no beads are created by this planning task
 ---
 
@@ -36,7 +39,7 @@ move. The dependency edges below are therefore part of the contract.
 |---|---|---|---|---|
 | WI-1 | Delete the deprecated `beads-more-menu` | 0 | REQ-023, REQ-026 | — |
 | WI-2 | Demote auto-generated per-command transients | 0 | REQ-003, REQ-024 | WI-1 |
-| WI-3 | Slim the agent role and backend surface | 0 | REQ-012, REQ-025 | WI-1 |
+| WI-3 | Remove QA and Custom entirely; slim the backend surface (F3) | 0 | REQ-012, REQ-025 | WI-1 |
 | WI-4 | Extension seams (foundations) | 1 | REQ-020, REQ-021, REQ-022 | WI-2, WI-3 |
 | WI-5 | Real status buffer | 1 | REQ-001, REQ-002 | WI-4 |
 | WI-6 | Universal navigation contract | 1 | REQ-002, REQ-018 | WI-4 |
@@ -82,11 +85,13 @@ Each work item, when turned into a bead, carries:
 - `beads.ui.work_item=WI-<n>`
 - `beads.ui.wave=<0..6>`
 - `beads.trace.requirements=<comma-separated REQ ids>`
-- `beads.ui.redesign_root=be-59fe`
+- `beads.ui.redesign_root=be-mv8d`
 - the plan section (`implementation-plan.md` §3) as the description.
 
 Dependencies use `bd dep add <bead> <blocker>` per the table's "Depends on",
-so the implementation convoy drains in wave order.
+so the implementation convoy drains in wave order. The F3 removal (WI-3) is a
+*pure deletion* item: its acceptance is the absence of the QA/Custom class and
+command symbols plus the registry API still registering an out-of-tree type.
 
 ## Traceability matrix (REQ → WI)
 

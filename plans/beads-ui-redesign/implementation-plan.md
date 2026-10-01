@@ -1,11 +1,14 @@
 ---
 schema: beads.ui-redesign.implementation-plan.v1
 workflow:
-  id: be-59fe
+  id: be-mv8d
+  predecessor: be-59fe
 artifact: implementation-plan
 status: draft-for-review
 scope: planning-only
 order: pruning-first
+refinement: 2
+decisions_folded: [F2, F3]
 ---
 
 # beads.el UI Redesign — Implementation Plan
@@ -49,8 +52,12 @@ Verified in `lisp/` (2026-10-01):
 - **Agents.** `beads-agent.el` (prefixes `beads-agent`, `beads-agent-issue`,
   `beads-agent-start-menu`; `beads-agent-start-*` task/review/plan/qa/custom;
   `beads-agent-sling`), `beads-agent-type.el` + `beads-agent-types.el`
-  (5 roles), `beads-agent-backend.el` (registry), 6 backends, `beads-agent-list.el`
-  (tabulated), `beads-agent-display.el`, `beads-agent-keys.el`.
+  (5 roles), `beads-agent-backend.el` (registry), 6 backends,
+  `beads-agent-list.el` (tabulated), `beads-agent-display.el`,
+  `beads-agent-keys.el`. F3 deletes `beads-agent-type-qa`,
+  `beads-agent-type-custom`, `beads-agent-qa-backend`,
+  `beads-agent-start-qa`, `beads-agent-start-custom`, and the `a q`/`a c`
+  bindings.
 - **Formulas.** `beads-command-formula.el` (list/show/convert/schema classes,
   `beads-formula-list`, `beads-formula-show`, `beads-formula-menu`).
 - **Terminal.** `beads-terminal.el` (backends + registry); tmux/status/mouse/
@@ -121,18 +128,28 @@ Each wave ends with `eldev -p -dtT test` and `eldev compile` green, on `main`
 - **Note:** do **not** delete the generated suffixes — they are the
   reach-through and are covered by existing tests. This is a demotion.
 
-### WI-3 — Slim the agent role and backend surface
-- **Files:** `beads-agent.el` (`beads-agent-start-qa` → Review+QA alias;
-  `beads-agent-start-custom` → sling freeform alias; launch menu),
-  `beads-agent-types.el` (QA folds into Review mode; Custom stays
-  registered), `beads-agent-backend.el`/`beads-custom.el` (curated backend
-  list + overflow), `NEWS.md`.
-- **REQ:** REQ-012, REQ-025. **Mockup:** §8. **Audit:** `slimming.md` §3.
-- **Tests:** update `beads-agent-*-test.el` for the new entry points; add a
-  registry test proving all 5 roles / 7 backends remain registered and
-  reachable programmatically.
-- **Accept:** launch UI offers Task/Review/Plan and claude-code/agent-shell/
-  terminal (+ other); QA and Custom remain reachable; registries intact.
+### WI-3 — Remove QA and Custom entirely; slim the backend surface (F3)
+- **Files:** `beads-agent.el` (delete `beads-agent-start-qa` /
+  `beads-agent-start-custom`; add the Review QA-mode entry; launch menu),
+  `beads-agent-types.el` (delete the `beads-agent-type-qa` /
+  `beads-agent-type-custom` classes, `beads-agent-qa-backend`, and the
+  QA/Custom registration calls; move `beads-agent-qa-prompt` +
+  `beads-agent-type-qa--user-prompt` onto the Review QA mode),
+  `beads-agent-keys.el` (drop the `a q` / `a c` bindings),
+  `beads-agent-backend.el`/`beads-custom.el` (curated backend list +
+  overflow), `beads-sling.el` (freeform work picking, from Custom),
+  `NEWS.md`.
+- **REQ:** REQ-012, REQ-025. **Mockup:** §8, §6e. **Audit:** `slimming.md` §3.
+- **Tests:** update the 5 affected `beads-agent-*-test.el` files for the new
+  entry points; add a registry test proving the **registry API** still
+  registers an out-of-tree type; add a test that the deleted class/command
+  symbols are gone (and that the one-release `beads-agent-start-qa` facade, if
+  shipped, maps to Review+QA).
+- **Accept:** launch UI offers Task/Review(+QA mode)/Plan and
+  claude-code/agent-shell/terminal (+ other); `beads-agent-type-qa`,
+  `beads-agent-type-custom`, `beads-agent-start-qa`,
+  `beads-agent-start-custom` are undefined; QA testing prompt text is present
+  on the Review QA path; freeform work is the sling path; `a q`/`a c` freed.
 
 ### WI-4 — Extension seams (foundations)
 - **Files:** `beads-section.el` (`beads-section-register`,
@@ -148,16 +165,19 @@ Each wave ends with `eldev -p -dtT test` and `eldev compile` green, on `main`
 - **Accept:** every seam in `design.md` §4 exists with a docstring; no
   gascity reference in beads.
 
-### WI-5 — Real status buffer
-- **Files:** `beads-status.el` (replace the shim with the status buffer),
-  `beads.el` (`M-x beads` → status), `beads-dashboard.el` (reuse board
-  loaders; `beads-dashboard` stays the full alias), `beads-section.el`.
-- **REQ:** REQ-001, REQ-002. **Mockup:** §1.
+### WI-5 — Real status buffer (F2)
+- **Files:** `beads-status.el` (replace the `make-obsolete` shim with the
+  status buffer), `beads.el` (`M-x beads` → `beads-status`; the transient
+  prefix moves to `beads-menu.el` as `beads-dispatch`), `beads-dashboard.el`
+  (reuse board loaders; `beads-dashboard` stays the full alias),
+  `beads-section.el`. `NEWS.md`.
+- **REQ:** REQ-001, REQ-002. **Mockup:** §1a–§1e.
 - **Tests:** `beads-status-test.el` (new) for section registration, async
-  loaders, `RET`/`TAB`/`q`/`g` behaviour; update
-  `beads-dashboard-test.el` for the shared loader; render-guard test.
-- **Accept:** `M-x beads` opens a sectioned board; no sync bd at render;
-  works with gascity absent.
+  loaders, `RET`/`TAB`/`q`/`g` behaviour, and the four section states;
+  update `beads-dashboard-test.el` for the shared loader; render-guard test.
+- **Accept:** `M-x beads` opens a sectioned board; `?` opens
+  `beads-dispatch`; `beads-dashboard` unchanged; no sync bd at render; works
+  with gascity absent.
 
 ### WI-6 — Universal navigation contract
 - **Files:** `beads-section.el`, `beads-thing.el`, `beads-command-show.el`,
@@ -213,10 +233,12 @@ Each wave ends with `eldev -p -dtT test` and `eldev compile` green, on `main`
 ### WI-12 — Agent launch redesign
 - **Files:** `beads-agent.el`, `beads-agent-display.el`,
   `beads-agent-list.el`, `beads-agent-prompt-edit.el`.
-- **REQ:** REQ-011, REQ-012. **Mockup:** §8. **Audit:** `slimming.md` §3.
-- **Tests:** launch flow role/target/backend/prompt; session list;
-  attach/jump/stop; prompt preview.
-- **Accept:** mockup §8; roster slimmed; registries intact (WI-3).
+- **REQ:** REQ-011, REQ-012. **Mockup:** §8a–§8e. **Audit:** `slimming.md`
+  §3.
+- **Tests:** launch flow role/target/backend/prompt; Review QA mode; session
+  list; attach/jump/stop; prompt preview; lifecycle hook.
+- **Accept:** mockup §8; roster is Task/Review(+QA)/Plan; QA/Custom classes
+  gone (WI-3); registry API intact.
 
 ### WI-13 — Formula browser and launch
 - **Files:** **new** `beads-formula.el` (UI), `beads-command-formula.el`
@@ -321,8 +343,11 @@ Each wave ends with `eldev -p -dtT test` and `eldev compile` green, on `main`
   in gascity (WI-15).
 - **TRAMP latency.** Sling/How typed readers must fail soft; no sync remote
   I/O at render (WI-16/WI-18).
-- **Role-roster decision.** WI-3 waits on the `slimming.md` §3 sign-off;
-  conservative fallback documented.
+- **Role-roster removal (F3).** WI-3 deletes the QA/Custom classes
+  entirely; the QA testing prompt is kept on Review's QA mode and the
+  Custom freeform prompt on the sling path. Mitigation: the one-release
+  `beads-agent-start-qa` facade, `NEWS.md`, and the registry API staying
+  open for user subclasses.
 - **`C-c b` reservation.** Keep the old binding as an alias for one release;
   `NEWS.md`.
 

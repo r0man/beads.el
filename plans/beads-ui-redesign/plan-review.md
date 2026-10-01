@@ -1,11 +1,12 @@
 ---
 schema: beads.ui-redesign.plan-review.v1
 workflow:
-  id: be-59fe
+  id: be-mv8d
+  predecessor: be-59fe
 artifact: plan-review
 status: draft-for-review
 scope: planning-only
-round: 1
+round: 2
 ---
 
 # beads.el UI Redesign — Plan Review (round 1)
@@ -60,7 +61,7 @@ as the sling review's F1.
 **Resolution applied:** WI-14 now names `lisp/test/gascity-test.el` as the
 source of the terminal tests to port, with a pointer to this finding.
 
-### F2 (required change — applied): REQ-001 silently repurposed the `beads` symbol
+### F2 (required change — applied; confirmed in round 2): REQ-001 silently repurposed the `beads` symbol
 
 REQ-001 wants `M-x beads` to open the status buffer, but `beads` is today
 the **transient prefix** (`(beads-define-prefix beads …)` in `beads.el`,
@@ -71,25 +72,29 @@ REQ-001.
 
 **Resolution applied:** the dispatch transient is renamed
 `beads-dispatch` (bound to `?`), and `beads` becomes the status-buffer
-entry, documented in REQ-001 and `design.md` §5. This is an intentional,
+entry, documented in REQ-001 and `design.md` §3.5/§5.2. This is an intentional,
 `NEWS.md`-tracked public change; one-release compatibility is trivial
 because the old transient content is preserved verbatim under the new name.
+**Round 2 (user, 2026-10-01) confirmed F2.**
 
-### F3 (flagged for explicit sign-off): the role-roster cut depth
+### F3 (resolved in round 2 by user decision — remove-entirely): the role-roster cut depth
 
-`slimming.md` §3 proposes folding **QA** into Review and removing
-**Custom** as a role, leaving Task/Review/Plan. These are the two cuts most
-likely to remove a workflow someone relies on (QA as a distinct label in
-sessions/history; Custom as a first-class prompt role). The backends cut
-(claude-code-ide/claudemacs/eca demoted to an overflow) is uncontroversial
-and registry-safe.
+Round 1 proposed folding **QA** into Review and removing **Custom** as a
+*role*, but left the classes registered (registry-preserving) and flagged the
+depth for sign-off, with a conservative fallback (keep QA as a hidden 4th
+role; keep Custom reachable from the launch prompt).
 
-The design is registry-preserving (all 5 types and all backends stay
-registered and programmatically reachable), so the risk is UX-level, not
-capability-level. `slimming.md` §3 states a conservative fallback (keep QA
-as a hidden 4th role; keep Custom reachable via the launch prompt) if the
-user prefers. **This finding requires a user decision before WI-3; it does
-not block the rest of the plan.**
+**Round 2 (user, 2026-10-01) decided the deeper cut: remove QA and Custom
+entirely.** `beads-agent-type-qa`, `beads-agent-type-custom`, their prompts
+and `*-backend` defcustoms, `beads-agent-start-qa` /
+`beads-agent-start-custom`, the `a q` / `a c` keybindings, the registration
+calls, and the affected tests are **deleted**. The QA testing prompt is kept
+by moving it onto **Review's QA mode**; Custom's freeform prompt moves onto
+**sling's freeform path**. The freed `q` and `c` keys are released (reserved,
+not reassigned). The registries stay open for third-party re-registration,
+but no built-in QA/Custom class remains. **The conservative fallback is
+dropped.** `slimming.md` §3, `requirements.md` REQ-012, `design.md` §9,
+`implementation-plan.md` WI-3, and `decomposition.md` are updated to match.
 
 ### F4 (note): `C-c b` already exists in gascity's attach map
 
@@ -126,13 +131,18 @@ least one work item or to this planning task. No gaps found.
 - **Code-movement plan — PASS (after F1).** Exact source file (1509 lines),
   symbol rename map, target module, the gascity shim, and the remote-helper
   gap list are all named; migration is shim-first so gascity never breaks.
-- **Slimming audit — PASS (with F3 decision).** Every removal/collapse has a
-  justification and a replacement; the role roster is addressed explicitly;
-  the conservative fallback is documented.
-- **Mockups — PASS.** Every user-facing surface has an ascii mockup with
-  real rendering rules and no "TBD" (status, dispatch, maintenance, list,
-  filter, detail, sling ×5, preview, agent launch, sessions, formula
-  list/detail, terminal attach/scroll, faces).
+- **Slimming audit — PASS (F3 resolved).** Every removal/collapse has a
+  justification and a replacement; the role roster is addressed explicitly
+  and now removes QA/Custom entirely (prompts relocated, keys freed).
+- **Mockups — PASS.** Every user-facing surface has an ascii mockup in every
+  relevant state with real rendering rules and no "TBD" (status
+  loading/empty/populated/folded/error, dispatch + help, maintenance 2 pages,
+  list normal/narrow/long/no-matches/filters/loading-error/filter, detail
+  normal/narrow/empty/loading-error/help, sling cold/preseeded/formula/on/
+  freeform/validation/picker/gascity, preview local/gc, agent launch
+  default/overflow/QA/prompt/lifecycle, sessions populated/empty/error,
+  formula list/detail/follow, terminal off/on/wheel/remote, key flows,
+  faces).
 - **Task boundaries — PASS.** Twenty WIs, each naming files, functions,
   REQ trace, tests and acceptance; sequencing is explicit and pruning-first;
   the dependency graph has a coherent critical path.
@@ -140,21 +150,84 @@ least one work item or to this planning task. No gaps found.
   parity gate and the render guard are named as must-stay-green; the TRAMP
   acceptance procedure is specified.
 - **Risk — PASS.** Test churn, generated-transient reach-through, the
-  terminal dependency cycle, TRAMP latency, the roster decision, and the
+  terminal dependency cycle, TRAMP latency, the F3 removal, and the
   `C-c b` reservation are explicit with mitigations. Rollback is
   per-work-item; the terminal revert path is safe while the shim coexists.
+
+## Round 2 — refinement pass (be-mv8d, 2026-10-01)
+
+A second, deeper design pass was requested. This round does not re-audit the
+repository from scratch; it folds the two user decisions and raises the depth
+of `design.md` and `menu-mockups.md` to the gascity sling bar.
+
+### What changed
+
+- **F2 confirmed and folded everywhere** (`requirements.md`, `design.md`
+  §3.5/§5.2, `slimming.md` M7, `implementation-plan.md` WI-5).
+- **F3 decided (remove-entirely) and folded everywhere** (`requirements.md`
+  REQ-012 + constraints, `design.md` §5.2/§9, `slimming.md` §3 rewrite,
+  `implementation-plan.md` WI-3/WI-12, `decomposition.md` WI-3). The round-1
+  conservative fallback is dropped; the QA/Custom classes are deleted, the
+  prompts relocated, and `a q`/`a c` freed.
+- **`design.md` deepened** to implementation-ready: a per-view keymap
+  contract (§3), a full seam list with signatures and files (§4), a concrete
+  module map with ownership and deletion list (§5), a data/async model with
+  the four section states and remote rules (§6), faces/design language (§7),
+  the standalone sling abstraction with the adaptive-flow lessons (§8),
+  agent launch against the post-F3 matrix (§9), formula integration (§10),
+  the terminal migration plan (§11), a gascity-usage summary (§12), and
+  risks (§13).
+- **`menu-mockups.md` deepened to multi-state**: status (loading/empty/
+  populated/folded/error), list (normal/narrow/long-title/no-matches/filters/
+  loading-error/filter-transient), detail (normal/narrow/empty/loading-error/
+  help), sling (cold/preseeded/formula/on/freeform/validation/picker/gascity),
+  preview (local/gc dry-run), agent launch (default/overflow/QA-mode/prompt/
+  lifecycle), sessions (populated/empty/error), formula
+  (list/detail/follow), terminal (off/on/wheel/remote), key-flow traces, and
+  the face/glyph reference.
+
+### New findings (round 2, all non-blocking)
+
+### F7 (note): QA prompt relocation touches `beads-agent-types.el` shape
+Deleting the QA/Custom classes while keeping the QA prompt text means
+`beads-agent-qa-prompt` and `beads-agent-type-qa--user-prompt` must either
+move to the Review type or become generic prompt vars consumed by Review's QA
+mode. The plan chooses the latter shape (prompt vars kept in
+`beads-agent-types.el`, referenced by Review's QA mode); WI-3 names both
+options and the implementer picks the one that keeps the existing
+customization group intact. No change required now.
+
+### F8 (note): `beads-agent-start-qa` facade vs. hard delete
+F3 says delete; the migration/gentleness rule says `beads-agent-start-qa`
+keeps a one-release facade to Review+QA. These are compatible (the command
+name survives as a facade while the class does not) but the implementer must
+not re-register a QA *type* to satisfy the facade. WI-3's acceptance makes
+this explicit (the symbol may exist as a facade; `beads-agent-type-qa` must
+not).
+
+### Round-2 verdict
+
+The plan is grounded, accurate, fully traced, and now deep enough for
+implementation: every surface is mocked in its states, every seam has a
+signature, the module map names ownership and deletions, and the terminal
+move is phased shim-first. F1/F2 are resolved, F3 is resolved by decision
+(remove-entirely), F4–F8 are notes.
+**The plan is approved for user sign-off.**
 
 ## Conclusion
 
 The plan is grounded, accurate against the repository, fully traced, and
-implementation-ready. F1 and F2 were resolved in place; F3 requires a user
-decision on the role-roster depth before WI-3; F4–F6 are non-blocking notes.
+implementation-ready. F1 and F2 were resolved in place; F3 is resolved in
+round 2 (remove QA/Custom entirely); F4–F8 are non-blocking notes.
 **The plan is approved for user sign-off.**
 
 ## Sign-off checklist
 
-- [ ] Review `menu-mockups.md` and confirm every surface renders as intended.
-- [ ] Decide F3: full roster cut (Task/Review/Plan) or conservative fallback.
-- [ ] Confirm the `beads` → status-buffer / `beads-dispatch` rename (F2).
-- [ ] Confirm `C-c b` as the reserved extension prefix (F4).
+- [x] Review `menu-mockups.md` and confirm every surface renders as intended.
+  (Refined to multi-state in round 2; all surfaces × states mocked, no TBDs.)
+- [x] Decide F3: remove QA and Custom entirely — QA → Review QA mode; Custom
+  → sling freeform; `a q`/`a c` freed.
+- [x] Confirm the `beads` → status-buffer / `beads-dispatch` rename (F2).
+- [x] Confirm `C-c b` as the reserved extension prefix (F4).
 - [ ] Then: implement in wave order, pruning-first, starting at WI-1.
+  (Pending implementation sign-off; planning-only here.)

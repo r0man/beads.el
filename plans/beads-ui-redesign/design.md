@@ -1,22 +1,40 @@
 ---
 schema: beads.ui-redesign.design.v1
 workflow:
-  id: be-59fe
+  id: be-mv8d
+  predecessor: be-59fe
 artifact: design
 status: draft-for-review
 scope: planning-only
+refinement: 2
+decisions_folded: [F2, F3]
 ---
 
 # beads.el UI Redesign — Design
 
 *A world-class, Magit-style Emacs porcelain for the `bd` bead store.*
 
-Status: **plan / design for review** (2026-10-01). Supersedes the
-auto-generated-transient framing of the current `beads` menu. Implementation
-is out of scope until this plan and `menu-mockups.md` are reviewed and signed
-off. Mirrors the process and artifact shape of
-`gascity.el/plans/sling-command/` and the binding "UI direction" in
-`gascity.el/docs/DESIGN.md` §1.
+Status: **plan / design for review** (2026-10-01, refinement 2). Supersedes
+the auto-generated-transient framing of the current `beads` menu and the
+shallower round-1 `design.md` (be-59fe). Implementation is out of scope until
+this plan and `menu-mockups.md` are reviewed and signed off. Mirrors the
+process and artifact shape of `gascity.el/plans/sling-command/` and the
+binding "UI direction" in `gascity.el/docs/DESIGN.md` §1.
+
+**Refinement 2 folds two user decisions** (documented in
+`plan-review.md`):
+
+- **F2** — `M-x beads` opens the **status buffer**; the old transient prefix is
+  renamed **`beads-dispatch`** and bound to **`?`** (magit status/dispatch
+  split). `beads-dashboard` remains the full board. One-release compatibility
+  keeps the old transient content available under the new name.
+- **F3** — **remove QA and Custom entirely** (deeper than round 1, which only
+  proposed hiding them). `beads-agent-type-qa` and `beads-agent-type-custom`
+  and everything that only exists to serve them are **deleted**; QA folds into
+  **Review as a QA mode** (its testing prompt is kept); Custom's freeform
+  prompt moves to **sling's freeform path**. The freed `q` and `c` keys under
+  the agent prefix are released. The registries themselves stay open, but no
+  hidden/deferred QA or Custom class is retained.
 
 ---
 
@@ -49,7 +67,7 @@ list and detail, the sling and agent-launch flows, the formula UX, a
 documented extension model, and the terminal handling moved in from
 gascity.el.
 
-### View-technology decision matrix
+### 1.1 View-technology decision matrix
 
 | Surface | Mechanism | Rationale |
 |---|---|---|
@@ -85,87 +103,183 @@ render content in a transient; never use vui for homogeneous lists; never
 
 ---
 
-## 3. The one command surface
+## 3. The one command surface (navigation + keymap contract)
 
-Every view obeys REQ-002. The reserved per-view keys:
+This is the full keyboard contract. It is deliberately one table, not a
+per-view list, because REQ-002/REQ-018 demand that movement never varies.
+
+### 3.1 Reserved keys
 
 ```
 q     bury buffer            g     refresh in place
-TAB   toggle thing/section   S-TAB move backward
-SPC   toggle thing           RET   visit / activate
-?     dispatch menu          C-u g hard refresh (clear caches)
+C-u g hard refresh (drop caches)
+TAB   move to next thing     S-TAB move to previous thing
+SPC   toggle thing/section   RET   visit / activate at point
 n p   next/previous item     N P   next/previous section
+?     dispatch menu          /     filter (list surfaces only)
 ```
 
-Extension keys are *not* placed on these; they live under a reserved prefix
-`C-c b` (see §4.12). A downstream package that needs a first-class key
-proposes it to beads.el; it does not shadow a core key.
+Context action keys (`d C s # a S e m c` and friends) are documented per
+view in `menu-mockups.md`; they are stable across views where the action
+makes sense (REQ-007). Extension keys live under the reserved prefix
+`C-c b` (§4.12) and may not shadow a reserved key.
+
+### 3.2 Keymap inheritance chain
+
+The porcelain uses **map inheritance**, not key duplication:
+
+```
+special-mode-map
+  ├─ beads-list-mode-map            (tabulated-list-mode-map parent)
+  ├─ beads-formula-list-mode-map    (tabulated-list-mode-map parent)
+  ├─ beads-agent-list-mode-map      (tabulated-list-mode-map parent)
+  ├─ beads-show-mode-map            (special-mode parent; vui sections)
+  └─ beads-sling-preview-mode-map   (special-mode parent)
+
+vui-mode-map
+  └─ beads-section-mode-map
+        ├─ beads-status-mode-map     (NEW; the status buffer)
+        └─ beads-dashboard-mode-map  (existing)
+```
+
+Every one of these maps is merged with `beads-mode-extension-map` (the
+`C-c b` prefix) at mode definition time via a helper
+`beads-mode--install-extension-map`. `beads-thing-define-keys` is called once
+per interactive map; there is no view-local movement.
+
+### 3.3 Per-view binding table (canonical keys)
+
+| Key | list | show | status | dashboard | formula-list | formula-detail | agent-list |
+|---|---|---|---|---|---|---|---|
+| `q` | bury | bury | bury | bury | bury | bury | bury |
+| `g` | refresh | refresh | refresh | refresh | refresh | refresh | refresh |
+| `C-u g` | hard | hard | hard | hard | hard | hard | hard |
+| `TAB`/`S-TAB` | thing | thing | thing | thing | item | thing | item |
+| `SPC` | fold | fold | fold | fold | — | fold | — |
+| `RET` | visit | visit | visit | visit | inspect | visit ref | attach |
+| `n`/`p` | item | section | item | item | item | section | item |
+| `N`/`P` | section | section | section | section | — | section | — |
+| `?` | dispatch | dispatch | dispatch | dispatch | dispatch | dispatch | dispatch |
+| `/` | filter | — | — | — | filter | — | — |
+| `m` | mark | — | — | mark | — | — | — |
+| `d` | close | close | close | close | — | — | — |
+| `C` | claim | claim | claim | claim | — | — | — |
+| `s` | status | status | status | status | launch | launch | — |
+| `#` | priority | priority | priority | priority | — | — | — |
+| `a` | agent-prefix | agent-prefix | agent-prefix | agent-prefix | — | — | — |
+| `S` | sling | sling | sling | sling | — | — | — |
+| `e` | edit | edit-field | — | — | — | — | — |
+| `c` | create | comment | create | create | convert | — | — |
+| `x` | — | — | — | — | — | — | stop |
+| `j` | — | jump | — | jump | — | — | jump |
+
+`beads-mode-extension-map` provides `C-c b` for all rows.
+
+### 3.4 Key-flow contract (what `?` does)
+
+`?` opens the **same** `beads-dispatch` transient everywhere; the transient
+builds its "context actions" group from `beads-action-providers` keyed on the
+current `beads-section` / buffer mode. So a user learns one menu, and each
+view only changes the small context group. `beads-dispatch` never renders
+content (anti-pattern).
+
+### 3.5 The F2 entry split
+
+- `M-x beads` → `beads-status` (new): the Magit-like status buffer.
+- `M-x beads-dispatch` → the hand-built transient (was `beads`).
+- `?` in every porcelain buffer → `beads-dispatch`.
+- `beads-dashboard` → the full board (superset), unchanged name and
+  `:directory` scoping.
+- `M-x beads-status` continues to open the status buffer (it is now the real
+  implementation, no longer a `make-obsolete` shim). The old shim behaviour
+  (forward to `beads-dashboard`) is dropped at the same time as the F2 rename
+  lands, because `beads-status` is now the front door.
+
+A one-release alias `beads` → the old transient content is intentionally
+**not** kept: `beads` must be the status entry. The transient content is
+preserved verbatim as `beads-dispatch`, so nothing is lost; `NEWS.md` records
+the rename.
 
 ---
 
-## 4. The magit/forge extension model (concrete seam list)
+## 4. The magit/forge extension model (concrete seam list, with signatures)
 
 Magit/Forge work because downstream code attaches at *named* points. beads.el
 currently has almost none. This section is the concrete list: each seam names
-the symbol, its kind, its purpose, and the gascity.el (or other) downstream
-use it enables. All names are `beads-` / `beads--`; all internal-only symbols
-are marked `--`.
+the symbol, its kind, its **signature**, its file, its purpose, and the
+gascity.el (or other) downstream use it enables. All names are `beads-` /
+`beads--`; internal-only symbols are marked `--`. A signature of `HOOK` means
+the variable is a hook whose functions are called as documented in the
+purpose cell.
 
 ### 4.1 Store scoping and resolution
 
-| Symbol | Kind | Purpose | Downstream use |
-|---|---|---|---|
-| `beads-store-resolve` | function | directory (or explicit store) → store descriptor; already exists (dashboard) | gascity binds/forwards a rig directory |
-| `beads-store-resolvers` | defvar hook | list of functions consulted when `beads-store-resolve` cannot resolve from a directory | gascity maps a bead id prefix → rig store; remote cities |
-| `beads-store-descriptor` | EIEIO class | `{root, database, remote, label, prefixes}` | uniform scoping everywhere |
-| `beads-store-directory` | buffer-local var | already exists; the explicit-store scoping var | retained as the scoping ABI |
-| `beads-issue-id-prefixes` | defvar | known id prefixes (exists) | gascity adds gc prefixes |
-| `beads-store-prefix-functions` | defvar hook | prefix → owning store | gascity routes `gc bd` stores by prefix |
+| Symbol | Kind | Signature | File | Purpose | Downstream use |
+|---|---|---|---|---|---|
+| `beads-store-resolve` | defun | `(directory) → dir-or-nil` | `beads-util.el` | normalize an explicit store dir (exists) | gascity forwards a rig dir |
+| `beads-store-project-root` | defun | `(store) → root` | `beads-util.el` | root of an explicit store (exists) | gascity scoping |
+| `beads-store-resolvers` | defvar hook | `HOOK`: each `(fn dir) → dir-or-nil` | `beads-util.el` (new) | consulted, in order, when a directory cannot resolve to a store | gascity maps bead-prefix → rig store; remote cities |
+| `beads-store-prefix-functions` | defvar hook | `HOOK`: each `(fn prefix) → store-or-nil` | `beads-util.el` (new) | map a bead id prefix to its owning store | gascity routes `gc bd` stores by prefix |
+| `beads-store-descriptor` | EIEIO class | slots `{root database remote label prefixes}` | `beads-util.el` (new) | uniform scoping value object | gascity describes a rig store |
+| `beads-store-directory` | buffer-local var | `dir-or-nil` | `beads-util.el` | the scoping ABI (exists) | retained |
+| `beads-issue-id-prefixes` | defcustom | `list-of-string-or-nil` | `beads-util.el` | recognized prefixes (exists) | gascity adds `gc` prefixes |
 
-The rule: a view resolves its store from `:directory` (buffer-local
-`beads-store-directory`) or `default-directory`, and never guesses. This is
-the interface gascity already uses (binding `default-directory` or passing
-`:directory`); the seam makes it explicit and lets gascity contribute
-resolvers.
+Rule: a view resolves its store from `:directory` (buffer-local
+`beads-store-directory`) or `default-directory`, and never guesses. A resolver
+may only translate a directory or prefix to a store; it does no I/O beyond
+what `beads-store-resolve` already does.
 
 ### 4.2 Menu and command dispatch
 
-| Symbol | Kind | Purpose | Downstream use |
-|---|---|---|---|
-| `beads-menu-providers` | defvar hook | functions returning transient groups appended to the hand-built dispatch menu | gascity adds a "City" / "Rig" group |
-| `beads-dispatch-menu` | transient prefix (hand-built) | the `?` dispatch backend | — |
-| `beads-define-prefix` / `beads-define-group` | macros (exist) | directory-scoped prefix definitions | gascity builds on them (already does) |
-| `beads--extract-option`, `beads--derive-transient-name` | functions (exist) | metadata helpers | gascity reuses (already does) |
+| Symbol | Kind | Signature | File | Purpose | Downstream use |
+|---|---|---|---|---|---|
+| `beads-menu-providers` | defvar hook | `HOOK`: each `(fn) → list-of-transient-group` | `beads-menu.el` (new) | groups appended to the hand-built dispatch menu | gascity appends a `[City]` group |
+| `beads-dispatch` | transient prefix | hand-built | `beads-menu.el` (new) | the `?` dispatch backend | — |
+| `beads-maintenance` | transient prefix | hand-built | `beads-menu.el` (new) | the `!` maintenance menu | — |
+| `beads-define-prefix` / `beads-define-group` | defmacro | `(name arglist &rest groups)` | `beads-prefix.el` | directory-scoped prefixes (exist) | gascity builds on them (already does) |
+| `beads--extract-option`, `beads--derive-transient-name` | defun | metadata helpers (exist) | `beads-meta.el` | reuse (existing) | gascity reuses (already does) |
+
+Provider contract: `beads-menu-providers` functions take no arguments and
+return a list of transient group vectors acceptable to
+`transient-define-prefix`; providers must be side-effect-free (they run on
+every `?`). An empty list is the standalone no-op (REQ-021).
 
 ### 4.3 Sections and dashboard composition
 
-| Symbol | Kind | Purpose | Downstream use |
-|---|---|---|---|
-| `beads-section-register` | function | register a named section (key, title, loader, renderer, keys) | gascity registers rig/agent sections |
-| `beads-status-sections-hook` | defvar hook (exist) | sections of the status buffer | preserved for downstream |
-| `beads-dashboard-section-providers` | defvar hook | extra vui sections on the board | gascity adds city pulse |
-| `beads-section-mode` | major mode (exist) | vui section base | gascity derives from it (already does) |
-| `beads-section` text property | contract (exist) | identity for RET/eldoc/actions | documented ABI |
+| Symbol | Kind | Signature | File | Purpose | Downstream use |
+|---|---|---|---|---|---|
+| `beads-section-register` | defun | `(key title loader renderer &optional keys) → symbol` | `beads-section.el` (new) | register a named async/renderable section | gascity registers rig/agent sections |
+| `beads-section-spec` | EIEIO class | slots `{key title loader renderer keys order}` | `beads-section.el` (new) | the section descriptor | shared by status/dashboard/formula |
+| `beads-status-sections-hook` | defvar hook | `HOOK`: each `(fn) → vnode-or-nil` | `beads-section.el` | status-buffer sections (exists) | preserved |
+| `beads-dashboard-section-providers` | defvar hook | `HOOK`: each `(fn) → list-of-section-spec` | `beads-dashboard-sections.el` (new) | extra board sections | gascity adds a city pulse |
+| `beads-section-mode` | major mode | derived from `vui-mode` (exists) | `beads-section.el` | vui section base | gascity derives (already does) |
+| `beads-section` text property | contract | stamped by `beads-section--propertize` | `beads-section.el` | identity for RET/eldoc/actions (exists) | documented ABI |
 
 ### 4.4 At-point actions
 
-| Symbol | Kind | Purpose | Downstream use |
-|---|---|---|---|
-| `beads-action-providers` | defvar hook | `(context . actions)` contributed to the action bar + `?` | gascity adds sling/agent/drain actions |
-| `beads-actions-*` | functions (exist) | close/claim/status/priority | retained; documented |
-| `beads-after-action-functions` | defvar hook | run after a mutation (refresh fan-out) | gascity refreshes rig views |
+| Symbol | Kind | Signature | File | Purpose | Downstream use |
+|---|---|---|---|---|---|
+| `beads-action-providers` | defvar hook | `HOOK`: each `(fn context) → (KEY . ACTION) list` | `beads-actions.el` (new) | actions contributed to the action bar and `?` context group | gascity adds drain/nudge/sling actions |
+| `beads-actions-close` / `-claim` / `-set-status` / `-set-priority` | commands | `(&optional issue)` (exist) | `beads-actions.el` | canonical mutations | retained; documented |
+| `beads-after-action-functions` | defvar hook | `HOOK`: each `(fn action issues)` | `beads-actions.el` (new) | refresh fan-out after a mutation | gascity refreshes rig views |
+| `beads-actions-context` | defun | `() → (CONTEXT . ISSUES)` | `beads-actions.el` (new) | resolve context at point/marks | shared by views and providers |
+
+Context is a keyword: `:list`, `:show`, `:status`, `:dashboard`,
+`:formula-list`, `:agent-list`; actions receive the resolved issue list so a
+provider need not know the buffer.
 
 ### 4.5 Sling
 
-| Symbol | Kind | Purpose | Downstream use |
-|---|---|---|---|
-| `beads-sling-target` | EIEIO class | `{name, kind, scope, backend, description, metadata}` | gascity's gc targets are instances |
-| `beads-sling-target-functions` | defvar hook | functions returning target lists | gascity contributes city/rig agents |
-| `beads-sling-targets` | function | collect + dedupe/annotate targets | shared by sling and agent launch |
-| `beads-sling-dispatch` | cl-defgeneric | `(target bead prompt)` → launch | gascity overrides for gc targets (`gc sling`) |
-| `beads-sling-shape` | function | infer plain/`--on`/`--formula` from work+formula | pure, testable |
-| `beads-sling-validators` | defvar hook | pre-launch validation functions | gascity adds the bl-bdj/cross-store warnings |
-| `beads-sling-backend` | EIEIO class | a named dispatch backend (default local; `gc` from gascity) | gascity registers `gc` |
+| Symbol | Kind | Signature | File | Purpose | Downstream use |
+|---|---|---|---|---|---|
+| `beads-sling-target` | EIEIO class | slots `{name kind scope backend description metadata}` | `beads-sling.el` (new) | a dispatchable target | gascity's gc targets are instances |
+| `beads-sling-target-functions` | defvar hook | `HOOK`: each `(fn) → list-of-target` | `beads-sling.el` (new) | target discovery | gascity contributes city/rig agents |
+| `beads-sling-targets` | defun | `(&optional bead) → list-of-target` | `beads-sling.el` (new) | collect, dedupe, annotate | shared by sling and agent launch |
+| `beads-sling-shape` | defun | `(work formula) → (plain \| on \| formula)` | `beads-sling.el` (new) | pure inference | tested table-driven |
+| `beads-sling-dispatch` | cl-defgeneric | `(target bead prompt) → session` | `beads-sling.el` (new) | launch | gascity overrides for gc targets |
+| `beads-sling-validators` | defvar hook | `HOOK`: each `(fn context) → warning-string-or-nil` | `beads-sling.el` (new) | pre-launch validation | gascity adds cross-store/`bl-bdj` warnings |
+| `beads-sling-backend` | EIEIO class | slots `{name dispatch description}` | `beads-sling.el` (new) | named dispatch backend | gascity registers `gc` |
+| `beads-sling-backend-register` | defun | `(backend) → backend` | `beads-sling.el` (new) | backend registry | gascity registers `gc` |
 
 Default backend (`beads-sling-dispatch` for local targets) starts a local
 agent on the bead using the existing agent subsystem. With gascity.el
@@ -175,132 +289,357 @@ present, `beads-sling-target-functions` supplies gc agents whose
 
 ### 4.6 Agent subsystem (existing registries, now documented as ABI)
 
-| Symbol | Kind | Purpose | Downstream use |
-|---|---|---|---|
-| `beads-agent-type` / `beads-agent-type-register` | class + registry (exist) | role roster | gascity roles are types; roster slimming keeps this open |
-| `beads-agent-backend` / `beads-agent-backend-register` | class + registry (exist) | backend roster | gascity registers gc-backed backends |
-| `beads-agent-backend-start` | cl-defgeneric, 4-arity (exist) | `(backend issue system-prompt user-prompt)` | documented ABI; gascity must not break it |
-| `beads-agent-state-change-hook` | hook (exist) | session lifecycle fan-out | gascity observes sessions |
+| Symbol | Kind | Signature | File | Purpose | Downstream use |
+|---|---|---|---|---|---|
+| `beads-agent-type` / `beads-agent-type-register` | class + defun | `(type) → type` (exist) | `beads-agent-type.el` | role roster | gascity roles are types; F3 deletions do not close this |
+| `beads-agent-type-get` | defun | `(name) → type-or-nil` | `beads-agent-type.el` | lookup by name | gascity resolves roles |
+| `beads-agent-type-build-user-prompt` | cl-defgeneric | `(type issue) → string` (exist) | `beads-agent-type.el` | user envelope | documented ABI |
+| `beads-agent-type-system-prompt` | cl-defgeneric | `(type issue) → string` (exist) | `beads-agent-type.el` | role prompt | documented ABI |
+| `beads-agent-backend` / `beads-agent-backend-register` | class + defun | `(backend) → backend` (exist) | `beads-agent-backend.el` | backend roster | gascity registers gc-backed backends |
+| `beads-agent-backend-start` | cl-defgeneric | `(backend issue system-prompt user-prompt) → (session . buffer)` (exist) | `beads-agent-backend.el` | launch | documented ABI |
+| `beads-agent-state-change-hook` | defvar hook | `HOOK`: each `(fn action session)` (exist) | `beads-agent-backend.el` | lifecycle fan-out | gascity observes sessions |
 
 ### 4.7 Formulas
 
-| Symbol | Kind | Purpose | Downstream use |
-|---|---|---|---|
-| `beads-formula-launch` | cl-defgeneric | `(formula bead &optional vars)` → launch, follow | gascity overrides for `gc sling --formula/--on` |
-| `beads-formula-launch-context` | EIEIO class | resolved launch (shape, vars, target, warnings) | shared with sling |
-| `beads-formula-var` | EIEIO class | declared var + reader metadata | typed How-generated readers |
+| Symbol | Kind | Signature | File | Purpose | Downstream use |
+|---|---|---|---|---|---|
+| `beads-formula-launch` | cl-defgeneric | `(formula bead &optional vars) → session` | `beads-formula.el` (new) | launch + follow | gascity overrides for `gc sling --formula/--on` |
+| `beads-formula-launch-context` | EIEIO class | slots `{shape vars target warnings}` | `beads-formula.el` (new) | resolved launch | shared with sling |
+| `beads-formula-var` | EIEIO class | slots `{name required type description default}` | `beads-formula.el` (new) | typed How readers | shared with sling How stage |
+| `beads-formula-var-reader` | cl-defgeneric | `(var) → reader-spec` | `beads-formula.el` (new) | type → transient infix kind | gascity may add readers |
 
 ### 4.8 Terminal
 
-| Symbol | Kind | Purpose | Downstream use |
-|---|---|---|---|
-| `beads-terminal` classes + registry (exist) | EIEIO + registry | render backends (vterm/eat/ghostel/term/auto) | retained |
-| `beads-terminal-spawn` (exist) | cl-defgeneric | spawn argv into a buffer | retained ABI |
-| `beads-terminal-attach` | cl-defgeneric | attach to a named agent/session in its backend | gascity supplies session + socket |
-| `beads-terminal-tmux-*` | functions (new, moved) | tmux probes, attach argv/script, status mirror, mouse, scroll | gascity becomes a thin caller |
+| Symbol | Kind | Signature | File | Purpose | Downstream use |
+|---|---|---|---|---|---|
+| `beads-terminal` classes + registry | EIEIO + defun | `(backend) → backend` (exist) | `beads-terminal.el` | render backends | retained |
+| `beads-terminal-spawn` | cl-defgeneric | `(terminal argv &optional name) → buffer` (exist) | `beads-terminal.el` | spawn argv | retained ABI |
+| `beads-terminal-attach` | cl-defgeneric | `(terminal target &optional socket) → buffer` | `beads-terminal.el` (new) | attach to a named agent/session | gascity supplies session + socket |
+| `beads-terminal-tmux-*` | functions | (moved) | `beads-terminal-tmux.el` (new) | tmux probes, attach argv/script, status mirror, mouse, scroll | gascity becomes a thin caller |
 
 ### 4.9 Faces
 
-| Symbol | Kind | Purpose | Downstream use |
-|---|---|---|---|
-| `beads-face-*` | defface set | the palette (status/priority/agent/section/header) | extensions derive with `:inherit` |
-| `beads-faces-hook` | — (not used) | faces are extended by name, not by hook | document the naming contract instead |
+| Symbol | Kind | File | Purpose | Downstream use |
+|---|---|---|---|---|
+| `beads-face-*` | defface set | `beads-section.el` / new `beads-faces.el` | the palette | extensions derive with `:inherit` |
 
-Decision: no face hook. Extensions define derived faces
-(`defface my-rig-face ((t (:inherit beads-face-header)))`) and reference the
-stable `beads-face-*` names. The design names the exact face symbols in
-`menu-mockups.md` §Rendering rules so gascity can match.
+Decision: **no face hook.** Extensions define derived faces
+(`(defface my-rig-face ((t (:inherit beads-face-header))))`). The design names
+the exact face symbols in `menu-mockups.md` §12 so gascity can match them.
+Full list: `beads-face-header`, `beads-face-section`, `beads-face-issue-line`,
+`beads-face-id`, `beads-face-key`, `beads-face-status-{open,in-progress,blocked,closed}`,
+`beads-face-priority-{critical,high,medium,low}`, `beads-face-agent-{running,idle,failed}`,
+`beads-face-success`, `beads-face-warning`, `beads-face-error`.
 
 ### 4.10 Keymaps
 
-| Symbol | Kind | Purpose | Downstream use |
-|---|---|---|---|
-| `beads-mode-extension-map` | keymap (new) | reserved `C-c b` prefix merged into all beads modes | gascity adds `C-c b c` (city), etc. |
-| `beads-list-mode-map`, `beads-show-mode-map`, `beads-dashboard-mode-map`, `beads-section-mode-map` | keymaps (exist) | per-view bindings | documented; extensions read, not redefine |
+| Symbol | Kind | Signature | File | Purpose | Downstream use |
+|---|---|---|---|---|---|
+| `beads-mode-extension-map` | keymap | `C-c b` prefix | `beads-buffer.el` (new) | reserved extension prefix merged into every beads map | gascity adds `C-c b c` (city), etc. |
+| `beads-mode--install-extension-map` | defun | `(map) → map` | `beads-buffer.el` (new) | install the prefix via `:parent`/`define-key` | called from every major mode |
+| `beads-list-mode-map`, `beads-show-mode-map`, `beads-dashboard-mode-map`, `beads-section-mode-map` | keymaps | (exist) | respective files | per-view bindings | documented; extensions read, not redefine |
+
+Reserved extension key: `C-c b`. beads.el owns `C-c b` and `C-c b ?`;
+downstream packages use `C-c b <letter>` via `beads-mode-extension-map`.
+(Existing `C-c b` usage in gascity's attach map — "bead at point" — becomes
+the canonical `C-c b b`, and the old binding is kept as an alias for one
+release.)
 
 ### 4.11 Async reader
 
-| Symbol | Kind | Purpose | Downstream use |
-|---|---|---|---|
-| `beads-command-execute-async` (exist) | cl-defgeneric | non-blocking with callbacks, queue/cache-key | retained ABI |
-| `beads-command-async-max-concurrent` (exist) | defcustom | concurrency cap | shared |
+| Symbol | Kind | Signature | File | Purpose | Downstream use |
+|---|---|---|---|---|---|
+| `beads-command-execute-async` | cl-defgeneric | `(command on-success &optional on-error &rest kwargs)` (exist); kwargs `:queue`, `:cache-key`, `:timeout` | `beads-command.el` | non-blocking with callbacks | retained ABI |
+| `beads-command-async-max-concurrent` | defcustom | integer, `auto`, or `unlimited` (exist) | `beads-command.el` | concurrency cap | shared |
 
 ### 4.12 Remote/TRAMP
 
-| Symbol | Kind | Purpose | Downstream use |
-|---|---|---|---|
-| `beads-remote-*` (exist) | functions | executable resolution, PATH fragment, ssh argv | retained; extended per §6.3 |
-| `beads-buffer-name` helpers (exist) | functions | host-qualified buffer names | retained |
-| `beads-remote-localize-path` | function (new, moved) | host path → view's TRAMP path | terminal/agent targets |
-| `beads-remote-terminfo-p` | function (new, moved) | terminfo presence on host | terminal probing |
-
-**Reserved extension key:** `C-c b`. beads.el owns `C-c b`, `C-c b ?`;
-downstream packages use `C-c b <letter>` via `beads-mode-extension-map`.
-(Existing `C-c b` usage in gascity's attach map — "bead at point" — becomes
-the canonical `C-c b b` and the old binding is kept as an alias for one
-release.)
+| Symbol | Kind | Signature | File | Purpose | Downstream use |
+|---|---|---|---|---|---|
+| `beads-remote-ssh-argv`, `beads-remote-path-assignment`, `beads-remote-find-executable` | defuns | (exist) | `beads-remote.el` | executable resolution, PATH fragment, ssh argv | retained |
+| `beads-remote-ssh-command`, `beads-remote-ssh-call`, `beads-remote-ssh-find-up` | defuns | (exist) | `beads-remote.el` | local ssh pipe transport | retained |
+| `beads-remote-localize-path` | defun | `(path) → tramp-path` (new, moved) | `beads-remote.el` | host path → view's TRAMP path | terminal/agent targets |
+| `beads-remote-terminfo-p` | defun | `(dir &optional term) → bool` (new, moved) | `beads-remote.el` | terminfo presence on host | terminal probing |
+| `beads-remote-prewarm` | defun | `(dir) → nil` (new, moved, optional) | `beads-remote.el` | pre-warm the remote ssh pipe | terminal preload |
+| `beads-buffer-*` helpers | defuns | (exist) | `beads-buffer.el` | host-qualified buffer names | retained |
 
 ---
 
-## 5. Module / architecture target layout
+## 5. Module map (new / changed / deleted / unchanged, and ownership)
 
-All symbols prefixed `beads-`; internal `beads--`. One `beads-command-<name>.el`
-per bd subcommand is unchanged. New/changed modules:
+One `beads-command-<name>.el` per bd subcommand is unchanged. The map below is
+the target layout after implementation; "owns" states the single
+responsibility.
 
-**Entry & porcelain**
-- `beads.el` — entry: `M-x beads` opens the status buffer (the transient
-  prefix is renamed `beads-dispatch`, bound to `?`; see `plan-review.md`
-  F2); dispatch menu defs; core utilities.
-- `beads-status.el` — **now the real status buffer** (today a deprecation
-  shim). `beads-status` = the Magit-like front door; `beads-dashboard`
-  remains the full board.
-- `beads-menu.el` (new) — hand-built `beads-dispatch` and
-  `beads-maintenance` menus, `beads-menu-providers` composition.
-- `beads-ops-menu.el`, `beads-advanced-menu.el`, `beads-more-menu` —
-  **removed**; their genuine entries fold into `beads-menu.el` (see
-  `slimming.md`).
+### 5.1 New modules
 
-**List & detail**
-- `beads-command-list.el` — list mode redesigned (sections, header, filters,
-  actions); `/` filter transient retained.
-- `beads-command-show.el` — sectioned detail redesign.
-- `beads-section.el` — `beads-section-register`, section primitives, the
-  `beads-section` text-property contract.
-- `beads-thing.el` — unchanged movement ABI.
-- `beads-actions.el` — context actions; `beads-action-providers`.
+| Module | Owns |
+|---|---|
+| `beads-menu.el` | The hand-built `beads-dispatch` (`?`) and `beads-maintenance` (`!`) transients; `beads-menu-providers` composition. No command classes. |
+| `beads-sling.el` | The `beads-sling-target` / `beads-sling-backend` classes, discovery, `beads-sling-shape`, the adaptive transient, the preview buffer, validators, the default local `beads-sling-dispatch` method. |
+| `beads-formula.el` | The formula browser/detail/launch/follow **UI**; `beads-formula-launch`, `beads-formula-var`, typed readers. The command classes stay in `beads-command-formula.el`. |
+| `beads-terminal-tmux.el` | The moved tmux probes, attach construction, status mirror, mouse, scroll mode + raw-key adapters, backend selection helpers, `beads-terminal-run`. |
+| `beads-faces.el` (optional split) | The `beads-face-*` palette; may stay in `beads-section.el`, but the names are the contract either way. |
 
-**Sling, agents, formulas**
-- `beads-sling.el` (new) — target abstraction, shape inference, adaptive
-  transient, preview buffer, validators.
-- `beads-formula.el` (new, split from `beads-command-formula.el`) — formula
-  browser/detail/launch UI; the command classes stay in
-  `beads-command-formula.el`.
-- `beads-agent*.el` — launch flow redesign; roster slimmed; registries
-  retained.
+### 5.2 Changed modules
 
-**Terminal & remote**
-- `beads-terminal.el` — backends (unchanged), `beads-terminal-attach` added.
-- `beads-terminal-tmux.el` (new) — moved from `gascity-terminal.el`.
-- `beads-remote.el` — extended per §6.3.
-- `beads-buffer.el` — host-qualified names (extended).
+| Module | Change |
+|---|---|
+| `beads.el` | `M-x beads` → `beads-status`. The transient prefix moves out to `beads-menu.el` as `beads-dispatch`. Core utilities stay. |
+| `beads-status.el` | **Now the real status buffer** (was a `make-obsolete` shim). `beads-status` opens the vui board; `beads-dashboard` is the full-board alias. |
+| `beads-command-list.el` | Sectioned list redesign; header/filter/actions; `/` filter transient retained; `beads-list-mode-map` gains the universal contract; `beads-action-providers`. |
+| `beads-command-show.el` | Sectioned detail redesign; action bar; breadcrumbs; `RET` on refs; agent section attach. |
+| `beads-section.el` | Adds `beads-section-register`, `beads-section-spec`, generic section rendering; keeps `beads-section-mode` and the `beads-section` property contract. |
+| `beads-actions.el` | Adds `beads-action-providers`, `beads-actions-context`, `beads-after-action-functions`; existing action commands retained. |
+| `beads-agent.el` | Launch-flow redesign; `beads-agent-start-qa`/`-custom` **deleted**; Review gains a QA mode; Custom freeform moves to sling; start-menu collapse (M6). |
+| `beads-agent-types.el` | `beads-agent-type-qa` and `beads-agent-type-custom` classes, their prompts, and `beads-agent-qa-backend` **deleted**; QA prompt/user-prompt retained as the Review QA mode's prompt; registration drops to 3 types. |
+| `beads-agent-keys.el` | `a q` and `a c` bindings removed; freed keys reserved (not reused in this plan); single `beads-agent-prefix-map`. |
+| `beads-terminal.el` | Adds `beads-terminal-attach`; backends unchanged; gamified `beads-terminal-run` (now from the tmux module) kept as a thin dispatcher. |
+| `beads-remote.el` | Adds `beads-remote-localize-path`, `-terminfo-p`, `-prewarm` (moved from gascity). |
+| `beads-buffer.el` | Adds `beads-mode-extension-map` + installer; host-qualified names extended if needed. |
+| `beads-dashboard-sections.el` | Adds `beads-dashboard-section-providers`; shares `beads-section-spec` loaders with `beads-status.el`. |
 
-**Foundation (unchanged ABI)**
-- `beads-command.el`, `beads-meta.el`, `beads-types.el`, `beads-prefix.el`,
-  `beads-custom.el`, `beads-error.el`, `beads-git.el`, `beads-completion.el`,
-  `beads-reader.el`, `beads-spec.el`, `beads-state.el`, `beads-eldoc.el`,
-  `beads-agent-type.el`, `beads-agent-backend.el`, `beads-terminal.el`
-  (backends), `beads-audit.el`.
+### 5.3 Deleted modules / surfaces
+
+| Module / surface | Disposition |
+|---|---|
+| `beads-ops-menu.el` | **Deleted**; genuine entries fold into `beads-menu.el` (M2). |
+| `beads-advanced-menu.el` | **Deleted**; genuine entries fold into `beads-menu.el` (M3). |
+| `beads-more-menu` (in `beads.el`) | **Deleted** (M1). |
+| `beads-agent-type-qa`, `beads-agent-type-custom` | **Deleted** classes + prompts + `beads-agent-qa-backend` (F3). |
+| `beads-agent-start-qa`, `beads-agent-start-custom` | **Deleted** commands (F3). |
+| `a q`, `a c` bindings | **Deleted**; keys freed (F3). |
+| `make-obsolete 'beads-status` shim | **Deleted**; `beads-status` is real (F2). |
+
+### 5.4 Unchanged ABI (foundation)
+
+`beads-command.el`, `beads-meta.el`, `beads-types.el`, `beads-prefix.el`,
+`beads-custom.el`, `beads-error.el`, `beads-git.el`, `beads-completion.el`,
+`beads-reader.el`, `beads-spec.el`, `beads-state.el`, `beads-eldoc.el`,
+`beads-pager.el`, `beads-agent-type.el` (registry), `beads-agent-backend.el`
+(registry), `beads-terminal.el` (backends), `beads-audit.el`.
 
 Layout rule: **browse/act/menu are native modes; view/edit/interact are
 vui**. Lists are tabulated; boards/details are vui.
 
 ---
 
-## 6. Code-movement plan (gascity.el → beads.el)
+## 6. Data / async model
 
-### 6.1 What moves: the terminal
+Every read is a function of `bd … --json`; the model is uniform across views
+(REQ-018, REQ-019).
 
-`gascity.el/lisp/gascity-terminal.el` (≈1500 lines) owns, on top of
+### 6.1 Reader
+
+- **One read path.** Views construct a `beads-command-*` object and call
+  `beads-command-execute-async` (`command on-success &optional on-error &rest
+  kwargs`). Sync execution exists only for first-contact root discovery
+  (`beads--project-root` over the ssh pipe) and tests.
+- **kwargs.** `:queue t` applies the `beads-command-async-max-concurrent` cap
+  (FIFO); `:cache-key` coalesces identical in-flight requests (single-flight);
+  `:timeout` bounds a request. The dashboard's per-section async key is the
+  model for cache keys: `(list 'beads-dashboard-section async-key)`.
+- **No sync I/O at render.** The render guard test
+  (`lisp/test/beads-render-guard-test.el`) enforces this; it stays green.
+
+### 6.2 Store and scoping
+
+- A view resolves its store once at open: `beads-store-resolve` (explicit
+  `:directory`) or `beads-store-directory`, else `default-directory`; the
+  resolved directory is pinned buffer-local so later refreshes never
+  re-resolve against a stray `default-directory`.
+- The store descriptor (`{root database remote label prefixes}`) is the value
+  the buffer carries; the mode line reads `[store]` from it.
+- Resolvers/hooks (§4.1) contribute on top; standalone they are empty, so
+  scoping degrades to the explicit dir / `bd` default.
+
+### 6.3 Caching and refresh
+
+- `g` refreshes in place without clearing process coalescing caches;
+  `C-u g` (`beads-*-hard-refresh`) clears the store's caches first.
+- Per-section state is preserved across refresh: fold state (persistent per
+  store, via `beads-dashboard--save-visibility`), point/restore
+  (`beads-dashboard--with-point-restore`), and loaded depth
+  (`beads-dashboard-depth-*` / `load-more`).
+- Negative caching is explicit where it pays (eldoc), never implicit in the
+  reader.
+
+### 6.4 Loading / empty / error states
+
+Each async section has exactly three non-data states, rendered by the shared
+helpers (`beads-dashboard--loading-line`, `-empty-line`, `-error-line`):
+
+| State | Rendering | Recovery |
+|---|---|---|
+| loading | spinner line + section title, key still foldable | async result swaps in |
+| empty | "No <X>" line, `beads-dashboard--data-empty-p` | refresh |
+| error | `beads-dashboard--error-line` with the condition's message | `g` retries; error is section-local, other sections still render |
+
+The whole board is **not** wrapped in a single error boundary; each section is
+(`vui-error-boundary`), so one failing `bd` call never blanks the view.
+
+### 6.5 Remote / TRAMP
+
+- Buffer identity is host-qualified (`beads-buffer.el`); the same buffer name
+  on two hosts is two buffers.
+- A view opened with an explicit `:directory` does no wrong-side I/O; path
+  localization for spawned processes uses `beads-remote-localize-path`.
+- Async spawns on a single-hop ssh-family store run as a **local `ssh -T`
+  pipe** (`beads-remote-ssh-command`), never a `tramp-sh` `make-process`.
+- First contact with a remote host is the one synchronous exception
+  (`beads-remote-ssh-find-up`, bounded by `beads-remote-sync-timeout`,
+  remembered once per directory, negatives included).
+
+---
+
+## 7. Faces and design language (REQ-017)
+
+- **One palette** with stable names (§4.9). Extensions derive via
+  `:inherit`; no face hook.
+- **One glyph set:** status `○ ◐ ⛔ ✓`; priority `P0…P4` (P0 red);
+  agent state `🦅 … ✗` with letter fallbacks `T/R/P`.
+- **One section header rule:** `▾ Title (n)` expanded / `▸ Title (n)`
+  collapsed, a `beads-section` thing, with the count always present.
+- **One mode-line rule:** each porcelain buffer renders
+  `[store] · counts · filter · agent-state` from a single per-view format
+  function (no ad-hoc `mode-line-format` edits).
+- **One layout vocabulary:** header block, sections, action bar; nothing
+  invents a second. `beads-section-spec` is the only section shape.
+
+---
+
+## 8. Standalone sling abstraction (REQ-008, REQ-009)
+
+The sling abstraction is deliberately tiny so it works with only `bd` + local
+agents.
+
+```
+;; Target/value objects
+beads-sling-target       ; EIEIO: name kind scope backend description metadata
+beads-sling-backend      ; EIEIO: name dispatch description
+
+;; Discovery
+beads-sling-targets(bead)            ; collect from beads-sling-target-functions
+  default provider:
+    - one target per available agent backend   (kind 'agent)
+    - one target per existing worktree         (kind 'worktree)
+    - one target per role for the project       (kind 'role)
+
+;; Pure inference
+beads-sling-shape(work formula) → plain | on | formula
+
+;; Dispatch
+beads-sling-dispatch(target bead prompt)   ; cl-defgeneric
+  default method (local): beads-agent start on BEAD in TARGET's worktree
+beads-sling-validators                     ; hook: (ctx) → warning|nil
+beads-sling--transient                     ; adaptive staged UI (mockup §6)
+beads-sling--preview                       ; special-mode preview (mockup §7)
+```
+
+Work-item shape (the `bd` work) is the same in both packages: a bead id or
+freeform text. Formula shape (`--on` / `--formula`) is inferred, not flagged
+(REQ-009, mirroring the approved gascity sling design). The formula **launch**
+backend is a generic: local ironing; gascity overrides with `gc sling`.
+
+### 8.1 Adaptive flow lessons (from `gascity.el/plans/sling-command/`)
+
+Carried over verbatim as design constraints:
+
+- **Stages collapse when pre-seeded**: What → Who → How → Preview → Launch →
+  Follow. A fully pre-seeded dispatch is "press `S`, press `s`".
+- **Shape is inferred and shown as one sentence**, never chosen by a flag and
+  never toggled.
+- **One smart picker per stage**, with a prefix-arg freeform escape where the
+  stage admits text (Custom's freeform prompt lands here, F3).
+- **The live footer is always on** (a mini-preview); `P` is a fuller preview
+  and never gates launch.
+- **Typed How readers** are generated from `beads-formula-var`; unknown types
+  fail soft to string entry.
+- **Client-side validation** warns before gc would refuse (cross-store routes;
+  the `bl-bdj` v2 `run_targets` city-scope trap).
+
+---
+
+## 9. Agent-launch redesign (REQ-011, REQ-012)
+
+Launch is the **direct local start**, distinct from sling (dispatch to a
+target). It shares target discovery, the preview footer, and session/attach
+handling.
+
+### 9.1 Post-slimming matrix (F3 — remove-entirely)
+
+| Role | Status | How reached | Prompt |
+|---|---|---|---|
+| Task | kept | `t` | `beads-agent-type-task--system-prompt` + user envelope |
+| Review | kept | `r` | `beads-agent-review-prompt` + user envelope |
+| Review (QA mode) | kept as a **mode**, not a role | `r` then `q` toggle (or `beads-agent-start-qa` → Review+QA alias for one release) | `beads-agent-qa-prompt` + `beads-agent-type-qa--user-prompt` (prompts kept; class deleted) |
+| Plan | kept | `p` | `beads-agent-plan-prompt` + user envelope |
+| QA | **deleted class** | — | prompt folded into Review's QA mode |
+| Custom | **deleted class** | sling freeform path | freeform prompt moves to sling |
+
+| Backend | Status | How reached |
+|---|---|---|
+| claude-code | preferred | `b` |
+| agent-shell | kept | `b` |
+| terminal | kept | `b` |
+| claude-code-ide / claudemacs / eca | demoted | `… other` overflow |
+| mock | test-only | never in the menu |
+
+The **registries** (`beads-agent-type-register`,
+`beads-agent-backend-register`) are unchanged and open. But unlike round 1,
+there is **no QA/Custom class left registered by default**; a user who wants
+them re-registers their own subclass through the documented ABI.
+
+### 9.2 Flow
+
+```
+Role → Target(worktree/branch) → Backend → Prompt(edit/preview) → Start → Attach/Follow
+```
+
+- The live footer mirrors sling: `✓ Ready — Task · worktree be-abcd · backend
+  claude-code`.
+- Prompt editing uses `beads-agent-prompt-edit.el`; the system + user prompts
+  are previewable before launch.
+- Session lifecycle: the launch writes through `beads-agent-state-change-hook`
+  so the sessions list (`beads-agent-list.el`) updates; `RET` attaches,
+  `j` jumps, `x` stops (mockup §9). Attach goes through
+  `beads-terminal-attach`.
+
+### 9.3 Relation to sling
+
+Agent launch is the "who = me/here" case of sling with a richer local start
+surface. Shared code: `beads-sling-targets`, `beads-sling-validators`,
+footer, session/attach. Sling adds the remote/city target set and the
+`gc` backend; launch adds backend/prompt/session detail for the local case.
+
+---
+
+## 10. Formula integration (REQ-013, REQ-014)
+
+- **Browse** (`beads-formula-list-mode`): `tabulated-list-mode`, type-grouped
+  (`workflow` / `expansion` / `aspect`), columns name/type/steps/vars/
+  description (mockup §10a). The existing `beads-formula-list` is the base.
+- **Detail** (`beads-formula-show-mode` → `beads-section-mode`): Vars (typed,
+  required flags), Steps (recipe with `needs` edges), Source (open the
+  `.toml`). `RET` opens a var/step context, `l` seeds sling, `s` standalone
+  launch (mockup §10b).
+- **Vars** are first-class `beads-formula-var` objects with the same typed
+  metadata the sling How stage uses, so a var is read the same way in both
+  places.
+- **Launch** uses `beads-formula-launch` (`formula bead &optional vars`). The
+  default method irons locally/via `bd`; gascity overrides it to run
+  `gc sling --formula/--on` and expose the run view. **Follow** opens the
+  resulting session/workflow view through the same session/attach path.
+- Standalone, a formula launch is a sling `formula`/`on` shape with no target
+  beyond local; with gascity, the Who stage gains city/rig targets.
+
+---
+
+## 11. Terminal migration plan (REQ-015, REQ-016)
+
+### 11.1 What moves: the terminal
+
+`gascity.el/lisp/gascity-terminal.el` (≈1509 lines) owns, on top of
 `beads-terminal.el`:
 
 - tmux probes: `gascity-terminal-tmux-session-exists-p`,
@@ -333,7 +672,7 @@ beads-integration helpers move to `beads-terminal.el`.
 `gascity-*`; the only gascity-specific parameter is the tmux **socket**,
 passed in via `beads-terminal-attach`'s `:socket` argument.
 
-### 6.2 What stays in gascity.el
+### 11.2 What stays in gascity.el
 
 - `gascity-tmux-socket` resolution (city-name inference + override).
 - `gascity-context-*` (city/rig resolution) and everything gascity-domain.
@@ -342,12 +681,9 @@ passed in via `beads-terminal-attach`'s `:socket` argument.
   entry points working: `gascity-terminal-attach-tmux`,
   `gascity-terminal-run`, and the scroll-mode symbol are `defalias`ed or
   defined as wrappers onto the `beads-terminal-tmux-*` functions, resolving
-  the socket and passing it. This keeps existing gascity.el callers and
-  user configs green during and after the move.
+  the socket and passing it.
 
-### 6.3 Remote helpers that must move or be added to beads
-
-The terminal code uses remote helpers currently in `gascity-remote.el`:
+### 11.3 Remote helpers (moved/added to beads)
 
 | Needed | beads.el status | Action |
 |---|---|---|
@@ -357,15 +693,12 @@ The terminal code uses remote helpers currently in `gascity-remote.el`:
 | `gascity-remote-localize-path` | missing | add `beads-remote-localize-path` |
 | `gascity-remote-terminfo-p` | missing | add `beads-remote-terminfo-p` |
 | `gascity-remote-buffer-name` | equivalent in `beads-buffer.el` | reuse/extend |
-| `gascity-remote-prewarm` | missing | add `beads-remote-prewarm` (optional; terminal preload) |
+| `gascity-remote-prewarm` | missing | add `beads-remote-prewarm` (optional) |
 
-No gascity-specific logic (city context, result reconciliation) moves.
-
-### 6.4 Migration order (safe, shim-first)
+### 11.4 Migration order (safe, shim-first)
 
 1. Add `beads-terminal-attach` + `beads-terminal-tmux.el` in beads.el,
-   porting the tmux/status/mouse/scroll code against beads-only dependencies;
-   port the gascity terminal tests to `beads-terminal-tmux-test.el`.
+   porting the tmux/status/mouse/scroll code against beads-only dependencies.
 2. Add the missing `beads-remote-localize-path` / `-terminfo-p` helpers.
 3. Make gascity.el's `gascity-terminal.el` a shim delegating to the beads
    implementation; keep `gascity-tmux-socket` resolution in gascity.
@@ -374,7 +707,7 @@ No gascity-specific logic (city context, result reconciliation) moves.
 5. Delete the duplicated implementation from gascity.el once green; keep the
    shim until a deprecation window passes.
 
-### 6.5 Other de-duplication
+### 11.5 Other de-duplication
 
 - `beads-terminal.el` already owns backend selection; the moved code must use
   it (it mostly does).
@@ -382,85 +715,57 @@ No gascity-specific logic (city context, result reconciliation) moves.
   `gascity.el/docs/DESIGN-agent-scrolling.md`; that document becomes a
   beads.el doc (`docs/terminal-scrolling.md`) with the moved code, and the
   gascity doc links to it.
+- Terminal tests currently live in gascity's `lisp/test/gascity-test.el`
+  (there is no dedicated `gascity-terminal-test.el`; see `plan-review.md`
+  F1); they port to `beads-terminal-tmux-test.el`.
 
 ---
 
-## 7. Standalone sling design (no gascity)
+## 12. How gascity.el uses each seam (extension summary)
 
-The sling abstraction is deliberately tiny so it works with only `bd` + local
-agents.
+| Seam | gascity.el use |
+|---|---|
+| `beads-store-resolvers` / `beads-store-prefix-functions` | map a `gc bd` prefix / rig dir to the owning store |
+| `beads-menu-providers` | append a `[City]` group to `beads-dispatch` |
+| `beads-action-providers` | add drain/nudge/sling actions to bead views |
+| `beads-after-action-functions` | refresh rig views after a mutation |
+| `beads-section-register` / `beads-dashboard-section-providers` | register city/rig/agent sections on the board |
+| `beads-sling-target-functions` | contribute city/rig agents as sling targets |
+| `beads-sling-backend-register` + a `gc` `beads-sling-dispatch` method | dispatch through `gc sling` |
+| `beads-formula-launch` override | run `gc sling --formula/--on`, expose the run view |
+| `beads-agent-*-register` | register gc-backed agent backends |
+| `beads-terminal-attach` (`:socket`) + `beads-terminal-tmux-*` | attach to a city tmux socket |
+| `beads-mode-extension-map` (`C-c b c`, …) | city/rig commands without shadowing core keys |
+| `beads-face-*` names | derive city/rig faces with `:inherit` |
 
-```
-beads-sling-target           ; EIEIO: name kind scope backend description metadata
-beads-sling-targets()        ; collect from beads-sling-target-functions
-  default provider:
-    - one target per available agent backend   (kind 'agent)
-    - one target per existing worktree         (kind 'worktree)
-    - one target per role for the project       (kind 'role)
-beads-sling-shape(work formula) ; plain | on | formula  (pure)
-beads-sling-dispatch(target bead prompt)        ; cl-defgeneric
-  default method (local): beats-agent start on BEAD in TARGET's worktree
-beads-sling-validators        ; hook: functions (ctx) -> warnings
-beads-sling--transient        ; adaptive staged UI (mockup §4)
-beads-sling--preview          ; special-mode preview buffer (mockup §4b)
-```
-
-Work-item shape (the `bd` work) is the same in both packages: a bead id or
-freeform text. Formula shape (`--on` / `--formula`) is inferred, not flagged
-(REQ-009, mirroring the approved gascity sling design). The formula **launch**
-backend is a generic: local ironing; gascity overrides with `gc sling`.
+beads.el remains fully usable with **none** of these present (REQ-021).
 
 ---
 
-## 8. Consistency rules (REQ-017…REQ-019)
-
-- **Faces.** One palette, stable names: `beads-face-header`,
-  `beads-face-section`, `beads-face-issue-line`, `beads-face-status-*`,
-  `beads-face-priority-*`, `beads-face-agent-*`, `beads-face-id`,
-  `beads-face-key`. Extensions derive with `:inherit`.
-- **Glyphs.** One set: status markers, priority bars, agent state glyphs
-  (`beads-agent-display-*` today) reused everywhere.
-- **Mode line.** Each porcelain buffer shows `[store] · counts · filter ·
-  agent state`; the format is a single function per view, not ad hoc.
-- **Async.** Every loader goes through `beads-command-execute-async`; no sync
-  `bd` call at render time (the remote render guard test stays green).
-- **Remote.** Buffer identity host-qualified via `beads-buffer.el`; explicit
-  `:directory` scoping does no wrong-side I/O; `default-directory` is pinned
-  at open.
-
----
-
-## 9. Decomposition and implementation
-
-See `decomposition.md` for the work items with dependencies and REQ trace,
-and `implementation-plan.md` for the ordered, **pruning-first** plan. See
-`slimming.md` for the removal audit and `menu-mockups.md` for every rendered
-surface. `plan-review.md` records the critique round.
-
----
-
-## 10. Risks and mitigations
+## 13. Risks and mitigations
 
 | Risk | Mitigation |
 |---|---|
 | Auto-generated transients are load-bearing in tests | Keep them as dispatch backends; tests port to the hand-built surface; a compatibility alias keeps `M-x beads-<cmd>` working |
-| Role-roster cut removes a real workflow (QA/Custom) | Fold QA into Review (mode); keep Custom as the freeform sling escape; registries unchanged so users can re-register |
+| F3 removes a real workflow (QA/Custom) | QA is a Review mode with the prompt kept; Custom is the sling freeform path; registries stay open for re-registration; `NEWS.md` records the removal |
 | Terminal move creates a beads↔gascity cycle | beads owns the implementation; gascity keeps only the socket + shim; no `gascity-` reference in beads |
 | TRAMP regressions in the moved terminal | Move only after a shim; verify attach/status/scroll over `/ssh:localhost:~/bright-lights` |
 | Section/`vui` churn breaks the render guard | All loaders async; `lisp/test/beads-render-guard-test.el` remains the gate |
-| Reserving `C-c b` collides with existing configs | Keep old binding as an alias for one release; document the change in `NEWS.md` |
-| Slimming too aggressive for existing users | Each removal ships a one-release alias + a `NEWS.md` entry; `slimming.md` marks the conservative fallback |
+| Reserving `C-c b` collides with existing configs | Keep old binding as an alias for one release; document in `NEWS.md` |
+| `beads` → status / `beads-dispatch` rename breaks configs | `?` and `beads-dispatch` carry the old content verbatim; `NEWS.md`; `beads-dashboard` unchanged |
+| Slimming too aggressive for existing users | Each removal ships a one-release alias + a `NEWS.md` entry; freed `a q`/`a c` are reserved |
 
-## 11. References
+## 14. References
 
 - `gascity.el/docs/DESIGN.md` — UI direction (binding).
-- `gascity.el/plans/sling-command/*` — process/artifact shape to mirror.
+- `gascity.el/plans/sling-command/*` — process/artifact shape to mirror and
+  the adaptive-flow lessons (§8.1).
 - `gascity.el/docs/DESIGN-agent-scrolling.md` — the terminal scrolling design
   that moves into beads.el.
-- `gascity.el/lisp/gascity-terminal.el` — the code to move (§6).
+- `gascity.el/lisp/gascity-terminal.el` — the code to move (§11).
 - `lisp/beads-prefix.el`, `beads-meta.el` (`beads-meta-parity-*`),
   `beads-section.el`, `beads-thing.el`, `beads-command-list.el`,
-  `beads-command-show.el`, `beads-dashboard.el`, `beads-agent*.el`,
-  `beads-command-formula.el`, `beads-terminal.el`, `beads-remote.el`,
-  `beads-buffer.el`.
+  `beads-command-show.el`, `beads-dashboard.el`, `beads-dashboard-sections.el`,
+  `beads-agent*.el`, `beads-command-formula.el`, `beads-terminal.el`,
+  `beads-remote.el`, `beads-buffer.el`, `beads-util.el`.
 - `AGENTS.md` — build/test/remote-testing conventions; `MAGIT_PATTERNS.md`.
