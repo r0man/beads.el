@@ -14,6 +14,7 @@
 
 ;;; Code:
 
+(require 'eieio)
 (require 'beads-custom)
 (require 'beads-git)
 (require 'beads-remote)
@@ -361,20 +362,107 @@ pure-name walk, and the answer is remembered per directory
                          (beads--find-project-root))))
       (file-name-as-directory (expand-file-name root)))))
 
+;;; Store Descriptor
+
+(defclass beads-store-descriptor ()
+  ((root
+    :initarg :root
+    :type (or null string)
+    :documentation "Absolute directory name of the store root, or nil.")
+   (database
+    :initarg :database
+    :type (or null string)
+    :documentation "Path to the store's database, or nil when auto-discovered.")
+   (remote
+    :initarg :remote
+    :type (or null string)
+    :documentation "TRAMP prefix of the host owning the store, or nil when local.")
+   (label
+    :initarg :label
+    :type (or null string)
+    :documentation "Human-readable label for the store, or nil.")
+   (prefixes
+    :initarg :prefixes
+    :initform nil
+    :type list
+    :documentation "List of bead id prefixes owned by the store."))
+  "Uniform scoping value object for a beads store.
+A downstream integration (for example a city/rig resolver) builds one
+of these to describe a store to the beads UI; the core seams consume
+only `root' and `prefixes', so an extension can carry whatever extra
+information it needs in a subclass without changing the ABI.")
+
+;;; Store Resolvers
+
+(defvar beads-store-resolvers nil
+  "Hook of functions translating a directory to a beads store directory.
+Each function is called with one argument, DIR, and returns a store
+directory name or nil.  The functions are consulted in order by
+`beads-store-resolve' whenever it normalizes a non-empty directory;
+the first non-nil result wins.  A resolver may only translate a
+directory to a store -- it does no I/O beyond what `beads-store-resolve'
+already does.  An empty hook (the standalone default) is a no-op and
+the normalized directory is returned unchanged.
+
+Downstream use: Gas City maps a bead prefix to a rig store, and remote
+cities forward a directory to their owning city store.")
+
+(defvar beads-store-prefix-functions nil
+  "Hook of functions mapping a bead id PREFIX to its owning store.
+Each function is called with one argument, PREFIX (the part of a bead
+id before the first hyphen), and returns a store directory or nil.
+`beads-store-for-prefix' consults them in order and returns the first
+non-nil store.  An empty hook (the standalone default) is a no-op and
+yields nil.
+
+Downstream use: Gas City routes `gc bd' stores by bead prefix.")
+
 (defun beads-store-resolve (directory)
   "Return DIRECTORY as a store directory name for this Emacs, or nil.
 Nil or empty DIRECTORY yields nil.  A host-local absolute DIRECTORY
 given while `default-directory' is remote is re-prefixed with that
 remote, so a caller passing bd's view of the path (as for --directory)
 still scopes the store on the right host.  Pure string operations, no
-file I/O."
+file I/O.
+
+After normalizing, the hooks in `beads-store-resolvers' are consulted
+in order and the first non-nil translation wins; with an empty hook
+\(the standalone default) the normalized directory is returned
+unchanged, so the resolver seam is a no-op when no extension is
+installed."
   (when (and (stringp directory) (not (string-empty-p directory)))
-    (file-name-as-directory
-     (if (and (not (file-remote-p directory))
-              (file-name-absolute-p directory)
-              (file-remote-p default-directory))
-         (concat (file-remote-p default-directory) directory)
-       directory))))
+    (let ((normalized
+           (file-name-as-directory
+            (if (and (not (file-remote-p directory))
+                     (file-name-absolute-p directory)
+                     (file-remote-p default-directory))
+                (concat (file-remote-p default-directory) directory)
+              directory))))
+      (or (run-hook-with-args-until-success 'beads-store-resolvers normalized)
+          normalized))))
+
+(defun beads-store-for-prefix (prefix)
+  "Return the store directory owning bead-id PREFIX, or nil.
+PREFIX is the leading identifier before the first hyphen (for example
+\"be\" in \"be-1234\").  Consults `beads-store-prefix-functions' in order
+and returns the first non-nil store.  Returns nil for a nil or empty
+PREFIX, and nil when no function matches (the standalone no-op)."
+  (when (and (stringp prefix) (not (string-empty-p prefix)))
+    (run-hook-with-args-until-success 'beads-store-prefix-functions prefix)))
+
+;;; Store Descriptor Value Object
+
+(defun beads-store-descriptor-for (store &rest args)
+  "Return a `beads-store-descriptor' for STORE.
+STORE is a store directory name as accepted by `beads-store-resolve'.
+ARGS are passed to the class constructor, so a caller can supply
+`:database', `:label' and `:prefixes'.  The descriptor's `root' is the
+normalized store directory, and `remote' is the TRAMP prefix of the
+host when STORE is remote."
+  (apply #'beads-store-descriptor
+         :root (beads-store-resolve store)
+         :remote (file-remote-p (or store default-directory))
+         args))
 
 (defun beads-store-project-root (store)
   "Return the project root for the explicit store directory STORE.

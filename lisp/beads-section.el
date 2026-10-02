@@ -49,6 +49,7 @@
 (require 'beads-command-ready)
 (require 'beads-types)
 (require 'beads-thing)
+(require 'beads-faces)
 
 ;;; Forward Declarations
 
@@ -187,6 +188,90 @@ Key bindings:
   RET     — Visit issue at point (on issue lines)"
   :interactive nil)
 
+;;; Section Spec Registry
+
+(defclass beads-section-spec ()
+  ((key
+    :initarg :key
+    :type symbol
+    :documentation "Symbolic section key used for identity and lookup.")
+   (title
+    :initarg :title
+    :type string
+    :documentation "Human-readable section title.")
+   (loader
+    :initarg :loader
+    :type function
+    :documentation "Function of no arguments returning the section's data.")
+   (renderer
+    :initarg :renderer
+    :type function
+    :documentation "Function of one argument (the loader's data) returning a vnode.")
+   (keys
+    :initarg :keys
+    :initform nil
+    :type list
+    :documentation "Optional list of extra keybindings the section wants.")
+   (order
+    :initarg :order
+    :initform 0
+    :type number
+    :documentation "Sort order among registered sections; lower comes first."))
+  "Descriptor for a named, renderable beads section.
+A consumer registers one of these via `beads-section-register' so that
+other views (status, dashboard, formula) can render it without knowing
+where it came from.  Both `loader' and `renderer' are ordinary
+functions: the loader runs with no arguments and returns the data, and
+the renderer receives that data and returns a vui vnode.")
+
+(defvar beads-section--registry (make-hash-table :test #'eq)
+  "Registry of named sections, keyed by their symbolic `key'.
+Populated by `beads-section-register'; consumed by
+`beads-section-registered' and `beads-section-registered-vnodes'.")
+
+(defun beads-section-register (key title loader renderer &optional keys)
+  "Register a named section and return KEY.
+KEY is a symbol identifying the section.  TITLE is its display title.
+LOADER is a function of no arguments returning the section data.
+RENDERER is a function of one argument (the loader's data) returning a
+vui vnode.  KEYS, when non-nil, is a list of extra keybindings for the
+section.  Registering the same KEY twice replaces the previous spec."
+  (puthash key (beads-section-spec :key key :title title
+                                    :loader loader :renderer renderer
+                                    :keys keys)
+           beads-section--registry)
+  key)
+
+(defun beads-section-spec-for (key)
+  "Return the `beads-section-spec' registered for KEY, or nil.
+KEY is a symbol; returns nil when no section is registered.  Named
+`-for' because `beads-section-spec' is the EIEIO constructor."
+  (gethash key beads-section--registry))
+
+(defun beads-section-registered ()
+  "Return all registered section specs, sorted by order then key.
+A stable order lets the status and dashboard builders concatenate
+registered sections deterministically."
+  (let (specs)
+    (maphash (lambda (_ spec) (push spec specs)) beads-section--registry)
+    (sort specs
+          (lambda (a b)
+            (let ((ao (oref a order)) (bo (oref b order)))
+              (if (= ao bo)
+                  (string< (symbol-name (oref a key))
+                           (symbol-name (oref b key)))
+                (< ao bo)))))))
+
+(defun beads-section-registered-vnodes ()
+  "Return vnodes for every registered section, in registry order.
+Calls each spec's loader and, when it returns non-nil, its renderer.
+The empty registry returns nil (the standalone no-op)."
+  (delq nil
+        (mapcar (lambda (spec)
+                  (when-let* ((data (funcall (oref spec loader))))
+                    (funcall (oref spec renderer) data)))
+                (beads-section-registered))))
+
 ;;; Status Sections Hook
 
 (defcustom beads-status-sections-hook
@@ -250,9 +335,12 @@ Fetches issues via `bd ready --json'."
 
 (defun beads-section-build-vnode ()
   "Build the complete section vnode tree from `beads-status-sections-hook'.
-Calls each hook function, collects non-nil results, and assembles
-them into a `vui-vstack' with spacing between sections."
-  (let ((vnodes (delq nil (mapcar #'funcall beads-status-sections-hook))))
+Calls each hook function, collects non-nil results, appends the vnodes
+of every section in `beads-section--registry', and assembles them into a
+`vui-vstack' with spacing between sections.  With no hook entries and an
+empty registry this returns an empty vstack (the standalone no-op)."
+  (let ((vnodes (append (delq nil (mapcar #'funcall beads-status-sections-hook))
+                        (beads-section-registered-vnodes))))
     (apply #'vui-vstack :spacing 1 vnodes)))
 
 ;;; Commands
