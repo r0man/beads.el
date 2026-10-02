@@ -1044,13 +1044,17 @@ does not check whether fields have actually changed."
   "Test beads-agent-start-plan is defined."
   (should (commandp 'beads-agent-start-plan)))
 
-(ert-deftest beads-coverage-2-agent-start-qa-defined ()
-  "Test beads-agent-start-qa is defined."
-  (should (commandp 'beads-agent-start-qa)))
+(ert-deftest beads-coverage-2-agent-start-review-qa-defined ()
+  "Test beads-agent-start-review-qa is defined."
+  (should (commandp 'beads-agent-start-review-qa)))
 
-(ert-deftest beads-coverage-2-agent-start-custom-defined ()
-  "Test beads-agent-start-custom is defined."
-  (should (commandp 'beads-agent-start-custom)))
+(ert-deftest beads-coverage-2-agent-start-qa-removed ()
+  "Test the removed beads-agent-start-qa command is undefined (F3)."
+  (should-not (fboundp 'beads-agent-start-qa)))
+
+(ert-deftest beads-coverage-2-agent-start-custom-removed ()
+  "Test the removed beads-agent-start-custom command is undefined (F3)."
+  (should-not (fboundp 'beads-agent-start-custom)))
 
 ;;; ============================================================
 ;;; beads-agent.el - Get Sessions for Issue Type Tests

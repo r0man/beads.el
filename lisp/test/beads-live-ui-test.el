@@ -849,7 +849,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
 
 (beads-live-test--agent-typed-start-test
  beads-live-test-agent-start-qa-from-list
- beads-agent-start-qa "QA")
+ beads-agent-start-review-qa "Review (QA mode)")
 
 (ert-deftest beads-live-test-agent-start-task-jumps-to-existing ()
   "Live: beads-agent-start-task jumps to existing session without starting new."
