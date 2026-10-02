@@ -164,7 +164,8 @@ menu.  Every command the two menus held is reachable from here."
    ("+" "Doctor" beads-doctor)
    ("M" "Migrate..." beads-migrate-menu)
    ("U" "Upgrade" beads-upgrade)
-   ("!" "Preflight" beads-preflight)]
+   ("!" "Preflight" beads-preflight)
+   ("8" "Purge" beads-purge)]
   ["Structure"
    ("1" "Mark duplicate" beads-duplicate)
    ("2" "Find duplicates" beads-duplicates)
@@ -178,6 +179,7 @@ menu.  Every command the two menus held is reachable from here."
    ("Y" "Dolt sync" beads-sync)
    ("S" "Schema" beads-schema)
    ("m" "Migrate personal" beads-migrate-personal)
+   ("<" "Branch" beads-branch)
    ("`" "Diff" beads-diff)
    ("%" "History" beads-history)
    ("&" "Provenance" beads-provenance)]
@@ -188,10 +190,14 @@ menu.  Every command the two menus held is reachable from here."
    ("9" "GitHub" beads-github)
    ("v" "Repo" beads-repo)
    ("A" "ADO" beads-ado)
+   (">" "Federation" beads-federation)
    ("*" "Mail delegate" beads-mail)]
   ["Setup"
    ("I" "Init project" beads-init)
    ("x" "Init safety" beads-init-safety)
+   (";" "Setup integrations" beads-setup)
+   (":" "Info" beads-info)
+   ("'" "Version" beads-version)
    ("L" "Bootstrap" beads-bootstrap)
    ("Q" "Hooks..." beads-hooks)
    ("W" "Quickstart" beads-quickstart)

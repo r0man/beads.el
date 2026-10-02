@@ -64,24 +64,31 @@ carrying :key/:command, optionally nested inside group forms."
 
 ;;; Reachability (every absorbed ops/advanced command)
 
+;; The complete suffix inventory of the deleted `beads-ops-menu.el' and
+;; `beads-advanced-menu.el' at the point of absorption.  Keep it literal
+;; and exhaustive: if a work item drops a command instead of moving it,
+;; this list (not the menu itself) must fail.  Do not trim an entry just
+;; because the new menu lacks it.
 (defconst beads-menu-test--absorbed-commands
-  '(beads-defer beads-undefer beads-delete beads-promote beads-rename
+  '(;; beads-ops-menu.el
+    beads-defer beads-undefer beads-delete beads-promote beads-rename
     beads-unclaim beads-count beads-stats beads-stale beads-types
     beads-lint beads-find-duplicates beads-orphans beads-children
     beads-comments-menu beads-todo beads-events beads-query beads-gate
     beads-swarm beads-cook beads-ship beads-set-state beads-state-menu
-    beads-conflicts beads-reclaim beads-heartbeat beads-backup
-    beads-export beads-prune beads-gc beads-batch beads-compact
-    beads-flatten beads-ping beads-doctor beads-migrate-menu
-    beads-upgrade beads-preflight beads-duplicate beads-duplicates
-    beads-supersede beads-restore beads-sql beads-rename-prefix
-    beads-forget beads-vc beads-sync beads-schema beads-migrate-personal
-    beads-diff beads-history beads-provenance beads-jira beads-linear
-    beads-gitlab beads-github beads-repo beads-ado beads-mail beads-init
-    beads-init-safety beads-bootstrap beads-hooks beads-quickstart
-    beads-where beads-context beads-memories beads-kv beads-prime
-    beads-recall beads-remember beads-audit beads-admin
-    beads-worktree-menu)
+    beads-conflicts beads-reclaim beads-heartbeat
+    ;; beads-advanced-menu.el
+    beads-doctor beads-preflight beads-upgrade beads-compact
+    beads-flatten beads-gc beads-purge beads-rename-prefix beads-backup
+    beads-export beads-restore beads-branch beads-vc beads-federation
+    beads-sql beads-sync beads-schema beads-duplicate beads-duplicates
+    beads-supersede beads-migrate-menu beads-migrate-personal beads-jira
+    beads-linear beads-gitlab beads-github beads-repo beads-ado
+    beads-mail beads-init beads-info beads-hooks beads-quickstart
+    beads-where beads-version beads-context beads-setup beads-kv
+    beads-prime beads-memories beads-recall beads-remember beads-forget
+    beads-audit beads-admin beads-worktree-menu beads-diff beads-history
+    beads-provenance)
   "Commands the former ops and advanced menus held.
 Every one must remain reachable from `beads-maintenance' (REQ-023).")
 
