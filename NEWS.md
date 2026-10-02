@@ -4,6 +4,29 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Formula browser, detail and launch (`beads-formula.el`)
+
+Formulas now have a first-class browser and launch flow.  The new
+`beads-formula.el` owns the UI and the extension seams; the `bd
+formula` command classes stay in `beads-command-formula.el`.
+
+- `beads-formula-browse` groups formulas by type (workflow, expansion,
+  aspect) with header rows, and `beads-formula-detail-sections` exposes
+  the Vars/Steps/Source structure.
+- In a formula list or detail buffer, `l` seeds the sling flow with the
+  formula and prompts only for the work bead, while `s` launches it
+  standalone (prompting for required vars through typed readers).
+- `beads-formula-var-reader` maps a variable's declared metadata to a
+  reader kind (enum, bool, numeric, file, directory, agent, string);
+  `beads-formula-launch-context` is the shared resolved launch.
+- `beads-formula-launch` (`formula bead &optional vars`) is the launch
+  generic.  The default method irons the formula locally with `bd mol
+  pour`; downstream packages (for example Gas City) override it to run
+  their own backend and return their run session.
+- Formula-type headers are non-selectable rows built by
+  `beads-formula-grouped-entries`; the flat list remains the default for
+  `beads-formula-list` without the grouped entry builder.
+
 ### One movement scheme: TAB/S-TAB next thing, SPC toggles (breaking keys)
 
 Every beads.el view now moves the same way.  `TAB` (and `<tab>`) goes
