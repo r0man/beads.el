@@ -58,6 +58,13 @@ move. The dependency edges below are therefore part of the contract.
 | WI-19 | Documentation | 5 | REQ-033, REQ-020 | WI-4, WI-5, WI-9, WI-15, WI-17 |
 | WI-20 | Acceptance verification (bright-lights / TRAMP) | 6 | REQ-019, REQ-021, REQ-022 | WI-18 |
 
+> **Cross-repo note (scoping).** WI-15 (`gascity.el` compatibility shim)
+> modifies the **sibling `gascity.el` checkout**, not beads.el. It is NOT
+> part of the beads.el implementation convoy: create and drive it as a
+> **gascity.el-rig bead** (blocked on WI-14 landing), and treat WI-18/WI-19's
+> WI-15 dependency as satisfied at the gascity.el rig boundary. Every other
+> WI is beads.el. Everything else in the graph is unchanged.
+
 ### Dependency graph (critical path)
 
 ```
