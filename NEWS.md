@@ -21,6 +21,23 @@ move by thing, `SPC` folds, `RET` visits, `?` opens the menu.
   `beads-section-register`/`beads-section-spec` or
   `beads-dashboard-section-providers`.
 
+### Universal navigation contract: `?` dispatch and reserved `C-c b`
+
+Every porcelain view now installs the same navigation map through
+`beads-mode--install-navigation-keys`, so the contract cannot drift
+per view:
+
+- `?` opens the shared dispatch menu everywhere.  Show buffers keep
+their quick-actions transient: `beads-dispatch` delegates to
+`beads-show-actions` there and to the main `beads` transient
+elsewhere.
+- `C-c b` is reserved for downstream extensions in every map (via
+`beads-mode--install-extension-map`); `C-c b b` visits the issue at
+point and `C-c b ?` opens the dispatch.  Extensions add bindings under
+`beads-mode-extension-map` instead of shadowing a core key.
+- TAB/S-TAB/SPC stay the one movement scheme (`beads-thing`), and
+`q`/`g`/`RET` keep their mode-specific targets.
+
 ### Extension seams for downstream packages
 
 beads.el exposes a documented magit/forge-style extension ABI

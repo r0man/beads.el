@@ -382,6 +382,26 @@ into logical groups for easy access."
 ;; `beads-status.el' for the entry point and `beads-menu.el' for the
 ;; transient definition.
 
+;;; Universal Dispatch
+
+(declare-function beads-show-actions "beads-command-show")
+
+;;;###autoload
+(defun beads-dispatch ()
+  "Open the beads dispatch menu for the current buffer.
+The universal `?' command in every beads porcelain buffer
+\(design.md §3.3/§3.4).  Until the hand-built dispatcher lands, show
+buffers open their existing quick-actions transient and every other
+buffer opens the main `beads' transient, which already tailors its
+Context group to the current buffer.  The command name is stable, so
+modes and downstream extensions bind `?' once."
+  (interactive)
+  (if (and (derived-mode-p 'beads-show-mode)
+           (progn (require 'beads-command-show nil t)
+                  (fboundp 'beads-show-actions)))
+      (beads-show-actions)
+    (beads)))
+
 ;;; Info/Debug Command
 
 ;;;###autoload

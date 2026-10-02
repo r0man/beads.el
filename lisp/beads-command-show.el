@@ -608,8 +608,9 @@ Called from `kill-buffer-hook' to clean up session state."
     ;; Reference navigation (like compilation-mode)
     (define-key map (kbd "[") #'beads-show-previous-reference)
     (define-key map (kbd "]") #'beads-show-next-reference)
-    ;; TAB/S-TAB/SPC: thing motion and folding (dashboard-v3 §5.4)
-    (beads-thing-define-keys map)
+    ;; TAB/S-TAB/SPC: thing motion and folding, ? dispatches,
+    ;; C-c b reserved for extensions (dashboard-v3 §5.4, design.md §3.3)
+    (beads-mode--install-navigation-keys map)
 
     ;; Markdown-mode-style aliases for reference navigation
     (define-key map (kbd "M-n") #'beads-show-next-reference)
@@ -626,8 +627,9 @@ Called from `kill-buffer-hook' to clean up session state."
     ;; Sesman session management (CIDER/ESS convention)
     (define-key map (kbd "C-c C-s") beads-sesman-map)
 
-    ;; Quick actions transient
-    (define-key map (kbd "?") #'beads-show-actions)
+    ;; Quick actions transient: `?' is installed by
+    ;; `beads-mode--install-navigation-keys' and `beads-dispatch'
+    ;; opens `beads-show-actions' in show buffers.
     (define-key map (kbd "s") #'beads-actions-set-status)
     (define-key map (kbd "e") #'beads-show-edit-field)
     (define-key map (kbd "d") #'beads-actions-close)
