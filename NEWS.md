@@ -4,6 +4,21 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Detail redesign: identity block, breadcrumb and action bar
+
+The `beads-show` buffer gains the detail-redesign chrome from the UI
+mockups.  Under the title rule it renders a navigation hint line, a
+local `Store` identity line (skipped for a remote store, so opening a
+remote detail does no host I/O) and a breadcrumb back to the view the
+detail was opened from (`^` returns to it, `beads-show-goto-origin`).
+The footer is now an action bar built from the live commands plus the
+`beads-actions-provider-actions` `:show` context, advertising
+`d close · C claim · s status · # priority · e edit · c comment ·
+w copy id · ? dispatch` (and `S sling` once the sling abstraction is
+loaded).  `RET` on an agent session row now attaches to or jumps to
+that session (`beads-show-attach-session-at-point`, also on `j`) via
+`beads-terminal-attach` when it is available.  `c` is a comment alias.
+
 ### The status buffer is now the entry point (breaking key: `M-x beads`)
 
 `M-x beads` (and `beads`) opens the new hand-built, vui-sectioned

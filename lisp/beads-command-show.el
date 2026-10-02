@@ -59,6 +59,10 @@
 
 ;; Forward declarations
 (declare-function org-link-set-parameters "org" (type &rest parameters))
+(declare-function beads--get-database-path "beads-util" ())
+(declare-function beads-agent--get-backend "beads-agent-backend" (name))
+(declare-function beads-agent-backend-get-buffer "beads-agent-backend"
+                  (backend session))
 (declare-function outline-invisible-p "outline" (&optional pos))
 (declare-function outline-show-subtree "outline" (&optional event))
 (declare-function outline-hide-subtree "outline" (&optional event))
@@ -639,6 +643,11 @@ Called from `kill-buffer-hook' to clean up session state."
     ;; Pattern 3: Buffer-based editing
     (define-key map (kbd "E") #'beads-show-compose-edit)
     (define-key map (kbd "N") #'beads-show-compose-comment)
+    ;; Detail-redesign aliases: `c' comments (mockup §5e), `j' jumps to
+    ;; the agent session at point, `^' returns to the originating view.
+    (define-key map (kbd "c") #'beads-show-compose-comment)
+    (define-key map (kbd "j") #'beads-show-attach-session-at-point)
+    (define-key map (kbd "^") #'beads-show-goto-origin)
     map)
   "Keymap for `beads-show-mode'.")
 
@@ -1146,11 +1155,43 @@ ISSUE-OUTCOME is the issue-level outcome value (see
          (status-str (if active
                          (propertize "active" 'face 'success)
                        (propertize "stopped" 'face 'shadow))))
-    (insert (format "  %s %s: %s [%s]\n"
-                    icon
-                    (propertize backend 'face 'font-lock-constant-face)
-                    (beads-show--format-date started)
-                    status-str))))
+    (let ((start (point)))
+      (insert (format "  %s %s: %s [%s]"
+                      icon
+                      (propertize backend 'face 'font-lock-constant-face)
+                      (beads-show--format-date started)
+                      status-str))
+      ;; A text-property button (not an overlay button) so
+      ;; `get-text-property' sees `beads-session' when RET dispatches.
+      (make-text-button start (point)
+                        'beads-session session
+                        'action (lambda (&rest _)
+                                  (beads-show-attach-session-at-point))
+                        'follow-link t
+                        'help-echo "RET attach · j jump to the session")
+      (insert "\n"))))
+
+(defun beads-show-attach-session-at-point ()
+  "Attach to or jump to the agent session on the current line.
+Uses `beads-terminal-attach' when the terminal subsystem provides it;
+otherwise pops to the session's live buffer (the closest attach
+available without the terminal work item)."
+  (interactive)
+  (let ((session (get-text-property (point) 'beads-session)))
+    (unless session
+      (user-error "No agent session at point"))
+    (cond
+     ((fboundp 'beads-terminal-attach)
+      (beads-terminal-attach session))
+     ((and (fboundp 'beads-agent--get-backend)
+           (fboundp 'beads-agent-backend-get-buffer))
+      (let* ((backend (beads-agent--get-backend (oref session backend-name)))
+             (buffer (and backend
+                          (beads-agent-backend-get-buffer backend session))))
+        (if (buffer-live-p buffer)
+            (pop-to-buffer buffer)
+          (user-error "Session %s has no live buffer" (oref session id)))))
+     (t (user-error "Agent attach is not available")))))
 
 (defun beads-show--insert-agent-section (issue-id)
   "Insert agent sessions section for ISSUE-ID if sessions exist."
@@ -1817,6 +1858,116 @@ thread; with no comments at all the section is skipped entirely."
                             'face 'beads-show-none-face))
         (insert "\n"))))))
 
+;;; Detail Layout (identity block, breadcrumb, action bar)
+
+(defvar-local beads-show--origin nil
+  "Origin of the current detail buffer as a (LABEL . BUFFER) cons.
+Recorded by `beads-show' when it is called from another beads view,
+i.e. a list, dashboard, status, or another detail buffer.  Drives
+the breadcrumb and `beads-show-goto-origin'.")
+
+(defun beads-show--origin-label (buffer)
+  "Return a short label for the originating BUFFER, or nil.
+Returns nil when BUFFER is not one of the beads views, so callers
+can skip the breadcrumb for an arbitrary caller."
+  (with-current-buffer buffer
+    (cond
+     ((derived-mode-p 'beads-list-mode) "list")
+     ((derived-mode-p 'beads-dashboard-mode) "dashboard")
+     ((derived-mode-p 'beads-status-mode) "status")
+     ((derived-mode-p 'beads-show-mode)
+      (if beads-show--issue-id
+          (format "detail %s" beads-show--issue-id)
+        "detail"))
+     (t nil))))
+
+(defun beads-show--format-db-label ()
+  "Return a `STORE · DATABASE' label for the current buffer, or nil.
+Returns nil for a remote store (opening and rendering a remote detail
+view performs no host I/O), and when the project is unknown.  The
+local database probe is best-effort and never signals."
+  (when (and beads-show--proj-name
+             (not (file-remote-p (or beads-show--project-dir ""))))
+    (let ((db (ignore-errors (beads--get-database-path))))
+      (if db
+          (format "%s · %s" beads-show--proj-name db)
+        beads-show--proj-name))))
+
+(defun beads-show--insert-store-line ()
+  "Insert the `Store' identity line when a store label is available."
+  (when-let* ((label (beads-show--format-db-label)))
+    (insert "  ")
+    (insert (propertize "Store" 'face 'beads-show-label-face))
+    (insert (propertize "  " 'face 'shadow))
+    (insert (propertize label 'face 'beads-show-value-face))
+    (insert "\n")))
+
+(defun beads-show--insert-breadcrumb ()
+  "Insert the breadcrumb line back to the originating view, if any."
+  (when (and beads-show--origin (buffer-live-p (cdr beads-show--origin)))
+    (let ((start (point))
+          (label (car beads-show--origin)))
+      (insert "  ")
+      (insert (propertize "↩ " 'face 'shadow))
+      (insert (propertize (format "Back to %s" label) 'face 'link))
+      (make-button start (point)
+                   'action (lambda (&rest _) (beads-show-goto-origin))
+                   'follow-link t
+                   'help-echo "Return to the originating view")
+      (insert "\n"))))
+
+(defun beads-show-goto-origin ()
+  "Pop back to the view that opened this detail buffer.
+Signals `user-error' when no live origin was recorded."
+  (interactive)
+  (if (and beads-show--origin (buffer-live-p (cdr beads-show--origin)))
+      (pop-to-buffer (cdr beads-show--origin))
+    (user-error "No originating view recorded")))
+
+(defconst beads-show--action-bar-builtins
+  '((?d "close" beads-actions-close)
+    (?C "claim" beads-actions-claim)
+    (?s "status" beads-actions-set-status)
+    (?# "priority" beads-actions-set-priority)
+    (?e "edit" beads-show-edit-field)
+    (?a "agent" beads-agent-prefix-map)
+    (?S "sling" beads-sling-dispatch)
+    (?c "comment" beads-show-compose-comment)
+    (?w "copy id" beads-show-copy-id)
+    (?? "dispatch" beads-dispatch))
+  "Built-in (KEY LABEL COMMAND) entries for the detail action bar.
+Entries whose command is not available (`beads-sling-dispatch' ships
+with the standalone sling work item) are dropped at render time.")
+
+(defun beads-show--action-bar-entries ()
+  "Return the (KEY . LABEL) entries for the detail action bar.
+Starts from `beads-show--action-bar-builtins' (dropping commands that
+are not yet defined) and appends `beads-actions-provider-actions' for
+the `:show' context, labelling provider entries by their command
+name."
+  (append
+   (cl-loop for (key label cmd) in beads-show--action-bar-builtins
+            when (or (commandp cmd) (keymapp cmd))
+            collect (cons (key-description (string key)) label))
+   (mapcar (lambda (entry)
+             (cons (car entry)
+                   (format "%s" (cdr entry))))
+           (beads-actions-provider-actions :show))))
+
+(defun beads-show--insert-action-bar ()
+  "Insert the detail action bar at the bottom of the buffer."
+  (insert "\n")
+  (insert (propertize (make-string 60 ?─) 'face 'shadow))
+  (insert "\n")
+  (let ((first t))
+    (dolist (entry (beads-show--action-bar-entries))
+      (unless first
+        (insert (propertize " · " 'face 'shadow)))
+      (insert (propertize (format " %s " (car entry)) 'face 'bold))
+      (insert (propertize (cdr entry) 'face 'shadow))
+      (setq first nil)))
+  (insert "\n"))
+
 (defun beads-show--render-issue (issue)
   "Render ISSUE data into current buffer.
 ISSUE must be a `beads-issue' EIEIO object.
@@ -1861,7 +2012,16 @@ buffer only shows sections that have data."
     ;; bde-go3g: beads.el: Magit-like Emacs interface for Beads
     ;; ○ Open  P1  Epic  Roman Scherer
     (insert (beads-show--format-title-line id title status priority type owner))
-    (insert "\n\n")  ; Blank line after header
+    (insert "\n")
+    ;; Identity block: a rule, the navigation hints, the store, and the
+    ;; breadcrumb back to the originating view (mockup §5a).
+    (insert (propertize (make-string 78 ?─) 'face 'shadow))
+    (insert "\n")
+    (insert (propertize "  q bury · g refresh · ? dispatch" 'face 'shadow))
+    (insert "\n")
+    (beads-show--insert-store-line)
+    (beads-show--insert-breadcrumb)
+    (insert "\n")
 
     ;; Created/Started/Updated line - use short dates with help-echo for full
     ;; timestamp
@@ -1929,12 +2089,8 @@ buffer only shows sections that have data."
     ;; Agent sessions (if any)
     (beads-show--insert-agent-section id)
 
-    ;; Footer with keybinding hints
-    (insert beads-show-section-separator)
-    (insert (propertize
-             "g:refresh  q:quit  RET:follow  ?:actions  M-.:xref  TAB:next  SPC:fold"
-             'face 'shadow))
-    (insert "\n")
+    ;; Action bar, built from the live commands plus extension providers.
+    (beads-show--insert-action-bar)
 
     ;; Enable URL linkification
     (goto-address-mode 1)
@@ -1999,7 +2155,8 @@ store-scoped buffer inherits its store."
    (list (beads-completion-read-issue "Show issue: " nil t nil
                                       'beads--issue-id-history)))
   ;; Capture caller's directory for command execution context
-  (let* ((store (or (beads-store-resolve directory) beads-store-directory))
+  (let* ((caller-buffer (current-buffer))
+         (store (or (beads-store-resolve directory) beads-store-directory))
          (caller-dir (or store default-directory))
          (default-directory caller-dir)
          (project-dir (if store
@@ -2018,6 +2175,14 @@ store-scoped buffer inherits its store."
             beads-show--project-dir project-dir
             beads-show--branch (beads-show--branch-for project-dir)
             beads-show--proj-name (beads--project-name-for-root project-dir))
+      ;; Record the originating beads view for the breadcrumb (nil when
+      ;; the caller is not a beads view, e.g. minibuffer completion).
+      (setq-local beads-show--origin
+                  (when (and (not (eq caller-buffer buffer))
+                             (buffer-live-p caller-buffer)
+                             (beads-show--origin-label caller-buffer))
+                    (cons (beads-show--origin-label caller-buffer)
+                          caller-buffer)))
       ;; Worktree sessions are a local concept, and registering one
       ;; walks git over TRAMP for a remote store.
       (unless (file-remote-p project-dir)
@@ -2394,11 +2559,16 @@ Set mark at beginning of section, move point to end, and activate region."
       (message "Section marked"))))
 
 (defun beads-show-follow-reference ()
-  "Follow issue reference at point or on current line."
+  "Follow the thing at point.
+On an agent session row, attach to that session (mockup §5a);
+otherwise follow the issue reference at point or on the current line."
   (interactive)
-  (if-let* ((issue-id (beads-show--extract-issue-at-point)))
-      (beads-show issue-id)
-    (message "No issue reference at point")))
+  (cond
+   ((get-text-property (point) 'beads-session)
+    (beads-show-attach-session-at-point))
+   ((beads-show--extract-issue-at-point)
+    (beads-show (beads-show--extract-issue-at-point)))
+   (t (message "No issue reference at point"))))
 
 (defun beads-show-follow-reference-other-window ()
   "Follow issue reference at point in other window."
