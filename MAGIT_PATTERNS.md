@@ -386,27 +386,41 @@ Forge uses hierarchical menu organization:
 2. **Category menus** - `forge-topic-menu`, `forge-topics-menu`
 3. **Specific action menus** - `forge-topic-state-menu`
 
-**Pattern for beads.el:**
-- `beads` - Top-level dispatch (defined in beads.el)
-- Category menus - `beads-create`, `beads-update`, `beads-close` (already
-  exist)
-- Add more specific menus as needed (e.g., `beads-label-menu`)
+beads.el follows the same split as Magit's status/dispatch pair:
 
-### Menu Reusability
+- `beads-status` is the Magit-like front door (`M-x beads`), not a
+  transient.
+- `beads-dispatch` - the single hand-built top-level dispatch on `?`,
+  opened from every beads buffer (`beads-menu.el`).
+- `beads-maintenance` - the admin/infrastructure menu on `!`.
+- Per-command auto-generated transients are demoted to the dispatch
+  backend: they remain reachable by name and from the menus, but they are
+  no longer the primary path.
 
-Forge defines reusable menu groups:
+Menus are always defined with `beads-define-prefix` / `beads-define-group`
+(`beads-prefix.el`), never bare `transient-define-prefix`: the wrappers
+tie a menu to the directory it was opened for, which keeps menus opened
+through `project-switch-project` working.  A custom prefix `:class` must
+derive from `beads-prefix`.
+
+### Menu Reusability and providers
+
+Forge inserts reusable menu groups by variable name; beads.el generalises
+that to runtime providers, so a downstream package can append a group
+without redefining the menu:
 
 ```elisp
-(defvar forge--topic-menus-group
-  '[:description forge--topic-menus-group-description
-    ("N m" forge-topics-menu)
-    ("N t" forge-topic-menu)])
+(defvar beads-menu-providers nil
+  "Functions returning transient groups appended to `beads-dispatch'.")
 ```
 
-These groups are inserted into multiple menus using the variable name.
-
-**Not needed for beads.el yet**, but could be useful if menus become
-very complex.
+Each provider is called with no arguments on every `?`, returns a list of
+group vectors acceptable to `transient-define-prefix`, and must be
+side-effect-free; the empty list is the standalone no-op.  `gascity.el`
+appends a `[City]` group this way.  The same provider shape recurs across
+the extension seams documented in `docs/ui-redesign.md`
+(`beads-dashboard-section-providers`, `beads-action-providers`,
+`beads-sling-target-functions`, ...).
 
 ## Command Implementation Patterns
 
