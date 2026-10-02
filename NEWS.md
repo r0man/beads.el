@@ -320,6 +320,28 @@ blocked and `✓` closed in every view.  The show buffer previously
 rendered `●` for closed and `✗` for blocked; those changed.  Agent
 outcome marks stay `✓` finished / `✗` failed.
 
+### Documentation: the redesigned architecture
+
+The UI redesign is documented for users and package authors:
+
+- New `docs/ui-redesign.md` covers the entry points, the universal
+  navigation contract, the view-technology rule, the full extension seam
+  list (REQ-020), the standalone/optional-integration split, and the
+  removed-surface inventory.
+- `docs/terminal-scrolling.md` now lives in beads.el (moved from
+  `gascity.el/docs/DESIGN-agent-scrolling.md`), renamed to the
+  `beads-terminal-tmux-*` symbols with the tmux attach, status mirror,
+  transparent mouse and Emacs scroll sub-mode.
+- The README architecture section is refreshed to the three-layer module
+  map, the entry points, and the extension model, and `MAGIT_PATTERNS.md`
+  records the dispatch/status split and menu providers.
+
+The documented surface changes: `M-x beads` opens the status board and
+`beads-dispatch` is the `?` menu; `beads-ops-menu.el`,
+`beads-advanced-menu.el` and `beads-more-menu` are gone; the QA and Custom
+agent roles are removed (Review QA mode and the sling freeform path
+replace them); `C-c b` is the reserved extension prefix.
+
 ### One movement scheme: TAB/S-TAB next thing, SPC toggles (breaking keys)
 
 Every beads.el view now moves the same way.  `TAB` (and `<tab>`) goes
