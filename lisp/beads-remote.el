@@ -598,5 +598,75 @@ standard compiled-entry locations.  Positive results are cached per
                 (puthash key t beads-remote--cache))
               found))))))
 
+;;; Host prewarm
+
+(defcustom beads-remote-prewarm-programs '("bd" "tmux" "infocmp")
+  "Programs `beads-remote-prewarm' resolves on an ssh-transport host.
+A package built on beads.el (gascity.el) may append its own programs,
+e.g. its `gc' executable, so one prewarm covers every remote spawn."
+  :type '(repeat string)
+  :group 'beads)
+
+(defvar beads-remote--prewarming (make-hash-table :test 'equal)
+  "Hosts (TRAMP prefixes) with a prewarm in flight or done.")
+
+(defun beads-remote-prewarm (&optional dir)
+  "Resolve `beads-remote-prewarm-programs' on DIR's host in the background.
+For an ssh-transport store (`beads-remote-ssh-pipe-p'): one local ssh
+pipe process (`beads-remote-ssh-command', no TRAMP I/O) runs
+`command -v' for the programs (and a relative `beads-executable')
+under the extended PATH and stores each absolute answer in the
+per-connection executable cache (`beads-remote--cache'), keyed
+\(REMOTE-PREFIX . NAME) exactly as `beads-remote-find-executable'
+reads it.  Once per host; a failed prewarm (non-zero exit, or the
+`beads-remote-sync-timeout' deadline) may run again later.  Returns
+nil at once — the resolution happens in the sentinel."
+  (let* ((dir (or dir default-directory))
+         (remote (file-remote-p dir)))
+    (when (and remote
+               (beads-remote-ssh-pipe-p dir)
+               (not (gethash remote beads-remote--prewarming)))
+      (puthash remote t beads-remote--prewarming)
+      (let* ((names (delete-dups
+                     (append beads-remote-prewarm-programs
+                             (and (stringp beads-executable)
+                                  (not (file-name-absolute-p beads-executable))
+                                  (list beads-executable)))))
+             (script (concat "for n in "
+                             (mapconcat #'shell-quote-argument names " ")
+                             "; do printf '%s %s\\n' \"$n\" "
+                             "\"$(command -v \"$n\" 2>/dev/null)\"; done"))
+             (chunks nil)
+             (default-directory temporary-file-directory)
+             proc)
+        (condition-case nil
+            (progn
+              (setq proc
+                    (make-process
+                     :name "beads-prewarm" :noquery t
+                     :command (beads-remote-ssh-command
+                               dir (list "sh" "-c" script))
+                     :connection-type 'pipe :file-handler nil :stderr nil
+                     :filter (lambda (_p chunk) (push chunk chunks))
+                     :sentinel
+                     (lambda (p _e)
+                       (when (memq (process-status p) '(exit signal))
+                         (if (not (eql (process-exit-status p) 0))
+                             (remhash remote beads-remote--prewarming)
+                           (dolist (line (split-string
+                                          (apply #'concat (nreverse chunks))
+                                          "\n" t))
+                             (let ((pair (split-string line " " t)))
+                               (when (and (= (length pair) 2)
+                                          (file-name-absolute-p (cadr pair)))
+                                 (puthash (cons remote (car pair)) (cadr pair)
+                                          beads-remote--cache)))))))))
+              (run-at-time (or beads-remote-sync-timeout 30) nil
+                           (lambda ()
+                             (when (process-live-p proc)
+                               (delete-process proc)))))
+          (error (remhash remote beads-remote--prewarming)))
+        nil))))
+
 (provide 'beads-remote)
 ;;; beads-remote.el ends here

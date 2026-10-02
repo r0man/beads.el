@@ -361,6 +361,14 @@ host-local path is taken on the caller's host.
   (`beads-remote-ssh-argv`, `beads-remote-ssh-pipe-argv`,
   `beads-remote-ssh-command`).  `beads-remote-search-path` now also
   covers `/run/current-system/profile/bin`.
+- Remote helpers for terminal attach: `beads-remote-localize-path`
+  re-prefixes a host-local path for a remote view (pure, no I/O),
+  `beads-remote-terminfo-p` probes the host's terminfo with `infocmp`
+  and a compiled-entry sweep (positive results cached per
+  connection x TERM), and `beads-remote-prewarm` resolves
+  `beads-remote-prewarm-programs` on an ssh-transport host in the
+  background so the first attach need not run a synchronous
+  executable probe.
 
 ### `beads-show` links only real bead ids
 

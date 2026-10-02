@@ -257,6 +257,94 @@ against a remote store would read the wrong backend."
               (should (= (plist-get outcome :max-concurrent) 8))))
         (delete-directory dir t)))))
 
+;;; Path, terminfo and prewarm helpers
+
+(ert-deftest beads-remote-test-localize-path ()
+  "Host-local bd paths are re-prefixed for a remote view; locals untouched.
+Pure name surgery — disassembly of syntactic TRAMP names never
+connects, so this is safe at render time."
+  ;; Local context: unchanged.
+  (let ((default-directory "/"))
+    (should (equal (beads-remote-localize-path "/wd") "/wd")))
+  ;; Remote context: prefixed with the view's TRAMP prefix.
+  (let ((default-directory "/ssh:u@h:/home/u/city/"))
+    (should (equal (beads-remote-localize-path "/wd") "/ssh:u@h:/wd"))
+    ;; An already-remote path passes through; nil/empty degrade unchanged.
+    (should (equal (beads-remote-localize-path "/ssh:u@h:/x")
+                   "/ssh:u@h:/x"))
+    (should (null (beads-remote-localize-path nil)))
+    (should (equal (beads-remote-localize-path "") "")))
+  ;; Explicit DIR overrides `default-directory'.
+  (should (equal (beads-remote-localize-path "/wd" "/ssh:u@h:/city/")
+                 "/ssh:u@h:/wd")))
+
+(ert-deftest beads-remote-test-terminfo-p ()
+  "Terminfo probe: infocmp first, then the compiled-entry sweep;
+positive results cached per (connection x TERM); local trivially t."
+  ;; Local: the terminal backend owns TERM/terminfo.
+  (let ((default-directory "/"))
+    (should (beads-remote-terminfo-p "xterm-ghostty")))
+  ;; The candidate list is pure: ~/.terminfo first, first-char keyed.
+  (should (equal (car (beads-remote--terminfo-candidates
+                       "xterm-ghostty" "/ssh:u@h:"))
+                 "/ssh:u@h:~/.terminfo/x/xterm-ghostty"))
+  (clrhash beads-remote--cache)
+  (unwind-protect
+      (let ((infocmp-exit 1) (files nil) (sweeps 0))
+        (cl-letf (((symbol-function 'beads-remote-find-executable)
+                   (lambda (name &optional _dir) name))
+                  ((symbol-function 'process-file)
+                   (lambda (&rest _) infocmp-exit))
+                  ((symbol-function 'file-exists-p)
+                   (lambda (file) (cl-incf sweeps) (and (member file files) t))))
+          (let ((default-directory "/ssh:u@h:/city/"))
+            ;; Nowhere: reported missing, and NOT cached (installing heals).
+            (should-not (beads-remote-terminfo-p "xterm-ghostty"))
+            ;; Installed under ~/.terminfo: the sweep finds it, cached.
+            (setq files '("/ssh:u@h:~/.terminfo/x/xterm-ghostty"))
+            (should (beads-remote-terminfo-p "xterm-ghostty"))
+            (setq sweeps 0)
+            (should (beads-remote-terminfo-p "xterm-ghostty"))
+            (should (= sweeps 0))       ; cache hit — no re-probe
+            ;; infocmp exit 0 is authoritative: no sweep at all.
+            (setq infocmp-exit 0 sweeps 0)
+            (should (beads-remote-terminfo-p "tmux-256color"))
+            (should (= sweeps 0)))))
+    (clrhash beads-remote--cache)))
+
+(ert-deftest beads-remote-test-prewarm-caches-resolutions ()
+  "Prewarm resolves programs on an ssh-transport host into the shared cache.
+The ssh argv builder and transport predicate are stubbed so the local
+`sh' runs the probe script; a real program lands in the cache, a bogus
+one does not, and the cache key matches `beads-remote-find-executable'."
+  (let ((default-directory "/ssh:u@h:/city/")
+        (beads-remote-prewarm-programs
+         '("sh" "beads-remote-test-no-such-prog"))
+        (beads-executable "bd"))
+    (clrhash beads-remote--cache)
+    (clrhash beads-remote--prewarming)
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads-remote-ssh-pipe-p)
+                   (lambda (&optional _dir) t))
+                  ((symbol-function 'beads-remote-ssh-command)
+                   (lambda (_dir argv &rest _) argv)))
+          (should (null (beads-remote-prewarm)))
+          (let* ((remote (file-remote-p default-directory))
+                 (key (cons remote "sh"))
+                 (deadline (+ (float-time) 10)))
+            (while (and (null (gethash key beads-remote--cache))
+                        (< (float-time) deadline))
+              (accept-process-output nil 0.1))
+            (should (stringp (gethash key beads-remote--cache)))
+            (should (file-name-absolute-p (gethash key beads-remote--cache)))
+            (should-not (gethash (cons remote "beads-remote-test-no-such-prog")
+                                 beads-remote--cache)))
+          ;; A local directory is a no-op.
+          (let ((default-directory "/"))
+            (should (null (beads-remote-prewarm)))))
+      (clrhash beads-remote--cache)
+      (clrhash beads-remote--prewarming))))
+
 ;;; Remote-qualified buffer names (syntactic, no connection)
 
 (ert-deftest beads-remote-test-project-context-qualified ()
