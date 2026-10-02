@@ -54,6 +54,18 @@ defcustoms.
   demotes the rest behind an `... other` overflow without
   unregistering them.
 
+### Sectioned, keyboard-driven bead list (WI-7)
+
+The bead list (`beads-list-mode`, used by `beads-list-issues`,
+`beads-ready` and `beads-blocked`) is now a sectioned porcelain.  Issues
+are grouped into collapsible status sections (`▾ In progress (2)`),
+with a header line showing the issue count, per-status counts and the
+active filter, a full mode-line action bar, and `N`/`P` section motion.
+`SPC` on a section header folds it; `x` clears the active filter.
+`beads-list-group-by-status` (default t) controls the grouped layout;
+nil restores the flat table with `tabulated-list-mode` column sorting.
+The retained `/` filter transient is unchanged.
+
 ### The status buffer is now the entry point (breaking key: `M-x beads`)
 
 `M-x beads` (and `beads`) opens the new hand-built, vui-sectioned

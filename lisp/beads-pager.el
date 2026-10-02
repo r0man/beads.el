@@ -136,12 +136,17 @@ Clamps `beads-pager--page' to the valid range before slicing."
   "Set all ENTRIES for pagination and display page 1.
 Call this instead of setting `tabulated-list-entries' directly.
 When `beads-pager-mode' is not active this falls back to setting
-`tabulated-list-entries' and calling `tabulated-list-print'."
+`tabulated-list-entries' and calling `tabulated-list-print'.
+Empty ENTRIES clear the buffer rather than leaving stale rows."
   (if (bound-and-true-p beads-pager-mode)
       (progn
         (setq beads-pager--all-entries entries
               beads-pager--page 1)
-        (beads-pager--apply))
+        (if entries
+            (beads-pager--apply)
+          (setq tabulated-list-entries nil)
+          (tabulated-list-print t)
+          (force-mode-line-update)))
     (setq tabulated-list-entries entries)
     (tabulated-list-print t)))
 

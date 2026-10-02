@@ -236,7 +236,7 @@ stores the spec in `beads-list--spec', and calls
     (when (oref effective-spec ready-only)
       (oset cmd ready t))
     ;; Execute and populate
-    (let ((issues (beads-command-execute cmd)))
+    (let ((issues (beads-list--fetch (lambda () (beads-command-execute cmd)))))
       (setq beads-list--spec effective-spec)
       (beads-list--populate-buffer issues 'list cmd))))
 
