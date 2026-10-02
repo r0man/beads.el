@@ -217,5 +217,214 @@ The default provider runs first, so its target wins over the extension."
   (should-not (beads-sling-target-p nil))
   (should-not (beads-sling-target-p "x")))
 
+;;; WI-11 — adaptive transient and preview (REQ-009)
+
+(ert-deftest beads-sling-test-header-sentence-shapes ()
+  "The header sentence follows the inferred shape (mockup §6).
+Shape inference is wired to the header: the same function renders the
+plain, cold, formula and on sentences."
+  :tags '(:unit)
+  (should (equal (beads-sling--header-sentence "be-abcd" nil "beads.el/task")
+                 "Sling bead be-abcd to beads.el/task"))
+  (should (equal (beads-sling--header-sentence nil nil nil)
+                 "Sling (no work — A or point at a bead) to (no target — T or default)"))
+  (should (equal (beads-sling--header-sentence nil "pancakes" nil)
+                 "Run pancakes (formula) locally"))
+  (should (equal (beads-sling--header-sentence
+                  "be-abcd" "build-basic" "beads.el/task")
+                 "Run build-basic against bead be-abcd, drained by beads.el/task"))
+  (should (equal (beads-sling--header-sentence
+                  "summarise the blockers" nil "beads.el/task")
+                 "Sling summarise the blockers to beads.el/task")))
+
+(ert-deftest beads-sling-test-footer-ready-and-warnings ()
+  "The live footer renders ready and warning states (mockup §6f)."
+  :tags '(:unit)
+  (let ((beads-sling-validators nil))
+    (should (equal (beads-sling--footer
+                    (list :shape 'plain :work "be-abcd"
+                          :target "beads.el/task" :recipe nil :values nil))
+                   "✓ Ready — local route · target beads.el/task · no vars"))
+    (should (equal (beads-sling--footer
+                    (list :shape 'plain :work "freeform text"
+                          :target "beads.el/task" :recipe nil :values nil))
+                   "✓ Ready — local route · target beads.el/task · freeform work"))
+    (should (string-prefix-p
+             "⚠ No target chosen"
+             (beads-sling--footer
+              (list :shape 'plain :work "be-abcd"
+                    :target nil :recipe nil :values nil))))
+    (let ((recipe (beads-formula
+                   :name "build-basic"
+                   :vars (list (beads-formula-var :name "artifact_root" :required t)
+                               (beads-formula-var :name "max_iterations")))))
+      (should (string-match-p
+               "Missing required vars: artifact_root"
+               (beads-sling--footer
+                (list :shape 'on :work "be-abcd" :formula "build-basic"
+                      :target "beads.el/task" :recipe recipe :values nil))))
+      (should (equal (beads-sling--footer
+                      (list :shape 'on :work "be-abcd" :formula "build-basic"
+                            :target "beads.el/task" :recipe recipe
+                            :values '(("artifact_root" . "plans/x/"))))
+                     "✓ Ready — on run · target beads.el/task · 1 of 2 vars set")))))
+
+(ert-deftest beads-sling-test-var-class-heuristic ()
+  "Typed How readers are chosen from the var's declared shape."
+  :tags '(:unit)
+  (should (eq (beads-sling--var-class
+               (beads-formula-var :name "x" :enum '("a" "b")))
+              'beads-sling--enum-option))
+  (should (eq (beads-sling--var-class
+               (beads-formula-var :name "x" :var-type "bool"))
+              'beads-sling--bool-option))
+  (should (eq (beads-sling--var-class
+               (beads-formula-var :name "x" :var-type "int"))
+              'beads-sling--numeric-option))
+  (should (eq (beads-sling--var-class
+               (beads-formula-var :name "context_path"))
+              'beads-sling--file-option))
+  (should (eq (beads-sling--var-class
+               (beads-formula-var :name "artifact_root"))
+              'beads-sling--directory-option))
+  (should (eq (beads-sling--var-class
+               (beads-formula-var :name "implementation_target"))
+              'beads-sling--agent-option))
+  (should (eq (beads-sling--var-class
+               (beads-formula-var :name "max_iterations" :default "10"))
+              'beads-sling--numeric-option))
+  (should (eq (beads-sling--var-class (beads-formula-var :name "title"))
+              'beads-sling--string-option))
+  (should (equal (beads-sling--class-tag 'beads-sling--file-option) "[file]"))
+  (should-not (beads-sling--class-tag 'beads-sling--string-option)))
+
+(ert-deftest beads-sling-test-var-keys-deterministic-and-reserved ()
+  "Generated var keys are unique, deterministic and avoid reserved keys."
+  :tags '(:unit)
+  (let* ((vars (list (beads-formula-var :name "artifact_root")
+                     (beads-formula-var :name "context_path")
+                     (beads-formula-var :name "max_iterations")
+                     (beads-formula-var :name "implementation_target")))
+         (first (mapcar #'car
+                        (beads-sling--assign-var-keys
+                         vars beads-sling--reserved-keys)))
+         (second (mapcar #'car
+                         (beads-sling--assign-var-keys
+                          vars beads-sling--reserved-keys))))
+    (should (equal first second))
+    (should (= (length first) (length (delete-dups (copy-sequence first)))))
+    (dolist (key first)
+      (should-not (member (substring key 0 1) beads-sling--reserved-keys)))))
+
+(ert-deftest beads-sling-test-var-children ()
+  "The How group renders one typed infix per var, or nothing."
+  :tags '(:unit)
+  (let* ((formula (beads-formula
+                   :name "build-basic"
+                   :vars (list (beads-formula-var :name "artifact_root" :required t)
+                               (beads-formula-var :name "max_iterations" :var-type "int"))))
+         (group (beads-sling--var-children formula beads-sling--reserved-keys)))
+    (should group)
+    (should (equal (aref group 0) "How — build-basic vars"))
+    (should (= (length group) 3))
+    (let ((specs (cdr (append group nil))))
+      (dolist (spec specs)
+        (should (eq (nth 2 spec) 'beads-sling--set-var))
+        (should (memq :class spec))))
+    (should-not (beads-sling--var-children
+                 (beads-formula :name "pancakes") beads-sling--reserved-keys))))
+
+(ert-deftest beads-sling-test-current-values ()
+  "`beads-sling--current-values' parses only the picked formula's vars."
+  :tags '(:unit)
+  (let ((recipe (beads-formula
+                 :name "build-basic"
+                 :vars (list (beads-formula-var :name "artifact_root")
+                             (beads-formula-var :name "max_iterations")))))
+    (cl-letf (((symbol-function 'transient-args)
+               (lambda (_prefix)
+                 '("--var artifact_root=plans/x/"
+                   "--var max_iterations=10"
+                   "--var stale_var=ignored"
+                   "--var max_iterations="))))
+      (should (equal (beads-sling--current-values recipe)
+                     '(("artifact_root" . "plans/x/")
+                       ("max_iterations" . "10")))))))
+
+(ert-deftest beads-sling-test-stage-collapse-and-shape ()
+  "Stages collapse to one answered line; How/Routing track the shape."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-sling--project-label)
+             (lambda () "beads.el"))
+            ((symbol-function 'beads-sling--derived-target-name)
+             (lambda () "beads.el/task")))
+    (let* ((recipe (beads-formula
+                    :name "build-basic"
+                    :vars (list (beads-formula-var :name "artifact_root"))))
+           (plain (beads-sling--children-specs
+                   '(:work "be-abcd" :formula nil :recipe nil :target nil)))
+           (formula (beads-sling--children-specs
+                     (list :work "be-abcd" :formula "build-basic"
+                           :recipe recipe :target nil)))
+           (plain-titles (mapcar (lambda (group) (aref group 0)) plain))
+           (formula-titles (mapcar (lambda (group) (aref group 0)) formula)))
+      (should (member "What" plain-titles))
+      (should (member "Who" plain-titles))
+      (should (member "Actions" plain-titles))
+      (should (member "Routing flags" plain-titles))
+      (should-not (member "How — build-basic vars" plain-titles))
+      (should (member "How — build-basic vars" formula-titles))
+      (should-not (member "Routing flags" formula-titles))
+      ;; The What line carries its answer (stage collapse).
+      (let* ((what (cl-find "What" plain :key (lambda (g) (aref g 0))
+                            :test #'equal))
+             (work-line (aref what 1)))
+        (should (equal (funcall (nth 1 work-line) nil) "Work: be-abcd"))))))
+
+(ert-deftest beads-sling-test-preview-paints-sections ()
+  "The `P' preview renders header, Validation, Recipe and plan."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-sling--project-label)
+             (lambda () "beads.el"))
+            ((symbol-function 'beads-sling-validate)
+             (lambda (_context) nil)))
+    (let* ((recipe (beads-formula
+                    :name "build-basic"
+                    :vars (list (beads-formula-var :name "artifact_root" :required t))
+                    :steps (list (beads-formula-step :id "prepare" :title "prepare"
+                                                     :needs '("artifact_root")))))
+           (context (list :shape 'on :work "be-abcd" :formula "build-basic"
+                          :target "beads.el/task" :recipe recipe
+                          :values '(("artifact_root" . "plans/x/"))))
+           (buffer (generate-new-buffer " *beads-sling-preview-test*")))
+      (unwind-protect
+          (progn
+            (beads-sling--preview-paint buffer context)
+            (with-current-buffer buffer
+              (should (string-match-p
+                       "Run build-basic against bead be-abcd"
+                       (buffer-string)))
+              (should (string-match-p "Validation" (buffer-string)))
+              (should (string-match-p "✓ target beads.el/task" (buffer-string)))
+              (should (string-match-p "Recipe — build-basic" (buffer-string)))
+              (should (string-match-p "prepare" (buffer-string)))
+              (should (string-match-p "Routing plan" (buffer-string)))))
+        (kill-buffer buffer)))))
+
+(ert-deftest beads-sling-test-preview-launch-never-gated ()
+  "`s' in the preview launches exactly the stored context."
+  :tags '(:unit)
+  (let ((captured nil)
+        (buffer (generate-new-buffer " *beads-sling-preview-launch-test*")))
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads-sling--launch)
+                   (lambda (context) (setq captured context) 'session)))
+          (with-current-buffer buffer
+            (beads-sling-preview-mode)
+            (setq beads-sling-preview--context '(:shape plain :work "be-abcd"))
+            (beads-sling-preview-launch))
+          (should (equal captured '(:shape plain :work "be-abcd"))))
+      (kill-buffer buffer))))
+
 (provide 'beads-sling-test)
 ;;; beads-sling-test.el ends here
