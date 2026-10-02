@@ -31,6 +31,8 @@
 (require 'beads-command-diff)
 (require 'beads-command-history)
 
+(require 'beads-menu)
+
 ;;; Test Utilities
 
 (defun beads-main-test--reset-cache ()
@@ -329,8 +331,12 @@
   (should (fboundp 'beads)))
 
 (ert-deftest beads-main-test-transient-is-prefix ()
-  "Test that beads is a transient prefix."
-  (should (get 'beads 'transient--prefix)))
+  "Test that beads-dispatch is the transient prefix."
+  ;; `M-x beads' is the status-buffer entry point now (REQ-001); the
+  ;; former prefix moved to `beads-menu.el' as `beads-dispatch'.
+  (should (get 'beads-dispatch 'transient--prefix))
+  (should-not (get 'beads 'transient--prefix))
+  (should (commandp 'beads)))
 
 (ert-deftest beads-main-test-transient-has-autoload ()
   "Test that beads command has autoload cookie.

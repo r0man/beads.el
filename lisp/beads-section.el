@@ -169,7 +169,13 @@ When ISSUES is nil this component renders nothing."
 
 (defvar-keymap beads-section-mode-map
   :parent vui-mode-map
-  "RET" #'beads-section-visit-issue)
+  "RET" #'beads-section-visit-issue
+  ;; REQ-002 universal navigation contract: q buries, g refreshes,
+  ;; ? opens the hand-built dispatch menu.  TAB/S-TAB/SPC come from
+  ;; `beads-thing-define-keys' below.
+  "q" #'beads-section-quit
+  "g" #'beads-section-refresh
+  "?" #'beads-dispatch)
 
 ;; TAB/S-TAB move by thing, SPC toggles (dashboard-v3 §5.4).
 (beads-thing-define-keys beads-section-mode-map)
@@ -344,6 +350,23 @@ empty registry this returns an empty vstack (the standalone no-op)."
     (apply #'vui-vstack :spacing 1 vnodes)))
 
 ;;; Commands
+
+(defun beads-section-quit ()
+  "Bury the current beads section buffer.
+The REQ-002 `q' contract; every section-derived mode inherits it."
+  (interactive)
+  (quit-window))
+
+(defun beads-section-refresh ()
+  "Refresh the current beads section buffer in place.
+The REQ-002 `g' contract.  Section-derived modes are expected to
+override this with a view-specific refresh (e.g. the status buffer
+bumps its generation counter); this default refreshes through the
+buffer's `revert-buffer-function' when one is installed."
+  (interactive)
+  (if revert-buffer-function
+      (revert-buffer nil t)
+    (user-error "This view does not support refresh")))
 
 ;;;###autoload
 (defun beads-section-visit-issue ()

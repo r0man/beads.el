@@ -109,12 +109,12 @@ Signals an error if the transient fails to open."
 ;;; ============================================================
 
 (ert-deftest beads-live-test-main-menu-renders ()
-  "Live: M-x beads opens the main transient menu without error."
+  "Live: M-x beads-dispatch opens the main transient menu without error."
   :tags '(:live :transient)
   (skip-unless (beads-live-test--interactive-p))
   (skip-unless (executable-find beads-executable))
   (beads-test-with-temp-repo (:init-beads t)
-    (should (beads-live-test--open-transient-and-quit 'beads))))
+    (should (beads-live-test--open-transient-and-quit 'beads-dispatch))))
 
 ;;; ============================================================
 ;;; Scenario 2: Create Issue End-to-End

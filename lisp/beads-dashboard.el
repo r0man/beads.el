@@ -25,7 +25,6 @@
 (require 'beads-prefix)
 (require 'beads-command-dep)
 (require 'beads-dashboard-sections)
-(require 'beads-status)
 (require 'beads-agent-keys)
 
 (declare-function beads-actions-claim "beads-actions")

@@ -21,7 +21,7 @@
 ;;
 ;; Usage:
 ;;
-;;   M-x beads RET        ; Open main transient menu
+;;   M-x beads RET        ; Open the status buffer (press ? for the menu)
 ;;   M-x beads-list RET   ; List all issues
 ;;   M-x beads-ready RET  ; Show ready work
 ;;
@@ -290,54 +290,12 @@ until WI-9 folds them into the redesigned dispatch."
   ["Actions"
    ("q" "Quit" transient-quit-one)])
 
-;;;###autoload (autoload 'beads "beads" nil t)
-(beads-define-prefix beads ()
-  "Main transient menu for Beads issue tracker.
-
-This is the primary entry point for beads.el, providing a Magit-like
-interface for all issue tracking operations.  The menu is organized
-into a compact hierarchical structure with sub-dispatches."
-  ;; REQ-003/REQ-024: the primary dispatch is hand-built.  Auto-generated
-  ;; per-command transients are not bound here; `beads-commands-menu'
-  ;; (`a') is the reach-through backend for them.
-  [:description
-   (lambda () (beads-main--format-project-header))
-   :class transient-row
-   ("" "" ignore :if (lambda () nil))]
-  [["Issues"
-    ("l" "List" beads-list)
-    ("c" "Create" beads-compose-create)
-    ("i" "Show" beads-show)
-    ("u" "Update" beads-update)
-    ("x" "Close" beads-actions-close)]
-   ["Workflow"
-    ("r" "Ready" beads-ready)
-    ("b" "Blocked" beads-blocked)
-    ("d" "Dependencies" beads-dep)
-    ("e" "Edit" beads-edit)
-    ("o" "Reopen" beads-actions-reopen)]
-   ["Views"
-    ("s" "Dashboard" beads-dashboard)
-    ("S" "Stats" beads-stats)
-    ("v" "Graph" beads-graph-all)
-    ("E" "Epic" beads-epic-menu)]
-   ["Manage"
-    ("L" "Labels" beads-label-menu)
-    ("F" "Formula" beads-formula-menu)
-    ("m" "Molecule" beads-mol)
-    ("k" "Dolt" beads-dolt)
-    ("." "Config" beads-config)]]
-  [["Context"
-    :if beads--in-beads-buffer-p
-    ("#" "Set priority" beads-actions-set-priority)
-    ("C" "Claim" beads-actions-claim)
-    ("?" "Actions..." beads-show-actions)]
-   ["Actions"
-    ("!" "Ops..." beads-ops-menu)
-    (">" "Advanced..." beads-advanced-menu)
-    ("a" "All commands..." beads-commands-menu)
-    ("g" "Refresh" beads-refresh-menu)
-    ("q" "Quit" transient-quit-one)]])
+;;; Main Transient Menu
+;;
+;; The main dispatch menu moved to `beads-menu.el' as `beads-dispatch'
+;; (opened with `?'); `M-x beads' now opens the status buffer.  See
+;; `beads-status.el' for the entry point and `beads-menu.el' for the
+;; transient definition.
 
 ;;; Info/Debug Command
 
@@ -417,9 +375,17 @@ which shows daemon status and database statistics."
 ;;;###autoload
 (autoload 'beads-delete "beads-command-delete" nil t)
 
-;; beads-status (deprecated compat shim)
+;; beads-status (the real status buffer, REQ-001)
 ;;;###autoload
 (autoload 'beads-status "beads-status" nil t)
+
+;; `M-x beads' is the status-buffer front door (REQ-001).
+;;;###autoload
+(autoload 'beads "beads-status" nil t)
+
+;; beads-dispatch (the main menu, REQ-004)
+;;;###autoload
+(autoload 'beads-dispatch "beads-menu" nil t)
 
 ;; beads-dashboard
 ;;;###autoload
