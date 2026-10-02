@@ -541,21 +541,21 @@ Signals an error if the transient fails to open."
   (beads-test-with-temp-repo (:init-beads t)
     (should (beads-live-test--open-transient-and-quit 'beads-list-filter-menu))))
 
-(ert-deftest beads-live-test-advanced-menu-renders ()
-  "Live: beads-advanced-menu transient opens without error."
+(ert-deftest beads-live-test-dispatch-menu-renders ()
+  "Live: beads-dispatch transient opens without error."
   :tags '(:live :transient)
   (skip-unless (beads-live-test--interactive-p))
   (skip-unless (executable-find beads-executable))
   (beads-test-with-temp-repo (:init-beads t)
-    (should (beads-live-test--open-transient-and-quit 'beads-advanced-menu))))
+    (should (beads-live-test--open-transient-and-quit 'beads-dispatch))))
 
-(ert-deftest beads-live-test-ops-menu-renders ()
-  "Live: beads-ops-menu transient opens without error."
+(ert-deftest beads-live-test-maintenance-menu-renders ()
+  "Live: beads-maintenance transient opens without error."
   :tags '(:live :transient)
   (skip-unless (beads-live-test--interactive-p))
   (skip-unless (executable-find beads-executable))
   (beads-test-with-temp-repo (:init-beads t)
-    (should (beads-live-test--open-transient-and-quit 'beads-ops-menu))))
+    (should (beads-live-test--open-transient-and-quit 'beads-maintenance))))
 
 ;;; ============================================================
 ;;; Scenario 11: Creation Readers

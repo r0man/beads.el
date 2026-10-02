@@ -592,15 +592,15 @@ by checking if the function is available after requiring beads."
 ;;; Hierarchical Dispatch Tests
 ;;; ============================================================
 
-(ert-deftest beads-main-test-ops-menu-defined ()
-  "Test that beads-ops-menu sub-dispatch is defined."
-  (should (fboundp 'beads-ops-menu))
-  (should (get 'beads-ops-menu 'transient--prefix)))
+(ert-deftest beads-main-test-dispatch-menu-defined ()
+  "Test that the beads-dispatch menu is defined."
+  (should (fboundp 'beads-dispatch))
+  (should (get 'beads-dispatch 'transient--prefix)))
 
-(ert-deftest beads-main-test-advanced-menu-defined ()
-  "Test that beads-advanced-menu sub-dispatch is defined."
-  (should (fboundp 'beads-advanced-menu))
-  (should (get 'beads-advanced-menu 'transient--prefix)))
+(ert-deftest beads-main-test-maintenance-menu-defined ()
+  "Test that the merged beads-maintenance menu is defined (REQ-023)."
+  (should (fboundp 'beads-maintenance))
+  (should (get 'beads-maintenance 'transient--prefix)))
 
 (ert-deftest beads-main-test-reopen-accessible ()
   "Test that beads-reopen is accessible."
