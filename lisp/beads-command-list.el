@@ -40,6 +40,7 @@
 (require 'beads-agent-keys)
 (require 'beads-buffer)
 (require 'beads-command)
+(require 'beads-faces)
 (require 'beads-command-blocked)
 (require 'beads-command-ready)
 (require 'beads-meta)
@@ -680,61 +681,72 @@ alphabetically."
 ;;; Faces
 
 (defface beads-list-status-open
-  '((t :inherit font-lock-keyword-face))
-  "Face for open status."
+  '((t :inherit beads-face-status-open))
+  "Face for open status.
+Derived from the canonical `beads-face-status-open'."
   :group 'beads-list)
 
 (defface beads-list-status-in-progress
-  '((t :inherit font-lock-warning-face))
-  "Face for in_progress status."
+  '((t :inherit beads-face-status-in-progress))
+  "Face for in_progress status.
+Derived from the canonical `beads-face-status-in-progress'."
   :group 'beads-list)
 
 (defface beads-list-status-blocked
-  '((t :inherit error))
-  "Face for blocked status."
+  '((t :inherit beads-face-status-blocked))
+  "Face for blocked status.
+Derived from the canonical `beads-face-status-blocked'."
   :group 'beads-list)
 
 (defface beads-list-status-closed
-  '((t :inherit shadow))
-  "Face for closed status."
+  '((t :inherit beads-face-status-closed))
+  "Face for closed status.
+Derived from the canonical `beads-face-status-closed'."
   :group 'beads-list)
 
 (defface beads-list-priority-critical
-  '((t :inherit error :weight bold))
-  "Face for priority 0 (critical)."
+  '((t :inherit beads-face-priority-critical))
+  "Face for priority 0 (critical).
+Derived from the canonical `beads-face-priority-critical'."
   :group 'beads-list)
 
 (defface beads-list-priority-high
-  '((t :inherit warning :weight bold))
-  "Face for priority 1 (high)."
+  '((t :inherit beads-face-priority-high))
+  "Face for priority 1 (high).
+Derived from the canonical `beads-face-priority-high'."
   :group 'beads-list)
 
 (defface beads-list-priority-medium
-  '((t :inherit default))
-  "Face for priority 2 (medium)."
+  '((t :inherit beads-face-priority-medium))
+  "Face for priority 2 (medium).
+Derived from the canonical `beads-face-priority-medium'."
   :group 'beads-list)
 
 (defface beads-list-priority-low
-  '((t :inherit shadow))
-  "Face for priority 3-4 (low/backlog)."
+  '((t :inherit beads-face-priority-low))
+  "Face for priority 3-4 (low/backlog).
+Derived from the canonical `beads-face-priority-low'."
   :group 'beads-list)
 
 (defface beads-list-agent-working
-  '((t :inherit warning :weight bold))
+  '((t :inherit beads-face-agent-running))
   "Face for agent working indicator (yellow circle).
-Inherits from `warning' face for theme consistency."
+Derived from the canonical `beads-face-agent-running' for theme
+consistency."
   :group 'beads-list)
 
 (defface beads-list-agent-finished
-  '((t :inherit success :weight bold))
+  '((t :inherit beads-face-success))
   "Face for agent finished indicator (green circle).
-Inherits from `success' face for theme consistency."
+Derived from the canonical `beads-face-success' for theme
+consistency."
   :group 'beads-list)
 
 (defface beads-list-agent-failed
-  '((t :inherit error :weight bold))
+  '((t :inherit beads-face-agent-failed))
   "Face for agent failed indicator (red circle).
-Inherits from `error' face for theme consistency."
+Derived from the canonical `beads-face-agent-failed' for theme
+consistency."
   :group 'beads-list)
 
 ;;; Variables

@@ -16,6 +16,7 @@
 
 (require 'eieio)
 (require 'beads-custom)
+(require 'beads-faces)
 (require 'beads-git)
 (require 'beads-remote)
 

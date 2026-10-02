@@ -40,6 +40,7 @@
 (require 'beads-buffer)
 (require 'beads-command)
 (require 'beads-command-dep)
+(require 'beads-faces)
 (require 'beads-eldoc)
 (require 'beads-command-label)
 (require 'beads-command-update)
@@ -226,13 +227,15 @@ Set to nil to disable truncation."
 ;;; Faces
 
 (defface beads-show-header-face
-  '((t :inherit font-lock-keyword-face :weight bold))
-  "Face for section headers in show buffer."
+  '((t :inherit beads-face-section))
+  "Face for section headers in show buffer.
+Derived from the canonical `beads-face-section'."
   :group 'beads-show)
 
 (defface beads-show-label-face
-  '((t :inherit font-lock-constant-face :weight bold))
-  "Face for metadata labels in show buffer."
+  '((t :inherit beads-face-key :weight bold))
+  "Face for metadata labels in show buffer.
+Derived from the canonical `beads-face-key'."
   :group 'beads-show)
 
 (defface beads-show-value-face
@@ -241,43 +244,51 @@ Set to nil to disable truncation."
   :group 'beads-show)
 
 (defface beads-show-status-open-face
-  '((t :inherit success :weight bold))
-  "Face for open status."
+  '((t :inherit beads-face-status-open))
+  "Face for open status.
+Derived from the canonical `beads-face-status-open'."
   :group 'beads-show)
 
 (defface beads-show-status-in-progress-face
-  '((t :inherit warning :weight bold))
-  "Face for in_progress status."
+  '((t :inherit beads-face-status-in-progress))
+  "Face for in_progress status.
+Derived from the canonical `beads-face-status-in-progress'."
   :group 'beads-show)
 
 (defface beads-show-status-blocked-face
-  '((t :inherit error :weight bold))
-  "Face for blocked status."
+  '((t :inherit beads-face-status-blocked))
+  "Face for blocked status.
+Derived from the canonical `beads-face-status-blocked'."
   :group 'beads-show)
 
 (defface beads-show-status-closed-face
-  '((t :inherit shadow :weight bold))
-  "Face for closed status."
+  '((t :inherit beads-face-status-closed))
+  "Face for closed status.
+Derived from the canonical `beads-face-status-closed'."
   :group 'beads-show)
 
 (defface beads-show-priority-critical-face
-  '((t :inherit error :weight bold))
-  "Face for priority 0 (critical)."
+  '((t :inherit beads-face-priority-critical))
+  "Face for priority 0 (critical).
+Derived from the canonical `beads-face-priority-critical'."
   :group 'beads-show)
 
 (defface beads-show-priority-high-face
-  '((t :inherit warning :weight bold))
-  "Face for priority 1 (high)."
+  '((t :inherit beads-face-priority-high))
+  "Face for priority 1 (high).
+Derived from the canonical `beads-face-priority-high'."
   :group 'beads-show)
 
 (defface beads-show-priority-medium-face
-  '((t :inherit default))
-  "Face for priority 2 (medium)."
+  '((t :inherit beads-face-priority-medium))
+  "Face for priority 2 (medium).
+Derived from the canonical `beads-face-priority-medium'."
   :group 'beads-show)
 
 (defface beads-show-priority-low-face
-  '((t :inherit shadow))
-  "Face for priority 3-4 (low/backlog)."
+  '((t :inherit beads-face-priority-low))
+  "Face for priority 3-4 (low/backlog).
+Derived from the canonical `beads-face-priority-low'."
   :group 'beads-show)
 
 (defface beads-show-code-face
@@ -881,28 +892,39 @@ function directly in your configuration."
 ;;; Utility Functions
 
 (defun beads-show--status-icon (status)
-  "Return Unicode status icon for STATUS.
-Icons match the bd CLI output:
+  "Return the canonical status icon for STATUS.
+Uses the one palette glyph set (`beads-face-status-glyph'):
   ○ = open
   ◐ = in_progress
-  ● = closed
-  ✗ = blocked"
+  ⛔ = blocked
+  ✓ = closed"
+  (beads-face-status-glyph status))
+
+(defun beads-show--status-face (status)
+  "Return the module face for STATUS (a palette alias).
+With `beads-faces.el' the returned face inherits the canonical
+`beads-face-status-*' face."
   (pcase status
-    ("open" "○")
-    ("in_progress" "◐")
-    ("closed" "●")
-    ("blocked" "✗")
-    (_ "?")))
+    ("open" 'beads-show-status-open-face)
+    ("in_progress" 'beads-show-status-in-progress-face)
+    ("blocked" 'beads-show-status-blocked-face)
+    ("closed" 'beads-show-status-closed-face)
+    (_ 'default)))
+
+(defun beads-show--priority-face (priority)
+  "Return the module face for PRIORITY (a palette alias).
+With `beads-faces.el' the returned face inherits the canonical
+`beads-face-priority-*' face."
+  (pcase priority
+    (0 'beads-show-priority-critical-face)
+    (1 'beads-show-priority-high-face)
+    (2 'beads-show-priority-medium-face)
+    (_ 'beads-show-priority-low-face)))
 
 (defun beads-show--format-status (status)
   "Return formatted STATUS string with appropriate face."
   (let ((text (upcase (or status "UNKNOWN")))
-        (face (pcase status
-                ("open" 'beads-show-status-open-face)
-                ("in_progress" 'beads-show-status-in-progress-face)
-                ("blocked" 'beads-show-status-blocked-face)
-                ("closed" 'beads-show-status-closed-face)
-                (_ 'default))))
+        (face (beads-show--status-face status)))
     (propertize text 'face face)))
 
 (defun beads-show--format-priority (priority)
@@ -916,11 +938,7 @@ Icons match the bd CLI output:
                     (3 "Low")
                     (4 "Backlog")
                     (_ "Unknown")))
-           (face (pcase priority
-                   (0 'beads-show-priority-critical-face)
-                   (1 'beads-show-priority-high-face)
-                   (2 'beads-show-priority-medium-face)
-                   (_ 'beads-show-priority-low-face))))
+           (face (beads-show--priority-face priority)))
       (propertize (format "%s (%s)" text label) 'face face))))
 
 (defun beads-show--format-date (date-string &optional short)
@@ -1434,8 +1452,8 @@ Returns:
            (or
             ;; Line 1: id: title (starts with word chars followed by colon)
             (looking-at "^[a-zA-Z0-9_.-]+: ")
-            ;; Line 2: starts with status icon (○, ◐, ●, ✓, ✗)
-            (looking-at "^[○◐●✓✗] ")))
+            ;; Line 2: starts with status icon (○, ◐, ⛔, ✓)
+            (looking-at "^[○◐⛔✓] ")))
       0)
      ;; Check if we're on a major section heading (UPPERCASE letters/spaces)
      ;; Examples: DEPENDS ON, DESCRIPTION, CHILDREN, BLOCKS

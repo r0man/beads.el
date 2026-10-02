@@ -26,6 +26,10 @@
 ;;   finished  ✓🦅          ✓T           beads-list-agent-finished
 ;;   failed    ✗🦅          ✗T           beads-list-agent-failed
 ;;
+;; The module faces above derive from the canonical `beads-face-*'
+;; palette (`beads-face-agent-running'/`beads-face-success'/
+;; `beads-face-agent-failed'); see `beads-faces.el'.
+;;
 ;; The outcome marks `✓' (U+2713) and `✗' (U+2717) are single-cell
 ;; ASCII-adjacent glyphs that render in TTY too, so the
 ;; shape-disambiguated status survives the GUI fallback.
@@ -34,6 +38,7 @@
 
 (require 'cl-lib)
 (require 'beads-agent-type)
+(require 'beads-faces)
 
 ;;; Customization
 
@@ -164,11 +169,13 @@ returns the single-letter abbreviation from TYPE's `letter' slot."
 (defvar beads-list-agent-finished)
 (defvar beads-list-agent-failed)
 
-(defconst beads-agent-display--outcome-mark-finished "✓"
+(defconst beads-agent-display--outcome-mark-finished
+  (beads-face-agent-outcome-glyph 'finished)
   "Outcome prefix for finished agent sessions (U+2713).
 Single-cell, ASCII-adjacent — renders in TTY too.")
 
-(defconst beads-agent-display--outcome-mark-failed "✗"
+(defconst beads-agent-display--outcome-mark-failed
+  (beads-face-agent-outcome-glyph 'failed)
   "Outcome prefix for failed agent sessions (U+2717).
 Single-cell, ASCII-adjacent — renders in TTY too.")
 
