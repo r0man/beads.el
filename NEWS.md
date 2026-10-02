@@ -32,11 +32,25 @@ the policy is testable, and `beads-meta` keeps generating them.
 
 ### Removed: QA and Custom agent roles (F3)
 
-The built-in QA and Custom agent *classes* are removed:
-`beads-agent-type-qa` and `beads-agent-type-custom` are undefined, as
-are the `beads-agent-start-qa` and `beads-agent-start-custom`
-commands and the `beads-agent-qa-backend` / `beads-agent-qa-prompt`
-defcustoms.
+### Agent-launch redesign (WI-12)
+
+The agent start menu is rebuilt as a single role → target → backend →
+prompt flow with a live readiness footer (mockup §8):
+
+- `beads-agent-start-menu` (aliased `beads-agent-launch`) now offers
+  the slimmed roster Task/Review/Plan, with Review's QA mode as a `Q`
+  toggle, a derived or chosen worktree target, a curated backend picker
+  (the demoted backends stay reachable under `… other`), and prompt
+  editing/preview before launch.
+- New `beads-agent-prompt-preview` renders the system role prompt and
+  the user issue envelope in a read-only buffer (mockup §8d).
+- New `beads-agent-attach` is the session-attach seam; until the
+  terminal migration (WI-14) lands it falls back to `beads-agent-jump`.
+- The sessions list (`beads-agent-list`) follows mockup §9:
+  Issue/Role/Backend/Status/Duration/Worktree columns, `RET` attach,
+  `j` jump, `x` stop, `X` stop all, `d` Dired on the worktree.
+- The lifecycle hook (`beads-agent-state-change-hook`) drives live
+  refresh of the sessions list (mockup §8e).
 
 - QA is now the **Review** role with a QA mode.  `Review` gains a
   `qa-mode` slot and a `beads-agent-type-review-qa` constructor; in QA
@@ -198,6 +212,30 @@ shadowing core internals:
 
 Every hook/provider is a no-op when empty, so beads.el remains fully
 standalone with no downstream package present.
+
+### Removed: QA and Custom agent roles (F3)
+
+The built-in QA and Custom agent *classes* are removed:
+`beads-agent-type-qa` and `beads-agent-type-custom` are undefined, as
+are the `beads-agent-start-qa` and `beads-agent-start-custom`
+commands and the `beads-agent-qa-backend` / `beads-agent-qa-prompt`
+defcustoms.
+
+- QA is now the **Review** role with a QA mode.  `Review` gains a
+  `qa-mode` slot and a `beads-agent-type-review-qa` constructor; in QA
+  mode it uses `beads-agent-review-qa-prompt` (the QA prompt text,
+  relocated) and the former QA output envelope.  Sessions remain
+  Review sessions.
+- Custom's freeform prompt is reached through the sling work-picker
+  escape rather than a role.
+- The `a q` / `a c` keys in `beads-agent-prefix-map` are freed and
+  reserved.
+- The `beads-agent-type` / `beads-agent-backend` registry APIs are
+  unchanged: users can still register an out-of-tree QA or Custom
+  role, and the launch UI's curated backend list
+  (`beads-agent-curated-backends`: claude-code, agent-shell, terminal)
+  demotes the rest behind an `... other` overflow without
+  unregistering them.
 
 ### One movement scheme: TAB/S-TAB next thing, SPC toggles (breaking keys)
 
