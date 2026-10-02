@@ -23,6 +23,7 @@
 (require 'cl-lib)
 (require 'beads-command-show)
 (require 'beads-dashboard)
+(require 'beads-status)
 
 (define-error 'beads-render-guard-io "File I/O while rendering a remote view")
 
@@ -231,6 +232,40 @@ The async callbacks run from a timer, as real sentinels do."
                     (beads-render-guard--drain)
                     (beads-dashboard-depth-all)
                     (beads-render-guard--drain))
+                  (should (= reads 0))))))))
+    (beads-render-guard--kill-remote-buffers)))
+
+(ert-deftest beads-render-guard-test-status-remote-store ()
+  "`beads-status' on a remote store opens and renders without file I/O."
+  :tags '(:unit)
+  (unwind-protect
+      (beads-render-guard--with-canned-reads
+        (beads-render-guard--with-guard
+          (cl-letf (((symbol-function 'pop-to-buffer) #'ignore))
+            (let ((default-directory temporary-file-directory))
+              (beads-status :directory "/guard:h:/srv/rig"))
+            (beads-render-guard--drain)
+            (let ((buf (seq-find (lambda (b)
+                                   (with-current-buffer b
+                                     (and (derived-mode-p 'beads-status-mode)
+                                          (equal beads-store-directory
+                                                 "/guard:h:/srv/rig/"))))
+                                 (buffer-list))))
+              (should buf)
+              (with-current-buffer buf
+                (should (string-match-p "rig" (buffer-string)))
+                ;; Sections rendered from the canned async reads.
+                (should (string-match-p "Guarded issue" (buffer-string)))
+                ;; Folding (SPC) stays off the host and never re-reads.
+                (let ((reads 0))
+                  (cl-letf (((symbol-function 'beads-command-execute-async)
+                             (lambda (&rest _) (cl-incf reads) 'queued)))
+                    (goto-char (point-min))
+                    (re-search-forward "^▾ .*Ready (")
+                    (beads-thing-toggle)
+                    (beads-render-guard--drain)
+                    (goto-char (point-min))
+                    (should (re-search-forward "^▸ .*Ready (1)" nil t)))
                   (should (= reads 0))))))))
     (beads-render-guard--kill-remote-buffers)))
 

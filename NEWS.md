@@ -4,6 +4,23 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### The status buffer is now the entry point (breaking key: `M-x beads`)
+
+`M-x beads` (and `beads`) opens the new hand-built, vui-sectioned
+**status buffer** (`beads-status`, `beads-status-mode`) instead of the
+transient menu.  The buffer summarises the store with four
+asynchronously loaded sections (In progress, Ready, Blocked, Recent
+activity) reusing the dashboard board loaders, and obeys the universal
+navigation contract: `q` buries, `g` refreshes in place, `TAB`/`S-TAB`
+move by thing, `SPC` folds, `RET` visits, `?` opens the menu.
+
+- The former `beads` transient prefix moved to `beads-menu.el` as
+  `beads-dispatch`; bind it with `?` (REQ-002, REQ-004).
+- `beads-dashboard` is unchanged and remains the full board.
+- Downstream packages extend the board with
+  `beads-section-register`/`beads-section-spec` or
+  `beads-dashboard-section-providers`.
+
 ### Extension seams for downstream packages
 
 beads.el exposes a documented magit/forge-style extension ABI
