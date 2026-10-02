@@ -65,25 +65,25 @@
       (should (string-match "0 backends" result)))))
 
 (ert-deftest beads-coverage-2-agent-start-format-header ()
-  "Test beads-agent-start--format-header."
-  (cl-letf (((symbol-function 'beads-agent--get-available-backends)
-             (lambda () '(a b)))
-            ((symbol-function 'beads-agent--detect-issue-id)
-             (lambda () "bd-42")))
+  "Test beads-agent-start--format-header names the launch issue."
+  (let ((beads-agent-launch--issue-id "bd-42")
+        (beads-agent-launch--role "Task")
+        (beads-agent-launch--qa-mode nil)
+        (beads-agent-launch--backend nil))
     (let ((result (beads-agent-start--format-header)))
       (should (stringp result))
       (should (string-match "bd-42" result))
-      (should (string-match "2 backend" result)))))
+      (should (string-match "Ready" result)))))
 
 (ert-deftest beads-coverage-2-agent-start-format-header-no-context ()
   "Test beads-agent-start--format-header without context."
-  (cl-letf (((symbol-function 'beads-agent--get-available-backends)
-             (lambda () '(a)))
-            ((symbol-function 'beads-agent--detect-issue-id)
-             (lambda () nil)))
+  (let ((beads-agent-launch--issue-id nil)
+        (beads-agent-launch--role "Task")
+        (beads-agent-launch--qa-mode nil)
+        (beads-agent-launch--backend nil))
     (let ((result (beads-agent-start--format-header)))
       (should (stringp result))
-      (should (string-match "Start AI Agent" result)))))
+      (should (string-match "Start agent" result)))))
 
 ;;; ============================================================
 ;;; beads-agent.el - Issue Detection Tests

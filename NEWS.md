@@ -4,6 +4,26 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Agent-launch redesign (WI-12)
+
+The agent start menu is rebuilt as a single role → target → backend →
+prompt flow with a live readiness footer (mockup §8):
+
+- `beads-agent-start-menu` (aliased `beads-agent-launch`) now offers
+  the slimmed roster Task/Review/Plan, with Review's QA mode as a `Q`
+  toggle, a derived or chosen worktree target, a curated backend picker
+  (the demoted backends stay reachable under `… other`), and prompt
+  editing/preview before launch.
+- New `beads-agent-prompt-preview` renders the system role prompt and
+  the user issue envelope in a read-only buffer (mockup §8d).
+- New `beads-agent-attach` is the session-attach seam; until the
+  terminal migration (WI-14) lands it falls back to `beads-agent-jump`.
+- The sessions list (`beads-agent-list`) follows mockup §9:
+  Issue/Role/Backend/Status/Duration/Worktree columns, `RET` attach,
+  `j` jump, `x` stop, `X` stop all, `d` Dired on the worktree.
+- The lifecycle hook (`beads-agent-state-change-hook`) drives live
+  refresh of the sessions list (mockup §8e).
+
 ### Standalone sling abstraction
 
 `beads-sling.el` now carries the full standalone sling surface, not

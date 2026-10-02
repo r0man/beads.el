@@ -15,14 +15,19 @@
 ;; Entry Point:
 ;;   M-x beads-agent-list    ; Open *beads-agents* buffer
 ;;
+;; Columns (mockup §9): Issue, Role, Backend, Status, Duration,
+;; Worktree.
+;;
 ;; Key bindings:
-;;   RET/j - Jump to agent buffer
+;;   RET   - Attach to the session (terminal attach once it lands)
+;;   j     - Jump to the session buffer
 ;;   i     - Show issue details
-;;   s     - Stop session at point
-;;   S     - Stop all sessions
+;;   x/s   - Stop session at point
+;;   X/S   - Stop all sessions
 ;;   r     - Restart session
+;;   d     - Open Dired on the session's worktree
 ;;   g     - Refresh buffer
-;;   q     - Quit buffer
+;;   q     - Bury buffer
 ;;   c     - Cleanup stale sessions
 ;;   n/p   - Navigate next/previous
 ;;   w     - Copy session ID
@@ -44,6 +49,8 @@
 (declare-function beads-agent-start "beads-agent")
 (declare-function beads-agent-stop "beads-agent")
 (declare-function beads-agent-jump "beads-agent")
+(declare-function beads-agent-attach "beads-agent")
+(declare-function beads-agent--get-session "beads-agent-backend")
 (declare-function beads-agent-cleanup-stale-sessions "beads-agent")
 (declare-function beads-show "beads-command-show")
 
@@ -214,11 +221,12 @@ the defcustom."
     (beads-agent-display-format-session session nil nil)))
 
 (defun beads-agent-list--session-to-entry (session)
-  "Convert SESSION (beads-agent-session object) to tabulated-list entry."
+  "Convert SESSION (beads-agent-session object) to tabulated-list entry.
+The columns follow mockup §9: Issue, Role, Backend, Status, Duration,
+Worktree.  The row's own title stays reachable at point via `i'."
   (let* ((session-id (oref session id))
          (issue-id (oref session issue-id))
-         (type-str (beads-agent-list--format-type session))
-         (title (beads-agent-list--get-title issue-id))
+         (role-str (beads-agent-list--format-type session))
          (backend-name (oref session backend-name))
          (status-str (beads-agent-list--format-status session))
          (duration-str (beads-agent-list--format-duration
@@ -226,8 +234,7 @@ the defcustom."
          (dir-str (beads-agent-list--format-directory session)))
     (list session-id
           (vector issue-id
-                  type-str
-                  title
+                  role-str
                   backend-name
                   status-str
                   duration-str
@@ -270,6 +277,26 @@ the defcustom."
   (if-let* ((session-id (beads-agent-list--current-session-id)))
       (beads-agent-jump session-id)
     (user-error "No session at point")))
+
+(defun beads-agent-list-attach ()
+  "Attach to the agent session at point.
+Attach goes through `beads-agent-attach', which uses the terminal
+attach path once it exists (WI-14) and otherwise jumps to the session
+buffer."
+  (interactive)
+  (if-let* ((session-id (beads-agent-list--current-session-id)))
+      (beads-agent-attach session-id)
+    (user-error "No session at point")))
+
+(defun beads-agent-list-dired ()
+  "Open Dired on the worktree of the session at point."
+  (interactive)
+  (if-let* ((session-id (beads-agent-list--current-session-id))
+            (session (beads-agent--get-session session-id))
+            (dir (or (oref session worktree-dir)
+                     (oref session project-dir))))
+      (dired dir)
+    (user-error "No directory for session at point")))
 
 (defun beads-agent-list-show-issue ()
   "Show details for the issue associated with session at point."
@@ -362,13 +389,16 @@ Stops the current session and starts a new one for the same issue."
     ;; Navigation
     (define-key map (kbd "n") #'beads-agent-list-next)
     (define-key map (kbd "p") #'beads-agent-list-previous)
-    (define-key map (kbd "RET") #'beads-agent-list-jump)
+    (define-key map (kbd "RET") #'beads-agent-list-attach)
     (define-key map (kbd "j") #'beads-agent-list-jump)
     ;; Actions
     (define-key map (kbd "i") #'beads-agent-list-show-issue)
+    (define-key map (kbd "x") #'beads-agent-list-stop)
     (define-key map (kbd "s") #'beads-agent-list-stop)
+    (define-key map (kbd "X") #'beads-agent-list-stop-all)
     (define-key map (kbd "S") #'beads-agent-list-stop-all)
     (define-key map (kbd "r") #'beads-agent-list-restart)
+    (define-key map (kbd "d") #'beads-agent-list-dired)
     (define-key map (kbd "c") #'beads-agent-list-cleanup)
     ;; Utilities
     (define-key map (kbd "g") #'beads-agent-list-refresh)
@@ -386,12 +416,11 @@ Stops the current session and starts a new one for the same issue."
 \\{beads-agent-list-mode-map}"
   (setq tabulated-list-format
         (vector (list "Issue" beads-agent-list-issue-width t)
-                (list "Type" beads-agent-list-type-width t)
-                (list "Title" beads-agent-list-title-width t)
+                (list "Role" beads-agent-list-type-width t)
                 (list "Backend" beads-agent-list-backend-width t)
                 (list "Status" beads-agent-list-status-width t)
                 (list "Duration" beads-agent-list-duration-width t)
-                (list "Directory" beads-agent-list-directory-width t)))
+                (list "Worktree" beads-agent-list-directory-width t)))
   (setq tabulated-list-padding 2)
   (setq tabulated-list-sort-key nil)
   (tabulated-list-init-header)
