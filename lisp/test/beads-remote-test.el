@@ -36,6 +36,7 @@
 (require 'beads-command-show)
 (require 'beads-buffer)
 (require 'beads-dashboard)
+(require 'beads-remote)
 
 ;;; Mock method infrastructure
 
@@ -372,6 +373,60 @@ current at creation."
                      (buffer-name)))))
       (when (buffer-live-p buffer)
         (kill-buffer buffer)))))
+
+;;; Pure remote helpers (WI-14 terminal-move prerequisites)
+
+(ert-deftest beads-remote-test-prefix ()
+  "`beads-remote-prefix' returns the TRAMP prefix, or nil when local.
+Pure: a host-only name is dissected, never expanded."
+  (should (equal (beads-remote-prefix "/ssh:user@example.com:/home/user")
+                 "/ssh:user@example.com:"))
+  (should (equal (beads-remote-prefix "/ssh:user@example.com:")
+                 "/ssh:user@example.com:"))
+  (should-not (beads-remote-prefix "/home/user"))
+  (should-not (beads-remote-prefix nil)))
+
+(ert-deftest beads-remote-test-localize-path ()
+  "A host-local path is re-prefixed for a remote DIR, untouched otherwise."
+  (should (equal (beads-remote-localize-path
+                  "/home/user/work" "/ssh:user@example.com:/city")
+                 "/ssh:user@example.com:/home/user/work"))
+  (should (equal (beads-remote-localize-path "/home/user/work" "/home/me")
+                 "/home/user/work"))
+  (should (equal (beads-remote-localize-path
+                  "/ssh:u@h:/x" "/ssh:user@example.com:/city")
+                 "/ssh:u@h:/x"))
+  (should-not (beads-remote-localize-path nil "/ssh:user@example.com:/city")))
+
+(ert-deftest beads-remote-test-buffer-name ()
+  "BASE is qualified by a remote DIR's prefix, or by an explicit qualifier."
+  (should (equal (beads-remote-buffer-name "*beads-agent-x*" "/home/me")
+                 "*beads-agent-x*"))
+  (should (equal (beads-remote-buffer-name
+                  "*beads-agent-x*" "/ssh:user@example.com:/city")
+                 "*beads-agent-x@/ssh:user@example.com:*"))
+  (should (equal (beads-remote-buffer-name
+                  "*beads-agent-x*" nil "/ssh:user@example.com:")
+                 "*beads-agent-x@/ssh:user@example.com:*")))
+
+(ert-deftest beads-remote-test-terminfo-p-local ()
+  "A local directory trivially has terminfo for any TERM."
+  (should (beads-remote-terminfo-p "xterm-256color" "/tmp")))
+
+(ert-deftest beads-remote-test-with-timeout-local-runs ()
+  "A local directory runs BODY unbounded."
+  (let ((default-directory "/tmp"))
+    (should (eq 42 (beads-remote-with-timeout 0.01 42)))))
+
+(ert-deftest beads-remote-test-with-timeout-remote-signals ()
+  "A wedged remote call signals `beads-remote-timeout'."
+  (beads-remote-test--ensure-mock-method)
+  (let ((tramp-verbose 0)
+        (default-directory beads-remote-test--mock-directory))
+    (skip-unless (ignore-errors (file-directory-p default-directory)))
+    (should-error
+     (beads-remote-with-timeout 0.2 (sit-for 5))
+     :type 'beads-remote-timeout)))
 
 (provide 'beads-remote-test)
 ;;; beads-remote-test.el ends here

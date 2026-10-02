@@ -399,5 +399,204 @@ this function does no I/O itself.  BatchMode means ssh never prompts
           (beads-remote--ssh-target name)
           (list "--" (beads-remote-shell-command argv path-assignment))))
 
+;;; Pure name operations
+
+(declare-function tramp-make-tramp-file-name "tramp" (vec &optional localname))
+
+(defun beads-remote-prefix (name)
+  "Return NAME's TRAMP prefix (\"/method:user@host:\"), or nil when local.
+Pure: NAME is only dissected (`tramp-dissect-file-name'), never
+expanded.  Use this instead of `file-remote-p' wherever NAME may be a
+host-only name such as \"/ssh:host:\" — `file-remote-p' expands its
+argument, and expanding an EMPTY localname asks the host for its home
+directory, a synchronous round trip."
+  (when (and (stringp name) (tramp-tramp-file-p name))
+    (when-let* ((vec (ignore-errors (tramp-dissect-file-name name))))
+      (tramp-make-tramp-file-name vec 'noloc))))
+
+(defun beads-remote-localize-path (path &optional dir)
+  "Return PATH openable from DIR's host (default `default-directory').
+When DIR is a remote TRAMP name, re-prefix PATH (a host-local absolute
+path) with DIR's remote prefix so `find-file'/`dired' open it on that
+host.  A local DIR — or a nil, empty, or already-remote PATH — returns
+PATH unchanged."
+  (let ((remote (and (stringp path)
+                     (not (string-empty-p path))
+                     (not (file-remote-p path))
+                     (file-remote-p (or dir default-directory)))))
+    (if remote (concat remote path) path)))
+
+(defun beads-remote-buffer-name (base &optional dir qualifier)
+  "Return BASE qualified by QUALIFIER, or by DIR's remote prefix.
+QUALIFIER, when non-nil, is spliced in verbatim before the trailing
+`*'; otherwise DIR's TRAMP prefix is spliced before the trailing `*'
+so local and remote buffers never collide.  A local DIR (default
+`default-directory') returns BASE unchanged."
+  (let ((qualifier (or qualifier (file-remote-p (or dir default-directory)))))
+    (cond ((not qualifier) base)
+          ((string-suffix-p "*" base)
+           (format "%s@%s*" (substring base 0 -1) qualifier))
+          (t (format "%s@%s" base qualifier)))))
+
+;;; Synchronous-call timeout
+
+(define-error 'beads-remote-timeout
+  "Beads synchronous remote call timed out"
+  'error)
+
+(declare-function tramp-get-connection-process "tramp" (vec))
+(declare-function tramp-get-connection-property "tramp" (key property &optional default))
+
+(defun beads-remote--kill-connection (remote)
+  "Delete the TRAMP connection process of REMOTE (a TRAMP prefix), if any.
+A TRAMP wait returns — with an error — once its process is gone; this
+is what bounds a synchronous TRAMP call.  No remote I/O."
+  (when-let* ((vec (ignore-errors (tramp-dissect-file-name remote)))
+              (proc (ignore-errors (tramp-get-connection-process vec))))
+    (when (process-live-p proc)
+      (delete-process proc))))
+
+(defun beads-remote--timeout-signal (secs)
+  "Signal `beads-remote-timeout' for a bound of SECS."
+  (signal 'beads-remote-timeout
+          (list (format "synchronous remote call timed out after %s seconds\
+ (connection wedged?); raise or disable `beads-remote-sync-timeout' to suit"
+                        secs))))
+
+(defun beads-remote-drain-connection (&optional dir)
+  "Best-effort: consume pending stale output on DIR's TRAMP channel.
+DIR defaults to `default-directory'; a local DIR is a no-op.  When a
+channel command is abandoned mid-flight its output can arrive later and
+the next channel command harvests it as its own stdout; draining reads
+the connection until it has been quiet for a moment.  Errors are
+swallowed; draining is advisory."
+  (when-let* ((name (or dir default-directory))
+              ((tramp-tramp-file-p name))
+              (vec (ignore-errors (tramp-dissect-file-name name)))
+              (proc (ignore-errors (tramp-get-connection-process vec))))
+    (when (process-live-p proc)
+      (ignore-error error
+        (with-local-quit
+          (let ((rounds 50))
+            (while (and (> rounds 0)
+                        (accept-process-output proc 0.1 nil t))
+              (setq rounds (1- rounds)))))))))
+
+(defun beads-remote-call-with-timeout (secs fn)
+  "Call FN, abandoning it after SECS on a remote `default-directory'.
+Two bounds run: `with-timeout' and a plain timer that deletes the
+directory's TRAMP connection process (the one that holds inside TRAMP,
+which suspends `with-timeout' timers).  Either way
+`beads-remote-timeout' is signalled.  A nil, zero or negative SECS, or
+a local directory, calls FN unbounded."
+  (if (not (and (numberp secs) (> secs 0) (file-remote-p default-directory)))
+      (funcall fn)
+    (let* ((remote (file-remote-p default-directory))
+           (fired nil)
+           (killer (run-at-time secs nil
+                                (lambda ()
+                                  (setq fired t)
+                                  (beads-remote--kill-connection remote)))))
+      (unwind-protect
+          (condition-case err
+              (with-timeout (secs (setq fired t)
+                                  (beads-remote--timeout-signal secs))
+                (funcall fn))
+            (beads-remote-timeout
+             (ignore-error error (beads-remote-drain-connection))
+             (signal (car err) (cdr err)))
+            (error
+             (if fired
+                 (beads-remote--timeout-signal secs)
+               (signal (car err) (cdr err)))))
+        (cancel-timer killer)))))
+
+(defmacro beads-remote-with-timeout (seconds &rest body)
+  "Run BODY, abandoning it after SECONDS on a remote directory.
+SECONDS is evaluated (typically `beads-remote-sync-timeout'); a nil,
+zero, or negative value — or a LOCAL `default-directory' — runs BODY
+unbounded.  Expiry signals `beads-remote-timeout'."
+  (declare (indent 1))
+  `(beads-remote-call-with-timeout ,seconds (lambda () ,@body)))
+
+;;; Asynchronous deadline
+
+(defcustom beads-remote-async-timeout 30
+  "Seconds an asynchronous host command may run before it is killed."
+  :type 'natnum
+  :group 'beads)
+
+;;; Connection sharing (TRAMP make-process / process-file)
+
+(declare-function tramp-direct-async-process-p "tramp" (&optional vec))
+
+(defun beads-remote--share-variable ()
+  "Return the TRAMP option controlling ssh connection sharing.
+`tramp-use-connection-share' from Emacs 30 on; in Emacs 29 it was
+`tramp-use-ssh-controlmaster-options' (same values)."
+  (require 'tramp-sh)
+  (if (boundp 'tramp-use-connection-share)
+      'tramp-use-connection-share
+    'tramp-use-ssh-controlmaster-options))
+
+(defun beads-remote-connection-share (&optional dir)
+  "Return the connection-share value to spawn with in DIR.
+`suppress' for an ssh-family TRAMP DIR that is not in direct-async
+mode (a ControlMaster mux session writes into a pty and can block);
+otherwise the user's value, unchanged."
+  (let ((dir (or dir default-directory)))
+    (if (and (file-remote-p dir)
+             (member (file-remote-p dir 'method) beads-remote-ssh-methods)
+             (not (let ((default-directory dir))
+                    (ignore-errors (tramp-direct-async-process-p)))))
+        'suppress
+      (symbol-value (beads-remote--share-variable)))))
+
+(defun beads-remote-call-unshared (fn &rest args)
+  "Call FN with ARGS, TRAMP connection sharing suppressed where needed."
+  (cl-progv (list (beads-remote--share-variable))
+      (list (beads-remote-connection-share))
+    (apply fn args)))
+
+;;; Terminfo on the host
+
+(defun beads-remote--terminfo-candidates (term remote)
+  "Return TRAMP file names where TERM's terminfo entry may live on REMOTE.
+The compiled-entry locations ncurses consults, each keyed by TERM's
+first character (the Linux layout)."
+  (let ((leaf (format "%s/%s" (substring term 0 1) term)))
+    (mapcar (lambda (dir) (format "%s%s/%s" remote dir leaf))
+            '("~/.terminfo" "/usr/share/terminfo" "/lib/terminfo"
+              "/etc/terminfo" "/usr/local/share/terminfo"))))
+
+(defun beads-remote-terminfo-p (term &optional dir)
+  "Return non-nil when DIR's host likely has a terminfo entry for TERM.
+For a local DIR (default `default-directory') this is trivially t.
+For a remote DIR the probe is best-effort, on the host: `infocmp TERM'
+there first (exit 0 is authoritative), then an existence sweep of the
+standard compiled-entry locations.  Positive results are cached per
+\(connection x TERM) in `beads-remote--cache'; a miss is re-probed."
+  (let ((remote (file-remote-p (or dir default-directory))))
+    (if (not remote)
+        t
+      (let ((key (cons remote (cons :terminfo term))))
+        (or (gethash key beads-remote--cache)
+            (let* ((default-directory (or dir default-directory))
+                   (found
+                    (condition-case nil
+                        (or (eq 0 (beads-remote-call-unshared
+                                   #'process-file
+                                   (beads-remote-find-executable "infocmp")
+                                   nil nil nil term))
+                            (and (cl-some
+                                  #'file-exists-p
+                                  (beads-remote--terminfo-candidates
+                                   term remote))
+                                 t))
+                      (error nil))))
+              (when found
+                (puthash key t beads-remote--cache))
+              found))))))
+
 (provide 'beads-remote)
 ;;; beads-remote.el ends here
