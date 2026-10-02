@@ -4,6 +4,22 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### One faces palette and one glyph set (breaking status glyphs)
+
+A single `beads-face-*` palette in the new `beads-faces.el` now backs
+every porcelain surface -- status, list, detail, formula, epic and
+agent views.  Extensions derive faces with `:inherit`; there is no
+face hook.  The module faces (`beads-list-*`, `beads-show-*`,
+`beads-epic-*`, `beads-formula-*`, `beads-agent-list-*`,
+`beads-issue-line`) are kept as derived aliases so existing themes
+keep working, but new code should use the canonical `beads-face-*`
+names.
+
+Standard status glyphs are now `○` open, `◐` in-progress, `⛔`
+blocked and `✓` closed in every view.  The show buffer previously
+rendered `●` for closed and `✗` for blocked; those changed.  Agent
+outcome marks stay `✓` finished / `✗` failed.
+
 ### One movement scheme: TAB/S-TAB next thing, SPC toggles (breaking keys)
 
 Every beads.el view now moves the same way.  `TAB` (and `<tab>`) goes

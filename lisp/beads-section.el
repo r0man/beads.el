@@ -44,6 +44,7 @@
 (require 'eieio)
 (require 'vui)
 (require 'beads-command)
+(require 'beads-faces)
 (require 'beads-command-blocked)
 (require 'beads-command-list)
 (require 'beads-command-ready)
@@ -65,8 +66,9 @@
 ;;; Faces
 
 (defface beads-issue-line
-  '((t :inherit default))
-  "Face for clickable issue lines in section and dashboard buffers."
+  '((t :inherit beads-face-issue-line))
+  "Face for clickable issue lines in section and dashboard buffers.
+Derived from the canonical `beads-face-issue-line'."
   :group 'beads)
 
 ;;; Context Detection

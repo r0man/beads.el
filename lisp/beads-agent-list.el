@@ -34,6 +34,7 @@
 (require 'beads-util)
 (require 'beads-buffer)
 (require 'beads-command)
+(require 'beads-faces)
 (require 'beads-agent-backend)
 (require 'beads-agent-display)
 (require 'beads-pager)
@@ -96,23 +97,27 @@ GUI Emacs where the emoji occupies two display columns."
 ;;; Faces
 
 (defface beads-agent-list-running
-  '((t :inherit success :weight bold))
-  "Face for running agent status indicator."
+  '((t :inherit beads-face-agent-running))
+  "Face for running agent status indicator.
+Derived from the canonical `beads-face-agent-running'."
   :group 'beads-agent-list)
 
 (defface beads-agent-list-stale
-  '((t :inherit shadow))
-  "Face for stale agent status indicator."
+  '((t :inherit beads-face-agent-idle))
+  "Face for stale agent status indicator.
+Derived from the canonical `beads-face-agent-idle'."
   :group 'beads-agent-list)
 
 (defface beads-agent-list-finished
-  '((t :inherit success))
-  "Face for finished agent status indicator."
+  '((t :inherit beads-face-success))
+  "Face for finished agent status indicator.
+Derived from the canonical `beads-face-success'."
   :group 'beads-agent-list)
 
 (defface beads-agent-list-failed
-  '((t :inherit error))
-  "Face for failed agent status indicator."
+  '((t :inherit beads-face-agent-failed))
+  "Face for failed agent status indicator.
+Derived from the canonical `beads-face-agent-failed'."
   :group 'beads-agent-list)
 
 ;;; Variables

@@ -220,11 +220,11 @@ async path has its own tests."
 
 (ert-deftest beads-show-test-status-icon-closed ()
   "Test status icon for closed status."
-  (should (string= (beads-show--status-icon "closed") "●")))
+  (should (string= (beads-show--status-icon "closed") "✓")))
 
 (ert-deftest beads-show-test-status-icon-blocked ()
   "Test status icon for blocked status."
-  (should (string= (beads-show--status-icon "blocked") "✗")))
+  (should (string= (beads-show--status-icon "blocked") "⛔")))
 
 (ert-deftest beads-show-test-status-icon-unknown ()
   "Test status icon for unknown status."

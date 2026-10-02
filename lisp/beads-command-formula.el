@@ -31,6 +31,7 @@
 (require 'beads-util)
 (require 'beads-buffer)
 (require 'beads-command)
+(require 'beads-faces)
 (require 'beads-option)
 (require 'beads-pager)
 (require 'beads-types)
@@ -91,23 +92,27 @@
   :group 'beads-formula)
 
 (defface beads-formula-header-face
-  '((t :inherit font-lock-keyword-face :weight bold))
-  "Face for section headers in formula show buffer."
+  '((t :inherit beads-face-section))
+  "Face for section headers in formula show buffer.
+Derived from the canonical `beads-face-section'."
   :group 'beads-formula)
 
 (defface beads-formula-label-face
-  '((t :inherit font-lock-constant-face :weight bold))
-  "Face for metadata labels in formula show buffer."
+  '((t :inherit beads-face-key :weight bold))
+  "Face for metadata labels in formula show buffer.
+Derived from the canonical `beads-face-key'."
   :group 'beads-formula)
 
 (defface beads-formula-value-face
-  '((t :inherit default))
-  "Face for metadata values in formula show buffer."
+  '((t :inherit beads-face-issue-line))
+  "Face for metadata values in formula show buffer.
+Derived from the canonical `beads-face-issue-line'."
   :group 'beads-formula)
 
 (defface beads-formula-title-face
-  '((t :inherit font-lock-keyword-face :weight bold :height 1.3))
-  "Face for formula title in show buffer."
+  '((t :inherit beads-face-header :weight bold :height 1.3))
+  "Face for formula title in show buffer.
+Derived from the canonical `beads-face-header'."
   :group 'beads-formula)
 
 ;;; ============================================================
