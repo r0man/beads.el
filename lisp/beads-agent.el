@@ -104,6 +104,9 @@
 ;; Forward declarations
 (declare-function beads-list--current-issue-id "beads-command-list")
 (declare-function beads-sesman--link-session-buffer "beads-sesman")
+(declare-function beads-sling-dispatch "beads-sling" (target bead prompt))
+(declare-function beads-sling-worktree-target "beads-sling"
+                  (name path &optional branch))
 (defvar beads-show--issue-id)
 (defvar beads-sesman--buffer-session-id)
 
@@ -1075,10 +1078,13 @@ t (default) always uses worktrees, nil never uses them, \\='ask prompts."
 Prompts for issue, worktree name, and branch with smart defaults.
 
 Uses Magit-style prompts where defaults are shown in brackets
-and RET accepts the default.
+and RET accepts the default.  The launch is routed through the
+standalone `beads-sling-dispatch' seam so the interactive command
+exercises the same target abstraction as the wider sling flow.
 
 For quick starts with defaults, use P/T/R/Q/C keys in list/show buffers."
   (interactive)
+  (require 'beads-sling)
   (let* ((context-id (beads-agent--detect-issue-id))
          (issue-id (beads-completion-read-issue
                     (if context-id
@@ -1089,8 +1095,7 @@ For quick starts with defaults, use P/T/R/Q/C keys in list/show buffers."
     (unless issue-id
       (user-error "Issue ID required"))
     ;; Ask whether to use existing worktree
-    (let ((use-existing (y-or-n-p "Use existing worktree? "))
-          (project-root (beads-git-find-project-root)))
+    (let ((use-existing (y-or-n-p "Use existing worktree? ")))
       (if use-existing
           ;; Select from existing worktrees (synchronous, fast).
           ;; `beads-completion-read-worktree' returns a NAME string, not
@@ -1100,15 +1105,19 @@ For quick starts with defaults, use P/T/R/Q/C keys in list/show buffers."
                  (wt (beads-worktree-find-by-name wt-name)))
             (unless wt
               (user-error "Unknown worktree: %s" wt-name))
-            (beads-agent--start-with-worktree
-             issue-id nil project-root (oref wt path) "Task"))
+            (beads-sling-dispatch
+             (beads-sling-worktree-target wt-name (oref wt path))
+             issue-id nil))
         ;; Create new worktree with prompts (async)
         (beads-agent--setup-worktree-interactive
          issue-id
          (lambda (success path-or-error)
            (if success
-               (beads-agent--start-with-worktree
-                issue-id nil project-root path-or-error "Task")
+               (progn
+                 (require 'beads-sling)
+                 (beads-sling-dispatch
+                  (beads-sling-worktree-target issue-id path-or-error)
+                  issue-id nil))
              (user-error "Failed to setup worktree: %s" path-or-error))))))))
 
 (defun beads-agent--start-with-worktree (issue-id backend project-dir

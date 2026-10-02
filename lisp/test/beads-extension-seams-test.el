@@ -175,7 +175,8 @@
 (ert-deftest beads-extension-seams-sling-targets ()
   "`beads-sling-target-functions' is consulted and deduped; empty is nil."
   :tags '(:unit)
-  (should-not (beads-sling-targets))
+  (let ((beads-sling-target-functions nil))
+    (should-not (beads-sling-targets)))
   (let* ((t1 (beads-sling-target :name "one" :kind 'agent))
          (t2 (beads-sling-target :name "one" :kind 'city))
          (t3 (beads-sling-target :name "two" :kind 'agent))

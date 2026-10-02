@@ -4,6 +4,30 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Standalone sling abstraction
+
+`beads-sling.el` now carries the full standalone sling surface, not
+just the WI-4 seam.  New public API:
+
+- `beads-sling-shape` — pure inference of the plain / `on` / formula
+  dispatch shapes.
+- `beads-sling-backend` + `beads-sling-backend-register` — named
+  dispatch backends an extension registers (for example Gas City's
+  `gc` backend); a target's `backend` slot selects one.
+- `beads-sling-validators` — pre-launch validation hook.
+- `beads-sling-targets` now has a default provider
+  (`beads-sling--default-targets`) that collects one target per local
+  agent role, one per available agent backend, and one per existing
+  git worktree, so sling works with `bd` and the local agent stack
+  alone (REQ-008, REQ-021).  Bind the hook to nil to get the empty
+  standalone no-op.
+
+The interactive agent start (`beads-agent-start-interactive`) now
+routes through `beads-sling-dispatch`, so the existing command and the
+future sling transient share one launch path.  New completion support
+(`beads-completion-read-sling-target`, `beads-completion-sling-target-table`)
+renders targets with their kind and description.
+
 ### Extension seams for downstream packages
 
 beads.el exposes a documented magit/forge-style extension ABI
