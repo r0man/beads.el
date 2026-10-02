@@ -1816,9 +1816,10 @@ Uses an idle timer to debounce rapid navigation, similar to
     ;; Sesman session management (CIDER/ESS convention)
     (define-key map (kbd "C-c C-s") beads-sesman-map)
 
-    ;; TAB/S-TAB move by row, SPC toggles the detail window
-    ;; (dashboard-v3 §5.4); replaces tabulated-list's SPC = next-line.
-    (beads-thing-define-keys map)
+    ;; TAB/S-TAB move by row, SPC toggles the detail window, ? dispatches,
+    ;; C-c b is reserved for extensions (dashboard-v3 §5.4, design.md §3.3);
+    ;; replaces tabulated-list's SPC = next-line.
+    (beads-mode--install-navigation-keys map)
 
     ;; Bulk operations (like Magit) - create prefix map for B
     (let ((bulk-map (make-sparse-keymap)))

@@ -488,7 +488,7 @@ Format: ((epic-id . (expanded-p . children)) ...)")
 (defvar beads-epic-status-mode-map
   (let ((map (make-sparse-keymap)))
     ;; TAB/S-TAB move by epic or child, SPC expands (dashboard-v3 §5.4)
-    (beads-thing-define-keys map)
+    (beads-mode--install-navigation-keys map)
     (define-key map (kbd "N") #'beads-epic-status-next)
     (define-key map (kbd "P") #'beads-epic-status-previous)
     (define-key map (kbd "RET") #'beads-epic-status-show-at-point)
