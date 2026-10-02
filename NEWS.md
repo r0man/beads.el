@@ -260,6 +260,37 @@ formula` command classes stay in `beads-command-formula.el`.
   `beads-formula-grouped-entries`; the flat list remains the default for
   `beads-formula-list` without the grouped entry builder.
 
+### Terminal handling now lives in beads.el
+
+The tmux attach/status/mouse/scroll subsystem moved out of
+`gascity.el/lisp/gascity-terminal.el` into the new
+`beads-terminal-tmux.el`, on top of the existing `beads-terminal.el`
+backends.  A new generic entry point, `beads-terminal-attach`, attaches
+to a tmux session in a terminal buffer without blocking Emacs; it is
+usable standalone, with no gascity.el dependency.  The tmux server
+socket is a caller argument (`:socket`), so multiple cities and stores
+coexist.
+
+- Attach is asynchronous: one host pre-step checks the session, tmux,
+  terminfo for the backend's `TERM`, and the working directory, then
+  opens a local terminal (a local `ssh -t` for a remote store).
+- The session's tmux status bar is mirrored in the mode line and the
+  tmux `mouse` option (plus a copy-mode wheel-to-bottom binding) is
+  ensured, both restored when the terminal buffer is killed.
+- `C-c s` toggles the Emacs-keys scroll sub-mode; on terminals that do
+  not report the mouse the wheel is translated to tmux's own SGR mouse
+  events.  New options: `beads-terminal-tmux-backend`,
+  `-remote-term`, `-mode-line-status`, `-ensure-mouse`,
+  `-unshadow-minor-modes`, `-status-interval` and `-preload-idle`.
+- New remote helpers in `beads-remote.el`: `beads-remote-prefix`,
+  `beads-remote-localize-path`, `beads-remote-buffer-name`,
+  `beads-remote-terminfo-p`, `beads-remote-with-timeout` (signals
+  `beads-remote-timeout`), `beads-remote-call-unshared` and the
+  `beads-remote-async-timeout` option.
+
+For package authors: `beads-terminal-running` is unchanged; the moved
+code is loaded lazily, so requiring `beads-terminal` stays cheap.
+
 ### One movement scheme: TAB/S-TAB next thing, SPC toggles (breaking keys)
 
 Every beads.el view now moves the same way.  `TAB` (and `<tab>`) goes
