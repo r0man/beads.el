@@ -11,9 +11,16 @@
 ;; bindings (T, R, P, Q, C, X, J, A) and frees those keys for
 ;; issue-related commands in later phases of the UX redesign.
 ;;
-;; Current inventory under the `a' prefix: t/r/p/q/c (start typed
+;; This avoids polluting mode-maps with uppercase single-letter
+;; bindings (T, R, P, X, J, A) and frees those keys for
+;; issue-related commands in later phases of the UX redesign.
+;;
+;; Current inventory under the `a' prefix: t/r/p (start typed
 ;; agents), a (start default agent at point), x (stop), j (jump),
-;; l (open the `*beads-agents*' list buffer).
+;; l (open the `*beads-agents*' list buffer).  The former `q' (QA)
+;; and `c' (Custom) keys were freed by the F3 roster slimming: QA is
+;; the Review role with a QA mode, and Custom is the sling freeform
+;; escape.
 
 ;;; Code:
 
@@ -21,8 +28,6 @@
 (autoload 'beads-agent-start-task "beads-agent" nil t)
 (autoload 'beads-agent-start-review "beads-agent" nil t)
 (autoload 'beads-agent-start-plan "beads-agent" nil t)
-(autoload 'beads-agent-start-qa "beads-agent" nil t)
-(autoload 'beads-agent-start-custom "beads-agent" nil t)
 (autoload 'beads-agent-stop-at-point "beads-agent" nil t)
 (autoload 'beads-agent-jump-at-point "beads-agent" nil t)
 (autoload 'beads-agent-list "beads-agent-list" nil t)
@@ -32,8 +37,6 @@
     (define-key map (kbd "t") #'beads-agent-start-task)
     (define-key map (kbd "r") #'beads-agent-start-review)
     (define-key map (kbd "p") #'beads-agent-start-plan)
-    (define-key map (kbd "q") #'beads-agent-start-qa)
-    (define-key map (kbd "c") #'beads-agent-start-custom)
     (define-key map (kbd "x") #'beads-agent-stop-at-point)
     (define-key map (kbd "j") #'beads-agent-jump-at-point)
     (define-key map (kbd "a") #'beads-agent-start-at-point)

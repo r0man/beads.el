@@ -39,8 +39,7 @@
   ;; never the string \"claude\".
   (should (null beads-agent-task-backend))
   (should (null beads-agent-review-backend))
-  (should (null beads-agent-plan-backend))
-  (should (null beads-agent-qa-backend)))
+  (should (null beads-agent-plan-backend)))
 
 (ert-deftest beads-agent-phase-2-test-pi-registered ()
   "`beads-agent-backend-pi' is registered and retrievable."

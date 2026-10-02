@@ -30,6 +30,30 @@ main dispatch) and via `M-x beads-<command>`.  The generated suffixes
 are *not* deleted: `beads-meta-generated-transient-p` marks them so
 the policy is testable, and `beads-meta` keeps generating them.
 
+### Removed: QA and Custom agent roles (F3)
+
+The built-in QA and Custom agent *classes* are removed:
+`beads-agent-type-qa` and `beads-agent-type-custom` are undefined, as
+are the `beads-agent-start-qa` and `beads-agent-start-custom`
+commands and the `beads-agent-qa-backend` / `beads-agent-qa-prompt`
+defcustoms.
+
+- QA is now the **Review** role with a QA mode.  `Review` gains a
+  `qa-mode` slot and a `beads-agent-type-review-qa` constructor; in QA
+  mode it uses `beads-agent-review-qa-prompt` (the QA prompt text,
+  relocated) and the former QA output envelope.  Sessions remain
+  Review sessions.
+- Custom's freeform prompt is reached through the sling work-picker
+  escape rather than a role.
+- The `a q` / `a c` keys in `beads-agent-prefix-map` are freed and
+  reserved.
+- The `beads-agent-type` / `beads-agent-backend` registry APIs are
+  unchanged: users can still register an out-of-tree QA or Custom
+  role, and the launch UI's curated backend list
+  (`beads-agent-curated-backends`: claude-code, agent-shell, terminal)
+  demotes the rest behind an `... other` overflow without
+  unregistering them.
+
 ### One movement scheme: TAB/S-TAB next thing, SPC toggles (breaking keys)
 
 Every beads.el view now moves the same way.  `TAB` (and `<tab>`) goes
