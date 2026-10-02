@@ -41,6 +41,10 @@
 
 (defvar beads-executable)
 
+(declare-function beads-formula-browse "beads-formula" (&optional type))
+(declare-function beads-formula-seed-sling "beads-formula" (formula))
+(declare-function beads-formula-launch-standalone "beads-formula" (formula))
+
 ;;; Customization
 
 (defgroup beads-formula nil
@@ -263,6 +267,12 @@ types, and tags, in a terminal buffer via the auto-generated
 (defvar-local beads-formula-list--project-dir nil
   "Project directory for this buffer.")
 
+(defvar-local beads-formula-list--entry-function nil
+  "Buffer-local function turning formula summaries into tabulated entries.
+When nil, `beads-formula-list--formula-to-entry' builds a flat list.
+`beads-formula.el' binds this to a type-grouping builder for the
+grouped browser (`beads-formula-browse').")
+
 ;;; ============================================================
 ;;; Buffer Management
 ;;; ============================================================
@@ -328,15 +338,22 @@ Reuses existing buffer for same project-dir (directory is identity)."
 
 (defun beads-formula-list--populate-buffer (formulas &optional command-obj)
   "Populate current buffer with FORMULAS.
-Optional COMMAND-OBJ is stored for refresh."
+Optional COMMAND-OBJ is stored for refresh.  When the buffer-local
+`beads-formula-list--entry-function' is set it builds the entries
+\(used by the type-grouped browser); otherwise each formula becomes one
+flat row."
   (setq beads-formula-list--formulas formulas
         beads-formula-list--command-obj command-obj)
   (beads-pager-set-entries
-   (mapcar #'beads-formula-list--formula-to-entry formulas)))
+   (if beads-formula-list--entry-function
+       (funcall beads-formula-list--entry-function formulas)
+     (mapcar #'beads-formula-list--formula-to-entry formulas))))
 
 (defun beads-formula-list--current-formula-name ()
-  "Return the name of the formula at point, or nil."
-  (tabulated-list-get-id))
+  "Return the name of the formula at point, or nil.
+Type-group header rows (whose id is not a string) return nil."
+  (let ((id (tabulated-list-get-id)))
+    (and (stringp id) id)))
 
 (defun beads-formula-list--get-formula-by-name (name)
   "Return beads-formula-summary for NAME from current buffer."
@@ -412,6 +429,8 @@ Optional COMMAND-OBJ is stored for refresh."
     (define-key map (kbd "g") #'beads-formula-list-refresh)
     (define-key map (kbd "q") #'beads-formula-list-quit)
     (define-key map (kbd "o") #'beads-formula-list-open-source)
+    (define-key map (kbd "l") #'beads-formula-seed-sling)
+    (define-key map (kbd "s") #'beads-formula-launch-standalone)
     map)
   "Keymap for `beads-formula-list-mode'.")
 
@@ -591,6 +610,8 @@ Uses `beads-formula-list--normalize-directory' for path comparison."
     ;; Paragraph nav works as section nav (sections are paragraph-separated)
     (define-key map (kbd "n") #'forward-paragraph)
     (define-key map (kbd "p") #'backward-paragraph)
+    (define-key map (kbd "l") #'beads-formula-seed-sling)
+    (define-key map (kbd "s") #'beads-formula-launch-standalone)
     map)
   "Keymap for `beads-formula-show-mode'.")
 
@@ -614,15 +635,19 @@ Uses `beads-formula-list--normalize-directory' for path comparison."
 ;;; ============================================================
 
 ;;;###autoload
-(defun beads-formula-list (&optional type)
+(defun beads-formula-list (&optional type entry-function)
   "Display available formulas in a tabulated list.
 Optional TYPE filters by formula type (workflow, expansion, aspect).
+Optional ENTRY-FUNCTION builds the tabulated entries from the formula
+summaries (see `beads-formula-list--entry-function'); when nil the
+flat `beads-formula-list--formula-to-entry' builder is used.
 When called interactively with a prefix argument, prompts for TYPE."
   (interactive
    (list (when current-prefix-arg
            (completing-read "Filter by type: "
                             '("workflow" "expansion" "aspect")
-                            nil t))))
+                            nil t))
+         nil))
   (beads-check-executable)
   (let* ((project-dir (or (beads--project-root) default-directory))
          (buffer (beads-formula-list--get-or-create-buffer))
@@ -634,6 +659,7 @@ When called interactively with a prefix argument, prompts for TYPE."
       (unless (derived-mode-p 'beads-formula-list-mode)
         (beads-formula-list-mode))
       (setq beads-formula-list--project-dir project-dir)
+      (setq beads-formula-list--entry-function entry-function)
       (setq default-directory project-dir)
       (if (not formulas)
           (progn
@@ -688,7 +714,7 @@ When called interactively with a prefix argument, prompts for TYPE."
   (interactive)
   (let* ((args (transient-args 'beads-formula-menu))
          (type (transient-arg-value "--type=" args)))
-    (beads-formula-list type)))
+    (beads-formula-browse type)))
 
 ;;;###autoload (autoload 'beads-formula-menu "beads-command-formula" nil t)
 (beads-define-prefix beads-formula-menu ()
