@@ -51,6 +51,7 @@
 ;;; Code:
 
 (require 'cl-lib)
+(require 'beads-thing)
 
 ;; Forward declarations
 (declare-function beads-git-get-project-name "beads-git")
@@ -82,7 +83,8 @@ beads.el owns the `C-c b' prefix and `C-c b ?'; downstream packages
 add their bindings with `C-c b <letter>' in this map.  Every beads
 major mode installs the prefix via `beads-mode--install-extension-map',
 so extensions never shadow a core key."
-  "b" #'beads-mode-extension-bead-at-point)
+  "b" #'beads-mode-extension-bead-at-point
+  "?" #'beads-dispatch)
 
 (defun beads-mode--install-extension-map (map)
   "Install the reserved `C-c b' extension prefix into MAP and return MAP.
@@ -91,6 +93,17 @@ become reachable from the major mode without redefining core keys.
 MAP is modified in place."
   (define-key map beads-mode-extension-prefix beads-mode-extension-map)
   map)
+
+(defun beads-mode--install-navigation-keys (map)
+  "Install the universal navigation contract into mode keymap MAP.
+This is design.md §3.3: TAB/S-TAB/SPC move and toggle by `beads-thing',
+`?' opens the shared `beads-dispatch' menu, and `C-c b' is reserved for
+downstream extension keys.  `q', `g' and `RET' stay mode-specific
+because their targets differ per view.  MAP is modified in place and
+returned."
+  (keymap-set map "?" #'beads-dispatch)
+  (beads-mode--install-extension-map map)
+  (beads-thing-define-keys map))
 
 (defun beads-mode-extension-bead-at-point ()
   "Visit the beads issue at point (the canonical `C-c b b' binding).

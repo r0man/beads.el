@@ -49,6 +49,7 @@
 (require 'beads-command-ready)
 (require 'beads-types)
 (require 'beads-thing)
+(require 'beads-buffer)
 (require 'beads-faces)
 
 ;;; Forward Declarations
@@ -171,8 +172,9 @@ When ISSUES is nil this component renders nothing."
   :parent vui-mode-map
   "RET" #'beads-section-visit-issue)
 
-;; TAB/S-TAB move by thing, SPC toggles (dashboard-v3 §5.4).
-(beads-thing-define-keys beads-section-mode-map)
+;; TAB/S-TAB move by thing, SPC toggles, ? dispatches, C-c b is
+;; reserved for extensions (dashboard-v3 §5.4, design.md §3.3).
+(beads-mode--install-navigation-keys beads-section-mode-map)
 
 (define-derived-mode beads-section-mode vui-mode "Beads"
   "Major mode for browsing beads issues using vui.el.

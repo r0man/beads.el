@@ -957,9 +957,10 @@ one-shot way to expand everything without unfolding each section by hand."
   "a"   beads-agent-prefix-map
   "q"   #'quit-window)
 
-;; TAB/S-TAB move by thing, SPC folds (dashboard-v3 §5.4).  Installed
-;; here too, not only inherited: vui binds <tab> in a parent map.
-(beads-thing-define-keys beads-dashboard-mode-map)
+;; TAB/S-TAB move by thing, SPC folds, ? dispatches, C-c b is reserved
+;; for extensions (dashboard-v3 §5.4, design.md §3.3).  Installed here
+;; too, not only inherited: vui binds <tab> in a parent map.
+(beads-mode--install-navigation-keys beads-dashboard-mode-map)
 
 (defun beads-dashboard-refresh-dispatch (&optional arg)
   "Refresh the dashboard.  With prefix ARG, do a hard refresh.

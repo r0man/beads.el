@@ -377,6 +377,9 @@ Stops the current session and starts a new one for the same issue."
     (define-key map (kbd "W") #'beads-agent-list-copy-issue-id)
     ;; Sesman session management
     (define-key map (kbd "C-c C-s") beads-sesman-map)
+    ;; TAB/S-TAB move by session, SPC toggles, ? dispatches, C-c b is
+    ;; reserved for extensions (design.md §3.3).
+    (beads-mode--install-navigation-keys map)
     map)
   "Keymap for `beads-agent-list-mode'.")
 

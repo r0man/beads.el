@@ -265,10 +265,17 @@
               (lookup-key beads-show-mode-map (kbd "s")))))
 
 (ert-deftest beads-actions-test-show-mode-actions-binding ()
-  "? should be bound to beads-show-actions in show-mode."
+  "? opens the dispatch, which delegates to `beads-show-actions' in show."
   :tags '(:unit)
-  (should (eq 'beads-show-actions
-              (lookup-key beads-show-mode-map (kbd "?")))))
+  (should (eq 'beads-dispatch
+              (lookup-key beads-show-mode-map (kbd "?"))))
+  (let (called)
+    (cl-letf (((symbol-function 'beads-show-actions)
+               (lambda () (setq called 'show-actions))))
+      (with-temp-buffer
+        (beads-show-mode)
+        (beads-dispatch)))
+    (should (eq called 'show-actions))))
 
 (provide 'beads-actions-test)
 
