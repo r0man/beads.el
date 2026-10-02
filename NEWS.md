@@ -127,6 +127,28 @@ point and `C-c b ?` opens the dispatch.  Extensions add bindings under
 - TAB/S-TAB/SPC stay the one movement scheme (`beads-thing`), and
 `q`/`g`/`RET` keep their mode-specific targets.
 
+### Adaptive sling transient and preview
+
+`M-x beads-sling` (REQ-009) opens the adaptive sling transient.  One
+entry point covers the plain, formula and targeted `--on` shapes: the
+shape is inferred and rendered as a single sentence, each stage
+collapses to its answered line, and a live footer shows the pending
+dispatch and any client-side warning (`beads-sling--header-sentence`,
+`beads-sling--footer`).
+
+- The What stage picks work (`A`, `C-u A` for freeform text) and a
+  formula (`f`); the picked formula's vars render as a `How` group of
+typed infixes (`beads-sling--var-children`): enum, boolean, file,
+directory, agent and numeric readers chosen from the var's declared
+shape, failing soft to string entry.
+- `T` picks the Who target; the plain shape also shows the routing
+  flags.
+- `s` launches through the existing `beads-sling-dispatch` seam, `P`
+  opens a full special-mode preview (`beads-sling-preview-mode`) whose
+  own `s` launches exactly what was previewed.  The preview never
+  gates launch.
+- `beads-sling-validators` warnings feed the footer and the preview.
+
 ### Standalone sling abstraction
 
 `beads-sling.el` now carries the full standalone sling surface, not
