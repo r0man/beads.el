@@ -67,6 +67,43 @@ Longer titles are truncated with ellipsis.")
 (defconst beads-buffer--main-branch-names '("main" "master")
   "List of branch names considered to be the main branch.")
 
+;;; Extension Keymap
+
+(defconst beads-mode-extension-prefix (key-parse "C-c b")
+  "Reserved key sequence for the `beads-mode-extension-map' prefix.
+beads.el intentionally reserves `C-c b' (design.md §4.10); downstream
+packages add bindings under it instead of shadowing core keys.  Kept in
+a variable so the reservation is data, not a literal key in a binding
+form (which package-lint would flag as a user-reserved sequence).")
+
+(defvar-keymap beads-mode-extension-map
+  :doc "Reserved extension keymap for beads.el, bound under `C-c b'.
+beads.el owns the `C-c b' prefix and `C-c b ?'; downstream packages
+add their bindings with `C-c b <letter>' in this map.  Every beads
+major mode installs the prefix via `beads-mode--install-extension-map',
+so extensions never shadow a core key."
+  "b" #'beads-mode-extension-bead-at-point)
+
+(defun beads-mode--install-extension-map (map)
+  "Install the reserved `C-c b' extension prefix into MAP and return MAP.
+Bindings added by downstream packages in `beads-mode-extension-map'
+become reachable from the major mode without redefining core keys.
+MAP is modified in place."
+  (define-key map beads-mode-extension-prefix beads-mode-extension-map)
+  map)
+
+(defun beads-mode-extension-bead-at-point ()
+  "Visit the beads issue at point (the canonical `C-c b b' binding).
+Uses `beads-issue-at-point' and `beads-show' from the main package;
+signals `user-error' when point is not on an issue."
+  (interactive)
+  (require 'beads)
+  (require 'beads-command-show)
+  (let ((id (beads-issue-at-point)))
+    (unless id
+      (user-error "No issue at point"))
+    (beads-show id)))
+
 ;;; Helper Functions
 
 (defun beads-buffer--truncate-title (title)

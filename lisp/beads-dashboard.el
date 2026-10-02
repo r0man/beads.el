@@ -25,7 +25,6 @@
 (require 'beads-prefix)
 (require 'beads-command-dep)
 (require 'beads-dashboard-sections)
-(require 'beads-status)
 (require 'beads-agent-keys)
 
 (declare-function beads-actions-claim "beads-actions")
@@ -256,6 +255,24 @@ the previous store's cached payload — see bde-jwxv)."
           (beads-dashboard--save-visibility
            (beads-dashboard--current-root) next))))))
 
+(defun beads-dashboard--provider-vnodes (collapsed generation buffer db-path)
+  "Return dashboard section vnodes for `beads-dashboard-section-providers'.
+COLLAPSED, GENERATION and BUFFER are threaded to each section exactly
+as the built-in sections receive them; DB-PATH scopes the async-key.
+Each provider `beads-section-spec' loader runs synchronously and its
+renderer receives the data; the pair is wrapped in the same async
+section shell the built-in sections use.  The empty provider hook
+returns nil, leaving the built-in dashboard unchanged (standalone)."
+  (mapcar (lambda (spec)
+            (beads-dashboard--section
+             (oref spec key) (oref spec title)
+             (lambda (resolve _reject)
+               (funcall resolve (funcall (oref spec loader))))
+             (oref spec renderer)
+             collapsed generation buffer
+             :db-path db-path))
+          (beads-dashboard--provider-specs)))
+
 ;;; Root Component
 
 (vui-defcomponent beads-dashboard--root
@@ -394,6 +411,10 @@ Sections receive collapse state as a prop because per-component
          collapsed generation buffer
          :db-path db-path
          :icon "🌐"))
+      (when-let* ((provider-vnodes
+                   (beads-dashboard--provider-vnodes
+                    collapsed generation buffer db-path)))
+        (apply #'vui-vstack provider-vnodes))
       (beads-dashboard--footer-vnode)))))
 
 ;;; Refresh / Idle

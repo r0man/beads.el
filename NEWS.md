@@ -4,6 +4,49 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### The status buffer is now the entry point (breaking key: `M-x beads`)
+
+`M-x beads` (and `beads`) opens the new hand-built, vui-sectioned
+**status buffer** (`beads-status`, `beads-status-mode`) instead of the
+transient menu.  The buffer summarises the store with four
+asynchronously loaded sections (In progress, Ready, Blocked, Recent
+activity) reusing the dashboard board loaders, and obeys the universal
+navigation contract: `q` buries, `g` refreshes in place, `TAB`/`S-TAB`
+move by thing, `SPC` folds, `RET` visits, `?` opens the menu.
+
+- The former `beads` transient prefix moved to `beads-menu.el` as
+  `beads-dispatch`; bind it with `?` (REQ-002, REQ-004).
+- `beads-dashboard` is unchanged and remains the full board.
+- Downstream packages extend the board with
+  `beads-section-register`/`beads-section-spec` or
+  `beads-dashboard-section-providers`.
+
+### Extension seams for downstream packages
+
+beads.el exposes a documented magit/forge-style extension ABI
+(design.md §4).  Downstream packages attach at named points instead of
+shadowing core internals:
+
+- Store scoping: `beads-store-resolvers`, `beads-store-prefix-functions`
+  and the `beads-store-descriptor` value object
+  (`beads-store-descriptor-for`, `beads-store-for-prefix`).
+- Sections: `beads-section-register`, the `beads-section-spec` class and
+  `beads-section-spec-for`; the existing `beads-status-sections-hook`
+  and the new `beads-dashboard-section-providers` hook.
+- Actions: `beads-action-providers`, `beads-after-action-functions`,
+  `beads-actions-context` and `beads-actions-provider-actions`.
+- Menus: `beads-menu-providers` and `beads-menu-provider-groups` in the
+  new `beads-menu.el`.
+- Sling: the `beads-sling-target` class, `beads-sling-target-functions`,
+  `beads-sling-targets` and the `beads-sling-dispatch` generic in the
+  new `beads-sling.el`, whose default method starts a local agent.
+- Keymaps/faces: `beads-mode-extension-map` (reserved `C-c b` prefix),
+  `beads-mode--install-extension-map`, and the canonical
+  `beads-face-*` set in the new `beads-faces.el`.
+
+Every hook/provider is a no-op when empty, so beads.el remains fully
+standalone with no downstream package present.
+
 ### One movement scheme: TAB/S-TAB next thing, SPC toggles (breaking keys)
 
 Every beads.el view now moves the same way.  `TAB` (and `<tab>`) goes
