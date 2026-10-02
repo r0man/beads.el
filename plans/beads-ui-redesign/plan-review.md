@@ -1,15 +1,24 @@
 ---
 schema: beads.ui-redesign.plan-review.v1
 workflow:
-  id: be-mv8d
-  predecessor: be-59fe
+  id: be-1iu7
+  formula: build-from-plan
+  predecessor: be-mv8d
 artifact: plan-review
-status: draft-for-review
+status: approved-for-decomposition
 scope: planning-only
-round: 2
+round: 3
+reviewed_artifact: implementation-plan.md
+reviewed_workflow: be-1iu7
 ---
 
-# beads.el UI Redesign — Plan Review (round 1)
+# beads.el UI Redesign — Plan Review
+
+**Current gate (round 3, workflow `be-1iu7`, bead `be-silg`): review of
+`implementation-plan.md` for the `build-from-plan.plan-review` step. Verdict:
+APPROVED for decomposition.** Four required corrections (F9–F12) were found
+and applied to the plan in place; F13 is a note. Rounds 1–2 (the design-phase
+review under `be-mv8d`) are preserved below as history.
 
 Review of `requirements.md`, `design.md`, `menu-mockups.md`, `slimming.md`,
 `implementation-plan.md` and `decomposition.md` for implementation
@@ -214,12 +223,122 @@ move is phased shim-first. F1/F2 are resolved, F3 is resolved by decision
 (remove-entirely), F4–F8 are notes.
 **The plan is approved for user sign-off.**
 
+## Round 3 — implementation-plan review (be-1iu7, 2026-10-02)
+
+This gate reviews the **implementation plan** produced by the plan stage
+(`implementation-plan.md`, `producer.stage: plan`, attempt 1) against
+`requirements.md` (hash `sha256:50fd6788…`), `design.md`, `slimming.md` and
+`decomposition.md`, for readiness to decompose. Interaction mode is
+`autonomous`; no question round is used.
+
+### Method
+
+- **Upstream integrity.** The requirements hash recorded in the plan front
+  matter was recomputed: `sha256:50fd6788be4420ae0fcf2574736bca6059409fa38c24f706c0726af20edcaac9`
+  — matches. `trace.coverage` lists REQ-001…REQ-033, all `covered`, matching
+  the plan's own traceability table and `decomposition.md`'s matrix.
+- **Current-system audit.** Re-checked the load-bearing claims in `lisp/`:
+  `beads-more-menu` present and deprecated (`beads.el`), `beads-status` a
+  `make-obsolete` shim (`beads-status.el`), `beads-ops-menu.el` /
+  `beads-advanced-menu.el` present, `beads-store-resolve` /
+  `beads-store-project-root` in `beads-util.el`, five registered roles and
+  the `beads-agent-qa-backend` defcustom in `beads-agent-types.el`, and the
+  five typed `beads-agent-start-*` commands in `beads-agent.el`.
+- **Per-WI file/test claims.** Verified against the tree: 59
+  `beads-command-<name>.el` files (256 command classes), 18
+  `beads-agent*-test.el` files, existing `beads-status-test.el` (four shim
+  tests), `gascity.el/lisp/gascity-terminal.el` at 1509 lines, no
+  `gascity-terminal-test.el`, and 281 `gascity-terminal` references in
+  gascity's `lisp/test/gascity-test.el` (the WI-14 port source).
+- **Seam coverage.** Cross-checked every symbol in `design.md` §4 against
+  the WIs that claim to deliver it (see F10/F12).
+
+### Findings (round 3)
+
+#### F9 (required change — applied): stale Current System counts
+`implementation-plan.md` §"Current System" claimed "90+
+`beads-command-<name>.el` classes" and "~15" agent test files. The tree has
+**59** command files (256 classes) and **18** agent test files. Because the
+plan advertises the Current System as verified, a wrong count undermines the
+audit. **Resolution:** corrected to "59 `beads-command-<name>.el` files
+(256 command classes)" and "18 files".
+
+#### F10 (required change — applied): WI-4 omitted/mis-assigned the design.md §4 seams
+WI-4 is the only work item that delivers the REQ-020 seam set, and its
+acceptance is "every seam in `design.md` §4 exists". As written, its Files
+list **mis-assigned** the store seams (`beads-store-resolvers`,
+`beads-store-prefix-functions`) to `beads-remote.el` though design §4.1 owns
+them in `beads-util.el`; **mis-assigned** `beads-action-providers` to
+`beads-command-list.el` / `beads-agent.el` though design §4.4 owns it (with
+`beads-actions-context`, `beads-after-action-functions`) in
+`beads-actions.el`; and **omitted** `beads-store-descriptor`,
+`beads-section-spec` and `beads-dashboard-section-providers`. An
+implementer following the plan would have lost REQ-020 seams to the wrong
+module. **Resolution applied:** WI-4's Files list now enumerates every
+seam it owns with its correct `design.md` file, cites §4 as authoritative,
+and names the seams deferred to later WIs (sling backend/validators →
+WI-10/11; formula launch/vars → WI-13; terminal attach → WI-14; remote
+helpers → WI-16).
+
+#### F11 (required change — applied): `beads-status-test.el` is not "new"
+WI-5 declared a **new** `beads-status-test.el`, but the file already exists
+with four tests for the compat shim (`beads-status-test-shim-*`).
+Decomposing WI-5 against "new" would have risked clobbering or orphaning
+those tests — the same class of defect as round 1's F1 (a named file that
+does not match reality). **Resolution applied:** WI-5 now says to **rewrite
+the existing** `beads-status-test.el` (noting its current four shim tests).
+
+#### F12 (required change — applied): sling and formula WIs named no seams
+WI-10 and WI-13 are the delivery vehicles for `design.md` §4.5 and §4.7,
+but neither named the generics/registries they must create
+(`beads-sling-target-functions`, `beads-sling-targets`,
+`beads-sling-backend`, `beads-sling-backend-register`,
+`beads-sling-validators`; `beads-formula-launch`,
+`beads-formula-launch-context`, `beads-formula-var`,
+`beads-formula-var-reader`). **Resolution applied:** both Files lists now
+name those symbols and cite design §4.5/§4.7.
+
+#### F13 (note): plan/decomposition consistency is sound
+Twenty WIs, six waves, pruning-first; the plan's traceability table, the
+`trace.coverage` front matter, and `decomposition.md`'s REQ→WI matrix all
+agree, and the dependency edges (`WI-1 → WI-2/3 → WI-4 → …`) are acyclic
+with a coherent critical path. The F3 removal (WI-3) is a pure deletion with
+an explicit absence-based acceptance. No change required.
+
+### Implementation-readiness pass (round 3)
+
+- **Requirements traceability — PASS.** REQ-001…REQ-033 all map to at least
+  one WI or to the planning task; the upstream hash matches.
+- **Task boundaries — PASS (after F10–F12).** Each WI names its files,
+  functions, REQs, tests and acceptance; every `design.md` §4 seam now has
+  exactly one owning WI.
+- **Test surface — PASS (after F11).** The port sources are real files
+  (gascity `gascity-test.el`; the existing `beads-status-test.el`), not
+  phantom paths.
+- **Test commands — PASS.** `eldev` invocations match `AGENTS.md`; the
+  parity gate (`beads-audit-test.el`) and render guard
+  (`beads-render-guard-test.el`) are named as must-stay-green; WI-20 gives
+  the bright-lights TRAMP acceptance.
+- **Risk / rollback — PASS.** Test churn, generated-transient
+  reach-through, the beads↔gascity cycle, TRAMP latency, the F3 removal and
+  the `C-c b` reservation all have mitigations; rollback is per-work-item
+  and the terminal revert path is safe while the shim coexists.
+
+### Round-3 verdict
+
+**The implementation plan is APPROVED for decomposition.** Four required
+corrections (F9–F12) were applied to `implementation-plan.md` in place
+during this review; F13 is a note. The plan is grounded, fully traced,
+pruning-first, and implementation-ready.
+
 ## Conclusion
 
-The plan is grounded, accurate against the repository, fully traced, and
-implementation-ready. F1 and F2 were resolved in place; F3 is resolved in
-round 2 (remove QA/Custom entirely); F4–F8 are non-blocking notes.
-**The plan is approved for user sign-off.**
+Rounds 1–2 approved the design/requirements/mockups (F1/F2 resolved in
+place; F3 resolved by decision; F4–F8 notes). Round 3 reviewed the
+implementation plan for the `build-from-plan.plan-review` gate (bead
+`be-silg`): F9–F12 were required corrections, applied to
+`implementation-plan.md` in place; F13 is a note. **The implementation plan
+is approved for decomposition.**
 
 ## Sign-off checklist
 

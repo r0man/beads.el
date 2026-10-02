@@ -44,8 +44,9 @@ multi-state mockups" bar of bead `be-mv8d`.
 6. [`decomposition.md`](decomposition.md) — the work items with
    dependencies and REQ traceability (the later implementation turns these
    into beads).
-7. [`plan-review.md`](plan-review.md) — the round-1 critique, its findings,
-   and the sign-off checklist.
+7. [`plan-review.md`](plan-review.md) — the review record: rounds 1–2
+   (design phase) and round 3 (implementation-plan review, approved for
+   decomposition), with findings and the sign-off checklist.
 
 ## The shape of the change (one paragraph)
 
