@@ -81,6 +81,18 @@ loaded).  `RET` on an agent session row now attaches to or jumps to
 that session (`beads-show-attach-session-at-point`, also on `j`) via
 `beads-terminal-attach` when it is available.  `c` is a comment alias.
 
+### One dispatch menu and one maintenance menu (breaking)
+
+`?` opens the hand-built `beads-dispatch` menu (the former `beads`
+prefix, regrouped by frequency with descriptions).  `!` opens the new
+`beads-maintenance` menu, which collapses the former `beads-ops-menu`
+and `beads-advanced-menu` into a single maintenance/infrastructure
+surface (REQ-023); those two menus, their files and their tests are
+gone, and every command they held is reachable from
+`beads-maintenance`.  Downstream packages append their own dispatch
+groups through `beads-menu-providers`, spliced into `beads-dispatch`
+at render time.
+
 ### The status buffer is now the entry point (breaking key: `M-x beads`)
 
 `M-x beads` (and `beads`) opens the new hand-built, vui-sectioned

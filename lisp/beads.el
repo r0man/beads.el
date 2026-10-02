@@ -359,13 +359,11 @@ which shows daemon status and database statistics."
 ;;;###autoload
 (autoload 'beads-blocked "beads-command-list" nil t)
 
-;; beads-ops-menu
+;; beads-menu (dispatch + maintenance; absorbs ops/advanced menus)
 ;;;###autoload
-(autoload 'beads-ops-menu "beads-ops-menu" nil t)
-
-;; beads-advanced-menu
+(autoload 'beads-dispatch "beads-menu" nil t)
 ;;;###autoload
-(autoload 'beads-advanced-menu "beads-advanced-menu" nil t)
+(autoload 'beads-maintenance "beads-menu" nil t)
 
 ;; beads-compose
 ;;;###autoload
@@ -402,10 +400,6 @@ which shows daemon status and database statistics."
 ;; `M-x beads' is the status-buffer front door (REQ-001).
 ;;;###autoload
 (autoload 'beads "beads-status" nil t)
-
-;; beads-dispatch (the main menu, REQ-004)
-;;;###autoload
-(autoload 'beads-dispatch "beads-menu" nil t)
 
 ;; beads-dashboard
 ;;;###autoload
