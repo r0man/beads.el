@@ -494,6 +494,34 @@ backends including those that are currently unavailable."
   (mapcar (lambda (b) (oref b name))
           (beads-agent--get-available-backends)))
 
+(defun beads-agent--curated-backend-names ()
+  "Return the curated backend names from `beads-agent-curated-backends'.
+Returns nil when the defcustom is not yet loaded; callers should then
+treat every backend as curated."
+  (and (bound-and-true-p beads-agent-curated-backends)
+       beads-agent-curated-backends))
+
+(defun beads-agent--curated-backends ()
+  "Return registered backends named in `beads-agent-curated-backends'.
+The result preserves the registry priority order and drops names that
+are not registered.  When the curated list is unset (nil), every
+registered backend is returned."
+  (let ((curated (beads-agent--curated-backend-names)))
+    (if curated
+        (cl-remove-if-not (lambda (b) (member (oref b name) curated))
+                          beads-agent--backends)
+      beads-agent--backends)))
+
+(defun beads-agent--other-backends ()
+  "Return registered backends not named in `beads-agent-curated-backends'.
+These are the backends the launch UI hides behind its `... other'
+overflow; they stay registered and selectable.  Returns nil when the
+curated list is unset (meaning nothing is demoted)."
+  (let ((curated (beads-agent--curated-backend-names)))
+    (when curated
+      (cl-remove-if (lambda (b) (member (oref b name) curated))
+                    beads-agent--backends))))
+
 ;;; Buffer Acquisition Helpers
 
 (defun beads-agent--wait-for-buffer (finder &optional timeout interval)

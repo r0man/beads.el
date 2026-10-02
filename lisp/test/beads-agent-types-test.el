@@ -8,7 +8,8 @@
 ;;; Commentary:
 
 ;; Comprehensive ERT tests for beads-agent-types.el built-in agent types.
-;; Tests cover all 5 types: Task, Review, Plan, QA, Custom.
+;; Tests cover the 3 built-in types: Task, Review (incl. QA mode), Plan.
+;; QA and Custom are intentionally not classes (F3).
 
 ;;; Code:
 
@@ -24,8 +25,8 @@
 (defvar beads-agent-types-test--saved-review-prompt nil
   "Saved review prompt for tests.")
 
-(defvar beads-agent-types-test--saved-qa-prompt nil
-  "Saved QA prompt for tests.")
+(defvar beads-agent-types-test--saved-review-qa-prompt nil
+  "Saved Review QA prompt for tests.")
 
 (defun beads-agent-types-test--make-sample-issue ()
   "Create a sample beads-issue for testing prompt building."
@@ -38,7 +39,7 @@
   ;; Save current state
   (setq beads-agent-types-test--saved-registry beads-agent-type--registry)
   (setq beads-agent-types-test--saved-review-prompt beads-agent-review-prompt)
-  (setq beads-agent-types-test--saved-qa-prompt beads-agent-qa-prompt)
+  (setq beads-agent-types-test--saved-review-qa-prompt beads-agent-review-qa-prompt)
   ;; Clear and re-register to ensure clean state
   (beads-agent-type--clear-registry)
   (setq beads-agent-types--builtin-registered nil)
@@ -49,22 +50,22 @@
   ;; Restore saved state
   (setq beads-agent-type--registry beads-agent-types-test--saved-registry)
   (setq beads-agent-review-prompt beads-agent-types-test--saved-review-prompt)
-  (setq beads-agent-qa-prompt beads-agent-types-test--saved-qa-prompt)
+  (setq beads-agent-review-qa-prompt beads-agent-types-test--saved-review-qa-prompt)
   (setq beads-agent-types-test--saved-registry nil))
 
 ;;; Tests for Registration
 
 (ert-deftest beads-agent-types-test-all-registered ()
-  "Test that all 5 built-in types are registered."
+  "Test that all 3 built-in types are registered."
   (beads-agent-types-test--setup)
   (unwind-protect
       (let ((types (beads-agent-type-list)))
-        (should (= (length types) 5))
+        (should (= (length types) 3))
         (should (beads-agent-type-get "task"))
         (should (beads-agent-type-get "review"))
         (should (beads-agent-type-get "plan"))
-        (should (beads-agent-type-get "qa"))
-        (should (beads-agent-type-get "custom")))
+        (should-not (beads-agent-type-get "qa"))
+        (should-not (beads-agent-type-get "custom")))
     (beads-agent-types-test--teardown)))
 
 (ert-deftest beads-agent-types-test-registration-idempotent ()
@@ -75,7 +76,7 @@
         ;; Register again - should not duplicate
         (beads-agent-types-register-builtin)
         (beads-agent-types-register-builtin)
-        (should (= (length (beads-agent-type-list)) 5)))
+        (should (= (length (beads-agent-type-list)) 3)))
     (beads-agent-types-test--teardown)))
 
 ;;; Tests for Task Agent
@@ -181,39 +182,42 @@
         (should (string-match "Test Issue Title" user)))
     (beads-agent-types-test--teardown)))
 
-;;; Tests for QA Agent
+;;; Tests for Review QA mode
 
-(ert-deftest beads-agent-types-test-qa-letter ()
-  "Test QA agent has letter Q."
+(ert-deftest beads-agent-types-test-review-qa-mode-prompt ()
+  "Test Review QA mode swaps in the QA role and output envelope."
   (beads-agent-types-test--setup)
   (unwind-protect
-      (let ((type (beads-agent-type-get "qa")))
-        (should (equal (oref type letter) "Q")))
-    (beads-agent-types-test--teardown)))
-
-(ert-deftest beads-agent-types-test-qa-default-prompt ()
-  "Test QA agent uses default prompt content."
-  (beads-agent-types-test--setup)
-  (unwind-protect
-      (let* ((type (beads-agent-type-get "qa"))
+      (let* ((type (beads-agent-type-review-qa))
              (issue (beads-agent-types-test--make-sample-issue))
              (sys (beads-agent-type-system-prompt type issue))
              (user (beads-agent-type-build-user-prompt type issue)))
-        ;; Role workflow in SYSTEM; issue context in USER.
+        (should (equal (oref type name) "Review"))
+        (should (oref type qa-mode))
         (should (string-match "QA agent" sys))
-        (should (string-match "tests" sys))
-        (should (string-match "edge cases" sys))
+        (should (string-match "Run Tests" sys))
+        (should (string-match "QA Summary" user))
         (should (string-match "test-123" user)))
     (beads-agent-types-test--teardown)))
 
-(ert-deftest beads-agent-types-test-qa-custom-prompt ()
-  "Test QA agent uses customized prompt with placeholders."
+(ert-deftest beads-agent-types-test-review-default-not-qa ()
+  "Test a default Review instance is not in QA mode and keeps its text."
   (beads-agent-types-test--setup)
   (unwind-protect
-      ;; Customising the role defcustom now feeds the SYSTEM prompt.
-      (let ((beads-agent-qa-prompt
+      (let* ((type (beads-agent-type-review))
+             (issue (beads-agent-types-test--make-sample-issue)))
+        (should-not (oref type qa-mode))
+        (should (string-match "code review"
+                              (beads-agent-type-system-prompt type issue))))
+    (beads-agent-types-test--teardown)))
+
+(ert-deftest beads-agent-types-test-review-qa-custom-prompt ()
+  "Test the relocated QA prompt defcustom feeds the Review QA path."
+  (beads-agent-types-test--setup)
+  (unwind-protect
+      (let ((beads-agent-review-qa-prompt
              "Custom QA instructions for <ISSUE-ID>: <ISSUE-TITLE>")
-            (type (beads-agent-type-get "qa")))
+            (type (beads-agent-type-review-qa)))
         (let ((sys (beads-agent-type-system-prompt
                     type (beads-agent-types-test--make-sample-issue))))
           (should (string-match "Custom QA instructions" sys))
@@ -221,41 +225,12 @@
           (should (string-match "Test Issue Title" sys))))
     (beads-agent-types-test--teardown)))
 
-
-;;; Tests for Custom Agent
-
-(ert-deftest beads-agent-types-test-custom-letter ()
-  "Test Custom agent has letter C."
-  (beads-agent-types-test--setup)
-  (unwind-protect
-      (let ((type (beads-agent-type-get "custom")))
-        (should (equal (oref type letter) "C")))
-    (beads-agent-types-test--teardown)))
-
-
-(ert-deftest beads-agent-types-test-custom-returns-issue-prompt ()
-  "Test Custom agent returns issue-based prompt without minibuffer input.
-The user authors their custom instructions in the prompt-edit buffer
-that is shown after `beads-agent-type-build-user-prompt' returns, so this
-method must never prompt via `read-string'."
-  (beads-agent-types-test--setup)
-  (unwind-protect
-      (cl-letf (((symbol-function 'read-string)
-                 (lambda (&rest _args)
-                   (error "Custom type must not call read-string"))))
-        (let* ((type (beads-agent-type-get "custom"))
-               (prompt (beads-agent-type-build-user-prompt
-                        type (beads-agent-types-test--make-sample-issue))))
-          (should (stringp prompt))
-          (should (string-match "test-123" prompt))
-          (should (string-match "Test Issue Title" prompt))
-          (should (string-match "Test issue description" prompt))))
-    (beads-agent-types-test--teardown)))
+;;; Tests for Plan Agent
 
 ;;; Tests for Completion Support
 
 (ert-deftest beads-agent-types-test-completion-all-types ()
-  "Test all 5 types appear in completion."
+  "Test all 3 types appear in completion and QA/Custom do not."
   (beads-agent-types-test--setup)
   (unwind-protect
       (let ((table (beads-agent-type-completion-table)))
@@ -263,8 +238,8 @@ method must never prompt via `read-string'."
           (should (member "Task" completions))
           (should (member "Review" completions))
           (should (member "Plan" completions))
-          (should (member "QA" completions))
-          (should (member "Custom" completions))))
+          (should-not (member "QA" completions))
+          (should-not (member "Custom" completions))))
     (beads-agent-types-test--teardown)))
 
 ;;; Tests for Issue Context Integration
@@ -273,7 +248,7 @@ method must never prompt via `read-string'."
   "Test that prompts include issue title."
   (beads-agent-types-test--setup)
   (unwind-protect
-      (dolist (type-name '("task" "review" "qa"))
+      (dolist (type-name '("task" "review" "plan"))
         (let* ((type (beads-agent-type-get type-name))
                (prompt (beads-agent-type-build-user-prompt
                         type (beads-agent-types-test--make-sample-issue))))
@@ -300,7 +275,7 @@ method must never prompt via `read-string'."
   (beads-agent-types-test--setup)
   (unwind-protect
       (let ((issue (beads-issue :id "test-456" :title "No Description")))
-        (dolist (type-name '("task" "review" "qa"))
+        (dolist (type-name '("task" "review" "plan"))
           (let* ((type (beads-agent-type-get type-name))
                  (prompt (beads-agent-type-build-user-prompt type issue)))
             (should (stringp prompt))
@@ -364,30 +339,6 @@ the box, tries pieces, lays out the route."
         (should (equal (oref type icon) (string #x1F99D))))
     (beads-agent-types-test--teardown)))
 
-(ert-deftest beads-agent-types-test-qa-icon ()
-  "Test QA agent has the chipmunk icon (U+1F43F U+FE0F).
-The chipmunk is a two-codepoint emoji (base + VS16): the variation
-selector is required for color rendering.  The fast, scurrying QA
-agent darts through tests and corner cases."
-  (beads-agent-types-test--setup)
-  (unwind-protect
-      (let ((type (beads-agent-type-get "qa")))
-        (should (equal (oref type icon) "🐿️"))
-        (should (equal (oref type icon)
-                       (concat (string #x1F43F) (string #xFE0F)))))
-    (beads-agent-types-test--teardown)))
-
-(ert-deftest beads-agent-types-test-custom-icon ()
-  "Test Custom agent has the fox icon (U+1F98A).
-The clever, adaptable fox — every Custom agent is shaped at runtime
-by the user's prompt."
-  (beads-agent-types-test--setup)
-  (unwind-protect
-      (let ((type (beads-agent-type-get "custom")))
-        (should (equal (oref type icon) "🦊"))
-        (should (equal (oref type icon) (string #x1F98A))))
-    (beads-agent-types-test--teardown)))
-
 (ert-deftest beads-agent-types-test-each-has-icon ()
   "Test that every built-in type has a non-empty icon string."
   (beads-agent-types-test--setup)
@@ -432,22 +383,18 @@ icon = nil so the letter slot remains the fallback."
   "Saved review backend for tests.")
 (defvar beads-agent-types-test--saved-plan-backend nil
   "Saved plan backend for tests.")
-(defvar beads-agent-types-test--saved-qa-backend nil
-  "Saved qa backend for tests.")
 
 (defun beads-agent-types-test--setup-backends ()
   "Save current backend preferences."
   (setq beads-agent-types-test--saved-task-backend beads-agent-task-backend)
   (setq beads-agent-types-test--saved-review-backend beads-agent-review-backend)
-  (setq beads-agent-types-test--saved-plan-backend beads-agent-plan-backend)
-  (setq beads-agent-types-test--saved-qa-backend beads-agent-qa-backend))
+  (setq beads-agent-types-test--saved-plan-backend beads-agent-plan-backend))
 
 (defun beads-agent-types-test--teardown-backends ()
   "Restore saved backend preferences."
   (setq beads-agent-task-backend beads-agent-types-test--saved-task-backend)
   (setq beads-agent-review-backend beads-agent-types-test--saved-review-backend)
-  (setq beads-agent-plan-backend beads-agent-types-test--saved-plan-backend)
-  (setq beads-agent-qa-backend beads-agent-types-test--saved-qa-backend))
+  (setq beads-agent-plan-backend beads-agent-types-test--saved-plan-backend))
 
 (ert-deftest beads-agent-types-test-task-preferred-backend-nil ()
   "Test Task agent returns nil when no backend preference set."
@@ -518,36 +465,42 @@ icon = nil so the letter slot remains the fallback."
     (beads-agent-types-test--teardown-backends)
     (beads-agent-types-test--teardown)))
 
-(ert-deftest beads-agent-types-test-qa-preferred-backend-nil ()
-  "Test QA agent returns nil when no backend preference set."
+(ert-deftest beads-agent-types-test-review-qa-mode-preferred-backend ()
+  "Test Review QA mode still uses the Review backend preference."
   (beads-agent-types-test--setup)
   (beads-agent-types-test--setup-backends)
   (unwind-protect
-      (let ((beads-agent-qa-backend nil)
-            (type (beads-agent-type-get "qa")))
-        (should (null (beads-agent-type-preferred-backend type))))
-    (beads-agent-types-test--teardown-backends)
-    (beads-agent-types-test--teardown)))
-
-(ert-deftest beads-agent-types-test-qa-preferred-backend-set ()
-  "Test QA agent returns configured backend preference."
-  (beads-agent-types-test--setup)
-  (beads-agent-types-test--setup-backends)
-  (unwind-protect
-      (let ((beads-agent-qa-backend "agent-shell")
-            (type (beads-agent-type-get "qa")))
+      (let ((beads-agent-review-backend "agent-shell")
+            (type (beads-agent-type-review-qa)))
         (should (equal (beads-agent-type-preferred-backend type)
                        "agent-shell")))
     (beads-agent-types-test--teardown-backends)
     (beads-agent-types-test--teardown)))
 
-(ert-deftest beads-agent-types-test-custom-preferred-backend-nil ()
-  "Test Custom agent returns nil (no backend preference)."
+;;; F3 deletion: classes gone, registry still open
+
+(defclass beads-agent-types-test--out-of-tree (beads-agent-type)
+  ((name :initform "OutOfTreeQA")
+   (letter :initform "Z")
+   (description :initform "Out-of-tree test role"))
+  :documentation "Test-only out-of-tree role for registry openness.")
+
+(ert-deftest beads-agent-types-test-qa-custom-classes-gone ()
+  "Test the QA and Custom classes are undefined."
+  (should-not (find-class 'beads-agent-type-qa nil))
+  (should-not (find-class 'beads-agent-type-custom nil))
+  (should-not (fboundp 'beads-agent-type-qa))
+  (should-not (fboundp 'beads-agent-type-custom)))
+
+(ert-deftest beads-agent-types-test-registry-open-out-of-tree ()
+  "Test an out-of-tree role still registers after F3."
   (beads-agent-types-test--setup)
   (unwind-protect
-      (let ((type (beads-agent-type-get "custom")))
-        ;; Custom type uses default implementation which returns nil
-        (should (null (beads-agent-type-preferred-backend type))))
+      (let ((type (beads-agent-types-test--out-of-tree)))
+        (beads-agent-type-register type)
+        (should (eq (beads-agent-type-get "OutOfTreeQA") type))
+        (should (eq (beads-agent-type-get-by-letter "Z") type)))
+    (beads-agent-type--unregister "OutOfTreeQA")
     (beads-agent-types-test--teardown)))
 
 (provide 'beads-agent-types-test)

@@ -7,6 +7,7 @@
 ;; Tests for the agent key prefix map (`a' prefix in list/show modes).
 ;; Verifies that agent commands are accessible via `a' prefix and that
 ;; old single-letter bindings (T, R, P, Q, C, X, J, A) are removed.
+;; The `a q' / `a c' keys were freed by the F3 roster slimming.
 
 ;;; Code:
 
@@ -30,10 +31,9 @@
               #'beads-agent-start-review))
   (should (eq (lookup-key beads-agent-prefix-map (kbd "p"))
               #'beads-agent-start-plan))
-  (should (eq (lookup-key beads-agent-prefix-map (kbd "q"))
-              #'beads-agent-start-qa))
-  (should (eq (lookup-key beads-agent-prefix-map (kbd "c"))
-              #'beads-agent-start-custom))
+  ;; QA and Custom keys are freed (F3): no binding.
+  (should-not (lookup-key beads-agent-prefix-map (kbd "q")))
+  (should-not (lookup-key beads-agent-prefix-map (kbd "c")))
   (should (eq (lookup-key beads-agent-prefix-map (kbd "x"))
               #'beads-agent-stop-at-point))
   (should (eq (lookup-key beads-agent-prefix-map (kbd "j"))
@@ -134,15 +134,13 @@
   (should (eq (lookup-key beads-dashboard-mode-map (kbd "a p"))
               #'beads-agent-start-plan)))
 
-(ert-deftest beads-agent-keys-test-dashboard-mode-a-q ()
-  "`a q' in dashboard-mode starts the QA agent."
-  (should (eq (lookup-key beads-dashboard-mode-map (kbd "a q"))
-              #'beads-agent-start-qa)))
+(ert-deftest beads-agent-keys-test-dashboard-mode-a-q-free ()
+  "`a q' in dashboard-mode is unbound (F3 freed the QA key)."
+  (should-not (lookup-key beads-dashboard-mode-map (kbd "a q"))))
 
-(ert-deftest beads-agent-keys-test-dashboard-mode-a-c ()
-  "`a c' in dashboard-mode starts the Custom agent."
-  (should (eq (lookup-key beads-dashboard-mode-map (kbd "a c"))
-              #'beads-agent-start-custom)))
+(ert-deftest beads-agent-keys-test-dashboard-mode-a-c-free ()
+  "`a c' in dashboard-mode is unbound (F3 freed the Custom key)."
+  (should-not (lookup-key beads-dashboard-mode-map (kbd "a c"))))
 
 (ert-deftest beads-agent-keys-test-dashboard-mode-a-x ()
   "`a x' in dashboard-mode stops the agent for the issue at point."

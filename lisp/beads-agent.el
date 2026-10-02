@@ -419,14 +419,14 @@ Looks in this order:
 ;;; Public API Functions
 
 ;;;###autoload
-(defun beads-agent-start (&optional issue-id backend-name prompt agent-type-name)
+(defun beads-agent-start (&optional issue-id backend-name prompt agent-type)
   "Start an AI agent working on ISSUE-ID asynchronously.
 ISSUE-ID defaults to issue at point or prompts for selection.
 BACKEND-NAME defaults to configured default or prompts for selection.
 PROMPT defaults to auto-generated from issue (overridden by agent type).
-AGENT-TYPE-NAME is the name of the agent type (e.g., \"Task\", \"Review\").
-When not specified, defaults to \"Task\".  The agent type's prompt
-template is used instead of PROMPT.
+AGENT-TYPE is a `beads-agent-type' instance or a type name string
+\(e.g., \"Task\", \"Review\").  When not specified, defaults to
+\"Task\".  The agent type's prompt template is used instead of PROMPT.
 
 When `beads-agent-use-worktrees' is non-nil, the agent will work
 in a git worktree named after the issue ID.  The worktree is
@@ -437,10 +437,9 @@ background with progress messages displayed in the echo area."
   (interactive)
   (beads-check-executable)
   (let* ((issue-id (or issue-id (beads-agent--read-issue-id)))
-         ;; Default to "Task" type when not specified
-         (effective-type-name (or agent-type-name "Task"))
-         (agent-type (or (beads-agent-type-get effective-type-name)
-                         (user-error "Unknown agent type: %s" effective-type-name)))
+         ;; Default to "Task" type when not specified; accept either a
+         ;; registered name or a pre-built instance (used by QA mode).
+         (agent-type (beads-agent--resolve-type agent-type))
          (backend (if backend-name
                       (or (beads-agent--get-backend backend-name)
                           (user-error "Backend not found: %s" backend-name))
@@ -451,6 +450,20 @@ background with progress messages displayed in the echo area."
              (oref agent-type name)
              issue-id)
     (beads-agent--start-async issue-id backend project-dir prompt agent-type)))
+
+(defun beads-agent--resolve-type (type-or-name)
+  "Resolve TYPE-OR-NAME to a `beads-agent-type' instance.
+TYPE-OR-NAME may be nil (defaults to the Task type), a
+`beads-agent-type' instance (returned unchanged, e.g. the Review QA
+instances), or a registered type name string.  Signals a
+`user-error' for an unknown or unregistered name."
+  (cond
+   ((null type-or-name) (beads-agent-type-get "Task"))
+   ((and (eieio-object-p type-or-name)
+         (object-of-class-p type-or-name 'beads-agent-type))
+    type-or-name)
+   (t (or (beads-agent-type-get type-or-name)
+          (user-error "Unknown agent type: %s" type-or-name)))))
 
 (defun beads-agent--start-async (issue-id backend project-dir prompt agent-type)
   "Async implementation of agent start.
@@ -484,7 +497,7 @@ AGENT-TYPE is an optional `beads-agent-type' instance."
               (type-name (and agent-type (oref agent-type name)))
               ;; System (role) prompt seeds the editor's system region.
               ;; Real role text in Phase 1a-ii (slots wired); nil for
-              ;; builder types (Custom) and the explicit/fallback path.
+              ;; builder types and the explicit/fallback path.
               (system-prompt (and agent-type
                                   (beads-agent-type-system-prompt
                                    agent-type issue))))
@@ -1082,7 +1095,7 @@ and RET accepts the default.  The launch is routed through the
 standalone `beads-sling-dispatch' seam so the interactive command
 exercises the same target abstraction as the wider sling flow.
 
-For quick starts with defaults, use P/T/R/Q/C keys in list/show buffers."
+For quick starts with defaults, use P/T/R keys in list/show buffers."
   (interactive)
   (require 'beads-sling)
   (let* ((context-id (beads-agent--detect-issue-id))
@@ -1121,14 +1134,15 @@ For quick starts with defaults, use P/T/R/Q/C keys in list/show buffers."
              (user-error "Failed to setup worktree: %s" path-or-error))))))))
 
 (defun beads-agent--start-with-worktree (issue-id backend project-dir
-                                         worktree-path &optional agent-type-name)
+                                         worktree-path &optional agent-type-or-name)
   "Start agent on ISSUE-ID in WORKTREE-PATH.
 BACKEND is the beads-agent-backend to use, or nil to select one.
 PROJECT-DIR is the main project directory.
-AGENT-TYPE-NAME is optional agent type name (defaults to \"Task\")."
+AGENT-TYPE-OR-NAME is an optional `beads-agent-type' instance or type
+name (defaults to \"Task\")."
   ;; Fetch issue and start agent
-  (let* ((effective-type-name (or agent-type-name "Task"))
-         (agent-type (beads-agent-type-get effective-type-name))
+  (let* ((agent-type (beads-agent--resolve-type agent-type-or-name))
+         (effective-type-name (oref agent-type name))
          ;; Select backend now (before async) to ensure user prompt happens synchronously
          (effective-backend (or backend
                                 (beads-agent--select-backend agent-type))))
@@ -1367,8 +1381,10 @@ Returns list of matching sessions."
      (equal (beads-agent-session-type-name session) type-name))
    (beads-agent--get-sessions-for-issue issue-id)))
 
-(defun beads-agent--start-typed (type-name &optional force-new)
-  "Start or jump to agent of TYPE-NAME for issue at point.
+(defun beads-agent--start-typed (type-or-name &optional force-new)
+  "Start or jump to agent of TYPE-OR-NAME for issue at point.
+TYPE-OR-NAME is a registered name string or a `beads-agent-type'
+instance (used by the Review QA mode).
 When FORCE-NEW is non-nil, always start a new agent even if one exists.
 When existing sessions of the same type exist and FORCE-NEW is nil:
 - If one session exists, jumps to it directly.
@@ -1376,34 +1392,36 @@ When existing sessions of the same type exist and FORCE-NEW is nil:
 When starting a new agent with worktrees enabled, prompts for worktree
 name and branch with smart defaults (issue ID for both).
 This is the core implementation for all type-specific start commands."
-  (if-let* ((id (beads-agent--detect-issue-id)))
-      (let ((existing (beads-agent--get-sessions-for-issue-type id type-name)))
-        (if (and existing (not force-new))
-            ;; Jump to existing session of this type
-            (cond
-             ;; Single session - jump directly
-             ((= (length existing) 1)
-              (beads-agent-jump (oref (car existing) id)))
-             ;; Multiple sessions - prompt for selection
-             (t
-              (if-let* ((selected (beads-agent--select-session-completing-read
-                                  existing
-                                  (format "Jump to %s agent for %s: " type-name id))))
-                  (beads-agent-jump (oref selected id))
-                (message "No agent selected"))))
-          ;; Start new agent - prompt for worktree if enabled
-          (if (beads-agent--should-use-worktree-p id)
-              (let ((project-root (beads-git-find-project-root)))
-                (beads-agent--setup-worktree-interactive
-                 id
-                 (lambda (success path-or-error)
-                   (if success
-                       (beads-agent--start-with-worktree
-                        id nil project-root path-or-error type-name)
-                     (user-error "Failed to setup worktree: %s" path-or-error)))))
-            ;; No worktree - start directly
-            (beads-agent-start id nil nil type-name))))
-    (user-error "No issue at point")))
+  (let* ((agent-type (beads-agent--resolve-type type-or-name))
+         (type-name (oref agent-type name)))
+    (if-let* ((id (beads-agent--detect-issue-id)))
+        (let ((existing (beads-agent--get-sessions-for-issue-type id type-name)))
+          (if (and existing (not force-new))
+              ;; Jump to existing session of this type
+              (cond
+               ;; Single session - jump directly
+               ((= (length existing) 1)
+                (beads-agent-jump (oref (car existing) id)))
+               ;; Multiple sessions - prompt for selection
+               (t
+                (if-let* ((selected (beads-agent--select-session-completing-read
+                                    existing
+                                    (format "Jump to %s agent for %s: " type-name id))))
+                    (beads-agent-jump (oref selected id))
+                  (message "No agent selected"))))
+            ;; Start new agent - prompt for worktree if enabled
+            (if (beads-agent--should-use-worktree-p id)
+                (let ((project-root (beads-git-find-project-root)))
+                  (beads-agent--setup-worktree-interactive
+                   id
+                   (lambda (success path-or-error)
+                     (if success
+                         (beads-agent--start-with-worktree
+                          id nil project-root path-or-error agent-type)
+                       (user-error "Failed to setup worktree: %s" path-or-error)))))
+              ;; No worktree - start directly
+              (beads-agent-start id nil nil agent-type))))
+      (user-error "No issue at point"))))
 
 ;;;###autoload
 (defun beads-agent-start-task (&optional arg)
@@ -1432,21 +1450,14 @@ making changes, working with any backend."
   (beads-agent--start-typed "Plan" arg))
 
 ;;;###autoload
-(defun beads-agent-start-qa (&optional arg)
-  "Start or jump to QA agent for issue at point.
+(defun beads-agent-start-review-qa (&optional arg)
+  "Start or jump to a Review agent in QA mode for issue at point.
 With prefix ARG, always start a new agent even if one exists.
-Without prefix, jumps to existing QA agent if one is running."
+Without prefix, jumps to an existing Review agent if one is running.
+QA mode uses the testing/verification prompt under the Review role;
+the standalone QA class was removed (F3)."
   (interactive "P")
-  (beads-agent--start-typed "QA" arg))
-
-;;;###autoload
-(defun beads-agent-start-custom (&optional arg)
-  "Start or jump to Custom agent for issue at point.
-With prefix ARG, always start a new agent even if one exists.
-Without prefix, jumps to existing Custom agent if one is running.
-Prompts for a custom prompt string to send to the agent."
-  (interactive "P")
-  (beads-agent--start-typed "Custom" arg))
+  (beads-agent--start-typed (beads-agent-type-review-qa) arg))
 
 ;;;###autoload
 (defun beads-agent-stop-at-point ()

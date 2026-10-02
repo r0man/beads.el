@@ -149,6 +149,18 @@ for backend selection."
   :type 'boolean
   :group 'beads-agent)
 
+(defcustom beads-agent-curated-backends
+  '("claude-code" "agent-shell" "terminal")
+  "Backends shown directly in the agent launch UI.
+Backends not listed here stay registered and selectable, but the
+launch menu places them behind an `... other' overflow (the backend
+list is curated, not truncated).  Names are matched against the
+backend `name' slot; a name that is not registered is ignored.
+
+`mock' is a test-only backend and is never shown in the user menu."
+  :type '(repeat string)
+  :group 'beads-agent)
+
 ;;; Provide
 
 (provide 'beads-custom)
