@@ -74,6 +74,23 @@ changed."
        (> beads-remote-miss-ttl 0)
        (< (- (float-time) (cdr entry)) beads-remote-miss-ttl)))
 
+;;; Path localization
+
+(defun beads-remote-localize-path (path &optional dir)
+  "Return PATH openable from DIR's host (default `default-directory').
+bd reports paths (an issue's worktree, a store root, a tmux pane's
+cwd) as host-local absolute paths on the machine running bd.  When DIR
+is a remote TRAMP name, re-prefix PATH with DIR's remote prefix so
+`find-file'/`dired' open it on that host.  A local DIR — or a nil,
+empty, or already-remote PATH — returns PATH unchanged.  Pure name
+manipulation: never connects to the host, so it is safe at render
+time."
+  (let ((remote (and (stringp path)
+                     (not (string-empty-p path))
+                     (not (file-remote-p path))
+                     (file-remote-p (or dir default-directory)))))
+    (if remote (concat remote path) path)))
+
 ;;; Executables
 
 (defun beads-remote-find-executable (name &optional dir)
@@ -123,6 +140,65 @@ also returns NAME but is never cached."
                             beads-remote--cache))
                   (t (remhash key beads-remote--cache)))
             (or found name))))))))
+
+;;; Terminfo on the host
+
+(defun beads-remote--terminfo-candidates (term remote)
+  "Return TRAMP file names where TERM's terminfo entry may live on REMOTE.
+The compiled-entry locations ncurses consults: the user's ~/.terminfo
+first, then the common system databases, each keyed by TERM's first
+character (the Linux layout; the hex-keyed macOS layout is out of
+scope — cities are Linux hosts).  A pure function of its inputs; the
+`~' is left for the TRAMP handlers to expand host-side."
+  (let ((leaf (format "%s/%s" (substring term 0 1) term)))
+    (mapcar (lambda (dir) (format "%s%s/%s" remote dir leaf))
+            '("~/.terminfo" "/usr/share/terminfo" "/lib/terminfo"
+              "/etc/terminfo" "/usr/local/share/terminfo"))))
+
+(defun beads-remote-terminfo-p (term &optional dir)
+  "Return non-nil when DIR's host likely has a terminfo entry for TERM.
+For a local DIR (default `default-directory') this is trivially t: the
+local terminal backend owns TERM and its terminfo (beads.el's env
+contract).  For a remote DIR the probe is best-effort, on the host:
+first `infocmp TERM' there (resolved like any remote executable; exit 0
+is authoritative — it searches the same ncurses paths a linked client
+does), then an existence sweep of the standard compiled-entry
+locations (`beads-remote--terminfo-candidates').
+
+Heuristic by design: the exact search path of the host tmux's own
+ncurses (e.g. a Guix store database) cannot be read from here, so a
+present-but-unfound entry reports missing.  That failure mode is
+benign — the caller then forces a fallback TERM onto the remote
+command, which narrows capabilities slightly but always attaches,
+where a missing entry kills the attach outright.  Probe errors (a
+dropped connection) also report missing for the same reason.
+
+Positive results are cached per (connection x TERM) in
+`beads-remote--cache'; a miss is re-probed on the next call, so
+installing the entry on the host heals itself.  Clear with
+`beads-remote-forget'."
+  (let ((remote (file-remote-p (or dir default-directory))))
+    (if (not remote)
+        t
+      (let ((key (cons remote (cons :terminfo term))))
+        (or (gethash key beads-remote--cache)
+            (let* ((default-directory (or dir default-directory))
+                   (found
+                    (condition-case nil
+                        (or (eq 0 (process-file
+                                   (beads-remote-find-executable "infocmp")
+                                   nil nil nil term))
+                            (and (cl-some
+                                  #'file-exists-p
+                                  (beads-remote--terminfo-candidates
+                                   term remote))
+                                 t))
+                      ;; A probe error must not kill the attach flow;
+                      ;; "missing" only forces the safe fallback TERM.
+                      (error nil))))
+              (when found
+                (puthash key t beads-remote--cache))
+              found))))))
 
 ;;; PATH for the program's children
 
@@ -398,6 +474,76 @@ this function does no I/O itself.  BatchMode means ssh never prompts
                 "-o" "ServerAliveCountMax=3")
           (beads-remote--ssh-target name)
           (list "--" (beads-remote-shell-command argv path-assignment))))
+
+;;; Host prewarm
+
+(defcustom beads-remote-prewarm-programs '("bd" "tmux" "infocmp")
+  "Programs `beads-remote-prewarm' resolves on an ssh-transport host.
+A package built on beads.el (gascity.el) may append its own programs,
+e.g. its `gc' executable, so one prewarm covers every remote spawn."
+  :type '(repeat string)
+  :group 'beads)
+
+(defvar beads-remote--prewarming (make-hash-table :test 'equal)
+  "Hosts (TRAMP prefixes) with a prewarm in flight or done.")
+
+(defun beads-remote-prewarm (&optional dir)
+  "Resolve `beads-remote-prewarm-programs' on DIR's host in the background.
+For an ssh-transport store (`beads-remote-ssh-pipe-p'): one local ssh
+pipe process (`beads-remote-ssh-command', no TRAMP I/O) runs
+`command -v' for the programs (and a relative `beads-executable')
+under the extended PATH and stores each absolute answer in the
+per-connection executable cache (`beads-remote--cache'), keyed
+\(REMOTE-PREFIX . NAME) exactly as `beads-remote-find-executable'
+reads it.  Once per host; a failed prewarm (non-zero exit, or the
+`beads-remote-sync-timeout' deadline) may run again later.  Returns
+nil at once — the resolution happens in the sentinel."
+  (let* ((dir (or dir default-directory))
+         (remote (file-remote-p dir)))
+    (when (and remote
+               (beads-remote-ssh-pipe-p dir)
+               (not (gethash remote beads-remote--prewarming)))
+      (puthash remote t beads-remote--prewarming)
+      (let* ((names (delete-dups
+                     (append beads-remote-prewarm-programs
+                             (and (stringp beads-executable)
+                                  (not (file-name-absolute-p beads-executable))
+                                  (list beads-executable)))))
+             (script (concat "for n in "
+                             (mapconcat #'shell-quote-argument names " ")
+                             "; do printf '%s %s\\n' \"$n\" "
+                             "\"$(command -v \"$n\" 2>/dev/null)\"; done"))
+             (chunks nil)
+             (default-directory temporary-file-directory)
+             proc)
+        (condition-case nil
+            (progn
+              (setq proc
+                    (make-process
+                     :name "beads-prewarm" :noquery t
+                     :command (beads-remote-ssh-command
+                               dir (list "sh" "-c" script))
+                     :connection-type 'pipe :file-handler nil :stderr nil
+                     :filter (lambda (_p chunk) (push chunk chunks))
+                     :sentinel
+                     (lambda (p _e)
+                       (when (memq (process-status p) '(exit signal))
+                         (if (not (eql (process-exit-status p) 0))
+                             (remhash remote beads-remote--prewarming)
+                           (dolist (line (split-string
+                                          (apply #'concat (nreverse chunks))
+                                          "\n" t))
+                             (let ((pair (split-string line " " t)))
+                               (when (and (= (length pair) 2)
+                                          (file-name-absolute-p (cadr pair)))
+                                 (puthash (cons remote (car pair)) (cadr pair)
+                                          beads-remote--cache)))))))))
+              (run-at-time (or beads-remote-sync-timeout 30) nil
+                           (lambda ()
+                             (when (process-live-p proc)
+                               (delete-process proc)))))
+          (error (remhash remote beads-remote--prewarming)))
+        nil))))
 
 (provide 'beads-remote)
 ;;; beads-remote.el ends here
