@@ -50,6 +50,10 @@
 (declare-function beads-conflicts "beads-command-conflicts" nil)
 (declare-function beads-reclaim "beads-command-reclaim" nil)
 (declare-function beads-heartbeat "beads-command-heartbeat" nil)
+;; Absorbed from the deleted `beads-more-menu' (temporary home until WI-9)
+(declare-function beads-create "beads-command-create" nil)
+(declare-function beads-q "beads-command-misc" nil)
+(declare-function beads-list-advanced "beads-command-list" nil)
 
 ;;;###autoload (autoload 'beads-ops-menu "beads-ops-menu" nil t)
 (beads-define-prefix beads-ops-menu ()
@@ -64,7 +68,9 @@ workflow coordination."
    ("D" "Delete" beads-delete)
 ("p" "Promote wisp" beads-promote)
    ("R" "Rename" beads-rename)
-   ("u" "Unclaim" beads-unclaim)]
+   ("u" "Unclaim" beads-unclaim)
+   ("I" "Create (transient)" beads-create)
+   ("y" "Quick capture" beads-q)]
   ["Views & Reports"
    ("c" "Count" beads-count)
    ("t" "Stats" beads-stats)
@@ -72,7 +78,8 @@ workflow coordination."
    ("T" "Types" beads-types)
    ("l" "Lint" beads-lint)
    ("O" "Find duplicates" beads-find-duplicates)
-   ("o" "Orphans" beads-orphans)]
+   ("o" "Orphans" beads-orphans)
+   ("L" "List (advanced)" beads-list-advanced)]
   ["Issue Details"
    ("a" "Children" beads-children)
    ("=" "Comments" beads-comments-menu)

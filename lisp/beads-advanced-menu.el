@@ -74,6 +74,14 @@
 (declare-function beads-schema "beads-command-schema" nil)
 (declare-function beads-migrate-personal "beads-command-migrate-personal" nil)
 (declare-function beads-provenance "beads-command-provenance" nil)
+;; Absorbed from the deleted `beads-more-menu' (temporary home until WI-9)
+(declare-function beads-prune "beads-command-prune" nil)
+(declare-function beads-batch "beads-command-batch" nil)
+(declare-function beads-ping "beads-command-ping" nil)
+(declare-function beads-init-safety "beads-command-init" nil)
+(declare-function beads-bootstrap "beads-command-init" nil)
+(declare-function beads-human "beads-command-misc" nil)
+(declare-function beads-onboard "beads-command-misc" nil)
 
 ;;;###autoload (autoload 'beads-advanced-menu "beads-advanced-menu" nil t)
 (beads-define-prefix beads-advanced-menu ()
@@ -90,7 +98,10 @@ memory, and administration."
    ("f" "Flatten" beads-flatten)
    ("g" "GC" beads-gc)
    ("p" "Purge" beads-purge)
-   ("R" "Rename prefix" beads-rename-prefix)]
+   ("R" "Rename prefix" beads-rename-prefix)
+   ("N" "Prune closed" beads-prune)
+   ("X" "Batch ops" beads-batch)
+   ("9" "Ping database" beads-ping)]
   ["Data & Sync"
    ("b" "Backup" beads-backup)
    ("e" "Export" beads-export)
@@ -123,7 +134,11 @@ memory, and administration."
    ("w" "Where" beads-where)
    ("v" "Version" beads-version)
    ("x" "Context" beads-context)
-   ("S" "Setup integrations" beads-setup)]
+   ("S" "Setup integrations" beads-setup)
+   ("Z" "Init safety" beads-init-safety)
+   ("O" "Bootstrap" beads-bootstrap)
+   ("6" "Human commands" beads-human)
+   ("7" "Onboard snippet" beads-onboard)]
   ["Memory"
    ("k" "KV store" beads-kv)
    ("!" "Prime" beads-prime)

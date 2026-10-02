@@ -4,6 +4,19 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### `beads-more-menu` removed
+
+The deprecated `beads-more-menu` transient is gone: `M-x
+beads-more-menu` is no longer defined and its dangling autoload is
+removed (REQ-023, REQ-026).  Its genuine entries now live temporarily
+in the `!` `beads-ops-menu` and `>` `beads-advanced-menu` (further
+`beads-create`, `beads-q`, `beads-list-advanced`, `beads-prune`,
+`beads-batch`, `beads-ping`, `beads-init-safety`, `beads-bootstrap`,
+`beads-human`, `beads-onboard`); the dispatch-menu collapse in WI-9
+will move them to their final home.  Every command the old menu held
+remains reachable from the dispatch or a context key, enforced by
+`beads-menu-reachability-test.el`.
+
 ### One movement scheme: TAB/S-TAB next thing, SPC toggles (breaking keys)
 
 Every beads.el view now moves the same way.  `TAB` (and `<tab>`) goes

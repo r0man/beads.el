@@ -116,14 +116,6 @@ Signals an error if the transient fails to open."
   (beads-test-with-temp-repo (:init-beads t)
     (should (beads-live-test--open-transient-and-quit 'beads))))
 
-(ert-deftest beads-live-test-more-menu-renders ()
-  "Live: beads-more-menu opens without error."
-  :tags '(:live :transient)
-  (skip-unless (beads-live-test--interactive-p))
-  (skip-unless (executable-find beads-executable))
-  (beads-test-with-temp-repo (:init-beads t)
-    (should (beads-live-test--open-transient-and-quit 'beads-more-menu))))
-
 ;;; ============================================================
 ;;; Scenario 2: Create Issue End-to-End
 ;;; ============================================================
