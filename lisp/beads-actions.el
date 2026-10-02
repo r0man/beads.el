@@ -31,6 +31,36 @@
 
 (defvar beads-list--marked-issues)
 
+;;; Action Providers
+
+(defvar beads-action-providers nil
+  "Hook of functions contributing context-aware actions.
+Each function is called with one argument, CONTEXT, a keyword returned
+by `beads-actions-context' (e.g. `:list' or `:show'), and returns a
+list of (KEY . ACTION) conses.  KEY is a `key-description' string and
+ACTION is an interactive command.  The contributions are appended to
+the built-in action bar for that context.  An empty hook (the
+standalone default) contributes nothing.
+
+Downstream use: Gas City adds drain/nudge/sling actions.")
+
+(defvar beads-after-action-functions nil
+  "Hook run after a beads mutation succeeds.
+Each function is called with two arguments, ACTION (a symbol such as
+`close' or `claim') and ISSUES (the list of affected issue ids).  The
+hook is the refresh fan-out point for other views.  An empty hook (the
+standalone default) is a no-op.
+
+Downstream use: Gas City refreshes rig views after a mutation.")
+
+(defun beads-actions-provider-actions (context)
+  "Return the combined actions contributed for CONTEXT.
+Consults `beads-action-providers' in order, appending each function's
+list of KEY . ACTION conses.  An empty hook returns nil (no-op)."
+  (apply #'append
+         (delq nil (mapcar (lambda (fn) (funcall fn context))
+                           beads-action-providers))))
+
 ;;; Target Detection
 
 (defun beads-actions--target-ids ()
@@ -47,6 +77,22 @@ Signal `user-error' if no target found."
    (t
     (user-error "No issue at point"))))
 
+(defun beads-actions-context ()
+  "Return (CONTEXT . ISSUES) for the current beads buffer.
+CONTEXT is a keyword -- `:list', `:show', `:status', `:dashboard',
+`:formula-list' or `:agent-list' -- or nil when the mode is not a beads
+view.  ISSUES is the list of target issue ids at point or marked;
+when no target can be resolved it is nil rather than an error, so
+providers can always inspect the context."
+  (let ((context (cond ((derived-mode-p 'beads-list-mode) :list)
+                       ((eq major-mode 'beads-show-mode) :show)
+                       ((derived-mode-p 'beads-dashboard-mode) :dashboard)
+                       ((derived-mode-p 'beads-section-mode) :status)
+                       ((derived-mode-p 'beads-formula-list-mode) :formula-list)
+                       ((derived-mode-p 'beads-agent-list-mode) :agent-list)
+                       (t nil))))
+    (cons context (ignore-errors (beads-actions--target-ids)))))
+
 ;;; Buffer Refresh
 
 (defun beads-actions--refresh ()
@@ -56,6 +102,11 @@ Signal `user-error' if no target found."
     (beads-list-refresh))
    ((eq major-mode 'beads-show-mode)
     (beads-refresh-show))))
+
+(defun beads-actions--after-action (action issues)
+  "Run `beads-after-action-functions' with ACTION and ISSUES.
+Does nothing when the hook is empty (the standalone default)."
+  (run-hook-with-args 'beads-after-action-functions action issues))
 
 (defun beads-actions--after-mutation ()
   "Invalidate cache, clear mark state, and refresh the current buffer."
@@ -84,6 +135,7 @@ Prompts for a close reason, then executes immediately."
           (beads-execute 'beads-command-close :issue-ids (list id) :reason reason)
         (error (message "Failed to close %s: %s" id
                         (error-message-string err)))))
+    (beads-actions--after-action 'close ids)
     (beads-actions--after-mutation)
     (message "Closed %d issue(s)" count)))
 
@@ -99,6 +151,7 @@ Executes immediately without prompting."
           (beads-execute 'beads-command-update :issue-ids (list id) :claim t)
         (error (message "Failed to claim %s: %s" id
                         (error-message-string err)))))
+    (beads-actions--after-action 'claim ids)
     (beads-actions--after-mutation)
     (message "Claimed %d issue(s)" count)))
 
@@ -120,6 +173,7 @@ Prompts for an optional reason."
             (beads-execute 'beads-command-reopen :issue-ids (list id) :reason reason))
         (error (message "Failed to reopen %s: %s" id
                         (error-message-string err)))))
+    (beads-actions--after-action 'reopen ids)
     (beads-actions--after-mutation)
     (message "Reopened %d issue(s)" count)))
 
@@ -141,6 +195,7 @@ Prompts with `completing-read' for a valid status value."
           (beads-execute 'beads-command-update :issue-ids (list id) :status status)
         (error (message "Failed to update %s: %s" id
                         (error-message-string err)))))
+    (beads-actions--after-action 'set-status ids)
     (beads-actions--after-mutation)
     (message "Set status to '%s' for %d issue(s)" status count)))
 
@@ -167,6 +222,7 @@ Prompts with `completing-read' for a priority value (0-4)."
           (beads-execute 'beads-command-update :issue-ids (list id) :priority priority)
         (error (message "Failed to update %s: %s" id
                         (error-message-string err)))))
+    (beads-actions--after-action 'set-priority ids)
     (beads-actions--after-mutation)
     (message "Set priority to %d for %d issue(s)" priority count)))
 
