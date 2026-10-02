@@ -5476,5 +5476,130 @@ not to the command class's default serialization."
     (should-not (member "--include-comments" args))
     (should-not (member "--include-dependents" args))))
 
+;;; Detail redesign: identity block, breadcrumb, action bar (WI-8)
+
+(ert-deftest beads-show-test-identity-store-line ()
+  "The identity block renders a local `Store' line."
+  :tags '(:unit)
+  (with-temp-buffer
+   (setq-local beads-show--proj-name "beads.el")
+   (setq-local beads-show--project-dir "/tmp/beads.el")
+   (cl-letf (((symbol-function 'beads--get-database-path)
+              (lambda () ".beads/embeddeddolt")))
+     (beads-show--insert-store-line))
+   (let ((text (buffer-substring-no-properties (point-min) (point-max))))
+     (should (string-match-p "Store" text))
+     (should (string-match-p "beads.el · .beads/embeddeddolt" text)))))
+
+(ert-deftest beads-show-test-identity-store-line-remote-skipped ()
+  "A remote store renders no Store line (no host I/O at render)."
+  :tags '(:unit)
+  (beads-show-test-with-temp-buffer
+   (setq-local beads-show--proj-name "rig")
+   (setq-local beads-show--project-dir "/ssh:host:/srv/rig")
+   (beads-show--insert-store-line)
+   (should (zerop (buffer-size)))))
+
+(ert-deftest beads-show-test-action-bar ()
+  "The action bar advertises the mockup §5e keys."
+  :tags '(:unit)
+  (with-temp-buffer
+   (beads-show--insert-action-bar)
+   (let ((text (buffer-substring-no-properties (point-min) (point-max))))
+     (should (string-match-p "close" text))
+     (should (string-match-p "claim" text))
+     (should (string-match-p "status" text))
+     (should (string-match-p "priority" text))
+     (should (string-match-p "edit" text))
+     (should (string-match-p "comment" text))
+     (should (string-match-p "copy id" text))
+     (should (string-match-p "dispatch" text))
+     ;; The standalone sling abstraction is loaded in this tree.
+     (when (fboundp 'beads-sling-dispatch)
+       (should (string-match-p "sling" text))))))
+
+(ert-deftest beads-show-test-breadcrumb-renders-origin ()
+  "A recorded origin renders a breadcrumb back to that view."
+  :tags '(:unit)
+  (with-temp-buffer
+   (let ((origin (get-buffer-create "*beads-list-origin*")))
+     (setq-local beads-show--origin (cons "list" origin))
+     (beads-show--insert-breadcrumb)
+     (should (string-match-p "Back to list"
+                             (buffer-substring-no-properties
+                              (point-min) (point-max))))
+     (kill-buffer origin))))
+
+(ert-deftest beads-show-test-breadcrumb-absent-without-origin ()
+  "No origin means no breadcrumb line."
+  :tags '(:unit)
+  (with-temp-buffer
+   (beads-show--insert-breadcrumb)
+   (should (zerop (buffer-size)))))
+
+(ert-deftest beads-show-test-goto-origin-pops-origin ()
+  "`beads-show-goto-origin' pops to the recorded origin buffer."
+  :tags '(:unit)
+  (let ((origin (get-buffer-create "*beads-list-goto-origin*")))
+    (with-temp-buffer
+      (beads-show-mode)
+      (setq-local beads-show--origin (cons "list" origin))
+      (beads-show-goto-origin)
+      (should (eq (current-buffer) origin)))
+    (kill-buffer origin)))
+
+(ert-deftest beads-show-test-goto-origin-without-origin ()
+  "`beads-show-goto-origin' errors when no live origin exists."
+  :tags '(:unit)
+  (beads-show-test-with-temp-buffer
+   (should-error (beads-show-goto-origin) :type 'user-error)))
+
+(ert-deftest beads-show-test-detail-redesign-keybindings ()
+  "`c', `j' and `^' carry the detail-redesign commands."
+  :tags '(:unit)
+  (beads-show-test-with-temp-buffer
+   (should (eq (lookup-key beads-show-mode-map (kbd "c"))
+               #'beads-show-compose-comment))
+   (should (eq (lookup-key beads-show-mode-map (kbd "j"))
+               #'beads-show-attach-session-at-point))
+   (should (eq (lookup-key beads-show-mode-map (kbd "^"))
+               #'beads-show-goto-origin))))
+
+(ert-deftest beads-show-test-agent-session-attach-button ()
+  "An agent session row carries the session as a button property."
+  :tags '(:unit)
+  (let ((session (beads-agent-session
+                  :id "bd-42#1"
+                  :issue-id "bd-42"
+                  :current-issue "running"
+                  :backend-name "claude-code"
+                  :project-dir "/tmp"
+                  :agent-type-name "Task"
+                  :started-at "2025-01-15T10:30:00Z")))
+    (beads-show-test--with-agent-section (list session) nil
+      (goto-char (point-min))
+      (search-forward "claude-code")
+      (should (eq (get-text-property (point) 'beads-session) session)))))
+
+(ert-deftest beads-show-test-follow-reference-dispatches-agent ()
+  "RET on an agent session row attaches instead of following a ref."
+  :tags '(:unit)
+  (with-temp-buffer
+   (insert "  T claude-code: session\n")
+   (put-text-property (point-min) (point-max) 'beads-session 'fake)
+   (goto-char (point-min))
+   (let (called)
+     (cl-letf (((symbol-function 'beads-show-attach-session-at-point)
+                (lambda () (interactive) (setq called t))))
+       (beads-show-follow-reference)
+       (should called)))))
+
+(ert-deftest beads-show-test-attach-session-without-session ()
+  "Attaching with no session at point signals `user-error'."
+  :tags '(:unit)
+  (beads-show-test-with-temp-buffer
+   (goto-char (point-min))
+   (should-error (beads-show-attach-session-at-point) :type 'user-error)))
+
 (provide 'beads-show-test)
 ;;; beads-show-test.el ends here
