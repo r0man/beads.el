@@ -311,10 +311,16 @@ process-bound wait may not run), and does no TRAMP I/O."
         (kill-buffer err)))))
 
 (defconst beads-remote--find-up-script
-  (concat "d=$1; shift; while :; do for m in \"$@\"; do "
+  (concat "d=$1; shift; "
+          "case \"$d\" in \"~\"|\"~/\"*) d=\"$HOME${d#\\~}\";; esac; "
+          "while :; do for m in \"$@\"; do "
           "if [ -e \"$d/$m\" ]; then printf '%s\\n' \"$d\"; exit 0; fi; done; "
           "[ \"$d\" = / ] && exit 1; d=$(dirname \"$d\"); done")
-  "Shell script: print the nearest directory at or above $1 holding one of $2...")
+  "Shell script: print the nearest directory at or above $1 holding one of $2...
+A leading `~' or `~/' in $1 is expanded against the remote `$HOME'
+before the walk, so a tilde-relative localname (e.g. the localname of
+`/ssh:host:~/store') resolves on the host instead of being treated as
+a literal directory named `~'.")
 
 (defun beads-remote-ssh-find-up (dir markers)
   "Return the nearest directory at or above DIR holding one of MARKERS, or nil.

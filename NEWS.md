@@ -304,6 +304,14 @@ coexist.
 For package authors: `beads-terminal-running` is unchanged; the moved
 code is loaded lazily, so requiring `beads-terminal` stays cheap.
 
+### Remote project root resolves `~`-relative TRAMP stores
+
+A store addressed as `/ssh:host:~/store` now resolves its project
+root: the remote find-up walk expands a leading `~` against the
+host's `$HOME` before testing marker directories, so `beads--project-root`
+returns the real store root and buffers are host-qualified instead of
+falling back to the unqualified default (REQ-019).
+
 ### One faces palette and one glyph set (breaking status glyphs)
 
 A single `beads-face-*` palette in the new `beads-faces.el` now backs

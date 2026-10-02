@@ -516,5 +516,40 @@ Pure: a host-only name is dissected, never expanded."
      (beads-remote-with-timeout 0.2 (sit-for 5))
      :type 'beads-remote-timeout)))
 
+;;; Tilde-relative remote project roots (WI-20/F1, REQ-019)
+
+(ert-deftest beads-remote-test-find-up-script-expands-tilde ()
+  "The walk script expands a leading `~' against the remote `$HOME'.
+`tramp-file-name-localname' returns `~/store' verbatim for
+`/ssh:host:~/store'; shell-quoting it freezes the tilde, so the
+script itself must expand it before testing `$d/$m'."
+  (let* ((home (make-temp-file "beads-findup-home-" t))
+         (store (expand-file-name "bright-lights" home)))
+    (unwind-protect
+        (progn
+          (make-directory (expand-file-name ".beads" store) t)
+          (let ((default-directory home)
+                (process-environment
+                 (cons (concat "HOME=" home)
+                       (cl-remove-if (lambda (e) (string-prefix-p "HOME=" e))
+                                     process-environment))))
+            (should
+             (equal (process-lines "sh" "-c" beads-remote--find-up-script
+                                   "sh" "~/bright-lights" ".beads")
+                    (list store))))))))
+
+(ert-deftest beads-remote-test-find-up-forwards-tilde-localname ()
+  "`beads-remote-ssh-find-up' forwards the raw localname and the script.
+Expansion happens on the remote side, so the argv carries the
+unexpanded `~/bright-lights' plus `beads-remote--find-up-script'."
+  (let (seen)
+    (cl-letf (((symbol-function 'beads-remote-ssh-call)
+               (lambda (_dir argv) (setq seen argv) '(0 "x\n" ""))))
+      (beads-remote-ssh-find-up "/ssh:user@example.com:~/bright-lights"
+                                '(".beads" ".git")))
+    (should (equal (nth 0 seen) "sh"))
+    (should (equal (nth 2 seen) beads-remote--find-up-script))
+    (should (equal (nth 4 seen) "~/bright-lights"))))
+
 (provide 'beads-remote-test)
 ;;; beads-remote-test.el ends here
