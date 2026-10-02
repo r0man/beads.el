@@ -474,7 +474,7 @@ Pure: a host-only name is dissected, never expanded."
   (should-not (beads-remote-prefix "/home/user"))
   (should-not (beads-remote-prefix nil)))
 
-(ert-deftest beads-remote-test-localize-path ()
+(ert-deftest beads-remote-test-localize-path-pure ()
   "A host-local path is re-prefixed for a remote DIR, untouched otherwise."
   (should (equal (beads-remote-localize-path
                   "/home/user/work" "/ssh:user@example.com:/city")

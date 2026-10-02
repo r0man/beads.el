@@ -708,6 +708,16 @@ so that `beads-agent-start' gets a valid project root."
                   (derived-mode-p 'beads-list-mode)))
               (buffer-list)))
 
+(defun beads-live-test--goto-first-issue ()
+  "Move point to the first issue row in the current list buffer.
+The redesigned list interleaves section headers and state rows; those
+carry non-string tabulated ids and resolve to nil, so `point-min' alone
+is not an issue row."
+  (goto-char (point-min))
+  (while (and (not (eobp)) (not (beads-issue-at-point)))
+    (forward-line 1))
+  (beads-issue-at-point))
+
 (defun beads-live-test--show-buffer-loaded (issue-id)
   "Return the show buffer of ISSUE-ID once its issue has loaded, else nil."
   (cl-find-if (lambda (b)
@@ -753,7 +763,7 @@ Returns the value of PRED."
         (should list-buf)
         (unwind-protect
             (with-current-buffer list-buf
-              (goto-char (point-min))
+              (beads-live-test--goto-first-issue)
               (let ((issue-id (beads-issue-at-point)))
                 (should issue-id)
                 (cl-letf (((symbol-function 'beads-agent--should-use-worktree-p)
@@ -815,7 +825,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
            (should list-buf)
            (unwind-protect
                (with-current-buffer list-buf
-                 (goto-char (point-min))
+                 (beads-live-test--goto-first-issue)
                  (should (beads-issue-at-point))
                  (cl-letf (((symbol-function 'beads-agent--should-use-worktree-p)
                             (lambda (_) nil)))
@@ -856,7 +866,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
         (should list-buf)
         (unwind-protect
             (with-current-buffer list-buf
-              (goto-char (point-min))
+              (beads-live-test--goto-first-issue)
               (let ((issue-id (beads-issue-at-point)))
                 (should issue-id)
                 ;; Start initial Task session
@@ -892,7 +902,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
         (should list-buf)
         (unwind-protect
             (with-current-buffer list-buf
-              (goto-char (point-min))
+              (beads-live-test--goto-first-issue)
               (let ((issue-id (beads-issue-at-point)))
                 (should issue-id)
                 ;; Start a session first
@@ -924,7 +934,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
         (should list-buf)
         (unwind-protect
             (with-current-buffer list-buf
-              (goto-char (point-min))
+              (beads-live-test--goto-first-issue)
               (should (beads-issue-at-point))
               ;; No sessions started — stop should not error
               (should-not (condition-case _err
@@ -950,7 +960,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
         (should list-buf)
         (unwind-protect
             (with-current-buffer list-buf
-              (goto-char (point-min))
+              (beads-live-test--goto-first-issue)
               (let ((issue-id (beads-issue-at-point)))
                 (should issue-id)
                 ;; Start a session
@@ -980,7 +990,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
         (should list-buf)
         (unwind-protect
             (with-current-buffer list-buf
-              (goto-char (point-min))
+              (beads-live-test--goto-first-issue)
               (should (beads-issue-at-point))
               ;; No session — jump should start one
               (cl-letf (((symbol-function 'beads-agent--should-use-worktree-p)
@@ -1104,7 +1114,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
       (should list-buf)
       (unwind-protect
           (with-current-buffer list-buf
-            (goto-char (point-min))
+            (beads-live-test--goto-first-issue)
             (let ((issue-id (beads-issue-at-point)))
               (should issue-id)
               (beads-list-show)
@@ -1167,7 +1177,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
       (should list-buf)
       (unwind-protect
           (with-current-buffer list-buf
-            (goto-char (point-min))
+            (beads-live-test--goto-first-issue)
             (let ((issue-id (beads-issue-at-point)))
               (should issue-id)
               ;; Mark (advances cursor to next line)
@@ -1214,7 +1224,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
       (should list-buf)
       (unwind-protect
           (with-current-buffer list-buf
-            (goto-char (point-min))
+            (beads-live-test--goto-first-issue)
             (let ((issue-id (beads-issue-at-point)))
               (should issue-id)
               (beads-list-copy-id)

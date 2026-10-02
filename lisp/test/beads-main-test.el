@@ -723,10 +723,11 @@ pairs are the *direct* suffixes of the menu."
   "Return the (KEY . COMMAND) pairs registered on transient MENU."
   (beads-main-test--suffix-pairs (get menu 'transient--layout)))
 
-(ert-deftest beads-main-test-primary-dispatch-has-no-generated-transients ()
-  "No auto-generated per-command transient is bound in the main dispatch."
-  (dolist (pair (beads-main-test--layout-suffixes 'beads))
-    (should-not (beads-meta-generated-transient-p (cdr pair)))))
+;; The primary key path is the hand-built `beads-dispatch' from
+;; `beads-menu.el' (WI-9).  It deliberately exposes close/reopen/search
+;; directly, so the WI-2 "no generated transient on the dispatch"
+;; invariant is checked against the reach-through backend instead (see
+;; `beads-main-test-generated-transients-reach-through').
 
 (ert-deftest beads-main-test-generated-transients-reach-through ()
   "The demoted generated transients are reachable via the backend menu."
@@ -745,11 +746,14 @@ pairs are the *direct* suffixes of the menu."
     (should (fboundp cmd))
     (should (beads-meta-generated-transient-p cmd))))
 
-(ert-deftest beads-main-test-primary-dispatch-has-hand-built-actions ()
-  "Close/reopen on the primary dispatch use the hand-built context actions."
-  (let ((suffixes (beads-main-test--layout-suffixes 'beads)))
-    (should (member (cons "x" 'beads-actions-close) suffixes))
-    (should (member (cons "o" 'beads-actions-reopen) suffixes))))
+(ert-deftest beads-main-test-primary-dispatch-core-keys ()
+  "The hand-built dispatch binds the primary issue actions (WI-9)."
+  (require 'beads-menu)
+  (let ((suffixes (beads-main-test--layout-suffixes 'beads-dispatch)))
+    (should (member (cons "x" 'beads-close) suffixes))
+    (should (member (cons "o" 'beads-reopen) suffixes))
+    (should (member (cons "/" 'beads-search) suffixes))
+    (should (member (cons "!" 'beads-maintenance) suffixes))))
 
 (provide 'beads-main-test)
 ;;; beads-main-test.el ends here

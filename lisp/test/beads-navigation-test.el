@@ -100,7 +100,7 @@ MAP is evaluated once; COMMAND is quoted for readability."
   (beads-navigation-test--assert-contract
    beads-agent-list-mode-map
    #'beads-agent-list-quit #'beads-agent-list-refresh
-   #'beads-agent-list-jump
+   #'beads-agent-list-attach
    "agent-list"))
 
 (ert-deftest beads-navigation-test-epic-status-mode ()
@@ -121,25 +121,11 @@ MAP is evaluated once; COMMAND is quoted for readability."
               #'beads-section-visit-issue))
   (should (eq (keymap-lookup beads-section-mode-map "?") #'beads-dispatch)))
 
-(ert-deftest beads-navigation-test-dispatch-delegates-in-show ()
-  "`beads-dispatch' opens the show quick-actions in a show buffer."
-  :tags '(:unit)
-  (let (called)
-    (cl-letf (((symbol-function 'beads-show-actions)
-               (lambda () (setq called t))))
-      (with-temp-buffer
-        (beads-show-mode)
-        (beads-dispatch)))
-    (should called)))
-
-(ert-deftest beads-navigation-test-dispatch-opens-main-menu ()
-  "`beads-dispatch' opens the main transient outside a show buffer."
-  :tags '(:unit)
-  (let (called)
-    (cl-letf (((symbol-function 'beads)
-               (lambda () (setq called t))))
-      (beads-dispatch))
-    (should called)))
+;; `beads-dispatch' is the hand-built transient prefix defined in
+;; `beads-menu.el'; its definition and reachability are covered by
+;; `beads-menu-test.el'.  The interim delegating command from the
+;; navigation-contract work item was superseded, so no delegation test
+;; remains here.
 
 (provide 'beads-navigation-test)
 ;;; beads-navigation-test.el ends here

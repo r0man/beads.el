@@ -196,13 +196,19 @@
 
 ;;; Attach / jump / stop dispatch (mockup §9)
 
-(ert-deftest beads-agent-launch-test-attach-falls-back-to-jump ()
-  "Without a terminal attach (WI-14), attach delegates to jump."
-  (let ((jumped nil))
-    (cl-letf (((symbol-function 'beads-agent-jump)
-               (lambda (&optional id) (setq jumped id))))
+(ert-deftest beads-agent-launch-test-attach-uses-terminal ()
+  "With `beads-terminal-attach' available, attach routes the session to it."
+  (let ((attached nil)
+        (session (beads-agent-session
+                  :id "be-abcd" :issue-id "be-abcd"
+                  :backend-name "mock" :project-dir "/tmp"
+                  :started-at "2026-01-01T00:00:00Z")))
+    (cl-letf (((symbol-function 'beads-terminal-attach)
+               (lambda (s) (setq attached s)))
+              ((symbol-function 'beads-agent--get-session)
+               (lambda (id) (when (equal id "be-abcd") session))))
       (beads-agent-attach "be-abcd")
-      (should (equal "be-abcd" jumped)))))
+      (should (eq attached session)))))
 
 (ert-deftest beads-agent-launch-test-list-attach-uses-agent-attach ()
   "`beads-agent-list-attach' routes the session through attach."
@@ -243,12 +249,11 @@
                    :agent-type-name "Task" :instance-number 1
                    :started-at "2026-01-01T00:00:00Z"))
          (fn (lambda (action sess) (push (cons action sess) seen))))
-    (unwind-protect
-        (progn
-          (add-hook 'beads-agent-state-change-hook fn)
-          (beads-agent--run-state-change-hook 'started session)
-          (should (equal (car seen) (cons 'started session))))
-      (remove-hook 'beads-agent-state-change-hook fn))))
+    ;; Isolate the hook list: the real `beads-sesman' handler registers
+    ;; the session with sesman, which would leak across test files.
+    (let ((beads-agent-state-change-hook (list fn)))
+      (beads-agent--run-state-change-hook 'started session)
+      (should (equal (car seen) (cons 'started session))))))
 
 (provide 'beads-agent-launch-test)
 

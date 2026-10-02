@@ -4,6 +4,19 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Remote/TRAMP parity and test consolidation (WI-18)
+
+Test-only consolidation across the redesign: the retired
+`beads-menu-reachability-test.el` (which required the deleted
+`beads-ops-menu` / `beads-advanced-menu` files) is superseded by
+`beads-menu-test.el`, whose reachability inventory walks the hand-built
+`beads-dispatch` / `beads-maintenance` layouts.  Layout-coupled tests
+were ported to the redesigned views (navigation dispatch, agent-list
+`RET`, the detail action bar, the live list-row helpers), and a
+duplicate `beads-remote-localize-path` test was renamed.  The detail
+action bar now also advertises `beads-sling-dispatch` once the sling
+work item is present (REQ-019, REQ-021, REQ-022).
+
 ### `beads-more-menu` removed
 
 The deprecated `beads-more-menu` transient is gone: `M-x

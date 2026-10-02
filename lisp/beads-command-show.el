@@ -1947,7 +1947,10 @@ the `:show' context, labelling provider entries by their command
 name."
   (append
    (cl-loop for (key label cmd) in beads-show--action-bar-builtins
-            when (or (commandp cmd) (keymapp cmd))
+            ;; Include `fboundp' so generic commands such as
+            ;; `beads-sling-dispatch' (a `cl-defgeneric', not a plain
+            ;; command) are advertised once the sling work item ships.
+            when (or (commandp cmd) (keymapp cmd) (fboundp cmd))
             collect (cons (key-description (string key)) label))
    (mapcar (lambda (entry)
              (cons (car entry)
