@@ -1092,6 +1092,11 @@ target worktree.  A missing target is read interactively."
 
 (transient-define-suffix beads-sling--pick-work (&optional freeform)
   "Pick the What work for the sling; FREEFORM enters free text."
+  :description (lambda (_obj)
+                 (concat "Work: "
+                         (beads-sling--work-label
+                          (plist-get (transient-scope) :work)
+                          (plist-get (transient-scope) :work-title))))
   (interactive "P")
   (let* ((scope (transient-scope))
          (work (if freeform
@@ -1103,6 +1108,11 @@ target worktree.  A missing target is read interactively."
 
 (transient-define-suffix beads-sling--pick-formula ()
   "Pick the formula for the sling and rebuild the menu in place."
+  :description (lambda (_obj)
+                 (concat "Formula: "
+                         (beads-sling--formula-label
+                          (plist-get (transient-scope) :formula)
+                          (plist-get (transient-scope) :recipe))))
   (interactive)
   (let* ((scope (transient-scope))
          (name (beads-sling--read-formula))
@@ -1113,6 +1123,11 @@ target worktree.  A missing target is read interactively."
 
 (transient-define-suffix beads-sling--pick-target ()
   "Pick the Who target for the sling and rebuild the menu in place."
+  :description (lambda (_obj)
+                 (concat "Target: "
+                         (beads-sling--target-label
+                          (or (plist-get (transient-scope) :target)
+                              (beads-sling--derived-target-name)))))
   (interactive)
   (let* ((scope (transient-scope))
          (name (beads-sling--read-target-name)))
@@ -1175,32 +1190,18 @@ the routing flags render only on the settled plain shape."
                        (beads-sling--scope-context scope))))))
      (list
       (vector "What"
-              (list "A"
-                    (lambda (_obj)
-                      (concat "Work: "
-                              (beads-sling--work-label
-                               (plist-get scope :work)
-                               (plist-get scope :work-title))))
-                    'beads-sling--pick-work)
-              (list "f"
-                    (lambda (_obj)
-                      (concat "Formula: "
-                              (beads-sling--formula-label
-                               (plist-get scope :formula)
-                               (plist-get scope :recipe))))
-                    'beads-sling--pick-formula)))
+              ;; A bare command lets transient use the suffix's own
+              ;; `:description' function.  A function object in this
+              ;; slot is NOT a description: transient 0.13.8 treats it
+              ;; as the suffix command and refuses to parse the menu.
+              (list "A" 'beads-sling--pick-work)
+              (list "f" 'beads-sling--pick-formula)))
      (when-let* ((how (beads-sling--var-children
                        recipe beads-sling--reserved-keys scope)))
        (list how))
      (list
       (vector "Who"
-              (list "T"
-                    (lambda (_obj)
-                      (concat "Target: "
-                              (beads-sling--target-label
-                               (or (plist-get scope :target)
-                                   (beads-sling--derived-target-name)))))
-                    'beads-sling--pick-target)))
+              (list "T" 'beads-sling--pick-target)))
      (when (eq shape 'plain)
        (list
         (vector "Routing flags"
@@ -1208,12 +1209,15 @@ the routing flags render only on the settled plain shape."
                 '("-b" "Branch" "--branch=")
                 '("-n" "Nudge target after launch" "--nudge"))))
      (list
-      (vector "Actions"
-              '("s" "Launch" beads-sling--run)
-              '("P" "Full preview" beads-sling--show-preview)
-              (and formula '("r" "Recipe preview" beads-sling--recipe-preview))
-              '("x" "Reset" beads-sling--reset)
-              '("q" "Quit" transient-quit-one))))))
+      (apply #'vector
+             "Actions"
+             (delq nil
+                   (list '("s" "Launch" beads-sling--run)
+                         '("P" "Full preview" beads-sling--show-preview)
+                         (and formula '("r" "Recipe preview"
+                                        beads-sling--recipe-preview))
+                         '("x" "Reset" beads-sling--reset)
+                         '("q" "Quit" transient-quit-one))))))))
 
 (defun beads-sling--setup-children (_children)
   "Parse `beads-sling--children-specs' for the live scope."

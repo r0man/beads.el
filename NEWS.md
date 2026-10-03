@@ -4,6 +4,16 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### `beads-sling` menu renders on cold entry
+
+Fixed a crash in `M-x beads-sling` that fired before any What/Who
+stage was answered (be-d9ht): the generated transient put function
+objects in suffix-description slots, which transient 0.13.8 treated as
+the suffix command and refused to parse.  The work/formula/target lines
+now take their dynamic descriptions from the pick commands themselves,
+and empty optional actions are filtered out, so the cold menu parses
+and renders.  An ERT now parses the menu both cold and seeded.
+
 ### Remote/TRAMP parity and test consolidation (WI-18)
 
 Test-only consolidation across the redesign: the retired

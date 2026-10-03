@@ -375,11 +375,58 @@ plain, cold, formula and on sentences."
       (should-not (member "How — build-basic vars" plain-titles))
       (should (member "How — build-basic vars" formula-titles))
       (should-not (member "Routing flags" formula-titles))
-      ;; The What line carries its answer (stage collapse).
+      ;; The What line carries its answer through the pick command's
+      ;; own dynamic description (stage collapse).
       (let* ((what (cl-find "What" plain :key (lambda (g) (aref g 0))
                             :test #'equal))
              (work-line (aref what 1)))
-        (should (equal (funcall (nth 1 work-line) nil) "Work: be-abcd"))))))
+        (should (eq (nth 1 work-line) 'beads-sling--pick-work))
+        (cl-letf (((symbol-function 'transient-scope)
+                   (lambda (&rest _) (list :work "be-abcd"))))
+          (should (equal (funcall
+                          (oref (transient--suffix-prototype
+                                 'beads-sling--pick-work)
+                                description)
+                          nil)
+                         "Work: be-abcd")))))))
+
+(ert-deftest beads-sling-test-transient-setup-parses ()
+  "Both cold and seeded sling entry parse the adaptive menu.
+Regression for the transient 0.13.8 crash (be-d9ht): a function
+object in a suffix-description slot was treated as the suffix command,
+so `transient-setup' signalled and no menu ever rendered.  The layout
+is parsed here by `transient-setup' itself, once cold (mockup §6b) and
+once with a seeded scope, and the rendered menu is checked for the
+What/Who groups."
+  :tags '(:unit :transient)
+  (cl-letf (((symbol-function 'beads-sling--project-label)
+             (lambda () "beads.el"))
+            ((symbol-function 'beads-sling--derived-target-name)
+             (lambda () "beads.el/task")))
+    (unwind-protect
+        (progn
+          ;; Cold entry: no work, no formula, no target.
+          (transient-setup 'beads-sling--transient nil nil
+                           :scope (beads-sling--initial-scope))
+          (with-current-buffer " *transient*"
+            (should (string-match-p "What" (buffer-string)))
+            (should (string-match-p "Who" (buffer-string)))
+            (should (string-match-p "Work: (none" (buffer-string))))
+          (ignore-errors (transient-quit-all))
+          ;; Seeded entry: work, a formula with vars and a target.
+          (transient-setup
+           'beads-sling--transient nil nil
+           :scope (list :work "be-abcd" :work-title nil
+                        :formula "build-basic"
+                        :recipe (beads-formula
+                                 :name "build-basic"
+                                 :vars (list (beads-formula-var
+                                              :name "artifact_root")))
+                        :target "beads.el/task"))
+          (with-current-buffer " *transient*"
+            (should (string-match-p "How — build-basic vars" (buffer-string)))
+            (should (string-match-p "Work: be-abcd" (buffer-string)))))
+      (ignore-errors (transient-quit-all)))))
 
 (ert-deftest beads-sling-test-preview-paints-sections ()
   "The `P' preview renders header, Validation, Recipe and plan."
