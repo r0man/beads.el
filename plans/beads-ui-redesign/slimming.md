@@ -48,6 +48,15 @@ kind).
 
 ## 3. Agent role roster (F3 — remove entire classes)
 
+> **Status (WI-3, implemented):** the deletions in §3.1 are landed.
+> `beads-agent-type-qa` / `beads-agent-type-custom`,
+> `beads-agent-start-qa` / `beads-agent-start-custom`, and
+> `beads-agent-qa-backend` are gone; the QA prompt text lives on as
+> `beads-agent-review-qa-prompt` used by Review's `qa-mode` slot, and
+> the `a q` / `a c` keys are freed.  `beads-agent-start-custom` has no
+> facade (the sling freeform escape replaces it); `beads-agent-start-qa`
+> was removed rather than aliased.  See `NEWS.md`.
+
 Today: **5 roles** (Task, Review, Plan, QA, Custom) × **6 backends**
 (claude-code, claude-code-ide, claudemacs, eca, agent-shell, terminal; plus
 mock for tests) = 30 exposed combinations.

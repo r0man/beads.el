@@ -21,10 +21,10 @@
 ;;
 ;; Built-in agent types:
 ;;   - Task (T): Autonomous task completion
-;;   - Review (R): Code review with customizable prompt
+;;   - Review (R): Code review with customizable prompt; also carries a
+;;     QA mode that swaps in the testing/verification prompt (QA and
+;;     Custom are no longer separate classes; see NEWS)
 ;;   - Plan (P): Planning agent requiring backend plan mode
-;;   - QA (Q): Testing/quality assurance agent
-;;   - Custom (C): User-provided prompt at runtime
 ;;
 ;; This module provides:
 ;;   - Abstract base class `beads-agent-type'
@@ -130,6 +130,26 @@ mechanisms (e.g., Plan type uses --plan flag instead of prompt).
 Default implementation uses `prompt-template' slot combined with issue context.
 Subclasses may override for custom prompt building.")
 
+(defun beads-agent-type--substitute-template (template issue)
+  "Substitute `<ISSUE-...>' placeholders in TEMPLATE using ISSUE.
+TEMPLATE may be a string (used directly), a symbol (dereferenced
+with `symbol-value'), or nil.  When ISSUE is nil the issue fields
+default to the empty string.  Returns the substituted string, or
+nil when TEMPLATE is nil.
+
+This is the single substitution routine shared by the default
+`beads-agent-type-build-user-prompt'/`beads-agent-type-system-prompt'
+methods and by overrides such as the Review QA mode."
+  (when template
+    (let ((str (if (symbolp template) (symbol-value template) template))
+          (issue-id (or (and issue (oref issue id)) ""))
+          (issue-title (or (and issue (oref issue title)) ""))
+          (issue-desc (or (and issue (oref issue description)) "")))
+      (thread-last str
+        (string-replace "<ISSUE-ID>" issue-id)
+        (string-replace "<ISSUE-TITLE>" issue-title)
+        (string-replace "<ISSUE-DESCRIPTION>" issue-desc)))))
+
 (cl-defmethod beads-agent-type-build-user-prompt ((type beads-agent-type) issue)
   "Build user prompt for TYPE from the prompt-template slot and ISSUE.
 ISSUE is a beads-issue EIEIO object.
@@ -143,19 +163,7 @@ The prompt-template slot can be:
   - A string: used directly as the template
   - A symbol: dereferenced with `symbol-value' to get the template string
   - nil: returns nil (subclass must override or type uses non-prompt mechanism)"
-  (let ((template-or-sym (oref type prompt-template)))
-    (when template-or-sym
-      (let ((template (if (symbolp template-or-sym)
-                          (symbol-value template-or-sym)
-                        template-or-sym))
-            (issue-id (or (oref issue id) ""))
-            (issue-title (or (oref issue title) ""))
-            (issue-desc (or (oref issue description) "")))
-        ;; Replace placeholders in template
-        (thread-last template
-          (string-replace "<ISSUE-ID>" issue-id)
-          (string-replace "<ISSUE-TITLE>" issue-title)
-          (string-replace "<ISSUE-DESCRIPTION>" issue-desc))))))
+  (beads-agent-type--substitute-template (oref type prompt-template) issue))
 
 (cl-defgeneric beads-agent-type-system-prompt (type issue)
   "Build the system (role/identity) prompt for TYPE working on ISSUE.
@@ -175,18 +183,7 @@ the same `<ISSUE-...>' substitution as the user prompt is applied so
 a role template may reference the issue.  Returns nil when the slot
 is nil, so builder types and the Phase 1a-i frozen defaults yield
 nil for every type."
-  (let ((tmpl-or-sym (oref type system-prompt)))
-    (when tmpl-or-sym
-      (let ((template (if (symbolp tmpl-or-sym)
-                          (symbol-value tmpl-or-sym)
-                        tmpl-or-sym))
-            (issue-id (or (and issue (oref issue id)) ""))
-            (issue-title (or (and issue (oref issue title)) ""))
-            (issue-desc (or (and issue (oref issue description)) "")))
-        (thread-last template
-          (string-replace "<ISSUE-ID>" issue-id)
-          (string-replace "<ISSUE-TITLE>" issue-title)
-          (string-replace "<ISSUE-DESCRIPTION>" issue-desc))))))
+  (beads-agent-type--substitute-template (oref type system-prompt) issue))
 
 (cl-defgeneric beads-agent-type-validate-backend (type backend)
   "Validate that BACKEND is compatible with TYPE.

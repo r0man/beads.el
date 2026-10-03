@@ -1746,26 +1746,30 @@ behavior is to always prompt unless a default is configured."
   (should (get 'beads-agent-start--reset 'transient--suffix)))
 
 (ert-deftest beads-agent-test-start-format-header ()
-  "Test format header for start menu."
+  "Test the launch-menu header + live footer."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'beads-agent--detect-issue-id)
-                 (lambda () nil)))
+      (progn
+        (setq beads-agent-launch--issue-id nil
+              beads-agent-launch--role "Task"
+              beads-agent-launch--qa-mode nil
+              beads-agent-launch--backend nil)
         (let ((header (beads-agent-start--format-header)))
           (should (stringp header))
-          (should (string-match-p "Start AI Agent" header))
-          (should (string-match-p "1 backend" header))))
+          (should (string-match-p "Start agent" header))
+          (should (string-match-p "Ready" header))))
     (beads-agent-test--teardown)))
 
 (ert-deftest beads-agent-test-start-format-header-with-context ()
-  "Test format header for start menu with detected context."
+  "Test the launch-menu header names the issue from context."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'beads-agent--detect-issue-id)
-                 (lambda () "bd-42")))
+      (progn
+        (setq beads-agent-launch--issue-id "bd-42")
         (let ((header (beads-agent-start--format-header)))
           (should (stringp header))
-          (should (string-match-p "context: bd-42" header))))
+          (should (string-match-p "bd-42" header))))
+    (setq beads-agent-launch--issue-id nil)
     (beads-agent-test--teardown)))
 
 ;;; =========================================================================
@@ -4222,6 +4226,23 @@ letter (the latent bug `bde-npte' fixes elsewhere)."
 (ert-deftest beads-agent-test-start-function-exists ()
   "Test start function exists."
   (should (fboundp 'beads-agent-start)))
+
+(ert-deftest beads-agent-test-qa-custom-commands-removed ()
+  "Test the deleted QA/Custom commands are undefined and QA mode exists.
+F3 removed the standalone commands; QA is Review with a QA mode."
+  (should-not (fboundp 'beads-agent-start-qa))
+  (should-not (fboundp 'beads-agent-start-custom))
+  (should (fboundp 'beads-agent-start-review-qa))
+  (should (commandp 'beads-agent-start-review-qa)))
+
+(ert-deftest beads-agent-test-qa-mode-type-is-review ()
+  "Test the QA-mode start path builds a Review type in QA mode.
+The resolver must accept a pre-built instance, not just a name."
+  (let ((type (beads-agent-type-review-qa)))
+    (should (object-of-class-p type 'beads-agent-type-review))
+    (should (oref type qa-mode))
+    (should (equal (oref type name) "Review"))
+    (should (eq (beads-agent--resolve-type type) type))))
 
 ;;; ============================================================
 ;;; Integration Tests (require bd executable)

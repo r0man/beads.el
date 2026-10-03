@@ -40,6 +40,7 @@
 (require 'beads-agent-keys)
 (require 'beads-buffer)
 (require 'beads-command)
+(require 'beads-faces)
 (require 'beads-command-blocked)
 (require 'beads-command-ready)
 (require 'beads-meta)
@@ -50,6 +51,8 @@
 (require 'transient)
 (require 'beads-prefix)
 (require 'beads-thing)
+(require 'beads-faces)
+(require 'seq)
 
 ;; Forward declarations for UI code
 (declare-function beads-update "beads-command-update" (&optional issue-id))
@@ -57,6 +60,7 @@
 (declare-function beads-list-filter-menu "beads-spec")
 (declare-function beads-issue-spec "beads-spec" (&rest args))
 (declare-function beads-list--refresh "beads-spec" (&optional spec))
+(defvar beads-list-default-spec)
 (declare-function beads--transient-args-to-spec "beads-spec" (args))
 (declare-function beads-agent--get-sessions-for-issue "beads-agent-backend")
 (declare-function beads-agent--get-sessions-focused-on-issue "beads-agent-backend")
@@ -657,64 +661,92 @@ intermediate position.  Modeled after `magit-update-other-window-delay'."
   :type 'number
   :group 'beads-list)
 
+(defcustom beads-list-group-by-status t
+  "When non-nil, render the beads list as status-grouped sections.
+The list gets a header block (counts, active filter, store), one
+collapsible section per status (or per active filter), and an action
+bar.  When nil, the list falls back to a single flat table with the
+`S' column sort provided by `tabulated-list-mode'."
+  :type 'boolean
+  :group 'beads-list)
+
+(defcustom beads-list-section-order '("in_progress" "open" "blocked"
+                                      "deferred" "hooked" "closed")
+  "Status order used when grouping the list into sections.
+Statuses not listed here render after the listed ones, sorted
+alphabetically."
+  :type '(repeat string)
+  :group 'beads-list)
+
 ;;; Faces
 
 (defface beads-list-status-open
-  '((t :inherit font-lock-keyword-face))
-  "Face for open status."
+  '((t :inherit beads-face-status-open))
+  "Face for open status.
+Derived from the canonical `beads-face-status-open'."
   :group 'beads-list)
 
 (defface beads-list-status-in-progress
-  '((t :inherit font-lock-warning-face))
-  "Face for in_progress status."
+  '((t :inherit beads-face-status-in-progress))
+  "Face for in_progress status.
+Derived from the canonical `beads-face-status-in-progress'."
   :group 'beads-list)
 
 (defface beads-list-status-blocked
-  '((t :inherit error))
-  "Face for blocked status."
+  '((t :inherit beads-face-status-blocked))
+  "Face for blocked status.
+Derived from the canonical `beads-face-status-blocked'."
   :group 'beads-list)
 
 (defface beads-list-status-closed
-  '((t :inherit shadow))
-  "Face for closed status."
+  '((t :inherit beads-face-status-closed))
+  "Face for closed status.
+Derived from the canonical `beads-face-status-closed'."
   :group 'beads-list)
 
 (defface beads-list-priority-critical
-  '((t :inherit error :weight bold))
-  "Face for priority 0 (critical)."
+  '((t :inherit beads-face-priority-critical))
+  "Face for priority 0 (critical).
+Derived from the canonical `beads-face-priority-critical'."
   :group 'beads-list)
 
 (defface beads-list-priority-high
-  '((t :inherit warning :weight bold))
-  "Face for priority 1 (high)."
+  '((t :inherit beads-face-priority-high))
+  "Face for priority 1 (high).
+Derived from the canonical `beads-face-priority-high'."
   :group 'beads-list)
 
 (defface beads-list-priority-medium
-  '((t :inherit default))
-  "Face for priority 2 (medium)."
+  '((t :inherit beads-face-priority-medium))
+  "Face for priority 2 (medium).
+Derived from the canonical `beads-face-priority-medium'."
   :group 'beads-list)
 
 (defface beads-list-priority-low
-  '((t :inherit shadow))
-  "Face for priority 3-4 (low/backlog)."
+  '((t :inherit beads-face-priority-low))
+  "Face for priority 3-4 (low/backlog).
+Derived from the canonical `beads-face-priority-low'."
   :group 'beads-list)
 
 (defface beads-list-agent-working
-  '((t :inherit warning :weight bold))
+  '((t :inherit beads-face-agent-running))
   "Face for agent working indicator (yellow circle).
-Inherits from `warning' face for theme consistency."
+Derived from the canonical `beads-face-agent-running' for theme
+consistency."
   :group 'beads-list)
 
 (defface beads-list-agent-finished
-  '((t :inherit success :weight bold))
+  '((t :inherit beads-face-success))
   "Face for agent finished indicator (green circle).
-Inherits from `success' face for theme consistency."
+Derived from the canonical `beads-face-success' for theme
+consistency."
   :group 'beads-list)
 
 (defface beads-list-agent-failed
-  '((t :inherit error :weight bold))
+  '((t :inherit beads-face-agent-failed))
   "Face for agent failed indicator (red circle).
-Inherits from `error' face for theme consistency."
+Derived from the canonical `beads-face-agent-failed' for theme
+consistency."
   :group 'beads-list)
 
 ;;; Variables
@@ -731,6 +763,21 @@ Inherits from `error' face for theme consistency."
 (defvar-local beads-list--command-obj nil
   "Current beads-command-list object (nil means no filter).
 Use for client-side filtering in the buffer.")
+
+(defvar-local beads-list--sections nil
+  "Sectioned view of the current issues (grouped mode only).
+A list of plists.  Each plist holds the status string under `:key',
+the human label under `:title', the beads-issue objects under
+`:issues', and a `:collapsed' flag for whether the section is
+folded.  Nil when grouping is disabled.")
+
+(defvar-local beads-list--sort '("Updated" . t)
+  "Current client-side sort for the grouped list.
+A cons (COLUMN . DESCENDING) matching a `tabulated-list-format'
+column title.")
+
+(defvar-local beads-list--last-error nil
+  "Last error message shown in the list header/mode-line, or nil.")
 
 ;; Directory-aware buffer identity (beads.el-n3lv)
 ;; Key principle: Directory is identity, branch is metadata.
@@ -939,21 +986,253 @@ already shows this issue.  Returns non-nil when it handled the row."
 
 (defun beads-list--populate-buffer (issues command &optional command-obj)
   "Populate current buffer with ISSUES using COMMAND for refresh.
-Optional COMMAND-OBJ is a beads-command-list object for context."
+Optional COMMAND-OBJ is a beads-command-list object for context.
+When `beads-list-group-by-status' is non-nil, ISSUES render as
+collapsible status-grouped sections; otherwise as a flat table."
   (setq beads-list--command command
         beads-list--raw-issues issues
-        beads-list--command-obj command-obj)
-  (beads-pager-set-entries (mapcar #'beads-list--issue-to-entry issues)))
+        beads-list--command-obj command-obj
+        beads-list--last-error nil)
+  (if beads-list-group-by-status
+      (progn
+        (setq beads-list--sections (beads-list--make-sections issues))
+        (setq tabulated-list-sort-key nil)
+        (beads-pager-set-entries (beads-list--sectioned-entries)))
+    (setq beads-list--sections nil)
+    (beads-pager-set-entries (mapcar #'beads-list--issue-to-entry issues)))
+  (force-mode-line-update))
 
 (defun beads-list--current-issue-id ()
-  "Return the ID of the issue at point, or nil."
-  (tabulated-list-get-id))
+  "Return the ID of the issue at point, or nil.
+Section headers and state rows carry non-string ids, so they resolve
+to nil."
+  (let ((id (tabulated-list-get-id)))
+    (and (stringp id) id)))
 
 (defun beads-list--get-issue-by-id (id)
   "Return beads-issue object for ID from current buffer's raw issues."
   (seq-find (lambda (issue)
               (string= (oref issue id) id))
             beads-list--raw-issues))
+
+;;; Sections, Header Line and Mode Line
+
+(defconst beads-list--section-glyph-expanded "▾"
+  "Glyph rendered on expanded list section headers.")
+
+(defconst beads-list--section-glyph-collapsed "▸"
+  "Glyph rendered on collapsed list section headers.")
+
+(defconst beads-list--section-titles
+  '(("in_progress" . "In progress")
+    ("open" . "Open")
+    ("blocked" . "Blocked")
+    ("deferred" . "Deferred")
+    ("hooked" . "Hooked")
+    ("closed" . "Closed"))
+  "Human-readable titles for known bead statuses.")
+
+(defun beads-list--section-title (status)
+  "Return the display title for STATUS."
+  (or (cdr (assoc status beads-list--section-titles))
+      (capitalize (replace-regexp-in-string "[_-]" " " (or status "unknown")))))
+
+(defun beads-list--status-order-index (status)
+  "Return the sort index of STATUS in `beads-list-section-order'."
+  (or (cl-position status beads-list-section-order :test #'equal)
+      (length beads-list-section-order)))
+
+(defun beads-list--make-sections (issues)
+  "Group ISSUES by status into section plists.
+Returns a list of plists (:key :title :issues :collapsed), ordered by
+`beads-list-section-order' with unknown statuses last.  Collapse
+state is preserved across refreshes by section key."
+  (let ((groups (seq-group-by (lambda (i) (or (oref i status) "unknown"))
+                              issues)))
+    (mapcar
+     (lambda (key)
+       (let ((prev (seq-find (lambda (s) (equal (plist-get s :key) key))
+                             beads-list--sections)))
+         (list :key key
+               :title (beads-list--section-title key)
+               :issues (cdr (assoc key groups))
+               :collapsed (and prev (plist-get prev :collapsed)))))
+     (sort (mapcar #'car groups)
+           (lambda (a b)
+             (let ((ia (beads-list--status-order-index a))
+                   (ib (beads-list--status-order-index b)))
+               (if (= ia ib) (string< a b) (< ia ib))))))))
+
+(defun beads-list--issue-sort-value (issue column)
+  "Return the sort value of ISSUE for COLUMN."
+  (pcase column
+    ("ID" (or (oref issue id) ""))
+    ("Type" (or (oref issue issue-type) ""))
+    ("Status" (or (oref issue status) ""))
+    ("Priority" (or (oref issue priority) 99))
+    ("Agents" (beads-list--format-agent (oref issue id)))
+    ("Title" (or (oref issue title) ""))
+    ("Created" (or (oref issue created-at) ""))
+    ("Updated" (or (oref issue updated-at) ""))
+    (_ "")))
+
+(defun beads-list--sort-issues (issues)
+  "Return ISSUES sorted according to `beads-list--sort'."
+  (let* ((column (car beads-list--sort))
+         (desc (cdr beads-list--sort))
+         (sorted (seq-sort (lambda (a b)
+                             (let ((va (beads-list--issue-sort-value a column))
+                                   (vb (beads-list--issue-sort-value b column)))
+                               (if (and (numberp va) (numberp vb))
+                                   (< va vb)
+                                 (string< (format "%s" va)
+                                          (format "%s" vb)))))
+                           issues)))
+    (if desc (nreverse sorted) sorted)))
+
+(defun beads-list--section-header-entry (section)
+  "Return a `tabulated-list-entries' header entry for SECTION.
+The id is a `(beads-list-section . KEY)' cons so the printer can spot
+it; the whole printed row is stamped as a section thing when drawn."
+  (let* ((key (plist-get section :key))
+         (collapsed (plist-get section :collapsed))
+         (count (length (plist-get section :issues)))
+         (label (format "%s %s (%d)"
+                        (if collapsed
+                            beads-list--section-glyph-collapsed
+                          beads-list--section-glyph-expanded)
+                        (plist-get section :title)
+                        count)))
+    (list (cons 'beads-list-section key)
+          (vector label "" "" "" "" "" "" ""))))
+
+(defun beads-list--print-entry (id cols)
+  "Print one tabulated entry (ID, COLS), stamping section headers as things.
+Installed as the buffer-local `tabulated-list-printer'.  Section
+headers (ID `(beads-list-section . KEY)') get the `beads-thing'
+property with a :toggle so SPC folds them, plus the canonical
+`beads-face-section' face; issue rows are left to tabulated-list."
+  (let ((beg (point)))
+    (tabulated-list-print-entry id cols)
+    (when (and (consp id) (eq (car id) 'beads-list-section))
+      (let ((end (max beg (1- (point)))))
+        (add-text-properties
+         beg end
+         (list 'beads-thing
+               (list :kind 'section :key (cdr id)
+                     :toggle (lambda ()
+                               (beads-list--toggle-section (cdr id))))
+               'face 'beads-face-section))))))
+
+(defun beads-list--sectioned-entries ()
+  "Return `tabulated-list-entries' for the current grouped sections.
+A section header row (nil id) precedes its issues; collapsed
+sections omit their issues."
+  (let (entries)
+    (dolist (section beads-list--sections)
+      (push (beads-list--section-header-entry section) entries)
+      (unless (plist-get section :collapsed)
+        (dolist (issue (beads-list--sort-issues (plist-get section :issues)))
+          (push (beads-list--issue-to-entry issue) entries))))
+    (nreverse entries)))
+
+(defun beads-list--toggle-section (key)
+  "Toggle the collapse state of the section identified by KEY."
+  (let ((section (seq-find (lambda (s) (equal (plist-get s :key) key))
+                           beads-list--sections)))
+    (when section
+      (plist-put section :collapsed (not (plist-get section :collapsed)))
+      (beads-list--render-sections))))
+
+(defun beads-list--render-sections ()
+  "Re-render the grouped entries, preserving buffer/window point."
+  (let* ((win (get-buffer-window (current-buffer)))
+         (pos (if win (window-point win) (point))))
+    (beads-pager-set-entries (beads-list--sectioned-entries))
+    (if (and win (window-live-p win))
+        (set-window-point win (min pos (point-max)))
+      (goto-char (min pos (point-max))))
+    (force-mode-line-update)))
+
+(defun beads-list--filter-description ()
+  "Return a short description of the active filter, or \"none\"."
+  (let ((spec (bound-and-true-p beads-list--spec)))
+    (if (null spec)
+        "none"
+      (let (parts)
+        (when-let* ((s (oref spec status))) (push (format "status=%s" s) parts))
+        (when-let* ((tp (oref spec type))) (push (format "type=%s" tp) parts))
+        (when-let* ((p (oref spec priority))) (push (format "priority=%d" p) parts))
+        (when-let* ((a (oref spec assignee))) (push (format "assignee=%s" a) parts))
+        (when-let* ((l (oref spec label))) (push (format "label=%s" l) parts))
+        ;; `ready-only' was added to `beads-issue-spec' after the 0.1.0 ELPA
+        ;; release; a constant slot name here trips Emacs 31.1's compile-time
+        ;; unknown-slot check, so it stays dynamic (it exists at runtime).
+        (let ((slot 'ready-only))
+          (when (slot-value spec slot) (push "ready" parts)))
+        (if parts
+            (mapconcat #'identity (nreverse parts) " ")
+          "none")))))
+
+(defun beads-list--counts-string ()
+  "Return the per-status counts fragment for the header line."
+  (let ((issues beads-list--raw-issues))
+    (mapconcat
+     (lambda (status)
+       (format "%s %d" (beads-list--section-title status)
+               (seq-count (lambda (i) (equal (oref i status) status)) issues)))
+     (seq-filter (lambda (s)
+                   (seq-some (lambda (i) (equal (oref i status) s)) issues))
+                 beads-list-section-order)
+     " · ")))
+
+(defun beads-list--header-line ()
+  "Return the list header line: title, counts and active filter."
+  (let* ((name (or beads-list--proj-name "beads"))
+         (count (length beads-list--raw-issues))
+         (counts (beads-list--counts-string))
+         (filter (beads-list--filter-description)))
+    (concat
+     (propertize (format "Beads list — %s" name) 'face 'beads-face-header)
+     (format "  [%d issue%s%s · filter: %s]  (g refresh)"
+             count (if (= count 1) "" "s")
+             (if (string-empty-p counts) "" (concat " · " counts))
+             filter))))
+
+(defun beads-list--mode-line ()
+  "Return the list mode-line: store, marks, paging and key hints."
+  (let (parts)
+    (push (format "[%s]" (or beads-list--proj-name "beads")) parts)
+    (when beads-list--last-error
+      (push (propertize (format "%s" beads-list--last-error)
+                        'face 'beads-face-error)
+            parts))
+    (when (and beads-list--marked-issues
+               (> (length beads-list--marked-issues) 0))
+      (push (format "%d marked" (length beads-list--marked-issues)) parts))
+    (when (fboundp 'beads-pager--mode-line-fragment)
+      (let ((frag (beads-pager--mode-line-fragment)))
+        (when frag (push (string-trim frag) parts))))
+    (concat "  " (mapconcat #'identity (nreverse parts) " · ")
+            "  ·  RET visit · SPC fold · m mark · d close · C claim"
+            " · / filter · ? dispatch")))
+
+(defun beads-list--section-at-point-p ()
+  "Return non-nil when point is on a section header row."
+  (eq (beads-thing-kind (beads-thing-at)) 'section))
+
+(defun beads-list--fetch (thunk)
+  "Call THUNK to fetch issues, recording and re-signaling any error.
+On error, store the message in `beads-list--last-error' (shown in
+the mode-line) and leave the previous data in place, so a failed `g'
+never flashes an empty list.  `beads-list--populate-buffer' clears
+the error on the next successful load."
+  (condition-case err
+      (funcall thunk)
+    (error
+     (setq beads-list--last-error (error-message-string err))
+     (force-mode-line-update)
+     (signal (car err) (cdr err)))))
 
 ;;; CLI Integration
 
@@ -1251,41 +1530,39 @@ When SILENT is non-nil, suppress messages (for hook-triggered refreshes)."
   (interactive)
   (unless beads-list--command
     (user-error "No command associated with this buffer"))
-  (let* ((issues (pcase beads-list--command
-                   ('list
-                    (if beads-list--command-obj
-                        (beads-command-execute beads-list--command-obj)
-                      (beads-list-execute)))
-                   ('ready
-                    (beads-issue-ready))
-                   ('blocked
-                    (beads-blocked-issue-list))
-                   ('search
-                    (when-let* ((cmd (and (boundp 'beads-search--command-obj)
-                                        beads-search--command-obj)))
-                      (oset cmd json t)
-                      (beads-command-execute cmd)))
-                   (_ (error "Unknown command: %s" beads-list--command))))
+  (let* ((issues
+          (beads-list--fetch
+           (lambda ()
+             (pcase beads-list--command
+               ('list
+                (if beads-list--command-obj
+                    (beads-command-execute beads-list--command-obj)
+                  (beads-list-execute)))
+               ('ready
+                (beads-issue-ready))
+               ('blocked
+                (beads-blocked-issue-list))
+               ('search
+                (when-let* ((cmd (and (boundp 'beads-search--command-obj)
+                                      beads-search--command-obj)))
+                  (oset cmd json t)
+                  (beads-command-execute cmd)))
+               (_ (error "Unknown command: %s" beads-list--command))))))
          ;; Save window point if buffer is displayed, otherwise buffer point.
-         ;; This ensures we preserve point correctly when called via
-         ;; with-current-buffer from beads-list-refresh-all.
+         ;; This keeps point correct when called via `beads-list-refresh-all'.
          (win (get-buffer-window (current-buffer)))
          (pos (if win (window-point win) (point))))
-    (if (not issues)
-        (progn
-          (setq beads-pager--all-entries nil
-                tabulated-list-entries nil)
-          (tabulated-list-print t)
-          (unless silent (message "No issues found")))
-      (beads-list--populate-buffer issues beads-list--command beads-list--command-obj)
-      ;; Restore point in window or buffer as appropriate
-      (if win
-          (set-window-point win pos)
-        (goto-char pos))
-      (unless silent
-        (message "Refreshed %d issue%s"
-                 (length issues)
-                 (if (= (length issues) 1) "" "s"))))))
+    (beads-list--populate-buffer issues beads-list--command beads-list--command-obj)
+    ;; Restore point in window or buffer as appropriate
+    (if win
+        (set-window-point win pos)
+      (goto-char pos))
+    (when (not silent)
+      (if issues
+          (message "Refreshed %d issue%s"
+                   (length issues)
+                   (if (= (length issues) 1) "" "s"))
+        (message "No issues found")))))
 
 (defun beads-list-refresh-all ()
   "Refresh all visible beads-list buffers.
@@ -1327,6 +1604,43 @@ ACTION and SESSION are provided by `beads-agent-state-change-hook'."
   "Move to previous issue."
   (interactive)
   (forward-line -1))
+
+(defun beads-list-next-section ()
+  "Move point to the next section header, wrapping at the end."
+  (interactive)
+  (let ((start (point)))
+    (forward-line 1)
+    (while (and (not (eobp)) (not (beads-list--section-at-point-p)))
+      (forward-line 1))
+    (cond
+     ((beads-list--section-at-point-p) (beginning-of-line))
+     (t
+      (goto-char (point-min))
+      (while (and (not (eobp)) (not (beads-list--section-at-point-p)))
+        (forward-line 1))
+      (if (beads-list--section-at-point-p)
+          (progn (beginning-of-line) (message "Wrapped"))
+        (goto-char start)
+        (message "No sections"))))))
+
+(defun beads-list-previous-section ()
+  "Move point to the previous section header, wrapping at the start."
+  (interactive)
+  (let ((start (point)))
+    (forward-line -1)
+    (while (and (not (bobp)) (not (beads-list--section-at-point-p)))
+      (forward-line -1))
+    (cond
+     ((beads-list--section-at-point-p) (beginning-of-line))
+     (t
+      (goto-char (point-max))
+      (forward-line -1)
+      (while (and (not (bobp)) (not (beads-list--section-at-point-p)))
+        (forward-line -1))
+      (if (beads-list--section-at-point-p)
+          (progn (beginning-of-line) (message "Wrapped"))
+        (goto-char start)
+        (message "No sections"))))))
 
 (defun beads-list-mark ()
   "Mark the issue at point."
@@ -1423,9 +1737,28 @@ ACTION and SESSION are provided by `beads-agent-state-change-hook'."
 
 (defun beads-list-sort ()
   "Sort the issue list by column.
-Uses tabulated-list built-in sorting."
+In grouped mode, prompt for a column and re-render the sections.  In
+the flat mode, defer to the `tabulated-list-mode' built-in sorting."
   (interactive)
-  (call-interactively #'tabulated-list-sort))
+  (if (and beads-list-group-by-status (called-interactively-p 'interactive))
+      (let* ((columns '("ID" "Type" "Status" "Priority" "Agents"
+                        "Title" "Created" "Updated"))
+             (column (completing-read "Sort by: " columns nil t nil nil
+                                      (car beads-list--sort)))
+             (desc (if (equal column (car beads-list--sort))
+                       (not (cdr beads-list--sort))
+                     t)))
+        (setq beads-list--sort (cons column desc))
+        (beads-list--render-sections)
+        (message "Sorted by %s (%s)" column
+                 (if desc "descending" "ascending")))
+    (call-interactively #'tabulated-list-sort)))
+
+(defun beads-list-clear-filter ()
+  "Clear the active filters and refresh the list."
+  (interactive)
+  (require 'beads-spec)
+  (beads-list--refresh beads-list-default-spec))
 
 (defun beads-list-filter ()
   "Open beads-list transient menu with current filter pre-selected.
@@ -1769,6 +2102,8 @@ Uses an idle timer to debounce rapid navigation, similar to
     ;; Navigation (following standard conventions)
     (define-key map (kbd "n") #'beads-list-next)
     (define-key map (kbd "p") #'beads-list-previous)
+    (define-key map (kbd "N") #'beads-list-next-section)
+    (define-key map (kbd "P") #'beads-list-previous-section)
     (define-key map (kbd "RET") #'beads-list-show)
 
     ;; Refresh/quit (like Magit, dired)
@@ -1803,6 +2138,7 @@ Uses an idle timer to debounce rapid navigation, similar to
     (define-key map (kbd "S") #'beads-list-sort)           ; sort menu
     (define-key map (kbd "l") #'beads-list-filter)         ; filter (open transient with current filter)
     (define-key map (kbd "/") #'beads-list-filter-menu)    ; spec filter menu
+    (define-key map (kbd "x") #'beads-list-clear-filter)   ; clear filters (mockup §4d/§4e)
     (define-key map (kbd "C-c C-f") #'beads-list-follow-mode) ; follow mode (like compilation)
 
     ;; AI Agent commands (a prefix)
@@ -1816,9 +2152,10 @@ Uses an idle timer to debounce rapid navigation, similar to
     ;; Sesman session management (CIDER/ESS convention)
     (define-key map (kbd "C-c C-s") beads-sesman-map)
 
-    ;; TAB/S-TAB move by row, SPC toggles the detail window
-    ;; (dashboard-v3 §5.4); replaces tabulated-list's SPC = next-line.
-    (beads-thing-define-keys map)
+    ;; TAB/S-TAB move by row, SPC toggles the detail window, ? dispatches,
+    ;; C-c b is reserved for extensions (dashboard-v3 §5.4, design.md §3.3);
+    ;; replaces tabulated-list's SPC = next-line.
+    (beads-mode--install-navigation-keys map)
 
     ;; Bulk operations (like Magit) - create prefix map for B
     (let ((bulk-map (make-sparse-keymap)))
@@ -1834,18 +2171,29 @@ Uses an idle timer to debounce rapid navigation, similar to
   "Major mode for displaying Beads issues in a tabulated list.
 
 \\{beads-list-mode-map}"
-  (setq tabulated-list-format
-        (vector (list "ID" beads-list-id-width t)
-                (list "Type" beads-list-type-width t)
-                (list "Status" beads-list-status-width t)
-                (list "Priority" beads-list-priority-width t
-                      :right-align t)
-                (list "Agents" beads-list-agent-width t)
-                (list "Title" beads-list-title-width t)
-                (list "Created" beads-list-created-width t)
-                (list "Updated" beads-list-updated-width t)))
+  ;; In grouped mode the sections own the order, so the column sort is
+  ;; driven by `beads-list-sort'; disabling the header-button sort keeps
+  ;; section headers from being reordered into the rows.  The flat mode
+  ;; keeps `tabulated-list-mode' sorting.
+  (let ((sortable (not beads-list-group-by-status)))
+    (setq tabulated-list-format
+          (vector (list "ID" beads-list-id-width sortable)
+                  (list "Type" beads-list-type-width sortable)
+                  (list "Status" beads-list-status-width sortable)
+                  (list "Priority" beads-list-priority-width sortable
+                        :right-align t)
+                  (list "Agents" beads-list-agent-width sortable)
+                  (list "Title" beads-list-title-width sortable)
+                  (list "Created" beads-list-created-width sortable)
+                  (list "Updated" beads-list-updated-width sortable))))
   (setq tabulated-list-padding 2)
   (setq tabulated-list-sort-key (cons "Updated" t))
+  (setq-local tabulated-list-printer #'beads-list--print-entry)
+  (setq header-line-format '(:eval (beads-list--header-line)))
+  (setq mode-line-format
+        '("%e" mode-line-front-space
+          mode-line-buffer-identification
+          (:eval (beads-list--mode-line))))
   (tabulated-list-init-header)
   (hl-line-mode 1)
   (beads-pager-mode 1)
@@ -1880,28 +2228,8 @@ a call from a store-scoped buffer inherits its store."
       (setq beads-list--proj-name (beads--project-name-for-root project-dir))
       (setq default-directory caller-dir)
       (setq-local beads-store-directory store)
-      (if (not issues)
-          (progn
-            (setq tabulated-list-entries nil)
-            (tabulated-list-print t)
-            (setq mode-line-format
-                  '("%e" mode-line-front-space
-                    mode-line-buffer-identification
-                    "  No ready issues"))
-            (message "No ready issues found"))
-        (beads-list--populate-buffer issues 'ready)
-        (setq mode-line-format
-              '("%e" mode-line-front-space
-                mode-line-buffer-identification
-                (:eval (let ((count (beads-pager--total-count)))
-                         (format "  %d ready issue%s%s%s"
-                                 count
-                                 (if (= count 1) "" "s")
-                                 (if beads-list--marked-issues
-                                     (format " [%d marked]"
-                                             (length beads-list--marked-issues))
-                                   "")
-                                 (or (beads-pager--mode-line-fragment) ""))))))))
+      (beads-list--populate-buffer issues 'ready)
+      (unless issues (message "No ready issues found")))
     (beads-list--display-buffer buffer)))
 
 ;;;###autoload
@@ -1931,28 +2259,8 @@ a call from a store-scoped buffer inherits its store."
       (setq beads-list--proj-name (beads--project-name-for-root project-dir))
       (setq default-directory caller-dir)
       (setq-local beads-store-directory store)
-      (if (not issues)
-          (progn
-            (setq tabulated-list-entries nil)
-            (tabulated-list-print t)
-            (setq mode-line-format
-                  '("%e" mode-line-front-space
-                    mode-line-buffer-identification
-                    "  No blocked issues"))
-            (message "No blocked issues found"))
-        (beads-list--populate-buffer issues 'blocked)
-        (setq mode-line-format
-              '("%e" mode-line-front-space
-                mode-line-buffer-identification
-                (:eval (let ((count (beads-pager--total-count)))
-                         (format "  %d blocked issue%s%s%s"
-                                 count
-                                 (if (= count 1) "" "s")
-                                 (if beads-list--marked-issues
-                                     (format " [%d marked]"
-                                             (length beads-list--marked-issues))
-                                   "")
-                                 (or (beads-pager--mode-line-fragment) ""))))))))
+      (beads-list--populate-buffer issues 'blocked)
+      (unless issues (message "No blocked issues found")))
     (beads-list--display-buffer buffer)))
 
 ;;; Hook Registration

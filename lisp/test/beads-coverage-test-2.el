@@ -65,25 +65,25 @@
       (should (string-match "0 backends" result)))))
 
 (ert-deftest beads-coverage-2-agent-start-format-header ()
-  "Test beads-agent-start--format-header."
-  (cl-letf (((symbol-function 'beads-agent--get-available-backends)
-             (lambda () '(a b)))
-            ((symbol-function 'beads-agent--detect-issue-id)
-             (lambda () "bd-42")))
+  "Test beads-agent-start--format-header names the launch issue."
+  (let ((beads-agent-launch--issue-id "bd-42")
+        (beads-agent-launch--role "Task")
+        (beads-agent-launch--qa-mode nil)
+        (beads-agent-launch--backend nil))
     (let ((result (beads-agent-start--format-header)))
       (should (stringp result))
       (should (string-match "bd-42" result))
-      (should (string-match "2 backend" result)))))
+      (should (string-match "Ready" result)))))
 
 (ert-deftest beads-coverage-2-agent-start-format-header-no-context ()
   "Test beads-agent-start--format-header without context."
-  (cl-letf (((symbol-function 'beads-agent--get-available-backends)
-             (lambda () '(a)))
-            ((symbol-function 'beads-agent--detect-issue-id)
-             (lambda () nil)))
+  (let ((beads-agent-launch--issue-id nil)
+        (beads-agent-launch--role "Task")
+        (beads-agent-launch--qa-mode nil)
+        (beads-agent-launch--backend nil))
     (let ((result (beads-agent-start--format-header)))
       (should (stringp result))
-      (should (string-match "Start AI Agent" result)))))
+      (should (string-match "Start agent" result)))))
 
 ;;; ============================================================
 ;;; beads-agent.el - Issue Detection Tests
@@ -1044,13 +1044,17 @@ does not check whether fields have actually changed."
   "Test beads-agent-start-plan is defined."
   (should (commandp 'beads-agent-start-plan)))
 
-(ert-deftest beads-coverage-2-agent-start-qa-defined ()
-  "Test beads-agent-start-qa is defined."
-  (should (commandp 'beads-agent-start-qa)))
+(ert-deftest beads-coverage-2-agent-start-review-qa-defined ()
+  "Test beads-agent-start-review-qa is defined."
+  (should (commandp 'beads-agent-start-review-qa)))
 
-(ert-deftest beads-coverage-2-agent-start-custom-defined ()
-  "Test beads-agent-start-custom is defined."
-  (should (commandp 'beads-agent-start-custom)))
+(ert-deftest beads-coverage-2-agent-start-qa-removed ()
+  "Test the removed beads-agent-start-qa command is undefined (F3)."
+  (should-not (fboundp 'beads-agent-start-qa)))
+
+(ert-deftest beads-coverage-2-agent-start-custom-removed ()
+  "Test the removed beads-agent-start-custom command is undefined (F3)."
+  (should-not (fboundp 'beads-agent-start-custom)))
 
 ;;; ============================================================
 ;;; beads-agent.el - Get Sessions for Issue Type Tests

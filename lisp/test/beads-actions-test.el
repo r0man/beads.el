@@ -265,9 +265,9 @@
               (lookup-key beads-show-mode-map (kbd "s")))))
 
 (ert-deftest beads-actions-test-show-mode-actions-binding ()
-  "? should be bound to beads-show-actions in show-mode."
+  "? opens the hand-built dispatch from show mode."
   :tags '(:unit)
-  (should (eq 'beads-show-actions
+  (should (eq 'beads-dispatch
               (lookup-key beads-show-mode-map (kbd "?")))))
 
 (provide 'beads-actions-test)

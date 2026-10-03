@@ -7,13 +7,18 @@
 
 ;;; Commentary:
 
-;; This module provides the five built-in agent types for beads.el:
+;; This module provides the built-in agent types for beads.el:
 ;;
 ;;   - Task (T): Autonomous task completion agent
-;;   - Review (R): Code review agent with customizable prompt
+;;   - Review (R): Code review agent with customizable prompt; the same
+;;     role also provides a QA mode (testing/verification prompt) when
+;;     its `qa-mode' slot is non-nil
 ;;   - Plan (P): Planning agent requiring backend plan mode
-;;   - QA (Q): Testing/quality assurance agent
-;;   - Custom (C): User-provided prompt at runtime
+;;
+;; QA and Custom are intentionally not separate classes: QA is Review in
+;; QA mode, and Custom's freeform prompt is reached through the sling
+;; work-picker escape.  The type registry remains open, so an
+;; out-of-tree subclass may still register a QA or Custom role.
 ;;
 ;; All types are registered automatically when this module is loaded.
 
@@ -50,14 +55,6 @@ Set to a backend name string to prefer a specific backend for Review agents."
   "Preferred backend for Plan agents.
 If nil, uses `beads-agent-default-backend' or first available.
 Set to a backend name string to prefer a specific backend for Plan agents."
-  :type '(choice (const :tag "Use default" nil)
-                 (string :tag "Backend name"))
-  :group 'beads-agent-types)
-
-(defcustom beads-agent-qa-backend nil
-  "Preferred backend for QA agents.
-If nil, uses `beads-agent-default-backend' or first available.
-Set to a backend name string to prefer a specific backend for QA agents."
   :type '(choice (const :tag "Use default" nil)
                  (string :tag "Backend name"))
   :group 'beads-agent-types)
@@ -120,7 +117,7 @@ Carries the issue envelope and the type-specific `bd update' output
 block.  Placeholders <ISSUE-ID>, <ISSUE-TITLE>, and
 <ISSUE-DESCRIPTION> are replaced with issue data when built.")
 
-(defcustom beads-agent-qa-prompt
+(defcustom beads-agent-review-qa-prompt
   "You are a QA agent.
 
 # Constraints
@@ -137,16 +134,17 @@ block.  Placeholders <ISSUE-ID>, <ISSUE-TITLE>, and
 3. **Manual Verification** - Test edge cases and error handling
 4. **Check Regressions** - Verify related functionality still works
 5. **Document Results** - Update issue with findings"
-  "System (role) prompt for the QA agent.
-Role-only as of the Phase 1a-ii split; the issue envelope and the
-`bd update' output block live in `beads-agent-type-qa--user-prompt'.
-A user-customised value is delivered via the backend's
-system-prompt channel with placeholders still substituted (see NEWS
-for the old default verbatim)."
+  "System (role) prompt for the Review agent in QA mode.
+This is the former `beads-agent-qa-prompt', relocated onto the
+Review QA path when the standalone QA class was removed (F3).
+Role-only: the issue envelope and the `bd update' output block live
+in `beads-agent-type-review--qa-user-prompt'.  A user-customised
+value is delivered via the backend's system-prompt channel with
+placeholders still substituted."
   :type 'string
   :group 'beads-agent-types)
 
-(defconst beads-agent-type-qa--user-prompt
+(defconst beads-agent-type-review--qa-user-prompt
   "<ISSUE-ID>: <ISSUE-TITLE>
 
 <ISSUE-DESCRIPTION>
@@ -180,9 +178,10 @@ EOF
 EOF
 )\"
 ```"
-  "User prompt envelope for the QA agent.
-Placeholders <ISSUE-ID>, <ISSUE-TITLE>, and <ISSUE-DESCRIPTION> are
-replaced with issue data when built.")
+  "User prompt envelope for the Review QA mode.
+This is the former `beads-agent-type-qa--user-prompt', relocated
+onto the Review QA path.  Placeholders <ISSUE-ID>, <ISSUE-TITLE>,
+and <ISSUE-DESCRIPTION> are replaced with issue data when built.")
 
 (defcustom beads-agent-plan-prompt
   "You are a planning agent.
@@ -339,13 +338,45 @@ executing, and verifying task completion.")
    (icon :initform "🦌")
    (description :initform "Code review agent")
    (system-prompt :initform 'beads-agent-review-prompt)
-   (prompt-template :initform 'beads-agent-type-review--user-prompt))
+   (prompt-template :initform 'beads-agent-type-review--user-prompt)
+   (qa-mode
+    :initarg :qa-mode
+    :initform nil
+    :type boolean
+    :documentation "When non-nil, Review runs in QA mode.
+QA mode swaps the Review role prompt and output envelope for the
+testing/verification prompt formerly owned by the standalone QA
+class (see `beads-agent-review-qa-prompt' and
+`beads-agent-type-review--qa-user-prompt').  The session remains a
+Review session; the UI exposes QA as a toggle on Review."))
   :documentation "Review agent type for code review.
-Uses the customizable `beads-agent-review-prompt' template.")
+Uses the customizable `beads-agent-review-prompt' template.  When
+`qa-mode' is non-nil it switches to the QA testing prompt and output
+envelope instead.")
 
 (cl-defmethod beads-agent-type-preferred-backend ((_type beads-agent-type-review))
   "Return preferred backend for Review agents."
   beads-agent-review-backend)
+
+(cl-defmethod beads-agent-type-system-prompt ((type beads-agent-type-review) issue)
+  "Return the Review role prompt for TYPE working on ISSUE, honouring QA mode.
+In QA mode this returns `beads-agent-review-qa-prompt'; otherwise it
+returns the `system-prompt' slot (`beads-agent-review-prompt')."
+  (beads-agent-type--substitute-template
+   (if (oref type qa-mode)
+       beads-agent-review-qa-prompt
+     (oref type system-prompt))
+   issue))
+
+(cl-defmethod beads-agent-type-build-user-prompt ((type beads-agent-type-review) issue)
+  "Return the Review user envelope for TYPE working on ISSUE, honouring QA mode.
+In QA mode this returns `beads-agent-type-review--qa-user-prompt';
+otherwise it returns the `prompt-template' slot."
+  (beads-agent-type--substitute-template
+   (if (oref type qa-mode)
+       beads-agent-type-review--qa-user-prompt
+     (oref type prompt-template))
+   issue))
 
 ;;; Plan Agent
 
@@ -364,52 +395,14 @@ making changes.  Works with any backend.")
   "Return preferred backend for Plan agents."
   beads-agent-plan-backend)
 
-;;; QA Agent
+;;; Review QA Mode
 
-(defclass beads-agent-type-qa (beads-agent-type)
-  ((name :initform "QA")
-   (letter :initform "Q")
-   (icon :initform "🐿️")
-   (description :initform "Testing and quality assurance agent")
-   (system-prompt :initform 'beads-agent-qa-prompt)
-   (prompt-template :initform 'beads-agent-type-qa--user-prompt))
-  :documentation "QA agent type for testing and verification.
-Uses the customizable `beads-agent-qa-prompt' template.")
-
-(cl-defmethod beads-agent-type-preferred-backend ((_type beads-agent-type-qa))
-  "Return preferred backend for QA agents."
-  beads-agent-qa-backend)
-
-;;; Custom Agent
-
-(defclass beads-agent-type-custom (beads-agent-type)
-  ((name :initform "Custom")
-   (letter :initform "C")
-   (icon :initform "🦊")
-   (description :initform "User-provided prompt at runtime")
-   (prompt-template :initform nil))
-  :documentation "Custom agent type with user-authored prompt.
-Builds the default issue-based prompt as a starting point; the user
-writes their custom instructions in the prompt-edit buffer that is
-shown before launch.")
-
-(cl-defmethod beads-agent-type-build-user-prompt ((_type beads-agent-type-custom)
-                                                   issue)
-  "Return the default issue-based prompt for ISSUE.
-The user edits the result in the prompt-edit buffer before launch,
-so this method only provides issue context as a starting template."
-  (let ((title (oref issue title))
-        (description (oref issue description))
-        (acceptance (oref issue acceptance-criteria))
-        (id (oref issue id)))
-    (concat
-     (format "Please work on beads issue %s:\n\n" id)
-     (when (and title (not (string-empty-p title)))
-       (format "Title: %s\n" title))
-     (when (and description (not (string-empty-p description)))
-       (format "\nDescription:\n%s\n" description))
-     (when (and acceptance (not (string-empty-p acceptance)))
-       (format "\nAcceptance Criteria:\n%s\n" acceptance)))))
+(defun beads-agent-type-review-qa ()
+  "Return a Review agent type instance with QA mode enabled.
+Use this for the Review+QA start path; the returned instance is not
+registered (it shares the \"Review\" name and letter), so session
+lookup and display stay in the Review role."
+  (beads-agent-type-review :qa-mode t))
 
 ;;; Registration
 
@@ -423,8 +416,6 @@ This function is idempotent and can be called multiple times."
     (beads-agent-type-register (beads-agent-type-task))
     (beads-agent-type-register (beads-agent-type-review))
     (beads-agent-type-register (beads-agent-type-plan))
-    (beads-agent-type-register (beads-agent-type-qa))
-    (beads-agent-type-register (beads-agent-type-custom))
     (setq beads-agent-types--builtin-registered t)))
 
 ;; Register built-in types at load time

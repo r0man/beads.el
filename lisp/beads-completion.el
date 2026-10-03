@@ -34,6 +34,7 @@
 (declare-function beads-agent--get-available-backends "beads-agent-backend" ())
 (declare-function beads-agent--get-all-backends "beads-agent-backend" ())
 (declare-function beads-agent-backend-available-p "beads-agent-backend" (backend))
+(declare-function beads-sling-targets "beads-sling" (&optional bead))
 
 ;;; Completion Cache
 
@@ -402,6 +403,63 @@ for matching on both backend name and description."
                completion-category-overrides)))
     (completing-read prompt (beads-completion-backend-table)
                      predicate require-match initial-input history default)))
+
+;;; Sling Target Completion Support
+
+(defun beads-completion-sling-target-table (&optional bead)
+  "Return a completion table of sling target names for BEAD.
+The table is built from `beads-sling-targets' and carries the target
+kind and description for annotation and grouping.  The completion
+category is `beads-sling-target'.  Requires `beads-sling' lazily so
+this module does not add a load-time dependency on the agent stack."
+  (require 'beads-sling)
+  (let* ((targets (beads-sling-targets bead))
+         (names (mapcar (lambda (target)
+                          (propertize (oref target name)
+                                      'beads-sling-target target
+                                      'beads-sling-kind (oref target kind)
+                                      'beads-sling-description
+                                      (oref target description)))
+                        targets)))
+    (lambda (string pred action)
+      (if (eq action 'metadata)
+          '(metadata
+            (category . beads-sling-target)
+            (annotation-function . beads-completion--sling-target-annotate)
+            (group-function . beads-completion--sling-target-group))
+        (complete-with-action action names string pred)))))
+
+(defun beads-completion--sling-target-annotate (candidate)
+  "Annotate sling target CANDIDATE with its kind and description.
+Returns a string like \" — role · Task implementation agent\"."
+  (condition-case nil
+      (let ((kind (get-text-property 0 'beads-sling-kind candidate))
+            (description (get-text-property 0 'beads-sling-description candidate)))
+        (concat
+         (when kind (format " — %s" kind))
+         (when (and description (not (string-empty-p description)))
+           (format " · %s" description))))
+    (error "")))
+
+(defun beads-completion--sling-target-group (candidate transform)
+  "Group sling target CANDIDATE by kind.
+If TRANSFORM is non-nil, return CANDIDATE unchanged; otherwise return
+the capitalized kind name, or \"Other\" when the kind is unknown."
+  (if transform
+      candidate
+    (let ((kind (get-text-property 0 'beads-sling-kind candidate)))
+      (if kind
+          (capitalize (format "%s" kind))
+        "Other"))))
+
+(defun beads-completion-read-sling-target (prompt &optional bead require-match
+                                                  initial-input history default)
+  "Read a sling target name with kind/description completion.
+BEAD is the optional work item the target list is collected for, and
+is forwarded to `beads-sling-targets'.  PROMPT, REQUIRE-MATCH,
+INITIAL-INPUT, HISTORY and DEFAULT are passed to `completing-read'."
+  (completing-read prompt (beads-completion-sling-target-table bead)
+                   nil require-match initial-input history default))
 
 ;;; Worktree Completion Support
 
@@ -1132,6 +1190,17 @@ CAND may have beads-agent-wt-type of none, worktree, or issue."
             (title :width 50 :truncate 50)))))
       (_ nil))))
 
+(defun beads-completion--marginalia-annotate-sling-target (cand)
+  "Marginalia annotator for sling target candidates.
+CAND carries the `beads-sling-kind' and `beads-sling-description' text
+properties installed by `beads-completion-sling-target-table'."
+  (let ((kind (get-text-property 0 'beads-sling-kind cand))
+        (description (or (get-text-property 0 'beads-sling-description cand)
+                         "")))
+    (marginalia--fields
+     ((if kind (format "%s" kind) "") :face 'font-lock-type-face :width 10)
+     (description :width 50 :truncate 50))))
+
 (defun beads-completion-setup-marginalia ()
   "Register beads completion categories with marginalia.
 Call this after loading marginalia to enable richer annotations
@@ -1162,6 +1231,10 @@ in beads completion interfaces.  For example:
   (add-to-list 'marginalia-annotators
                '(beads-branch
                  beads-completion--marginalia-annotate-branch
+                 none))
+  (add-to-list 'marginalia-annotators
+               '(beads-sling-target
+                 beads-completion--marginalia-annotate-sling-target
                  none)))
 
 

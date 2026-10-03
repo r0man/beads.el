@@ -109,20 +109,12 @@ Signals an error if the transient fails to open."
 ;;; ============================================================
 
 (ert-deftest beads-live-test-main-menu-renders ()
-  "Live: M-x beads opens the main transient menu without error."
+  "Live: M-x beads-dispatch opens the main transient menu without error."
   :tags '(:live :transient)
   (skip-unless (beads-live-test--interactive-p))
   (skip-unless (executable-find beads-executable))
   (beads-test-with-temp-repo (:init-beads t)
-    (should (beads-live-test--open-transient-and-quit 'beads))))
-
-(ert-deftest beads-live-test-more-menu-renders ()
-  "Live: beads-more-menu opens without error."
-  :tags '(:live :transient)
-  (skip-unless (beads-live-test--interactive-p))
-  (skip-unless (executable-find beads-executable))
-  (beads-test-with-temp-repo (:init-beads t)
-    (should (beads-live-test--open-transient-and-quit 'beads-more-menu))))
+    (should (beads-live-test--open-transient-and-quit 'beads-dispatch))))
 
 ;;; ============================================================
 ;;; Scenario 2: Create Issue End-to-End
@@ -541,21 +533,21 @@ Signals an error if the transient fails to open."
   (beads-test-with-temp-repo (:init-beads t)
     (should (beads-live-test--open-transient-and-quit 'beads-list-filter-menu))))
 
-(ert-deftest beads-live-test-advanced-menu-renders ()
-  "Live: beads-advanced-menu transient opens without error."
+(ert-deftest beads-live-test-dispatch-menu-renders ()
+  "Live: beads-dispatch transient opens without error."
   :tags '(:live :transient)
   (skip-unless (beads-live-test--interactive-p))
   (skip-unless (executable-find beads-executable))
   (beads-test-with-temp-repo (:init-beads t)
-    (should (beads-live-test--open-transient-and-quit 'beads-advanced-menu))))
+    (should (beads-live-test--open-transient-and-quit 'beads-dispatch))))
 
-(ert-deftest beads-live-test-ops-menu-renders ()
-  "Live: beads-ops-menu transient opens without error."
+(ert-deftest beads-live-test-maintenance-menu-renders ()
+  "Live: beads-maintenance transient opens without error."
   :tags '(:live :transient)
   (skip-unless (beads-live-test--interactive-p))
   (skip-unless (executable-find beads-executable))
   (beads-test-with-temp-repo (:init-beads t)
-    (should (beads-live-test--open-transient-and-quit 'beads-ops-menu))))
+    (should (beads-live-test--open-transient-and-quit 'beads-maintenance))))
 
 ;;; ============================================================
 ;;; Scenario 11: Creation Readers
@@ -716,6 +708,16 @@ so that `beads-agent-start' gets a valid project root."
                   (derived-mode-p 'beads-list-mode)))
               (buffer-list)))
 
+(defun beads-live-test--goto-first-issue ()
+  "Move point to the first issue row in the current list buffer.
+The redesigned list interleaves section headers and state rows; those
+carry non-string tabulated ids and resolve to nil, so `point-min' alone
+is not an issue row."
+  (goto-char (point-min))
+  (while (and (not (eobp)) (not (beads-issue-at-point)))
+    (forward-line 1))
+  (beads-issue-at-point))
+
 (defun beads-live-test--show-buffer-loaded (issue-id)
   "Return the show buffer of ISSUE-ID once its issue has loaded, else nil."
   (cl-find-if (lambda (b)
@@ -761,7 +763,7 @@ Returns the value of PRED."
         (should list-buf)
         (unwind-protect
             (with-current-buffer list-buf
-              (goto-char (point-min))
+              (beads-live-test--goto-first-issue)
               (let ((issue-id (beads-issue-at-point)))
                 (should issue-id)
                 (cl-letf (((symbol-function 'beads-agent--should-use-worktree-p)
@@ -823,7 +825,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
            (should list-buf)
            (unwind-protect
                (with-current-buffer list-buf
-                 (goto-char (point-min))
+                 (beads-live-test--goto-first-issue)
                  (should (beads-issue-at-point))
                  (cl-letf (((symbol-function 'beads-agent--should-use-worktree-p)
                             (lambda (_) nil)))
@@ -849,7 +851,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
 
 (beads-live-test--agent-typed-start-test
  beads-live-test-agent-start-qa-from-list
- beads-agent-start-qa "QA")
+ beads-agent-start-review-qa "Review (QA mode)")
 
 (ert-deftest beads-live-test-agent-start-task-jumps-to-existing ()
   "Live: beads-agent-start-task jumps to existing session without starting new."
@@ -864,7 +866,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
         (should list-buf)
         (unwind-protect
             (with-current-buffer list-buf
-              (goto-char (point-min))
+              (beads-live-test--goto-first-issue)
               (let ((issue-id (beads-issue-at-point)))
                 (should issue-id)
                 ;; Start initial Task session
@@ -900,7 +902,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
         (should list-buf)
         (unwind-protect
             (with-current-buffer list-buf
-              (goto-char (point-min))
+              (beads-live-test--goto-first-issue)
               (let ((issue-id (beads-issue-at-point)))
                 (should issue-id)
                 ;; Start a session first
@@ -932,7 +934,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
         (should list-buf)
         (unwind-protect
             (with-current-buffer list-buf
-              (goto-char (point-min))
+              (beads-live-test--goto-first-issue)
               (should (beads-issue-at-point))
               ;; No sessions started — stop should not error
               (should-not (condition-case _err
@@ -958,7 +960,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
         (should list-buf)
         (unwind-protect
             (with-current-buffer list-buf
-              (goto-char (point-min))
+              (beads-live-test--goto-first-issue)
               (let ((issue-id (beads-issue-at-point)))
                 (should issue-id)
                 ;; Start a session
@@ -988,7 +990,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
         (should list-buf)
         (unwind-protect
             (with-current-buffer list-buf
-              (goto-char (point-min))
+              (beads-live-test--goto-first-issue)
               (should (beads-issue-at-point))
               ;; No session — jump should start one
               (cl-letf (((symbol-function 'beads-agent--should-use-worktree-p)
@@ -1112,7 +1114,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
       (should list-buf)
       (unwind-protect
           (with-current-buffer list-buf
-            (goto-char (point-min))
+            (beads-live-test--goto-first-issue)
             (let ((issue-id (beads-issue-at-point)))
               (should issue-id)
               (beads-list-show)
@@ -1175,7 +1177,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
       (should list-buf)
       (unwind-protect
           (with-current-buffer list-buf
-            (goto-char (point-min))
+            (beads-live-test--goto-first-issue)
             (let ((issue-id (beads-issue-at-point)))
               (should issue-id)
               ;; Mark (advances cursor to next line)
@@ -1222,7 +1224,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
       (should list-buf)
       (unwind-protect
           (with-current-buffer list-buf
-            (goto-char (point-min))
+            (beads-live-test--goto-first-issue)
             (let ((issue-id (beads-issue-at-point)))
               (should issue-id)
               (beads-list-copy-id)

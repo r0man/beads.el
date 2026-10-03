@@ -36,6 +36,7 @@
 (require 'beads-command-show)
 (require 'beads-buffer)
 (require 'beads-dashboard)
+(require 'beads-remote)
 
 ;;; Mock method infrastructure
 
@@ -256,6 +257,94 @@ against a remote store would read the wrong backend."
               (should (= (plist-get outcome :max-concurrent) 8))))
         (delete-directory dir t)))))
 
+;;; Path, terminfo and prewarm helpers
+
+(ert-deftest beads-remote-test-localize-path ()
+  "Host-local bd paths are re-prefixed for a remote view; locals untouched.
+Pure name surgery — disassembly of syntactic TRAMP names never
+connects, so this is safe at render time."
+  ;; Local context: unchanged.
+  (let ((default-directory "/"))
+    (should (equal (beads-remote-localize-path "/wd") "/wd")))
+  ;; Remote context: prefixed with the view's TRAMP prefix.
+  (let ((default-directory "/ssh:u@h:/home/u/city/"))
+    (should (equal (beads-remote-localize-path "/wd") "/ssh:u@h:/wd"))
+    ;; An already-remote path passes through; nil/empty degrade unchanged.
+    (should (equal (beads-remote-localize-path "/ssh:u@h:/x")
+                   "/ssh:u@h:/x"))
+    (should (null (beads-remote-localize-path nil)))
+    (should (equal (beads-remote-localize-path "") "")))
+  ;; Explicit DIR overrides `default-directory'.
+  (should (equal (beads-remote-localize-path "/wd" "/ssh:u@h:/city/")
+                 "/ssh:u@h:/wd")))
+
+(ert-deftest beads-remote-test-terminfo-p ()
+  "Terminfo probe: infocmp first, then the compiled-entry sweep;
+positive results cached per (connection x TERM); local trivially t."
+  ;; Local: the terminal backend owns TERM/terminfo.
+  (let ((default-directory "/"))
+    (should (beads-remote-terminfo-p "xterm-ghostty")))
+  ;; The candidate list is pure: ~/.terminfo first, first-char keyed.
+  (should (equal (car (beads-remote--terminfo-candidates
+                       "xterm-ghostty" "/ssh:u@h:"))
+                 "/ssh:u@h:~/.terminfo/x/xterm-ghostty"))
+  (clrhash beads-remote--cache)
+  (unwind-protect
+      (let ((infocmp-exit 1) (files nil) (sweeps 0))
+        (cl-letf (((symbol-function 'beads-remote-find-executable)
+                   (lambda (name &optional _dir) name))
+                  ((symbol-function 'process-file)
+                   (lambda (&rest _) infocmp-exit))
+                  ((symbol-function 'file-exists-p)
+                   (lambda (file) (cl-incf sweeps) (and (member file files) t))))
+          (let ((default-directory "/ssh:u@h:/city/"))
+            ;; Nowhere: reported missing, and NOT cached (installing heals).
+            (should-not (beads-remote-terminfo-p "xterm-ghostty"))
+            ;; Installed under ~/.terminfo: the sweep finds it, cached.
+            (setq files '("/ssh:u@h:~/.terminfo/x/xterm-ghostty"))
+            (should (beads-remote-terminfo-p "xterm-ghostty"))
+            (setq sweeps 0)
+            (should (beads-remote-terminfo-p "xterm-ghostty"))
+            (should (= sweeps 0))       ; cache hit — no re-probe
+            ;; infocmp exit 0 is authoritative: no sweep at all.
+            (setq infocmp-exit 0 sweeps 0)
+            (should (beads-remote-terminfo-p "tmux-256color"))
+            (should (= sweeps 0)))))
+    (clrhash beads-remote--cache)))
+
+(ert-deftest beads-remote-test-prewarm-caches-resolutions ()
+  "Prewarm resolves programs on an ssh-transport host into the shared cache.
+The ssh argv builder and transport predicate are stubbed so the local
+`sh' runs the probe script; a real program lands in the cache, a bogus
+one does not, and the cache key matches `beads-remote-find-executable'."
+  (let ((default-directory "/ssh:u@h:/city/")
+        (beads-remote-prewarm-programs
+         '("sh" "beads-remote-test-no-such-prog"))
+        (beads-executable "bd"))
+    (clrhash beads-remote--cache)
+    (clrhash beads-remote--prewarming)
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads-remote-ssh-pipe-p)
+                   (lambda (&optional _dir) t))
+                  ((symbol-function 'beads-remote-ssh-command)
+                   (lambda (_dir argv &rest _) argv)))
+          (should (null (beads-remote-prewarm)))
+          (let* ((remote (file-remote-p default-directory))
+                 (key (cons remote "sh"))
+                 (deadline (+ (float-time) 10)))
+            (while (and (null (gethash key beads-remote--cache))
+                        (< (float-time) deadline))
+              (accept-process-output nil 0.1))
+            (should (stringp (gethash key beads-remote--cache)))
+            (should (file-name-absolute-p (gethash key beads-remote--cache)))
+            (should-not (gethash (cons remote "beads-remote-test-no-such-prog")
+                                 beads-remote--cache)))
+          ;; A local directory is a no-op.
+          (let ((default-directory "/"))
+            (should (null (beads-remote-prewarm)))))
+      (clrhash beads-remote--cache)
+      (clrhash beads-remote--prewarming))))
+
 ;;; Remote-qualified buffer names (syntactic, no connection)
 
 (ert-deftest beads-remote-test-project-context-qualified ()
@@ -372,6 +461,95 @@ current at creation."
                      (buffer-name)))))
       (when (buffer-live-p buffer)
         (kill-buffer buffer)))))
+
+;;; Pure remote helpers (WI-14 terminal-move prerequisites)
+
+(ert-deftest beads-remote-test-prefix ()
+  "`beads-remote-prefix' returns the TRAMP prefix, or nil when local.
+Pure: a host-only name is dissected, never expanded."
+  (should (equal (beads-remote-prefix "/ssh:user@example.com:/home/user")
+                 "/ssh:user@example.com:"))
+  (should (equal (beads-remote-prefix "/ssh:user@example.com:")
+                 "/ssh:user@example.com:"))
+  (should-not (beads-remote-prefix "/home/user"))
+  (should-not (beads-remote-prefix nil)))
+
+(ert-deftest beads-remote-test-localize-path-pure ()
+  "A host-local path is re-prefixed for a remote DIR, untouched otherwise."
+  (should (equal (beads-remote-localize-path
+                  "/home/user/work" "/ssh:user@example.com:/city")
+                 "/ssh:user@example.com:/home/user/work"))
+  (should (equal (beads-remote-localize-path "/home/user/work" "/home/me")
+                 "/home/user/work"))
+  (should (equal (beads-remote-localize-path
+                  "/ssh:u@h:/x" "/ssh:user@example.com:/city")
+                 "/ssh:u@h:/x"))
+  (should-not (beads-remote-localize-path nil "/ssh:user@example.com:/city")))
+
+(ert-deftest beads-remote-test-buffer-name ()
+  "BASE is qualified by a remote DIR's prefix, or by an explicit qualifier."
+  (should (equal (beads-remote-buffer-name "*beads-agent-x*" "/home/me")
+                 "*beads-agent-x*"))
+  (should (equal (beads-remote-buffer-name
+                  "*beads-agent-x*" "/ssh:user@example.com:/city")
+                 "*beads-agent-x@/ssh:user@example.com:*"))
+  (should (equal (beads-remote-buffer-name
+                  "*beads-agent-x*" nil "/ssh:user@example.com:")
+                 "*beads-agent-x@/ssh:user@example.com:*")))
+
+(ert-deftest beads-remote-test-terminfo-p-local ()
+  "A local directory trivially has terminfo for any TERM."
+  (should (beads-remote-terminfo-p "xterm-256color" "/tmp")))
+
+(ert-deftest beads-remote-test-with-timeout-local-runs ()
+  "A local directory runs BODY unbounded."
+  (let ((default-directory "/tmp"))
+    (should (eq 42 (beads-remote-with-timeout 0.01 42)))))
+
+(ert-deftest beads-remote-test-with-timeout-remote-signals ()
+  "A wedged remote call signals `beads-remote-timeout'."
+  (beads-remote-test--ensure-mock-method)
+  (let ((tramp-verbose 0)
+        (default-directory beads-remote-test--mock-directory))
+    (skip-unless (ignore-errors (file-directory-p default-directory)))
+    (should-error
+     (beads-remote-with-timeout 0.2 (sit-for 5))
+     :type 'beads-remote-timeout)))
+
+;;; Tilde-relative remote project roots (WI-20/F1, REQ-019)
+
+(ert-deftest beads-remote-test-find-up-script-expands-tilde ()
+  "The walk script expands a leading `~' against the remote `$HOME'.
+`tramp-file-name-localname' returns `~/store' verbatim for
+`/ssh:host:~/store'; shell-quoting it freezes the tilde, so the
+script itself must expand it before testing `$d/$m'."
+  (let* ((home (make-temp-file "beads-findup-home-" t))
+         (store (expand-file-name "bright-lights" home)))
+    (unwind-protect
+        (progn
+          (make-directory (expand-file-name ".beads" store) t)
+          (let ((default-directory home)
+                (process-environment
+                 (cons (concat "HOME=" home)
+                       (cl-remove-if (lambda (e) (string-prefix-p "HOME=" e))
+                                     process-environment))))
+            (should
+             (equal (process-lines "sh" "-c" beads-remote--find-up-script
+                                   "sh" "~/bright-lights" ".beads")
+                    (list store))))))))
+
+(ert-deftest beads-remote-test-find-up-forwards-tilde-localname ()
+  "`beads-remote-ssh-find-up' forwards the raw localname and the script.
+Expansion happens on the remote side, so the argv carries the
+unexpanded `~/bright-lights' plus `beads-remote--find-up-script'."
+  (let (seen)
+    (cl-letf (((symbol-function 'beads-remote-ssh-call)
+               (lambda (_dir argv) (setq seen argv) '(0 "x\n" ""))))
+      (beads-remote-ssh-find-up "/ssh:user@example.com:~/bright-lights"
+                                '(".beads" ".git")))
+    (should (equal (nth 0 seen) "sh"))
+    (should (equal (nth 2 seen) beads-remote--find-up-script))
+    (should (equal (nth 4 seen) "~/bright-lights"))))
 
 (provide 'beads-remote-test)
 ;;; beads-remote-test.el ends here
