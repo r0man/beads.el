@@ -1183,8 +1183,10 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
               ;; Mark (advances cursor to next line)
               (beads-list-mark)
               (should (member issue-id beads-list--marked-issues))
-              ;; Return to the same issue before unmarking
-              (goto-char (point-min))
+              ;; Return to the same issue before unmarking.  In the
+              ;; grouped list point-min is a section header, so navigate
+              ;; to the first issue row rather than the buffer start.
+              (beads-live-test--goto-first-issue)
               (beads-list-unmark)
               (should-not (member issue-id beads-list--marked-issues))))
         (when (buffer-live-p list-buf)

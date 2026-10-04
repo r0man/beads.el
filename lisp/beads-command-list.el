@@ -1665,8 +1665,13 @@ ACTION and SESSION are provided by `beads-agent-state-change-hook'."
     (goto-char (point-min))
     (while (not (eobp))
       (when (beads-list--current-issue-id)
-        (beads-list-mark))
-      (forward-line 0))))  ; Don't advance, beads-list-mark does that
+        (beads-list-mark)
+        ;; `beads-list-mark' advances point for issue rows; step back so
+        ;; the single `forward-line' below advances exactly one entry.
+        ;; Section headers (non-string ids) are skipped instead of
+        ;; looping on one forever.
+        (forward-line -1))
+      (forward-line 1))))
 
 (defun beads-list-unmark-all ()
   "Unmark all issues in the current buffer."

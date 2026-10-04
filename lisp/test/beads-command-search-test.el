@@ -227,7 +227,10 @@
              (lambda () t))
             ((symbol-function 'beads-git-in-worktree-p)
              (lambda () nil)))
-    (let ((cmd (beads-command-search :query "test")))
+    (let ((cmd (beads-command-search :query "test"))
+          ;; Exercise the flat layout: the assertion below counts one
+          ;; entry per issue, and grouped mode interleaves section headers.
+          (beads-list-group-by-status nil))
       (beads-command-execute-interactive cmd))
     ;; Verify buffer was created with search type
     (should (get-buffer "*beads-search[testproj]*"))

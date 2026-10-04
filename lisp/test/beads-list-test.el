@@ -2938,6 +2938,19 @@ Regression test for bug bde-evrx."
    (should (string-match-p "In progress (1)"
                            (aref (cadr (car beads-pager--all-entries)) 0)))))
 
+(ert-deftest beads-list-test-mark-all-with-sections ()
+  "Test `beads-list-mark-all' skips section headers and terminates.
+Regression for the infinite loop where a section header has a
+non-string tabulated id: neither `beads-list-mark' nor the old
+`(forward-line 0)' advanced point, so the loop never reached eob
+(be-ka4s)."
+  (beads-list-test--with-grouped-buffer
+   beads-list-test--sample-issues 'list
+   (beads-list-mark-all)
+   (should (= (length beads-list--marked-issues) 4))
+   (should (equal (sort (copy-sequence beads-list--marked-issues) #'string<)
+                  '("bd-1" "bd-2" "bd-3" "bd-4")))))
+
 (ert-deftest beads-list-test-grouped-section-toggle ()
   "Test that folding a section hides its issues."
   (beads-list-test--with-grouped-buffer

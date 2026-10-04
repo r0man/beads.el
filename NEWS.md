@@ -4,6 +4,17 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Grouped list `mark-all` no longer loops on section headers
+
+`beads-list-mark-all` walked the buffer assuming every row was an
+issue.  With the redesigned status-grouped list (on by default), the
+section headers carry non-string tabulated ids, so neither
+`beads-list-mark` nor the trailing `(forward-line 0)` advanced point
+and the command looped forever -- which hung the full `eldev test`
+run at `beads-live-test-list-bulk-close`.  Point now advances exactly
+one entry per iteration and skips headers (be-ka4s).  A grouped-list
+ERT pins the behaviour.
+
 ### `beads-sling` menu renders on cold entry
 
 Fixed a crash in `M-x beads-sling` that fired before any What/Who
