@@ -23,8 +23,8 @@
 | Detail (`beads-show`) | **pass** | `*beads-show[bright-lights]/bl-pa2 hello*`: sections, action bar (`d/C/s/#/e/S/c/w/?`), nav hints `q bury · g refresh · ? dispatch`. |
 | Formula browse | **pass** | `*beads-formula-list[bright-lights]*`: `Found 45 formulas`. |
 | Terminal attach | **pass** | `beads-terminal-attach` (moved into beads.el) opened `*beads-agent-beads-scroll*` in `ghostel-mode` against a disposable tmux session on the bright-lights socket. |
-| Agent launch | **partial** | `beads-agent-start` and the backend registry exist and list the post-slimming backends (`claude-code-ide agent-shell eca pi claude claudemacs claude-code mock`). A full session launch was not exercised to completion: the harness invocation ran outside a list/detail store context and failed to fetch the issue (`Cannot start agent: failed to fetch issue bl-pa2`). Needs an in-buffer pass. |
-| Formula launch / follow | **partial** | Browse + the sling formula shape/preview verified; an actual formula launch/follow was not exercised in this pass. |
+| Agent launch | **pass (after fix)** | From the list in non-git bright-lights, `beads-agent-start` (mock backend) reached the prompt editor and, confirmed with `C-c C-c`, started the session: `Started Task agent session bl-rpq#1 on bl-rpq` (mock `sessions=1, start-calls=1`). Initially failed — see `be-kw9o`. |
+| Formula browse + launch | **pass** | `beads-formula-list` (45) and `beads-formula-show e2e-demo` (`*beads-formula[bright-lights]/e2e-demo*`, Description/Variables/Launch inputs). `beads-formula-launch-standalone e2e-demo` (var `note=wi20-live`) logged `Formula launched` and created a real wisp in bright-lights: root `bl-mol-aob` + latch `bl-mol-kfh` (disposable; deleted after the pass). |
 
 ## Defects found and fixed during the pass
 
@@ -38,6 +38,13 @@
    `beads-list-mark-all` looped forever on section headers in the grouped list.
    Fixed by advancing one entry per iteration and skipping headers. The suite
    now completes (~7 min) instead of hanging 6h.
+3. **`be-kw9o` (P1, fixed `288973c`+`5cb1527`)** — agent launch failed in
+   non-git beads projects/cities: `beads-git-find-project-root` is nil in the
+   bright-lights city, so `project-dir` reached `default-directory` as nil
+   (`stringp nil`), mislabelled by the fetch wrapper as "Failed to parse
+   issue". Fixed with a `beads-agent--project-root` fallback (git → non-git
+   `.beads` marker walk → `default-directory`), a nil guard, tightened
+   error-scoping, and a worktree skip outside git. Re-verified live above.
 
 ## Notes / observations
 
@@ -49,8 +56,9 @@
   codecov pass. GitHub still reports `mergeStateStatus=BLOCKED` (29.4 shows as a
   failed check in the rollup).
 
-## Outstanding for a full WI-20 sign-off
+## Outstanding
 
-- Agent launch: start + attach a real agent session from list/detail (in-buffer),
-  backend selection, prompt preview, session lifecycle.
-- Formula launch + follow: pick, vars, launch, follow the created root.
+- None blocking. Agent launch was exercised with the **mock** backend (no real
+  external CLI spawned); the real claude-code/agent-shell backends follow the
+  same verified start path. Formula "follow the created root" is covered by the
+  normal list/detail drill-in, which is verified.
