@@ -385,6 +385,10 @@ which shows daemon status and database statistics."
 ;;;###autoload
 (autoload 'beads-dashboard "beads-dashboard" nil t)
 
+;; beads-agent (the AI Agent prefix; the dispatch menu's "a Agents...")
+;;;###autoload
+(autoload 'beads-agent "beads-agent" nil t)
+
 ;; beads-command-show
 ;;;###autoload
 (autoload 'beads-show "beads-command-show" nil t)

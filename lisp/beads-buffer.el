@@ -58,6 +58,9 @@
 (declare-function beads-git-get-branch "beads-git")
 (declare-function beads-git-in-worktree-p "beads-git")
 (declare-function beads-git-find-project-root "beads-git")
+(declare-function beads-dispatch "beads-menu" ())
+(declare-function beads-issue-at-point "beads" ())
+(declare-function beads-show "beads-command-show" (issue-id))
 
 ;;; Constants
 
