@@ -19,6 +19,11 @@ path guards a nil project directory, and the fetch wrapper's
 `condition-case' guards only JSON extraction so callback errors
 propagate unmislabelled (be-kw9o).
 
+Because git worktrees cannot exist outside a repo,
+`beads-git-should-use-worktree-p' now returns nil when
+`beads-git-find-project-root' is nil, so a non-git project starts the
+agent in place rather than failing on a worktree it cannot create.
+
 ### Grouped list `mark-all` no longer loops on section headers
 
 `beads-list-mark-all` walked the buffer assuming every row was an

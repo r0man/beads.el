@@ -254,20 +254,26 @@
   "Test beads-git-should-use-worktree-p returns t when always enabled."
   :tags '(:unit)
   (let ((beads-agent-use-worktrees t))
-    (should (beads-git-should-use-worktree-p "beads-1"))))
+    (cl-letf (((symbol-function 'beads-git-find-project-root)
+               (lambda () "/repo/")))
+      (should (beads-git-should-use-worktree-p "beads-1")))))
 
 (ert-deftest beads-git-test-should-use-worktree-never ()
   "Test beads-git-should-use-worktree-p returns nil when disabled."
   :tags '(:unit)
   (let ((beads-agent-use-worktrees nil))
-    (should-not (beads-git-should-use-worktree-p "beads-1"))))
+    (cl-letf (((symbol-function 'beads-git-find-project-root)
+               (lambda () "/repo/")))
+      (should-not (beads-git-should-use-worktree-p "beads-1")))))
 
 (ert-deftest beads-git-test-should-use-worktree-ask-yes ()
   "Test beads-git-should-use-worktree-p prompts user when 'ask."
   :tags '(:unit)
   (let ((beads-agent-use-worktrees 'ask))
     (cl-letf (((symbol-function 'yes-or-no-p)
-               (lambda (_prompt) t)))
+               (lambda (_prompt) t))
+              ((symbol-function 'beads-git-find-project-root)
+               (lambda () "/repo/")))
       (should (beads-git-should-use-worktree-p "beads-1")))))
 
 (ert-deftest beads-git-test-should-use-worktree-ask-no ()
@@ -275,7 +281,23 @@
   :tags '(:unit)
   (let ((beads-agent-use-worktrees 'ask))
     (cl-letf (((symbol-function 'yes-or-no-p)
-               (lambda (_prompt) nil)))
+               (lambda (_prompt) nil))
+              ((symbol-function 'beads-git-find-project-root)
+               (lambda () "/repo/")))
+      (should-not (beads-git-should-use-worktree-p "beads-1")))))
+
+(ert-deftest beads-git-test-should-use-worktree-non-git-nil ()
+  "Outside a git repo worktrees are impossible, so never use one.
+Even with `beads-agent-use-worktrees' t (or 'ask) a non-git beads
+project or Gas City workspace must start the agent in place
+(be-kw9o)."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-git-find-project-root) (lambda () nil))
+            ((symbol-function 'yes-or-no-p)
+             (lambda (_prompt) (error "Must not prompt without git"))))
+    (let ((beads-agent-use-worktrees t))
+      (should-not (beads-git-should-use-worktree-p "beads-1")))
+    (let ((beads-agent-use-worktrees 'ask))
       (should-not (beads-git-should-use-worktree-p "beads-1")))))
 
 ;;; Test beads-git-ensure-worktree

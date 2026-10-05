@@ -3188,12 +3188,14 @@ directory, instead of binding `default-directory' to nil."
                     ((symbol-function 'beads-agent--start-backend-async)
                      (lambda (&rest args)
                        (setq started t backend-args args))))
-            (let ((beads-agent-use-worktrees nil))
-              (beads-agent-start "be-1" nil nil "Task")))
+            ;; Default `beads-agent-use-worktrees' is t: the non-git skip
+            ;; in `beads-git-should-use-worktree-p' must still prevent a
+            ;; worktree attempt here.
+            (beads-agent-start "be-1" nil nil "Task"))
           (should started)
           (should (equal seen-dir root))
           ;; project-dir is the 3rd arg of the backend-start call; no
-          ;; worktree is used with worktrees disabled (4th arg nil).
+          ;; worktree is used in a non-git project (4th arg nil).
           (should (equal (nth 2 backend-args) root))
           (should (null (nth 3 backend-args))))
       (delete-directory root t))))
