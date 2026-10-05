@@ -45,6 +45,18 @@ now take their dynamic descriptions from the pick commands themselves,
 and empty optional actions are filtered out, so the cold menu parses
 and renders.  An ERT now parses the menu both cold and seeded.
 
+### `beads-sling` header/footer render on Emacs 29.4
+
+The adaptive sling menu's header and live footer were built with
+`(:info (lambda () ...))`.  On Emacs 29.4 a lexical closure is a list
+`(closure ...)`, and transient 0.13.8 `eval`s an `:info` value unquoted,
+so the closure was called as a function and `transient-setup` died with
+`void-function closure'; Emacs 31 hid this because its closures are
+self-evaluating `interpreted-function' objects.  The two `:info`
+descriptions are now quoted lambda forms that read the live scope, so
+they parse on both 29.4 and 31.1 and still recompute on every redraw
+(be-ylw4).
+
 ### Remote/TRAMP parity and test consolidation (WI-18)
 
 Test-only consolidation across the redesign: the retired

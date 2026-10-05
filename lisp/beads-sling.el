@@ -1169,25 +1169,35 @@ the routing flags render only on the settled plain shape."
   (let* ((work (plist-get scope :work))
          (formula (plist-get scope :formula))
          (recipe (plist-get scope :recipe))
-         (target (or (plist-get scope :target)
-                     (beads-sling--derived-target-name)))
          (shape (beads-sling-shape work formula)))
-    (ignore target)
     (append
      (list
       (vector (format "Sling — %s" (beads-sling--project-label))
+              ;; The `:info' descriptions are quoted *lambda forms*, not
+              ;; the runtime closure objects `(lambda ...)' produces
+              ;; under lexical binding.  transient 0.13.8 embeds an
+              ;; `:info' value unquoted into the form it `eval's; on
+              ;; Emacs 29.4 a closure is a list `(closure ...)' that is
+              ;; then called as a function (`void-function closure'),
+              ;; while Emacs 31 hides this because its closures are
+              ;; self-evaluating `interpreted-function' objects.  A
+              ;; quoted lambda is `eval'ed to a closure on both, and it
+              ;; reads the live scope via `transient-scope' so the
+              ;; header/footer stay lazy (calling `transient-args' at
+              ;; setup time would recurse into the transient itself).
               (list :info
-                    (lambda ()
-                      (beads-sling--header-sentence
-                       (plist-get scope :work)
-                       (plist-get scope :formula)
-                       (or (plist-get scope :target)
-                           (beads-sling--derived-target-name))
-                       (plist-get scope :recipe))))
+                    '(lambda ()
+                       (let ((scope (transient-scope)))
+                         (beads-sling--header-sentence
+                          (plist-get scope :work)
+                          (plist-get scope :formula)
+                          (or (plist-get scope :target)
+                              (beads-sling--derived-target-name))
+                          (plist-get scope :recipe)))))
               (list :info
-                    (lambda ()
-                      (beads-sling--footer
-                       (beads-sling--scope-context scope))))))
+                    '(lambda ()
+                       (beads-sling--footer
+                        (beads-sling--scope-context))))))
      (list
       (vector "What"
               ;; A bare command lets transient use the suffix's own

@@ -428,6 +428,33 @@ What/Who groups."
             (should (string-match-p "Work: be-abcd" (buffer-string)))))
       (ignore-errors (transient-quit-all)))))
 
+(ert-deftest beads-sling-test-info-descriptions-are-quoted-lambdas ()
+  "The header/footer `:info' values are quoted lambda forms.
+On Emacs 29.4 a lexical closure is a list `(closure ...)'.  transient
+0.13.8 embeds an `:info' value unquoted into the form it `eval's, so a
+closure object is called as a function and the menu dies with
+`void-function closure'; Emacs 31 hides this because its closures are
+self-evaluating `interpreted-function' objects (be-ylw4).  A quoted
+lambda survives the `eval' on both, so this pins the
+version-independent invariant while CI's Emacs 29.4 job is the
+end-to-end gate."
+  :tags '(:unit :transient)
+  (cl-letf (((symbol-function 'beads-sling--project-label)
+             (lambda () "beads.el")))
+    (let* ((specs (beads-sling--children-specs
+                   '(:work "be-abcd" :formula nil :recipe nil :target nil)))
+           (header (aref (car specs) 0))
+           (children (append (car specs) nil))
+           (infos (cl-remove-if-not (lambda (child) (eq (car-safe child) :info))
+                                    children)))
+      (should (equal header "Sling — beads.el"))
+      (should (= 2 (length infos)))
+      (dolist (info infos)
+        ;; A source-level lambda form, never a `(closure ...)' object.
+        (should (eq (car-safe (cadr info)) 'lambda))
+        ;; And it evaluates to the callable transient will invoke.
+        (should (functionp (eval (cadr info) t)))))))
+
 (ert-deftest beads-sling-test-preview-paints-sections ()
   "The `P' preview renders header, Validation, Recipe and plan."
   :tags '(:unit)
