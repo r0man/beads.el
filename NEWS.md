@@ -173,19 +173,20 @@ gone, and every command they held is reachable from
 groups through `beads-menu-providers`, spliced into `beads-dispatch`
 at render time.
 
-### The status buffer is now the entry point (breaking key: `M-x beads`)
+### The full board is now the entry point (breaking key: `M-x beads`)
 
-`M-x beads` (and `beads`) opens the new hand-built, vui-sectioned
-**status buffer** (`beads-status`, `beads-status-mode`) instead of the
-transient menu.  The buffer summarises the store with four
-asynchronously loaded sections (In progress, Ready, Blocked, Recent
-activity) reusing the dashboard board loaders, and obeys the universal
-navigation contract: `q` buries, `g` refreshes in place, `TAB`/`S-TAB`
-move by thing, `SPC` folds, `RET` visits, `?` opens the menu.
+`M-x beads` (and `beads`) opens the hand-built **full board**
+(`beads-dashboard`, `beads-dashboard-mode`) instead of the transient
+menu — the superset board with provider sections, section toggles,
+next/prev navigation, auto/idle refresh and per-project visibility
+persistence.  It obeys the universal navigation contract: `q` buries,
+`g` refreshes in place, `TAB`/`S-TAB` move by thing, `SPC` folds, `RET`
+visits, `?` opens the menu.
 
+- `beads-status` opens a compact four-section summary (In progress,
+  Ready, Blocked, Recent activity) for a quick glance.
 - The former `beads` transient prefix moved to `beads-menu.el` as
   `beads-dispatch`; bind it with `?` (REQ-002, REQ-004).
-- `beads-dashboard` is unchanged and remains the full board.
 - Downstream packages extend the board with
   `beads-section-register`/`beads-section-spec` or
   `beads-dashboard-section-providers`.

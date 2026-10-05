@@ -33,11 +33,11 @@
   (should (fboundp 'beads))
   (should (commandp 'beads)))
 
-(ert-deftest beads-status-test-beads-opens-status ()
-  "`M-x beads' forwards to `beads-status'."
+(ert-deftest beads-status-test-beads-opens-dashboard ()
+  "`M-x beads' forwards to the full board, `beads-dashboard'."
   :tags '(:unit)
   (let ((called nil))
-    (cl-letf (((symbol-function 'beads-status)
+    (cl-letf (((symbol-function 'beads-dashboard)
                (lambda (&rest _) (setq called t))))
       (beads))
     (should called)))

@@ -310,12 +310,13 @@ render time."
 
 ;;;###autoload
 (defun beads ()
-  "Open the beads status buffer.
+  "Open the beads board.
 
-The primary entry point of beads.el (REQ-001).  Press `?' inside the
-buffer for the `beads-dispatch' menu."
+The primary entry point of beads.el: opens the full board
+\(`beads-dashboard'), the superset of the compact `beads-status'
+summary.  Press `?' inside the buffer for the `beads-dispatch' menu."
   (interactive)
-  (funcall #'beads-status))
+  (funcall #'beads-dashboard))
 
 (provide 'beads-status)
 ;;; beads-status.el ends here

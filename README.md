@@ -11,8 +11,8 @@ leaving your editor.
 
 ## Features
 
-- 🪟 **Status Board**: `M-x beads` opens a Magit-like, sectioned status board
-  rendered from `bd --json`, with the full board one command away
+- 🪟 **Full board**: `M-x beads` opens a Magit-like, sectioned full board
+  rendered from `bd --json` (with a compact `beads-status` summary too)
 - 📋 **Tabulated List Mode**: Browse issues with sortable columns (ID, status,
   priority, type, title)
 - 🔍 **Issue Detail View**: Rich, collapsible sections with markdown-like
@@ -58,7 +58,7 @@ git clone https://github.com/yourusername/beads.el.git ~/path/to/beads.el
   :load-path "~/path/to/beads.el/lisp"
   :commands (beads beads-status beads-dispatch beads-list beads-ready
              beads-show beads-create)
-  :bind ("C-c b" . beads)                 ; M-x beads opens the status board
+  :bind ("C-c b" . beads)                 ; M-x beads opens the full board
   :hook (after-init . beads-eldoc-mode))  ; Enable eldoc support
 ```
 
@@ -142,8 +142,8 @@ basic compilation.
 
 ### Basic Workflow
 
-1. **Open the status board**: `M-x beads` (or your custom keybinding) opens
-   `beads-status`, the Magit-like front door
+1. **Open the board**: `M-x beads` (or your custom keybinding) opens
+   `beads-dashboard`, the Magit-like full board
 2. **Open the dispatch menu**: Press `?` in any beads buffer (or `M-x
    beads-dispatch`) for the full command menu
 3. **List issues**: Press `l` (list all) or `r` (ready issues)
@@ -161,13 +161,12 @@ Emacs, or run `bd quickstart` from the command line
 
 ### Entry Points
 
-`M-x beads` opens the **status board** (`beads-status`), a Magit-like,
-sectioned board for the current store.  From there:
+`M-x beads` opens the **full board** (`beads-dashboard`), a Magit-like,
+sectioned board for the current store.  `M-x beads-status` opens the
+compact four-section summary instead.  From the board:
 
 - `?` opens **`beads-dispatch`**, the single command menu used in every
-  beads buffer.  `M-x beads-dispatch` opens it directly, and
-  `M-x beads-dashboard` opens the full board (a superset of the status
-  buffer).
+  beads buffer.  `M-x beads-dispatch` opens it directly.
 - `!` opens **`beads-maintenance`**, the admin/infrastructure menu.
 
 The dispatch menu groups the common flows:
@@ -883,9 +882,9 @@ Movement is uniform and lives in `beads-thing.el`: every view stamps the
 
 ```
 lisp/
-├── beads.el                    # Entry utilities; M-x beads -> beads-status
+├── beads.el                    # Entry utilities; M-x beads -> beads-dashboard
 ├── beads-menu.el               # beads-dispatch (?) and beads-maintenance (!)
-├── beads-status.el             # the vui status board (the front door)
+├── beads-status.el             # the compact vui summary board
 ├── beads-dashboard.el          # the full board
 ├── beads-dashboard-sections.el # board section providers
 ├── beads-section.el            # vui section base, registry, beads-section thing
@@ -911,10 +910,10 @@ lisp/
 
 ### Entry points and keys
 
-- `M-x beads` → `beads-status`; `?` → `beads-dispatch` (the same menu in
-  every beads buffer); `!` → `beads-maintenance`.
-- `M-x beads-dashboard` is the full board; `M-x beads-list` / `beads-show`
-  are the list and detail views.
+- `M-x beads` → `beads-dashboard` (the full board); `?` → `beads-dispatch`
+  (the same menu in every beads buffer); `!` → `beads-maintenance`.
+- `M-x beads-status` is the compact summary board; `M-x beads-list` /
+  `beads-show` are the list and detail views.
 - Reserved keys: `q` bury, `g`/`C-u g` refresh/hard-refresh, `TAB`/`S-TAB`
   move, `SPC` toggle, `RET` visit, `n`/`p` item, `N`/`P` section, `?`
   dispatch, `/` filter.
