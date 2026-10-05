@@ -3081,6 +3081,123 @@ When worktrees are disabled, uses beads-agent-start directly."
       (should message-shown)
       (should (string-match-p "bd-test" message-shown)))))
 
+(ert-deftest beads-agent-test-fetch-issue-async-callback-error-propagates ()
+  "Test callback errors are not swallowed as parse failures (be-kw9o).
+The condition-case in `beads-agent--fetch-issue-async' must guard only
+the JSON extraction: a bug in the start flow that raises while the
+callback runs must surface instead of being mislabelled as a parse
+failure."
+  (let ((mock-issue (beads-issue :id "bd-1" :title "Test Issue")))
+    (cl-letf (((symbol-function 'beads-command-execute-async)
+               (lambda (_cmd on-success &optional _on-error)
+                 (funcall on-success (vector mock-issue)))))
+      (should-error
+       (beads-agent--fetch-issue-async
+        "bd-1"
+        (lambda (_issue) (error "boom from start flow")))
+       :type 'error))))
+
+(ert-deftest beads-agent-test-project-root-falls-back-non-git ()
+  "Test the agent project-root resolver on a non-git beads project.
+With `beads-git-find-project-root' returning nil (no git repo) the
+resolver must still find the `.beads' marker so agent launch gets a
+real directory (be-kw9o)."
+  (let* ((root (file-name-as-directory
+                (make-temp-file "beads-agent-nongit-" t)))
+         (sub (expand-file-name "sub/" root)))
+    (make-directory (expand-file-name ".beads" root))
+    (make-directory sub)
+    (unwind-protect
+        (let ((default-directory sub))
+          (cl-letf (((symbol-function 'beads-git-find-project-root)
+                     (lambda () nil)))
+            (should (equal (beads-agent--project-root) root))))
+      (delete-directory root t))))
+
+(ert-deftest beads-agent-test-start-resolves-project-dir-non-git ()
+  "Test `beads-agent-start' passes a resolved project-dir when git is nil."
+  (let ((captured 'unset))
+    (cl-letf (((symbol-function 'beads-check-executable) #'ignore)
+              ((symbol-function 'beads-agent--project-root)
+               (lambda () "/non-git/project/"))
+              ((symbol-function 'beads-agent--select-backend)
+               (lambda (&optional _type) (beads-agent-backend-mock)))
+              ((symbol-function 'beads-agent--start-async)
+               (lambda (_id _backend project-dir &rest _args)
+                 (setq captured project-dir)))
+              ((symbol-function 'message) #'ignore))
+      ;; BACKEND-NAME nil exercises `beads-agent--select-backend' (mocked
+      ;; above), so the mock backend need not be registered.
+      (beads-agent-start "be-1" nil "prompt" "Task")
+      (should (equal captured "/non-git/project/")))))
+
+(ert-deftest beads-agent-test-start-async-guards-nil-project-dir ()
+  "Test `beads-agent--start-async' never binds default-directory to nil."
+  (let ((captured 'unset))
+    (cl-letf (((symbol-function 'beads-agent--project-root)
+               (lambda () "/guard/project/"))
+              ((symbol-function 'beads-agent--fetch-issue-async)
+               (lambda (_id callback)
+                 (funcall callback (beads-issue :id "be-1" :title "T"
+                                                :status "open"))))
+              ((symbol-function 'beads-agent-type-build-user-prompt)
+               (lambda (_type _issue) "user"))
+              ((symbol-function 'beads-agent-type-system-prompt)
+               (lambda (_type _issue) "system"))
+              ((symbol-function 'beads-agent-prompt-edit-show)
+               (lambda (_id _sys _prompt _type callback)
+                 (setq captured default-directory)
+                 ;; Cancel sentinel: stop before worktree/backend launch.
+                 (funcall callback nil nil))))
+      (beads-agent--start-async "be-1" (beads-agent-backend-mock) nil nil
+                                (beads-agent-type-task))
+      (should (equal captured "/guard/project/")))))
+
+(ert-deftest beads-agent-test-start-completes-non-git-project ()
+  "Test agent start completes in a NON-git temp project (be-kw9o).
+Drives `beads-agent-start' with a `beads-git-find-project-root' that
+returns nil (no git repo) and asserts the flow resolves the `.beads'
+project root and reaches the backend-start step with that real
+directory, instead of binding `default-directory' to nil."
+  (let* ((root (file-name-as-directory
+                (make-temp-file "beads-agent-nongit-start-" t)))
+         (started nil)
+         (backend-args nil)
+         (seen-dir 'unset))
+    (make-directory (expand-file-name ".beads" root))
+    (unwind-protect
+        (let ((default-directory root))
+          (cl-letf (((symbol-function 'beads-git-find-project-root)
+                     (lambda () nil))
+                    ((symbol-function 'beads-check-executable) #'ignore)
+                    ((symbol-function 'beads-agent--select-backend)
+                     (lambda (&optional _type) (beads-agent-backend-mock)))
+                    ((symbol-function 'beads-agent--fetch-issue-async)
+                     (lambda (_id callback)
+                       (funcall callback (beads-issue :id "be-1" :title "T"
+                                                      :status "open"))))
+                    ((symbol-function 'beads-agent-type-build-user-prompt)
+                     (lambda (_type _issue) "user prompt"))
+                    ((symbol-function 'beads-agent-type-system-prompt)
+                     (lambda (_type _issue) nil))
+                    ((symbol-function 'beads-agent-prompt-edit-show)
+                     (lambda (_id _sys _prompt _type callback)
+                       (setq seen-dir default-directory)
+                       ;; Non-nil user, nil system: proceed (not cancel).
+                       (funcall callback nil "user prompt")))
+                    ((symbol-function 'beads-agent--start-backend-async)
+                     (lambda (&rest args)
+                       (setq started t backend-args args))))
+            (let ((beads-agent-use-worktrees nil))
+              (beads-agent-start "be-1" nil nil "Task")))
+          (should started)
+          (should (equal seen-dir root))
+          ;; project-dir is the 3rd arg of the backend-start call; no
+          ;; worktree is used with worktrees disabled (4th arg nil).
+          (should (equal (nth 2 backend-args) root))
+          (should (null (nth 3 backend-args))))
+      (delete-directory root t))))
+
 ;;; Tests for Backend Selection with Type Preferences
 
 (ert-deftest beads-agent-test-backend-available-and-get-exists ()

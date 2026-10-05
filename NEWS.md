@@ -4,6 +4,21 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Agent launch works in non-git beads projects / Gas City workspaces
+
+`beads-agent-start` (and the sling, typed, and text-menu start paths)
+resolved the project directory with `beads-git-find-project-root',
+which is nil outside a git repo.  The nil then reached
+`default-directory' and surfaced as a misleading `Failed to parse
+issue: Wrong type argument: stringp, nil' in the fetch-issue callback
+instead of a diagnosable error, so no agent could start in a non-git
+beads project.  Agent launch now resolves via a new
+`beads-agent--project-root' (git first, then the non-git `.beads'/Gas
+City marker walk, `default-directory' as a last resort), the start
+path guards a nil project directory, and the fetch wrapper's
+`condition-case' guards only JSON extraction so callback errors
+propagate unmislabelled (be-kw9o).
+
 ### Grouped list `mark-all` no longer loops on section headers
 
 `beads-list-mark-all` walked the buffer assuming every row was an

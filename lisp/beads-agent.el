@@ -186,6 +186,17 @@ delimiter is found."
 (defalias 'beads-agent--should-use-worktree-p 'beads-git-should-use-worktree-p)
 (defalias 'beads-agent--ensure-worktree-async 'beads-git-ensure-worktree-async)
 
+(defun beads-agent--project-root ()
+  "Return a real project root directory for agent operations.
+Tries git first (keeping its result verbatim so session identity is
+unchanged), then the non-git `.beads'/Gas City marker walk, then
+`default-directory', so callers never receive nil.  Agent launch thus
+works in non-git beads projects and Gas City workspaces, where
+`beads-git-find-project-root' yields nil (be-kw9o)."
+  (or (beads-git-find-project-root)
+      (beads--find-project-root)
+      (file-name-as-directory (expand-file-name default-directory))))
+
 ;;; Interactive Worktree Prompts (Magit-style)
 ;;
 ;; These functions provide Magit-style minibuffer prompts for worktree
@@ -221,7 +232,7 @@ CALLBACK receives (success worktree-path-or-error) where:
     (cond
      ;; No worktree selected - use current project directory
      ((null wt-name)
-      (funcall callback t (beads-git-find-project-root)))
+      (funcall callback t (beads-agent--project-root)))
 
      ;; Existing worktree selected
      ((when-let* ((wt (beads-worktree-find-by-name wt-name)))
@@ -444,7 +455,7 @@ background with progress messages displayed in the echo area."
                       (or (beads-agent--get-backend backend-name)
                           (user-error "Backend not found: %s" backend-name))
                     (beads-agent--select-backend agent-type)))
-         (project-dir (beads-git-find-project-root)))
+         (project-dir (beads-agent--project-root)))
     ;; Start the async workflow
     (message "Starting %s agent for %s..."
              (oref agent-type name)
@@ -472,6 +483,11 @@ BACKEND is the beads-agent-backend instance.
 PROJECT-DIR is the project root directory.
 PROMPT is the optional pre-built prompt (overridden by AGENT-TYPE).
 AGENT-TYPE is an optional `beads-agent-type' instance."
+  ;; Defense in depth: a nil project-dir would be threaded into
+  ;; `default-directory' and surface later as a confusing
+  ;; (wrong-type-argument stringp nil) (be-kw9o).
+  (unless project-dir
+    (setq project-dir (beads-agent--project-root)))
   ;; Step 1: Fetch issue info (async)
   (beads-agent--fetch-issue-async
    issue-id
@@ -546,13 +562,17 @@ CALLBACK receives a beads-issue object, or nil on error."
   (beads-execute-async
    'beads-command-show
    (lambda (data)
-     ;; data is the parsed issue(s) - a vector from bd show
-     (condition-case err
-         (let ((issue (if (vectorp data) (aref data 0) data)))
-           (funcall callback issue))
-       (error
-        (message "Failed to parse issue: %s" (error-message-string err))
-        (funcall callback nil))))
+     ;; data is the parsed issue(s) - a vector from bd show.
+     ;; Guard only the extraction here: an error raised by CALLBACK is a
+     ;; bug in the caller's flow and must not be swallowed and
+     ;; mislabelled as a parse failure (be-kw9o).
+     (let ((issue (condition-case err
+                      (if (vectorp data) (aref data 0) data)
+                    (error
+                     (message "Failed to parse issue: %s"
+                              (error-message-string err))
+                     nil))))
+       (funcall callback issue)))
    (lambda (err)
      (message "Failed to fetch issue %s: %s"
               issue-id (beads-agent--format-async-error err))
@@ -1241,7 +1261,7 @@ the shared local start path used by the typed commands."
                        (beads-completion-read-issue "Issue: " nil t)))
          (type (beads-agent-launch--effective-type))
          (backend-name beads-agent-launch--backend)
-         (project-dir (beads-git-find-project-root)))
+         (project-dir (beads-agent--project-root)))
     (unless issue-id
       (user-error "Issue ID is required"))
     (setq beads-agent-launch--issue-id issue-id)
@@ -1649,7 +1669,7 @@ buffer is kept visible and the agent buffer opens in the other window."
           (beads-agent-issue id)
         ;; No sessions - start new agent with prompts if worktrees enabled
         (if (beads-agent--should-use-worktree-p id)
-            (let ((project-root (beads-git-find-project-root)))
+            (let ((project-root (beads-agent--project-root)))
               (beads-agent--setup-worktree-interactive
                id
                (lambda (success path-or-error)
@@ -1745,7 +1765,7 @@ This is the core implementation for all type-specific start commands."
                   (message "No agent selected"))))
             ;; Start new agent - prompt for worktree if enabled
             (if (beads-agent--should-use-worktree-p id)
-                (let ((project-root (beads-git-find-project-root)))
+                (let ((project-root (beads-agent--project-root)))
                   (beads-agent--setup-worktree-interactive
                    id
                    (lambda (success path-or-error)
@@ -1825,10 +1845,9 @@ If no agent exists, shows a message."
   "Get the current directory-bound session for the project.
 Looks for sessions matching the current project directory.
 Returns the most recent session if multiple exist, or nil if none."
-  (when-let* ((project-dir (or (beads-git-find-project-root)
-                               default-directory)))
-    (let ((sessions (beads-agent--get-sessions-for-project project-dir)))
-      (car sessions))))  ; Most recent session
+  (let* ((project-dir (beads-agent--project-root))
+         (sessions (beads-agent--get-sessions-for-project project-dir)))
+    (car sessions)))  ; Most recent session
 
 ;;;###autoload
 (defun beads-agent-focus-issue (issue-id)
