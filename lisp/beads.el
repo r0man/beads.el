@@ -293,9 +293,9 @@ until WI-9 folds them into the redesigned dispatch."
 ;;; Main Transient Menu
 ;;
 ;; The main dispatch menu moved to `beads-menu.el' as `beads-dispatch'
-;; (opened with `?'); `M-x beads' now opens the status buffer.  See
-;; `beads-status.el' for the entry point and `beads-menu.el' for the
-;; transient definition.
+;; (opened with `?'); `M-x beads' opens the full board (`beads-dashboard').
+;; See `beads-dashboard.el' for the entry point and `beads-menu.el' for
+;; the transient definition.
 
 ;;; Info/Debug Command
 
@@ -373,13 +373,9 @@ which shows daemon status and database statistics."
 ;;;###autoload
 (autoload 'beads-delete "beads-command-delete" nil t)
 
-;; beads-status (the real status buffer, REQ-001)
+;; `M-x beads' is the entry point: the full board (REQ-001).
 ;;;###autoload
-(autoload 'beads-status "beads-status" nil t)
-
-;; `M-x beads' is the status-buffer front door (REQ-001).
-;;;###autoload
-(autoload 'beads "beads-status" nil t)
+(autoload 'beads "beads-dashboard" nil t)
 
 ;; beads-dashboard
 ;;;###autoload

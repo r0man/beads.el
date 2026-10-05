@@ -183,8 +183,6 @@ persistence.  It obeys the universal navigation contract: `q` buries,
 `g` refreshes in place, `TAB`/`S-TAB` move by thing, `SPC` folds, `RET`
 visits, `?` opens the menu.
 
-- `beads-status` opens a compact four-section summary (In progress,
-  Ready, Blocked, Recent activity) for a quick glance.
 - The former `beads` transient prefix moved to `beads-menu.el` as
   `beads-dispatch`; bind it with `?` (REQ-002, REQ-004).
 - Downstream packages extend the board with

@@ -20,7 +20,6 @@
 
 (require 'ert)
 (require 'beads)
-(require 'beads-status)
 (require 'beads-meta)
 (require 'beads-actions)
 ;; Load the command modules whose auto-generated per-command transients

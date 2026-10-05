@@ -1892,7 +1892,6 @@ can skip the breadcrumb for an arbitrary caller."
     (cond
      ((derived-mode-p 'beads-list-mode) "list")
      ((derived-mode-p 'beads-dashboard-mode) "dashboard")
-     ((derived-mode-p 'beads-status-mode) "status")
      ((derived-mode-p 'beads-show-mode)
       (if beads-show--issue-id
           (format "detail %s" beads-show--issue-id)

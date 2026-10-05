@@ -537,14 +537,6 @@ rows do not wrap to a continuation line in narrow / side-by-side splits."
   (should (equal (beads-dashboard--buffer-name-for nil)
                  beads-dashboard--buffer-name)))
 
-;;; Compat Shim
-
-(ert-deftest beads-dashboard-test-compat-shim-exists ()
-  "`beads-status' is preserved as a compat shim that loads beads-dashboard."
-  :tags '(:unit)
-  (should (fboundp 'beads-status))
-  (should (fboundp 'beads-dashboard)))
-
 ;;; Limited-vstack with extra-leading-rows
 
 (ert-deftest beads-dashboard-test-limited-vstack-extra-leading-rows ()

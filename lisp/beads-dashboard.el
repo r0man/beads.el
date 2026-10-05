@@ -1149,5 +1149,15 @@ opens the board of the chosen project, not of the current buffer."
        (buffer-name)))
     (pop-to-buffer buf)))
 
+;;;###autoload
+(defun beads ()
+  "Open the beads board.
+
+The primary entry point of beads.el: opens the full board
+\(`beads-dashboard').  Press `?' inside the buffer for the
+`beads-dispatch' menu."
+  (interactive)
+  (funcall #'beads-dashboard))
+
 (provide 'beads-dashboard)
 ;;; beads-dashboard.el ends here

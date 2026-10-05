@@ -12,7 +12,7 @@ leaving your editor.
 ## Features
 
 - 🪟 **Full board**: `M-x beads` opens a Magit-like, sectioned full board
-  rendered from `bd --json` (with a compact `beads-status` summary too)
+  rendered from `bd --json`
 - 📋 **Tabulated List Mode**: Browse issues with sortable columns (ID, status,
   priority, type, title)
 - 🔍 **Issue Detail View**: Rich, collapsible sections with markdown-like
@@ -56,7 +56,7 @@ git clone https://github.com/yourusername/beads.el.git ~/path/to/beads.el
 ```elisp
 (use-package beads
   :load-path "~/path/to/beads.el/lisp"
-  :commands (beads beads-status beads-dispatch beads-list beads-ready
+  :commands (beads beads-dispatch beads-list beads-ready
              beads-show beads-create)
   :bind ("C-c b" . beads)                 ; M-x beads opens the full board
   :hook (after-init . beads-eldoc-mode))  ; Enable eldoc support
@@ -69,7 +69,7 @@ For Emacs 29 or newer, you can use the built-in package-vc feature:
 ```elisp
 (use-package beads
   :vc (:fetcher github :repo "yourusername/beads.el")
-  :commands (beads beads-status beads-dispatch beads-list beads-ready
+  :commands (beads beads-dispatch beads-list beads-ready
              beads-show beads-create)
   :bind ("C-c b" . beads)
   :hook (after-init . beads-eldoc-mode))  ; Enable eldoc support
@@ -162,8 +162,7 @@ Emacs, or run `bd quickstart` from the command line
 ### Entry Points
 
 `M-x beads` opens the **full board** (`beads-dashboard`), a Magit-like,
-sectioned board for the current store.  `M-x beads-status` opens the
-compact four-section summary instead.  From the board:
+sectioned board for the current store.  From the board:
 
 - `?` opens **`beads-dispatch`**, the single command menu used in every
   beads buffer.  `M-x beads-dispatch` opens it directly.
@@ -884,7 +883,6 @@ Movement is uniform and lives in `beads-thing.el`: every view stamps the
 lisp/
 ├── beads.el                    # Entry utilities; M-x beads -> beads-dashboard
 ├── beads-menu.el               # beads-dispatch (?) and beads-maintenance (!)
-├── beads-status.el             # the compact vui summary board
 ├── beads-dashboard.el          # the full board
 ├── beads-dashboard-sections.el # board section providers
 ├── beads-section.el            # vui section base, registry, beads-section thing
@@ -912,8 +910,7 @@ lisp/
 
 - `M-x beads` → `beads-dashboard` (the full board); `?` → `beads-dispatch`
   (the same menu in every beads buffer); `!` → `beads-maintenance`.
-- `M-x beads-status` is the compact summary board; `M-x beads-list` /
-  `beads-show` are the list and detail views.
+- `M-x beads-list` / `beads-show` are the list and detail views.
 - Reserved keys: `q` bury, `g`/`C-u g` refresh/hard-refresh, `TAB`/`S-TAB`
   move, `SPC` toggle, `RET` visit, `n`/`p` item, `N`/`P` section, `?`
   dispatch, `/` filter.
