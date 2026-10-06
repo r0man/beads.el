@@ -133,6 +133,26 @@ ORIG-FN is the original function, STATS is the test statistics."
 (eldev-add-loading-roots 'test "lisp")
 (eldev-add-loading-roots 'test "lisp/test")
 
+;; Test runs must observe the checked-out source, never stale byte-code.
+;; `lisp/**/*.elc' are untracked build artifacts.  A leftover `.elc'
+;; (for example compiled from another branch or a concurrent eldev run
+;; in this shared checkout) is still preferred by `load' and silently
+;; changes `beads-defcommand' slot metadata, which made the `bd show'
+;; flag-parity and transient-key tests order/state dependent
+;; (be-47jo).  Drop project byte-code right before the `test' command
+;; runs so Emacs loads the authoritative `.el'.
+(defun beads--drop-project-byte-code (command)
+  "Delete project byte-code before COMMAND runs, when COMMAND is `test'.
+Tests must load the checkout's `.el' sources; a stale `.elc' changes
+`beads-defcommand' expansions.  Dependencies are left untouched."
+  (when (eq command 'test)
+    (dolist (pattern '("lisp/*.elc" "lisp/test/*.elc"))
+      (dolist (elc (file-expand-wildcards
+                    (expand-file-name pattern eldev-project-dir)))
+        (ignore-errors (delete-file elc))))))
+
+(add-hook 'eldev-executing-command-hook #'beads--drop-project-byte-code)
+
 ;; Ensure beads macros are available during autoload generation.
 ;; This allows ;;;###autoload before beads-defcommand and
 ;; beads-meta-define-transient to work correctly — the autoload
