@@ -2715,6 +2715,358 @@ Delegates to `beads-from-json'."
   (beads-from-json 'beads-formula-schema-struct json))
 
 ;;; ============================================================
+;;; Swarm Types (REQ-SF-099)
+;;; ============================================================
+
+(defclass beads-swarm-list-item ()
+  ((id
+    :initarg :id
+    :type (or null string)
+    :initform nil
+    :documentation "Swarm molecule ID.")
+   (title
+    :initarg :title
+    :type (or null string)
+    :initform nil
+    :documentation "Swarm molecule title.")
+   (status
+    :initarg :status
+    :type (or null string)
+    :initform nil
+    :documentation "Swarm molecule status (open/closed).")
+   (epic-id
+    :initarg :epic-id
+    :type (or null string)
+    :initform nil
+    :documentation "ID of the epic the swarm orchestrates.")
+   (epic-title
+    :initarg :epic-title
+    :type (or null string)
+    :initform nil
+    :documentation "Title of the epic the swarm orchestrates.")
+   (coordinator
+    :initarg :coordinator
+    :type (or null string)
+    :initform nil
+    :documentation "Coordinator address (the swarm molecule's assignee).")
+   (total-issues
+    :initarg :total-issues
+    :type (or null integer)
+    :initform nil
+    :documentation "Total number of child issues in the swarm.")
+   (completed-issues
+    :initarg :completed-issues
+    :type (or null integer)
+    :initform nil
+    :documentation "Number of closed child issues.")
+   (active-issues
+    :initarg :active-issues
+    :type (or null integer)
+    :initform nil
+    :documentation "Number of in-progress child issues.")
+   (progress-percent
+    :initarg :progress-percent
+    :type (or null float)
+    :initform nil
+    :documentation "Completion percentage reported by `bd swarm list'."))
+  "One entry from `bd swarm list --json'.")
+
+(defclass beads-swarm-status-issue ()
+  ((id
+    :initarg :id
+    :type (or null string)
+    :initform nil
+    :documentation "Child issue ID.")
+   (title
+    :initarg :title
+    :type (or null string)
+    :initform nil
+    :documentation "Child issue title.")
+   (assignee
+    :initarg :assignee
+    :type (or null string)
+    :initform nil
+    :documentation "Assignee for an active issue, if any.")
+   (blocked-by
+    :initarg :blocked-by
+    :type (or null (list-of string))
+    :initform nil
+    :documentation "Issue IDs this blocked issue is waiting on.")
+   (closed-at
+    :initarg :closed-at
+    :type (or null string)
+    :initform nil
+    :documentation "Close timestamp for a completed issue, if reported."))
+  "One issue row in a `bd swarm status --json' group.")
+
+(defclass beads-swarm-status ()
+  ((epic-id
+    :initarg :epic-id
+    :type (or null string)
+    :initform nil
+    :documentation "ID of the epic the status was computed for.")
+   (epic-title
+    :initarg :epic-title
+    :type (or null string)
+    :initform nil
+    :documentation "Title of the epic the status was computed for.")
+   (total-issues
+    :initarg :total-issues
+    :type (or null integer)
+    :initform nil
+    :documentation "Total number of child issues.")
+   (progress-percent
+    :initarg :progress-percent
+    :type (or null float)
+    :initform nil
+    :documentation "Completion percentage reported by `bd swarm status'.")
+   (active-count
+    :initarg :active-count
+    :type (or null integer)
+    :initform nil
+    :documentation "Reported count of active child issues.")
+   (ready-count
+    :initarg :ready-count
+    :type (or null integer)
+    :initform nil
+    :documentation "Reported count of ready child issues.")
+   (blocked-count
+    :initarg :blocked-count
+    :type (or null integer)
+    :initform nil
+    :documentation "Reported count of blocked child issues.")
+   (completed
+    :initarg :completed
+    :type (or null (list-of beads-swarm-status-issue))
+    :initform nil
+    :documentation "Closed child issues.")
+   (active
+    :initarg :active
+    :type (or null (list-of beads-swarm-status-issue))
+    :initform nil
+    :documentation "In-progress child issues.")
+   (ready
+    :initarg :ready
+    :type (or null (list-of beads-swarm-status-issue))
+    :initform nil
+    :documentation "Open child issues with all dependencies satisfied.")
+   (blocked
+    :initarg :blocked
+    :type (or null (list-of beads-swarm-status-issue))
+    :initform nil
+    :documentation "Open child issues waiting on dependencies."))
+  "Parsed `bd swarm status --json' payload.
+The board derives its four groups and counts directly from this object;
+there is no client-side recomputation (design.md 8.4).")
+
+(defclass beads-ready-front ()
+  ((wave
+    :initarg :wave
+    :type (or null integer)
+    :initform nil
+    :documentation "Zero-based wave index of this ready front.")
+   (issues
+    :initarg :issues
+    :type (or null (list-of string))
+    :initform nil
+    :documentation "Issue IDs in this parallel wave.")
+   (titles
+    :initarg :titles
+    :type (or null (list-of string))
+    :initform nil
+    :documentation "Titles of the issues in this parallel wave."))
+  "One parallel wave (ready front) from `bd swarm validate --json'.")
+
+(defclass beads-swarm-issue-node ()
+  ((id
+    :initarg :id
+    :type (or null string)
+    :initform nil
+    :documentation "Child issue ID.")
+   (title
+    :initarg :title
+    :type (or null string)
+    :initform nil
+    :documentation "Child issue title.")
+   (status
+    :initarg :status
+    :type (or null string)
+    :initform nil
+    :documentation "Child issue status.")
+   (priority
+    :initarg :priority
+    :type (or null integer)
+    :initform nil
+    :documentation "Child issue priority.")
+   (wave
+    :initarg :wave
+    :type (or null integer)
+    :initform nil
+    :documentation "Zero-based wave index of the issue.")
+   (depends-on
+    :initarg :depends-on
+    :type (or null (list-of string))
+    :initform nil
+    :documentation "Issue IDs this node depends on.")
+   (depended-on-by
+    :initarg :depended-on-by
+    :type (or null (list-of string))
+    :initform nil
+    :documentation "Issue IDs that depend on this node."))
+  "One issue node in the `--verbose' swarm validate graph.")
+
+(defclass beads-swarm-analysis ()
+  ((epic-id
+    :initarg :epic-id
+    :type (or null string)
+    :initform nil
+    :documentation "ID of the analysed epic.")
+   (epic-title
+    :initarg :epic-title
+    :type (or null string)
+    :initform nil
+    :documentation "Title of the analysed epic.")
+   (swarmable
+    :initarg :swarmable
+    :type (or null boolean)
+    :initform nil
+    :documentation "Whether the epic can be swarmed (REQ-SF-098).")
+   (total-issues
+    :initarg :total-issues
+    :type (or null integer)
+    :initform nil
+    :documentation "Total number of child issues.")
+   (closed-issues
+    :initarg :closed-issues
+    :type (or null integer)
+    :initform nil
+    :documentation "Number of closed child issues.")
+   (estimated-sessions
+    :initarg :estimated-sessions
+    :type (or null integer)
+    :initform nil
+    :documentation "Estimated worker-sessions needed to finish.")
+   (max-parallelism
+    :initarg :max-parallelism
+    :type (or null integer)
+    :initform nil
+    :documentation "Maximum number of issues that can run in parallel.")
+   (ready-fronts
+    :initarg :ready-fronts
+    :type (or null (list-of beads-ready-front))
+    :initform nil
+    :documentation "Ready fronts (waves of parallel work).")
+   (warnings
+    :initarg :warnings
+    :type (or null (list-of string))
+    :initform nil
+    :documentation "Non-fatal validation warnings.")
+   (errors
+    :initarg :errors
+    :type (or null (list-of string))
+    :initform nil
+    :documentation "Fatal validation errors; non-nil means not swarmable.")
+   (issues
+    :initarg :issues
+    :type (or null (list-of beads-swarm-issue-node))
+    :initform nil
+    :documentation "Per-issue graph nodes from validate --verbose.")
+   (error
+    :initarg :error
+    :type (or null string)
+    :initform nil
+    :documentation "Domain error string when the epic is not swarmable."))
+  "Parsed `bd swarm validate --json' payload (also create's analysis).")
+
+(defclass beads-swarm-create-result ()
+  ((swarm-id
+    :initarg :swarm-id
+    :type (or null string)
+    :initform nil
+    :documentation "ID of the created swarm molecule.")
+   (epic-id
+    :initarg :epic-id
+    :type (or null string)
+    :initform nil
+    :documentation "ID of the epic the swarm orchestrates.")
+   (coordinator
+    :initarg :coordinator
+    :type (or null string)
+    :initform nil
+    :documentation "Coordinator address stored on the swarm molecule.")
+   (analysis
+    :initarg :analysis
+    :type (or null beads-swarm-analysis)
+    :initform nil
+    :documentation "Embedded validate analysis for the created swarm.")
+   (error
+    :initarg :error
+    :type (or null string)
+    :initform nil
+    :documentation "Domain error string (e.g. \"swarm already exists\").")
+   (existing-id
+    :initarg :existing-id
+    :type (or null string)
+    :initform nil
+    :documentation "ID of an existing swarm when creation is a domain error.")
+   (existing-title
+    :initarg :existing-title
+    :type (or null string)
+    :initform nil
+    :documentation "Title of an existing swarm when creation is a domain error."))
+  "Parsed `bd swarm create --json' payload, including domain errors.")
+
+(defun beads-swarm-list-item-from-json (json)
+  "Create a beads-swarm-list-item from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-swarm-list-item json))
+
+(defun beads-swarm-status-issue-from-json (json)
+  "Create a beads-swarm-status-issue from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-swarm-status-issue json))
+
+(defun beads-swarm-status-from-json (json)
+  "Create a beads-swarm-status from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-swarm-status json))
+
+(defun beads-ready-front-from-json (json)
+  "Create a beads-ready-front from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-ready-front json))
+
+(defun beads-swarm-issue-node-from-json (json)
+  "Create a beads-swarm-issue-node from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-swarm-issue-node json))
+
+(defun beads-swarm-create-result-from-json (json)
+  "Create a beads-swarm-create-result from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-swarm-create-result json))
+
+(cl-defmethod beads-from-json ((class (eql 'beads-swarm-analysis)) json)
+  "Construct a `beads-swarm-analysis' from JSON.
+CLASS is the `beads-swarm-analysis' class symbol.  The `issues' key is
+a map of issue-id to node rather than an array, so it is converted to
+a list of `beads-swarm-issue-node' objects."
+  (let* ((issues-json (alist-get 'issues json))
+         (scalar-json (assq-delete-all 'issues (copy-sequence json)))
+         (analysis (cl-call-next-method class scalar-json))
+         (nodes (mapcar (lambda (entry)
+                          (beads-from-json 'beads-swarm-issue-node
+                                           (cdr entry)))
+                        issues-json)))
+    (oset analysis issues nodes)
+    analysis))
+
+(defun beads-swarm-analysis-from-json (json)
+  "Create a beads-swarm-analysis from JSON alist.
+Delegates to `beads-from-json', which parses the `issues' map."
+  (beads-from-json 'beads-swarm-analysis json))
+
+;;; ============================================================
 ;;; Section Data Classes
 ;;; ============================================================
 

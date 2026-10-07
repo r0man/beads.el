@@ -35,6 +35,17 @@ EIEIO class moved out of `beads-command-misc.el` into its own
 `beads-command-cook.el` (one file per subcommand).  The `beads-cook`
 autoload now points at `beads-cook.el`.
 
+### Swarm command results are typed (WI-SF-15)
+
+`beads-command-swarm-{create,list,status,validate}` now declare `:result`
+and return typed objects (`beads-swarm-create-result`, `beads-swarm-status`,
+`beads-swarm-analysis`, and the new `beads-swarm-list-item`,
+`beads-swarm-status-issue`, `beads-ready-front` and `beads-swarm-issue-node`
+helper classes) instead of raw JSON strings. `bd swarm create`/`validate`
+exit 0 on domain states, so the new `beads-swarm-domain-error-p` is the
+single detector for those `{error: ...}` payloads and the `swarmable=false`
+state. No command slots changed.
+
 ### Agent launch works in non-git beads projects / Gas City workspaces
 
 `beads-agent-start` (and the sling, typed, and text-menu start paths)
