@@ -45,6 +45,23 @@ helper classes) instead of raw JSON strings. `bd swarm create`/`validate`
 exit 0 on domain states, so the new `beads-swarm-domain-error-p` is the
 single detector for those `{error: ...}` payloads and the `swarmable=false`
 state. No command slots changed.
+### Standalone-first formula → molecule workflow plan published
+
+`plans/beads-standalone-formulas/` now holds the complete design for making
+the whole `bd` lifecycle — `formula → proto → molecule → swarm` —
+first-class in Emacs with `bd` alone and no gascity.  The plan **extends**
+the PR #67 redesign rather than forking it: every new surface composes the
+seams published there — `beads-formula-launch`,
+`beads-formula-var-reader`, `beads-sling-*`, `beads-thing`, the faces
+palette and `beads-command-execute-async` — and the swarm views reuse the
+existing `beads-command-swarm.el` classes and `beads-swarm` transient
+(REQ-SF-081).  The package ships `requirements.md`, `design.md`,
+`menu-mockups.md`, `decomposition.md`, `implementation-plan.md` and
+`plan-review.md` under `plans/beads-standalone-formulas/`, cross-referencing
+`plans/beads-ui-redesign/` (PR #67, `docs/ui-redesign.md`) instead of
+duplicating it.  44 `REQ-SF-*` requirements across nine gaps trace to the
+`WI-SF-01…19` work items.  The plan package is planning-only and changes no
+`.el` source file (REQ-SF-083).
 
 ### Agent launch works in non-git beads projects / Gas City workspaces
 

@@ -1,7 +1,12 @@
 # beads.el Standalone-first Formula → Molecule Workflow — Plan (planning only)
 
-**Status: plan for review. Implementation is out of scope until the plan and
-its ASCII mockups are signed off.**
+**Status: signed off for implementation (2026-10-07).** The plan and its
+ASCII mockups are approved for execution; the operator constraints in
+[`implementation-plan.md`](implementation-plan.md) bind the implementation
+run, in the six-wave, pruning-first order, with WI-SF-13 as the acceptance
+gate. This directory remains **planning-only**: the plan package itself
+changes no `.el` source file (`REQ-SF-083`), and the implementation work items
+land on `main` after PR #67.
 
 This directory holds the complete plan for making the whole `bd` workflow
 lifecycle — `formula → proto → molecule → swarm` — first-class in Emacs with
