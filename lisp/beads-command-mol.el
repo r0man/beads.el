@@ -244,8 +244,8 @@ Garbage-collects abandoned or closed wisps.")
     :long-option "type"
     :type (or null string)
     :short-option "t"
-    :prompt "Bond type (seq/par/gate): "
-    :choices ("seq" "par" "gate")
+    :prompt "Bond type (sequential/parallel/conditional): "
+    :choices ("sequential" "parallel" "conditional")
     :group "Options"
     :level 1
     :order 2)
