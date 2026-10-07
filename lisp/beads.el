@@ -592,7 +592,7 @@ which shows daemon status and database statistics."
 ;;;###autoload
 (autoload 'beads-rename "beads-command-misc" nil t)
 ;;;###autoload
-(autoload 'beads-cook "beads-command-misc" nil t)
+(autoload 'beads-cook "beads-cook" nil t)
 ;;;###autoload
 (autoload 'beads-ship "beads-command-misc" nil t)
 ;;;###autoload

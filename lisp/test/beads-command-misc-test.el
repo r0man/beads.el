@@ -374,16 +374,6 @@ reconcile.  The literal JSON here mirrors bd's exact wire keys
     (should (member "ship" args))
     (should (member "auth" args))))
 
-;;; Unit Tests: beads-command-cook command-line
-
-(ert-deftest beads-command-cook-test-command-line-basic ()
-  "Unit test: cook builds correct command line."
-  :tags '(:unit)
-  (let* ((cmd (beads-command-cook :formula-id "formula-1"))
-         (args (beads-command-line cmd)))
-    (should (member "cook" args))
-    (should (member "formula-1" args))))
-
 ;;; Unit Tests: beads-command-mail command-line
 
 (ert-deftest beads-command-mail-test-command-line-basic ()

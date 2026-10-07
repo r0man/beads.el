@@ -22,6 +22,19 @@ every variable's declared type, enum, pattern, default and required flag.
 `beads-formula-step` slots for `step-type`, `gate` and `waits-for`, and the
 new `beads-formula-gate` and `beads-formula-bond-point` classes.
 
+### Cook porcelain and `beads-command-cook.el` (WI-SF-04)
+
+`bd cook` now has a porcelain: the `beads-cook` transient (opened with
+`K` from the maintenance menu) chooses compile or runtime mode, toggles
+`--persist` (with optional `--force`/`--prefix`) and adds `--var`
+substitutions.  `P` renders the exact `bd cook --dry-run`
+step/dependency tree in a `beads-cook-preview-mode` buffer without
+writing anything; a proto is written only when Persist is on, and Force
+without Persist is rejected before `bd` runs.  The `beads-command-cook`
+EIEIO class moved out of `beads-command-misc.el` into its own
+`beads-command-cook.el` (one file per subcommand).  The `beads-cook`
+autoload now points at `beads-cook.el`.
+
 ### Agent launch works in non-git beads projects / Gas City workspaces
 
 `beads-agent-start` (and the sling, typed, and text-menu start paths)
