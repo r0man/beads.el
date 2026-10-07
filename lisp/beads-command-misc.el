@@ -15,6 +15,7 @@
 ;;; Code:
 
 (require 'beads-command)
+(require 'beads-command-prime)
 (require 'beads-meta)
 (require 'beads-option)
 (require 'beads-reader)
@@ -296,82 +297,6 @@ Displays minimal snippet for AGENTS.md.")
 
 
 ;;; ============================================================
-;;; Command Class: beads-command-prime
-;;; ============================================================
-
-;;;###autoload (autoload 'beads-prime "beads-command-misc" nil t)
-(beads-defcommand beads-command-prime (beads-command-global-options)
-  ((export
-    :type boolean
-    :group "Options"
-    :level 1
-    :order 1
-    :documentation "Output default content (ignores PRIME.md override)")
-   (full
-    :type boolean
-    :group "Options"
-    :level 1
-    :order 2
-    :documentation "Force full CLI output (ignore MCP detection)")
-   (mcp
-    :type boolean
-    :group "Options"
-    :level 1
-    :order 3
-    :documentation "Force MCP mode (minimal output)")
-   (stealth
-    :type boolean
-    :group "Options"
-    :level 1
-    :order 4
-    :documentation "Stealth mode (no git operations, flush only)")
-   (hook-json
-    :type boolean
-    :long-option "hook-json"
-    :group "Memories"
-    :level 2
-    :order 1
-    :documentation "Wrap output in the SessionStart hook JSON envelope
-(Claude Code, Gemini CLI, Codex)")
-   (memories-only
-    :type boolean
-    :long-option "memories-only"
-    :group "Memories"
-    :level 2
-    :order 2
-    :documentation "Output only persistent memories for compact hook contexts")
-   (max-memories
-    :type (or null string integer)
-    :long-option "max-memories"
-    :prompt "Max memories to inject: "
-    :group "Memories"
-    :level 2
-    :order 3
-    :documentation "Cap injected persistent memories to N entries
-(0 = unlimited; falls back to the prime.max-memories config key)")
-   (max-memory-chars
-    :type (or null string integer)
-    :long-option "max-memory-chars"
-    :prompt "Max total memory bytes: "
-    :group "Memories"
-    :level 2
-    :order 4
-    :documentation "Cap the total bytes of injected memory entries, at
-whole-memory boundaries (0 = unlimited; falls back to the
-prime.max-memory-chars config key)")
-   (no-memories
-    :type boolean
-    :long-option "no-memories"
-    :group "Memories"
-    :level 2
-    :order 5
-    :documentation "Omit the persistent memories section (ignored when
---memories-only is set, which wins)"))
-  :documentation "Represents bd prime command.
-Outputs AI-optimized workflow context.")
-
-
-;;; ============================================================
 ;;; Command Class: beads-command-preflight
 ;;; ============================================================
 
@@ -522,7 +447,9 @@ Renames the issue prefix for all issues in the database."
     :level 2
     :order 9))
   :documentation "Represents bd setup command.
-Setup integration with AI editors.")
+Setup integration with AI editors.  `bd setup' emits human-readable
+text (there is no JSON output), so the class is `:json nil'."
+  :json nil)
 
 
 ;;; ============================================================
@@ -1421,12 +1348,21 @@ Renames an issue from one ID to another, updating all references.")
           "Old and new issue IDs must be different"))))
 
 ;;; Context Command
-
-;;;###autoload (autoload 'beads-context "beads-command-misc" nil t)
+;;;
+;;; The `bd context' transient is named `beads-bd-context' rather than
+;;; the derived `beads-context': `beads-context' is the new sectioned
+;;; operational-context view from `beads-handoff.el' (prime / memories /
+;;; setup status / policy), which subsumes the identity/repo header.
 (beads-defcommand beads-command-context (beads-command-global-options)
   ()
   :documentation "Represents bd context command.
-Show effective backend identity and repository context.")
+Show effective backend identity and repository context."
+  :transient :manual)
+
+;;;###autoload (autoload 'beads-bd-context "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-context "beads-bd-context"
+  "Show the effective backend identity and repository context."
+  beads-option-global-section)
 
 ;;; ============================================================
 ;;; Command Class: beads-command-assign

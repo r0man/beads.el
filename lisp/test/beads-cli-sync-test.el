@@ -223,9 +223,11 @@
   (should (fboundp 'beads-bootstrap)))
 
 (ert-deftest beads-cli-sync-test-context-transient-defined ()
-  "Test beads-context transient is defined."
+  "Test the `bd context' transient is defined.
+`bd context' is named `beads-bd-context' because `beads-context' now
+opens the sectioned operational-context view (see beads-handoff.el)."
   :tags '(:unit)
-  (should (fboundp 'beads-context)))
+  (should (fboundp 'beads-bd-context)))
 
 ;;; ============================================================
 ;;; bd 1.3.x sync audit: category-2 slot closure (workflow be-j2b
