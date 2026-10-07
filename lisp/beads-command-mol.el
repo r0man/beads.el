@@ -518,6 +518,10 @@ Proto: template epic, Molecule: instantiated work."
   ["Combine"
    ("b" "Bond" beads-mol-bond)
    ("d" "Distill" beads-mol-distill)]
+  ["Workflow"
+   ("o" "Open view" beads-molecule-open)
+   ("a" "Hand off" beads-handoff-agent)
+   ("=" "Bond flow" beads-bond)]
   ["Lifecycle"
    ("s" "Show" beads-mol-show)
    ("c" "Current" beads-mol-current)

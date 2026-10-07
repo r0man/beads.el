@@ -90,6 +90,9 @@ gascity's `[City]' group when that package is present."
     ("C" "Claim" beads-actions-claim)
     ("s" "Set status" beads-actions-set-status)
     ("m" "Molecules" beads-mol)
+    ("G" "Gates" beads-gate)
+    ("w" "Wisps" beads-wisp-list)
+    ("S" "Swarms" beads-swarm-list-view)
     ("T" "Types" beads-types)]
    ["Views"
     ("a" "Agents..." beads-agent)
@@ -98,7 +101,8 @@ gascity's `[City]' group when that package is present."
     ("D" "Dashboard" beads-dashboard)
     ("H" "History" beads-history)
     ("Y" "Orphans" beads-orphans)
-    ("t" "Stats" beads-stats)]
+    ("t" "Stats" beads-stats)
+    ("X" "Context" beads-context)]
    ["Manage"
     ("L" "Labels..." beads-label-menu)
     ("k" "Dolt..." beads-dolt)
@@ -135,7 +139,8 @@ menu.  Every command the two menus held is reachable from here."
    ("T" "Types" beads-types)
    ("l" "Lint" beads-lint)
    ("O" "Find duplicates" beads-find-duplicates)
-   ("o" "Orphans" beads-orphans)]
+   ("o" "Orphans" beads-orphans)
+   ("$" "Wisps" beads-wisp-list)]
   ["Issue Details"
    ("a" "Children" beads-children)
    ("=" "Comments" beads-comments-menu)

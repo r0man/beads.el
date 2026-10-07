@@ -419,6 +419,26 @@ which shows daemon status and database statistics."
 ;;;###autoload
 (autoload 'beads-gate "beads-command-gate" nil t)
 
+;; beads-molecule (standalone molecule execution view, WI-SF-01/02)
+;;;###autoload
+(autoload 'beads-molecule-open "beads-molecule" nil t)
+
+;; beads-wisp (wisp list / lifecycle, WI-SF-07)
+;;;###autoload
+(autoload 'beads-wisp-list "beads-wisp" nil t)
+
+;; beads-bond (bond flow, WI-SF-08)
+;;;###autoload
+(autoload 'beads-bond "beads-bond" nil t)
+
+;; beads-swarm (porcelain fleet list / board / waves over beads-command-swarm, WI-SF-16)
+;;;###autoload
+(autoload 'beads-swarm-list-view "beads-swarm" nil t)
+
+;; beads-handoff (agent hand-off envelope, WI-SF-11)
+;;;###autoload
+(autoload 'beads-handoff-agent "beads-handoff" nil t)
+
 ;; beads-command-defer
 ;;;###autoload
 (autoload 'beads-defer "beads-command-defer" nil t)
