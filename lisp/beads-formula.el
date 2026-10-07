@@ -136,13 +136,153 @@ generic on their own metadata.")
 (defconst beads-formula-group-order '("workflow" "expansion" "aspect")
   "Preferred display order of formula types in the browser.")
 
+(defconst beads-formula-browser-format
+  (vector (list "Name" 24 t)
+          (list "Type" 12 t)
+          (list "Steps" 6 t :right-align t)
+          (list "Vars" 5 t :right-align t)
+          (list "Phase" 8 t)
+          (list "Source" 45 t))
+  "Column layout for the grouped formula browser.
+Columns: Name, Type, Steps, Vars, Phase, Source (menu-mockups §1).")
+
+;;; Scope and shadowing (REQ-SF-010)
+
+(defun beads-formula--scope-dirs (&optional project-root)
+  "Return the formula search directories as an alist of scope to dir.
+PROJECT-ROOT defaults to the current project root.  The scopes are
+`project', `user' and `gt', in `bd' priority order."
+  (let* ((root (or project-root (beads--project-root) default-directory))
+         (gt (getenv "GT_ROOT")))
+    (list (cons 'project (expand-file-name ".beads/formulas" root))
+          (cons 'user (expand-file-name "~/.beads/formulas"))
+          (cons 'gt (when gt (expand-file-name ".beads/formulas" gt))))))
+
+(defun beads-formula-scope-of (source &optional project-root)
+  "Return the scope symbol for SOURCE.
+One of `project', `user', `gt' or `other', determined by which
+search-path directory SOURCE lives under (REQ-SF-010).  PROJECT-ROOT
+locates the project search path."
+  (let ((dirs (beads-formula--scope-dirs project-root))
+        (path (and source (expand-file-name source))))
+    (if (null path)
+        'other
+      (or (cl-loop for (scope . dir) in dirs
+                   when (and dir
+                             (string-prefix-p (file-name-as-directory dir) path))
+                   return scope)
+          'other))))
+
+(defun beads-formula-filter-by-scope (formulas scope &optional project-root)
+  "Filter FORMULAS to SCOPE (`project', `user', `gt' or `all').
+PROJECT-ROOT locates the project search path.  `all' keeps every
+formula, matching the browser default (REQ-SF-010)."
+  (if (eq scope 'all)
+      formulas
+    (seq-filter (lambda (formula)
+                  (eq (beads-formula-scope-of (oref formula source) project-root)
+                      scope))
+                formulas)))
+
+(defun beads-formula--formula-files (dir)
+  "Return the formula file names directly under DIR.
+Only file names are inspected, never their contents."
+  (when (file-directory-p dir)
+    (seq-filter (lambda (name)
+                  (or (string-suffix-p ".formula.toml" name)
+                      (string-suffix-p ".formula.json" name)))
+                (directory-files dir nil directory-files-no-dot-files-regexp))))
+
+(defun beads-formula-shadow-index (&optional project-root)
+  "Return a hash mapping formula name to its source paths in priority order.
+The index is built from the search-path directories by file name only
+\(no TOML is parsed); it powers the `shadowed' marker (REQ-SF-010).
+PROJECT-ROOT locates the project search path."
+  (let ((table (make-hash-table :test #'equal))
+        (dirs (beads-formula--scope-dirs project-root)))
+    (dolist (pair dirs)
+      (let ((dir (cdr pair)))
+        (when dir
+          (dolist (file (beads-formula--formula-files dir))
+            (let* ((name (file-name-sans-extension
+                          (file-name-sans-extension file)))
+                   (path (expand-file-name file dir)))
+              (puthash name (append (gethash name table) (list path))
+                       table))))))
+    table))
+
+(defun beads-formula-shadowed-by (formula &optional index)
+  "Return the lower-priority source paths shadowed by FORMULA.
+INDEX is a `beads-formula-shadow-index' for the current project.  A
+formula shadows same-name files that appear later on the search path;
+the result is nil when it is the only declaration of its name."
+  (let* ((name (oref formula name))
+         (source (and (oref formula source)
+                      (expand-file-name (oref formula source))))
+         (paths (and index (gethash name index))))
+    (when (and source (> (length paths) 1))
+      (cdr (member source paths)))))
+
+;;; Browser entries
+
+(defvar-local beads-formula-browser-scope 'all
+  "Scope filter for the grouped formula browser.
+One of `project', `user' or `all' (REQ-SF-010).")
+
+(defvar-local beads-formula-browser-shadow-index nil
+  "Shadow index for the grouped browser (see `beads-formula-shadow-index').")
+
+(defun beads-formula-browser--entry (formula)
+  "Return the browser tabulated row for FORMULA.
+The Name column carries a `⧉shad' marker when FORMULA shadows a
+same-name formula lower on the search path."
+  (let* ((name (or (oref formula name) ""))
+         (shadowed (beads-formula-shadowed-by
+                    formula beads-formula-browser-shadow-index))
+         (display (if shadowed
+                      (concat name
+                              " "
+                              (propertize "⧉shad"
+                                          'face 'beads-face-warning
+                                          'help-echo
+                                          (format "shadows %s"
+                                                  (mapconcat #'identity
+                                                             shadowed ", "))))
+                    name))
+         (type (oref formula formula-type))
+         (phase (oref formula phase))
+         (source (oref formula source))
+         (steps (or (oref formula steps) 0))
+         (vars (or (oref formula vars) 0)))
+    (list name
+          (vector display
+                  (beads-formula-list--format-type type)
+                  (number-to-string steps)
+                  (number-to-string vars)
+                  (or phase "—")
+                  (if source (abbreviate-file-name source) "—")))))
+
+(defun beads-formula-browser-entries (formulas)
+  "Build scope-filtered, shadow-annotated browser entries from FORMULAS.
+The buffer-local `beads-formula-browser-scope' selects the scope."
+  (let* ((root (or beads-formula-list--project-dir default-directory))
+         (scope (or beads-formula-browser-scope 'all))
+         (index (beads-formula-shadow-index root)))
+    (setq-local beads-formula-browser-shadow-index index)
+    ;; Keep the type-group order; a Name sort key would scatter the headers.
+    (setq-local tabulated-list-sort-key nil)
+    (tabulated-list-init-header)
+    (beads-formula-grouped-entries
+     (beads-formula-filter-by-scope formulas scope root))))
+
 (defun beads-formula-grouped-entries (formulas)
   "Return type-grouped tabulated entries for the summaries in FORMULAS.
 Each type gets a header row whose id is the cons
 `(beads-formula-group . TYPE)'; the formulas of that type follow,
 sorted by name.  Types in `beads-formula-group-order' come first in the
 declared order; unrecognised types follow alphabetically.  The result is
-a drop-in value for `tabulated-list-entries'."
+a drop-in value for `tabulated-list-entries'; rows use the browser
+layout (Name, Type, Steps, Vars, Phase, Source)."
   (let ((groups (make-hash-table :test #'equal))
         (types nil))
     (dolist (formula formulas)
@@ -167,9 +307,9 @@ a drop-in value for `tabulated-list-entries'."
                 (header (list (cons 'beads-formula-group type)
                               (vector (propertize (concat "▾ " label)
                                                   'face 'beads-formula-header-face)
-                                      "" "" "" ""))))
+                                      "" "" "" "" ""))))
            (cons header
-                 (mapcar #'beads-formula-list--formula-to-entry members))))
+                 (mapcar #'beads-formula-browser--entry members))))
        ordered))))
 
 (defun beads-formula-group-header-p (id)
@@ -180,20 +320,32 @@ a drop-in value for `tabulated-list-entries'."
   "Return the detail section descriptors for FORMULA, in display order.
 Each descriptor is a plist with `:key', `:title' and `:count'.  Only
 sections with content are returned, mirroring the rendered recipe:
-Vars, then Steps, then Source.  This is the section index used for
-navigation and by downstream consumers that want the structure without
-parsing the buffer."
-  (let ((sections nil))
-    (when (oref formula vars)
+Vars, Steps, Bond points, Composition, then Source.  This is the
+section index used for navigation and by downstream consumers that
+want the structure without parsing the buffer."
+  (let ((sections nil)
+        (vars (oref formula vars))
+        (steps (oref formula steps))
+        (bond-points (oref formula bond-points)))
+    (when vars
       (push (list :key 'vars
-                  :title (format "Vars (%d)" (length (oref formula vars)))
-                  :count (length (oref formula vars)))
+                  :title (format "Vars (%d)" (length vars))
+                  :count (length vars))
             sections))
-    (when (oref formula steps)
+    (when steps
       (push (list :key 'steps
-                  :title (format "Steps (%d)" (length (oref formula steps)))
-                  :count (length (oref formula steps)))
+                  :title (format "Steps (%d)" (length steps))
+                  :count (length steps))
             sections))
+    (when bond-points
+      (push (list :key 'bond-points
+                  :title (format "Bond points (%d)" (length bond-points))
+                  :count (length bond-points))
+            sections))
+    (when (or (oref formula extends)
+              (oref formula aspects)
+              (oref formula expansions))
+      (push (list :key 'composition :title "Composition" :count 1) sections))
     (when (oref formula source)
       (push (list :key 'source :title "Source" :count 1) sections))
     (nreverse sections)))
@@ -449,15 +601,33 @@ is not available."
 ;;; ============================================================
 
 ;;;###autoload
-(defun beads-formula-browse (&optional type)
+(defun beads-formula-browse (&optional type scope)
   "Browse formulas grouped by type in a tabulated list.
 Optional TYPE filters by formula type (workflow, expansion, aspect).
-Rows carry the `l' (seed sling) and `s' (standalone launch) actions."
+Optional SCOPE filters the search path: `project', `user' or `all'
+\(default `all').  Rows carry the `l' (seed sling), `s' (instantiate),
+`o' (open source) and `/` (scope) actions."
   (interactive
    (list (when current-prefix-arg
            (completing-read "Filter by type: "
-                            beads-formula-group-order nil t))))
-  (beads-formula-list type #'beads-formula-grouped-entries))
+                            beads-formula-group-order nil t))
+         nil))
+  (let ((scope (or scope 'all)))
+    (beads-formula-list
+     type
+     (lambda (formulas)
+       (setq-local beads-formula-browser-scope scope)
+       (beads-formula-browser-entries formulas)))))
+
+(defun beads-formula-browse-set-scope (scope)
+  "Set the browser SCOPE (`project', `user' or `all') and refresh."
+  (interactive
+   (list (intern (completing-read
+                  "Scope: " '("project" "user" "all") nil t nil nil
+                  (symbol-name (or beads-formula-browser-scope 'all))))))
+  (let ((type (and (bound-and-true-p beads-formula-list--command-obj)
+                   (oref beads-formula-list--command-obj formula-type))))
+    (beads-formula-browse type scope)))
 
 ;;; ============================================================
 ;;; Key Bindings
@@ -467,6 +637,8 @@ Rows carry the `l' (seed sling) and `s' (standalone launch) actions."
             #'beads-formula-seed-sling)
 (define-key beads-formula-list-mode-map (kbd "s")
             #'beads-formula-launch-standalone)
+(define-key beads-formula-list-mode-map (kbd "/")
+            #'beads-formula-browse-set-scope)
 (define-key beads-formula-show-mode-map (kbd "l")
             #'beads-formula-seed-sling)
 (define-key beads-formula-show-mode-map (kbd "s")

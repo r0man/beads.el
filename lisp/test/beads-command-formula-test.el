@@ -335,9 +335,9 @@
     (with-temp-buffer
       (beads-formula-show-mode)
       (beads-formula-show--render formula)
-      (should (string-match-p "Variables" (buffer-string)))
+      (should (string-match-p "Vars" (buffer-string)))
       (should (string-match-p "feature" (buffer-string)))
-      (should (string-match-p "(required)" (buffer-string))))))
+      (should (string-match-p "required" (buffer-string))))))
 
 (ert-deftest beads-command-formula-test-render-with-steps ()
   "Test formula show render with steps."
@@ -626,7 +626,9 @@
       (should (stringp (aref vec 1)))
       (should (equal (aref vec 2) "3"))
       (should (equal (aref vec 3) "2"))
-      (should (equal (aref vec 4) "A test formula")))))
+      ;; No phase/source on the summary: placeholders.
+      (should (equal (aref vec 4) "—"))
+      (should (equal (aref vec 5) "—")))))
 
 (ert-deftest beads-command-formula-test-formula-to-entry-nil-fields ()
   "Test formula-to-entry handles nil fields."

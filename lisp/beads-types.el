@@ -1598,6 +1598,92 @@ Delegates to `beads-from-json' after injecting name into JSON."
   (let ((json-with-name (cons (cons 'name (if (symbolp name) (symbol-name name) name)) json)))
     (beads-from-json 'beads-formula-var json-with-name)))
 
+(defclass beads-formula-gate ()
+  ((type
+    :initarg :type
+    :type (or null string)
+    :initform nil
+    :documentation "Gate kind, e.g. human, timer, gh:run, gh:pr, bead.")
+   (id
+    :initarg :id
+    :type (or null string)
+    :initform nil
+    :documentation "Gate identifier (run id, bead id, ...), when declared.")
+   (timeout
+    :initarg :timeout
+    :type (or null string)
+    :initform nil
+    :documentation "Maximum wait as a Go duration string, e.g. \"10m\".")
+   (repo
+    :initarg :repo
+    :type (or null string)
+    :initform nil
+    :documentation "Repository the gate applies to (CI gates).")
+   (count
+    :initarg :count
+    :type (or null integer)
+    :initform nil
+    :documentation "Required run/approval count for the gate.")
+   (until
+    :initarg :until
+    :type (or null string)
+    :initform nil
+    :documentation "Deadline or condition the gate waits until.")
+   (max
+    :initarg :max
+    :type (or null integer)
+    :initform nil
+    :documentation "Upper bound used by counting gates.")
+   (range
+    :initarg :range
+    :type (or null string)
+    :initform nil
+    :documentation "Numeric range the gate accepts, e.g. \"0-1\".")
+   (var
+    :initarg :var
+    :type (or null string)
+    :initform nil
+    :documentation "Variable the gate expression reads."))
+  "A runtime gate attached to a formula step (Gate from formula package).")
+
+(defun beads-formula-gate-from-json (json)
+  "Create a beads-formula-gate from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-formula-gate json))
+
+(defclass beads-formula-bond-point ()
+  ((id
+    :initarg :id
+    :type (or null string)
+    :initform nil
+    :documentation "Unique identifier of the bond point.")
+   (description
+    :initarg :description
+    :type (or null string)
+    :initform nil
+    :documentation "What should be attached at this bond point.")
+   (after-step
+    :initarg :after-step
+    :type (or null string)
+    :initform nil
+    :documentation "Step ID after which to attach (mutually exclusive with before-step).")
+   (before-step
+    :initarg :before-step
+    :type (or null string)
+    :initform nil
+    :documentation "Step ID before which to attach (mutually exclusive with after-step).")
+   (parallel
+    :initarg :parallel
+    :type boolean
+    :initform nil
+    :documentation "Whether attached steps run in parallel with the anchor step."))
+  "A named attachment site for formula composition (BondPoint).")
+
+(defun beads-formula-bond-point-from-json (json)
+  "Create a beads-formula-bond-point from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-formula-bond-point json))
+
 (defclass beads-formula-step ()
   ((id
     :initarg :id
@@ -1628,7 +1714,23 @@ Delegates to `beads-from-json' after injecting name into JSON."
     :initarg :depends-on
     :type (list-of string)
     :initform nil
-    :documentation "List of step IDs this step blocks on (alias for needs)."))
+    :documentation "List of step IDs this step blocks on (alias for needs).")
+   (step-type
+    :initarg :step-type
+    :type (or null string)
+    :initform nil
+    :json-key type
+    :documentation "Step kind (e.g. task, check), when declared.")
+   (gate
+    :initarg :gate
+    :type (or null beads-formula-gate)
+    :initform nil
+    :documentation "Runtime gate guarding the step, when declared.")
+   (waits-for
+    :initarg :waits-for
+    :type (or null string)
+    :initform nil
+    :documentation "Gate id or step id the step waits for before starting."))
   "A formula step definition (Step from formula package).")
 
 (defun beads-formula-step-from-json (json)
@@ -1653,6 +1755,11 @@ Delegates to `beads-from-json'."
     :type (or null string)
     :initform nil
     :documentation "Brief description (may be truncated in list view).")
+   (phase
+    :initarg :phase
+    :type (or null string)
+    :initform nil
+    :documentation "Declared phase (\"persistent\", \"vapor\", ...), when present.")
    (source
     :initarg :source
     :type (or null string)
@@ -1697,6 +1804,36 @@ Delegates to `beads-from-json'."
     :initform nil
     :json-key type
     :documentation "Formula type (workflow, expansion, aspect).")
+   (phase
+    :initarg :phase
+    :type (or null string)
+    :initform nil
+    :documentation "Declared phase (\"persistent\", \"vapor\", ...).")
+   (extends
+    :initarg :extends
+    :type (list-of string)
+    :initform nil
+    :documentation "Parent formula names this formula extends.")
+   (compose
+    :initarg :compose
+    :type (or null beads-alist)
+    :initform nil
+    :documentation "Raw composition rules as decoded from JSON.")
+   (aspects
+    :initarg :aspects
+    :type (list-of string)
+    :initform nil
+    :documentation "Aspect formula names applied to this formula.")
+   (expansions
+    :initarg :expansions
+    :type (list-of string)
+    :initform nil
+    :documentation "Expansion formula names applied to this formula.")
+   (bond-points
+    :initarg :bond-points
+    :type (list-of beads-formula-bond-point)
+    :initform nil
+    :documentation "Named attachment sites declared in `compose.bond_points'.")
    (vars
     :initarg :vars
     :type (list-of beads-formula-var)
@@ -1719,10 +1856,31 @@ Delegates to `beads-from-json'."
 Delegates to `beads-from-json'."
   (beads-from-json 'beads-formula json))
 
+(defun beads-formula--compose-expansions (compose)
+  "Return the expansion formula names declared in COMPOSE.
+COMPOSE is the decoded `compose' JSON alist (or nil).  Both `expand'
+\(single-target) and `map' (pattern-target) rules name an expansion
+formula in their `with' field; return them de-duplicated in order."
+  (let (names)
+    (dolist (key '(expand map))
+      (dolist (rule (append (alist-get key compose) nil))
+        (let ((with (alist-get 'with rule)))
+          (when (and with (not (member with names)))
+            (push with names)))))
+    (nreverse names)))
+
+(defun beads-formula--compose-bond-points (compose)
+  "Return `compose.bond_points' of COMPOSE as bond-point objects.
+COMPOSE is the decoded `compose' JSON alist (or nil)."
+  (mapcar (lambda (bond-point)
+            (beads-from-json 'beads-formula-bond-point bond-point))
+          (append (alist-get 'bond_points compose) nil)))
+
 (cl-defmethod beads-from-json ((_class (eql 'beads-formula)) json)
   "Construct beads-formula from non-standard JSON.
-The formula name is in the `formula' key (not `name'), and `vars'
-is a map {name: def-alist, ...} rather than an array."
+The formula name is in the `formula' key (not `name'), `vars'
+is a map {name: def-alist, ...} rather than an array, and the
+composition rules live under `compose'."
   (let* ((raw-vars (alist-get 'vars json))
          (vars (mapcar (lambda (entry)
                          (let ((var-json (cdr entry)))
@@ -1735,12 +1893,19 @@ is a map {name: def-alist, ...} rather than an array."
          (raw-steps (alist-get 'steps json))
          (steps (mapcar (lambda (j)
                           (beads-from-json 'beads-formula-step j))
-                        (append raw-steps nil))))
+                        (append raw-steps nil)))
+         (compose (alist-get 'compose json)))
     (beads-formula
      :name (alist-get 'formula json)
      :description (alist-get 'description json)
      :version (alist-get 'version json)
      :formula-type (alist-get 'type json)
+     :phase (alist-get 'phase json)
+     :extends (append (alist-get 'extends json) nil)
+     :compose (beads-coerce-json-value compose 'beads-alist)
+     :aspects (append (alist-get 'aspects compose) nil)
+     :expansions (beads-formula--compose-expansions compose)
+     :bond-points (beads-formula--compose-bond-points compose)
      :vars vars
      :steps steps
      :source (alist-get 'source json))))

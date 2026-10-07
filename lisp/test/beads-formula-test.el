@@ -280,5 +280,219 @@
       (should (equal (nth 2 launched) '(("target" . "beads.el"))))
       (should (beads-formula-p (car launched))))))
 
+;;; ========================================
+;;; Provenance types (REQ-SF-010/011/052)
+;;; ========================================
+
+(defconst beads-formula-test--rich-json
+  '((formula . "rich")
+    (description . "Rich formula")
+    (version . 2)
+    (type . "workflow")
+    (phase . "vapor")
+    (extends . ["base-one" "base-two"])
+    (source . "/tmp/rich.formula.toml")
+    (vars . ((mode . ((description . "Mode")
+                      (type . "string")
+                      (enum . ["a" "b"])
+                      (pattern . "^[ab]$")
+                      (default . "a")
+                      (required . t)))))
+    (steps . [((id . "prepare") (title . "Prepare"))
+              ((id . "build")
+               (title . "Build")
+               (needs . ["prepare"])
+               (waits_for . "prep-gate")
+               (gate . ((id . "approve") (type . "human"))))])
+    (compose . ((aspects . ["security-audit" "logging"])
+                (bond_points . [((id . "entry")
+                                 (description . "Attach setup work here")
+                                 (before_step . "build"))
+                                ((id . "release-after")
+                                 (after_step . "verify")
+                                 (parallel . t))])
+                (expand . [((target . "build")
+                            (with . "expansion-formula"))])
+                (map . [((select . "*.verify")
+                         (with . "map-formula"))]))))
+  "Fixture mirroring `bd formula show rich --json'.")
+
+(ert-deftest beads-formula-test-from-json-provenance ()
+  "`beads-formula-from-json' reads phase, extends and composition."
+  :tags '(:unit)
+  (let ((formula (beads-formula-from-json beads-formula-test--rich-json)))
+    (should (equal (oref formula phase) "vapor"))
+    (should (equal (oref formula extends) '("base-one" "base-two")))
+    (should (equal (oref formula aspects) '("security-audit" "logging")))
+    (should (equal (oref formula expansions)
+                   '("expansion-formula" "map-formula")))
+    (should (= 2 (length (oref formula bond-points))))
+    (let ((entry (car (oref formula bond-points))))
+      (should (equal (oref entry id) "entry"))
+      (should (equal (oref entry before-step) "build"))
+      (should (equal (oref entry description) "Attach setup work here")))
+    (let ((release (nth 1 (oref formula bond-points))))
+      (should (equal (oref release after-step) "verify"))
+      (should (oref release parallel)))))
+
+(ert-deftest beads-formula-test-from-json-step-gate-waits-for ()
+  "Steps carry their declared gate and waits_for."
+  :tags '(:unit)
+  (let* ((formula (beads-formula-from-json beads-formula-test--rich-json))
+         (build (seq-find (lambda (step) (equal (oref step id) "build"))
+                          (oref formula steps))))
+    (should (equal (oref build waits-for) "prep-gate"))
+    (should (beads-formula-gate-p (oref build gate)))
+    (should (equal (oref (oref build gate) type) "human"))
+    (should (equal (oref (oref build gate) id) "approve"))))
+
+(ert-deftest beads-formula-test-from-json-var-constraints ()
+  "Variables keep their declared type, enum and pattern (REQ-SF-011)."
+  :tags '(:unit)
+  (let* ((formula (beads-formula-from-json beads-formula-test--rich-json))
+         (var (car (oref formula vars))))
+    (should (equal (oref var name) "mode"))
+    (should (equal (oref var var-type) "string"))
+    (should (equal (oref var enum) '("a" "b")))
+    (should (equal (oref var pattern) "^[ab]$"))
+    (should (oref var required))))
+
+(ert-deftest beads-formula-test-detail-sections-composition ()
+  "Detail sections list bond points and composition before source."
+  :tags '(:unit)
+  (let ((formula (beads-formula-from-json beads-formula-test--rich-json)))
+    (should (equal (mapcar (lambda (section) (plist-get section :key))
+                           (beads-formula-detail-sections formula))
+                   '(vars steps bond-points composition source)))
+    (should (equal (plist-get (nth 2 (beads-formula-detail-sections formula))
+                              :title)
+                   "Bond points (2)"))))
+
+(ert-deftest beads-formula-test-list-entry-columns ()
+  "The list row carries phase and an abbreviated source path."
+  :tags '(:unit)
+  (let* ((formula (beads-formula-summary
+                   :name "release"
+                   :formula-type "workflow"
+                   :phase "vapor"
+                   :source "/tmp/release.formula.toml"
+                   :steps 6
+                   :vars 1))
+         (entry (beads-formula-list--formula-to-entry formula))
+         (row (nth 1 entry)))
+    (should (equal (nth 0 entry) "release"))
+    (should (equal (aref row 4) "vapor"))
+    (should (equal (aref row 5) "/tmp/release.formula.toml"))
+    (should (= 6 (length row)))))
+
+(ert-deftest beads-formula-test-list-mode-has-provenance-columns ()
+  "The browser format exposes Name/Type/Steps/Vars/Phase/Source."
+  :tags '(:unit)
+  (with-temp-buffer
+    (beads-formula-list-mode)
+    (should (equal (mapcar #'car tabulated-list-format)
+                   '("Name" "Type" "Steps" "Vars" "Phase" "Source")))))
+
+;;; ========================================
+;;; Scope filter and shadowing
+;;; ========================================
+
+(ert-deftest beads-formula-test-scope-of ()
+  "`beads-formula-scope-of' classifies sources by search path."
+  :tags '(:unit)
+  (let* ((root (make-temp-file "beads-scope" t))
+         (project (expand-file-name ".beads/formulas" root)))
+    (unwind-protect
+        (progn
+          (should (eq (beads-formula-scope-of
+                       (expand-file-name "a.formula.toml" project) root)
+                      'project))
+          (should (eq (beads-formula-scope-of
+                       (expand-file-name "~/.beads/formulas/a.formula.toml")
+                       root)
+                      'user))
+          (should (eq (beads-formula-scope-of "/tmp/elsewhere/a.formula.toml"
+                                              root)
+                      'other))
+          (should (eq (beads-formula-scope-of nil root) 'other)))
+      (delete-directory root t))))
+
+(ert-deftest beads-formula-test-filter-by-scope ()
+  "`beads-formula-filter-by-scope' keeps only matching sources."
+  :tags '(:unit)
+  (let* ((root (make-temp-file "beads-scope" t))
+         (project (expand-file-name ".beads/formulas" root))
+         (project-formula (beads-formula-summary
+                           :name "proj"
+                           :source (expand-file-name "p.formula.toml" project)))
+         (user-formula (beads-formula-summary
+                        :name "user"
+                        :source (expand-file-name
+                                 "~/.beads/formulas/u.formula.toml")))
+         (formulas (list project-formula user-formula)))
+    (unwind-protect
+        (progn
+          (should (equal (beads-formula-filter-by-scope formulas 'all root)
+                         formulas))
+          (should (equal (beads-formula-filter-by-scope formulas 'project root)
+                         (list project-formula)))
+          (should (equal (beads-formula-filter-by-scope formulas 'user root)
+                         (list user-formula))))
+      (delete-directory root t))))
+
+(ert-deftest beads-formula-test-shadow-index-and-shadowed-by ()
+  "A same-name file lower on the search path is reported as shadowed."
+  :tags '(:unit)
+  (let* ((project (make-temp-file "beads-shadow-proj" t))
+         (gt (make-temp-file "beads-shadow-gt" t))
+         (project-dir (expand-file-name ".beads/formulas" project))
+         (gt-dir (expand-file-name ".beads/formulas" gt)))
+    (unwind-protect
+        (progn
+          (make-directory project-dir t)
+          (make-directory gt-dir t)
+          (with-temp-file (expand-file-name "build.formula.toml" project-dir)
+            (insert "formula = \"build\"\n"))
+          (with-temp-file (expand-file-name "build.formula.toml" gt-dir)
+            (insert "formula = \"build\"\n"))
+          (with-temp-file (expand-file-name "only.formula.toml" project-dir)
+            (insert "formula = \"only\"\n"))
+          (cl-letf (((symbol-function 'getenv)
+                     (lambda (name)
+                       (if (equal name "GT_ROOT") gt nil))))
+            (let* ((index (beads-formula-shadow-index project))
+                   (winner (beads-formula-summary
+                            :name "build"
+                            :source (expand-file-name "build.formula.toml"
+                                                      project-dir)))
+                   (solo (beads-formula-summary
+                          :name "only"
+                          :source (expand-file-name "only.formula.toml"
+                                                    project-dir))))
+              (should (equal (beads-formula-shadowed-by winner index)
+                             (list (expand-file-name "build.formula.toml"
+                                                     gt-dir))))
+              (should (null (beads-formula-shadowed-by solo index))))))
+      (delete-directory project t)
+      (delete-directory gt t))))
+
+(ert-deftest beads-formula-test-browser-entry-marks-shadowed ()
+  "A shadowing formula's Name cell carries the shadow marker."
+  :tags '(:unit)
+  (let* ((index (make-hash-table :test #'equal))
+         (formula (beads-formula-summary
+                   :name "build"
+                   :formula-type "workflow"
+                   :source "/proj/build.formula.toml")))
+    (puthash "build" (list "/proj/build.formula.toml" "/user/build.formula.toml")
+             index)
+    (with-temp-buffer
+      (setq-local beads-formula-browser-shadow-index index)
+      (let* ((entry (beads-formula-browser--entry formula))
+             (row (nth 1 entry)))
+        (should (equal (nth 0 entry) "build"))
+        (should (string-match-p "⧉shad" (aref row 0)))
+        (should (= 6 (length row)))))))
+
 (provide 'beads-formula-test)
 ;;; beads-formula-test.el ends here

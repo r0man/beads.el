@@ -4,6 +4,24 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Formula provenance and richer detail (WI-SF-05, REQ-SF-010/011/052)
+
+The formula browser now shows a **Phase** column and the **Source** path, and
+marks a formula whose name shadows a same-name formula lower on the `bd`
+search path with a `⧉shad` badge (help-echo names the shadowed path).  The
+scope filter (`/` in the browser, or a prefix arg to
+`beads-formula-browse`) switches between `project`, `user` and `all`.
+
+The formula detail now renders the declared `phase`, `version`, `extends`,
+`aspects`, expansion formulas, `compose.bond_points` (id, before/after,
+parallel), and each step's `type`, `depends_on`, `gate` and `waits_for`, plus
+every variable's declared type, enum, pattern, default and required flag.
+
+`beads-types.el` gains the matching parsed model: `beads-formula` slots for
+`phase`, `extends`, `compose`, `aspects`, `expansions` and `bond-points`,
+`beads-formula-step` slots for `step-type`, `gate` and `waits-for`, and the
+new `beads-formula-gate` and `beads-formula-bond-point` classes.
+
 ### Agent launch works in non-git beads projects / Gas City workspaces
 
 `beads-agent-start` (and the sling, typed, and text-menu start paths)

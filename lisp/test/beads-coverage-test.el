@@ -890,7 +890,9 @@
     (should (equal (aref (cadr entry) 0) "test-formula"))
     (should (equal (aref (cadr entry) 2) "5"))
     (should (equal (aref (cadr entry) 3) "3"))
-    (should (equal (aref (cadr entry) 4) "A test formula"))))
+    ;; No phase/source on the summary: placeholders.
+    (should (equal (aref (cadr entry) 4) "—"))
+    (should (equal (aref (cadr entry) 5) "—"))))
 
 (ert-deftest beads-coverage-test-formula-list-formula-to-entry-nil-fields ()
   "Test formula-to-entry handles nil fields."
@@ -901,7 +903,8 @@
     (should (listp entry))
     (should (equal (aref (cadr entry) 2) "0"))  ; nil steps -> 0
     (should (equal (aref (cadr entry) 3) "0"))  ; nil vars -> 0
-    (should (equal (aref (cadr entry) 4) "")))) ; nil desc -> ""
+    (should (equal (aref (cadr entry) 4) "—"))  ; nil phase -> placeholder
+    (should (equal (aref (cadr entry) 5) "—")))) ; nil source -> placeholder
 
 ;;; ============================================================
 ;;; beads-command-formula.el - Show Rendering Tests
@@ -942,7 +945,7 @@
       :required t))
     (let ((text (buffer-string)))
       (should (string-match-p "feature" text))
-      (should (string-match-p "(required)" text))
+      (should (string-match-p "required" text))
       (should (string-match-p "Feature name" text))
       (should (string-match-p "Default: my-feature" text)))))
 
