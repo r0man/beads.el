@@ -72,6 +72,105 @@
     (should (equal (plist-get spec :choices) '("auto" "manual")))
     (should (equal (plist-get spec :pattern) "^a"))))
 
+(ert-deftest beads-formula-test-var-choices-enum-wins ()
+  "An explicit var `enum' wins over the methodology mapping."
+  :tags '(:unit)
+  (let* ((formula (beads-formula
+                   :name "f"
+                   :metadata '((gc . ((methodology
+                                      . ((interaction_modes . ("from-meta")))))))))
+         (var (beads-formula-var :name "interaction_mode"
+                                 :enum '("explicit"))))
+    (should (equal (beads-formula-var-choices var formula) '("explicit")))))
+
+(ert-deftest beads-formula-test-var-choices-methodology ()
+  "A built-in var resolves its choices from `metadata.gc.methodology'."
+  :tags '(:unit)
+  (let* ((formula (beads-formula
+                   :name "f"
+                   :metadata '((gc . ((methodology
+                                      . ((interaction_modes
+                                          . ("autonomous" "interactive")))))))))
+         (var (beads-formula-var :name "interaction_mode")))
+    (should (equal (beads-formula-var-choices var formula)
+                   '("autonomous" "interactive")))
+    (should (equal (plist-get (beads-formula-var-reader var formula) :choices)
+                   '("autonomous" "interactive")))
+    (should (eq (beads-formula-var-kind var formula) 'enum))))
+
+(ert-deftest beads-formula-test-var-choices-none ()
+  "A var with no enum and no methodology entry degrades to nil."
+  :tags '(:unit)
+  (should-not (beads-formula-var-choices
+               (beads-formula-var :name "plain")
+               (beads-formula :name "f")))
+  (should-not (beads-formula-var-choices
+               (beads-formula-var :name "interaction_mode")
+               nil)))
+
+(ert-deftest beads-formula-test-from-json-metadata ()
+  "`bd formula show' metadata is parsed onto the formula."
+  :tags '(:unit)
+  (let ((formula (beads-formula-from-json
+                  '((formula . "f")
+                    (metadata . ((gc . ((methodology
+                                        . ((review_modes . ("agent" "human"))))))))))))
+    (should (equal (beads-formula-methodology formula)
+                   '((review_modes . ("agent" "human"))))
+            )))
+
+;;; ========================================
+;;; Validation seam
+;;; ========================================
+
+(ert-deftest beads-formula-test-missing-required-vars ()
+  "Required vars absent from (or blank in) the values are reported."
+  :tags '(:unit)
+  (let ((formula (beads-formula
+                  :name "f"
+                  :vars (list (beads-formula-var :name "req" :required t)
+                              (beads-formula-var :name "blank" :required t)
+                              (beads-formula-var :name "opt")))))
+    (should (equal (beads-formula-missing-required-vars
+                    formula '(("blank" . "   ")))
+                   '("req" "blank")))
+    (should (null (beads-formula-missing-required-vars
+                   formula '(("req" . "x") ("blank" . "y")))))))
+
+(ert-deftest beads-formula-test-validate-vars-missing-signals ()
+  "`beads-formula-validate-vars' refuses a missing required var."
+  :tags '(:unit)
+  (let ((formula (beads-formula
+                  :name "f"
+                  :vars (list (beads-formula-var :name "req" :required t)))))
+    (should-error (beads-formula-validate-vars formula nil) :type 'user-error)))
+
+(ert-deftest beads-formula-test-validate-vars-pattern-signals ()
+  "A value that fails the var's pattern is refused."
+  :tags '(:unit)
+  (let ((formula (beads-formula
+                  :name "f"
+                  :vars (list (beads-formula-var :name "slug" :pattern "\\`[a-z]+\\'")))))
+    (should-error (beads-formula-validate-vars formula '(("slug" . "123")))
+                  :type 'user-error)
+    (should (beads-formula-validate-vars formula '(("slug" . "good"))))))
+
+(ert-deftest beads-formula-test-validate-vars-blank-skips-pattern ()
+  "A blank value is the required check's business, not the pattern's."
+  :tags '(:unit)
+  (let ((formula (beads-formula
+                  :name "f"
+                  :vars (list (beads-formula-var :name "slug" :pattern "\\`[a-z]+\\'")))))
+    (should (beads-formula-validate-vars formula '(("slug" . "  "))))))
+
+(ert-deftest beads-formula-test-validate-vars-bad-regexp-degrades ()
+  "A pattern that does not compile degrades to no check."
+  :tags '(:unit)
+  (let ((formula (beads-formula
+                  :name "f"
+                  :vars (list (beads-formula-var :name "slug" :pattern "[unclosed")))))
+    (should (beads-formula-validate-vars formula '(("slug" . "anything"))))))
+
 ;;; ========================================
 ;;; Grouping
 ;;; ========================================

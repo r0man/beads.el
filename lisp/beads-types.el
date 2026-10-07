@@ -1848,7 +1848,14 @@ Delegates to `beads-from-json'."
     :initarg :source
     :type (or null string)
     :initform nil
-    :documentation "File path to the formula source."))
+    :documentation "File path to the formula source.")
+   (metadata
+    :initarg :metadata
+    :type (or null list)
+    :initform nil
+    :documentation "Raw formula metadata alist.
+For example `metadata.gc.methodology', whose choice lists a built-in
+variable's enum resolution consults (`beads-formula-var-choices')."))
   :documentation "Full formula details from bd formula show.")
 
 (defun beads-formula-from-json (json)
@@ -1908,7 +1915,8 @@ composition rules live under `compose'."
      :bond-points (beads-formula--compose-bond-points compose)
      :vars vars
      :steps steps
-     :source (alist-get 'source json))))
+     :source (alist-get 'source json)
+     :metadata (alist-get 'metadata json))))
 
 ;;; ============================================================
 ;;; Worktree Types

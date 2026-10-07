@@ -965,5 +965,100 @@ Optional SCOPE filters the search path: `project', `user' or `all'
 (define-key beads-formula-show-mode-map (kbd "s")
             #'beads-formula-launch-standalone)
 
+;;; ============================================================
+;;; Cross-repo ownership seams (WI-SF-19 / REQ-SF-100)
+;;; ============================================================
+
+(cl-defgeneric beads-formula-methodology (formula)
+  "Return FORMULA's `metadata.gc.methodology' alist, or nil.
+Drives the built-in enum resolution in `beads-formula-var-choices':
+some formulas declare choice lists under this metadata object rather
+than on the variable itself.  A formula whose metadata is absent or
+shaped differently degrades to nil.")
+(cl-defmethod beads-formula-methodology ((formula beads-formula))
+  "Return FORMULA's `metadata.gc.methodology' alist, or nil (see the generic)."
+  (alist-get 'methodology (alist-get 'gc (oref formula metadata))))
+(cl-defmethod beads-formula-methodology ((_formula null))
+  "A nil FORMULA has no methodology metadata."
+  nil)
+(cl-defgeneric beads-formula-var-choices (var &optional formula)
+  "Return the list of values FORMULA's VAR allows, or nil.
+An explicit `vars[].enum' on VAR wins.  Otherwise the built-in
+name -> methodology-key mapping
+\(`beads-formula-enum-metadata-keys') consults FORMULA's
+`beads-formula-methodology' (plan decision D1).  A variable with
+neither returns nil, and the caller degrades to plain text entry.
+This is the shared seam the sling and browser var readers resolve
+through.")
+(cl-defmethod beads-formula-var-choices ((var beads-formula-var)
+                                          &optional formula)
+  "Return VAR's allowed values in FORMULA, or nil (see the generic)."
+  (or (oref var enum)
+      (when-let* ((name (oref var name))
+                  (key (cdr (assoc name beads-formula-enum-metadata-keys)))
+                  (choices (alist-get key (beads-formula-methodology formula))))
+        (append choices nil))))
+(defun beads-formula--blank-value-p (value)
+  "Return non-nil when VALUE is nil or all whitespace.
+The validation seam's blank check: stricter than
+`beads-formula--blank-p' (which only rejects the empty string), it
+treats a whitespace-only value as absent, matching gc's own
+pre-launch check."
+  (or (null value)
+      (and (stringp value) (string-empty-p (string-trim value)))))
+(defun beads-formula-missing-required-vars (formula vars)
+  "Return the names of required FORMULA vars missing from VARS.
+VARS is a (NAME . VALUE) alist as returned by
+`beads-formula--normalize-vars'; a variable absent from it, or whose
+value is blank, counts as missing.  The non-signaling half of
+`beads-formula-validate-vars' (the live-preview footer warns with this
+list while launch still refuses)."
+  (let ((values (beads-formula--normalize-vars vars)))
+    (delq nil
+          (mapcar (lambda (var)
+                    (let ((name (oref var name)))
+                      (when (and (oref var required)
+                                 (beads-formula--blank-value-p
+                                  (cdr (assoc-string name values))))
+                        name)))
+                  (oref formula vars)))))
+(defun beads-formula--missing-required-vars (formula vars)
+  "Return FORMULA's required vars missing from VARS.
+Compatibility alias for `beads-formula-missing-required-vars'."
+  (beads-formula-missing-required-vars formula vars))
+(defun beads-formula-validate-vars (formula vars)
+  "Check VARS against FORMULA's declared vars, before any launch call.
+VARS is a (NAME . VALUE) alist; a variable absent from it, or whose
+value is blank, counts as empty.  A missing required variable signals
+`user-error' naming every missing variable; a value that fails its
+variable's `pattern' signals `user-error' naming the variable and the
+pattern.  Nothing here runs `bd' -- the point is to fail fast,
+client-side, before a launch round trip.  Returns FORMULA so callers
+can validate and use it in one expression.
+
+This is the shared seam the sling and the formula launch agree on; a
+downstream package that launches through its own backend validates
+with it instead of growing a second required/pattern check."
+  (let ((missing (beads-formula-missing-required-vars formula vars)))
+    (when missing
+      (user-error "Missing required formula vars: %s"
+                  (mapconcat #'identity missing ", ")))
+    (dolist (var (oref formula vars))
+      (let ((pattern (oref var pattern))
+            (value (cdr (assoc-string
+                         (oref var name)
+                         (beads-formula--normalize-vars vars)))))
+        ;; Only a value actually entered is pattern-checked; a blank one
+        ;; is the required check's business.  A pattern that does not
+        ;; compile as an Emacs regexp degrades to no validation.
+        (when (and pattern (stringp value)
+                   (not (string-empty-p (string-trim value))))
+          (condition-case _err
+              (unless (string-match pattern value)
+                (user-error "Var %s does not match pattern %s"
+                            (oref var name) pattern))
+            (invalid-regexp nil))))))
+  formula)
+
 (provide 'beads-formula)
 ;;; beads-formula.el ends here

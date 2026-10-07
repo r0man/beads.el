@@ -240,7 +240,12 @@ registered by default (§5); a user may register their own subclass.
 | `beads-formula-launch` | cl-defgeneric `(formula bead &optional vars)` | launch + follow |
 | `beads-formula-launch-context` | EIEIO class `{shape vars target warnings}` | resolved launch |
 | `beads-formula-var` | EIEIO class `{name required type description default}` (`beads-types.el`) | typed var |
-| `beads-formula-var-reader` | cl-defgeneric `(var) → reader-spec` | type → transient infix kind |
+| `beads-formula-var-reader` | cl-defgeneric `(var &optional formula) → reader-spec` | type → transient infix kind |
+| `beads-formula-var-kind` | defun `(var &optional formula) → symbol` | reader-kind shortcut |
+| `beads-formula-var-choices` | cl-defgeneric `(var &optional formula) → list-or-nil` | enum + `metadata.gc.methodology` choices |
+| `beads-formula-methodology` | cl-defgeneric `(formula) → alist-or-nil` | methodology metadata access |
+| `beads-formula-validate-vars` | defun `(formula vars) → formula` | required/pattern check (signals `user-error`) |
+| `beads-formula-missing-required-vars` | defun `(formula vars) → list` | non-signaling missing-required list |
 
 Vars are read the same way in formula launch and the sling How stage.
 
@@ -338,6 +343,7 @@ beads.el must never require gascity.el; the dependency runs one way.
 | CLI parity | `beads-audit-test.el` |
 | Remote render | `beads-render-guard-test.el` |
 | Extension seams | `beads-extension-seams-test.el` |
+| Cross-repo ownership | `beads-cross-repo-ownership-test.el` (`docs/cross-repo-ownership.md`) |
 | Navigation | `beads-navigation-test.el` |
 | E2E | bright-lights TRAMP / tmux-Emacs pass |
 

@@ -62,6 +62,20 @@ existing `beads-command-swarm.el` classes and `beads-swarm` transient
 duplicating it.  44 `REQ-SF-*` requirements across nine gaps trace to the
 `WI-SF-01…19` work items.  The plan package is planning-only and changes no
 `.el` source file (REQ-SF-083).
+### Formula var choices/validation seams for downstream packages (REQ-SF-100)
+
+beads.el now owns the generic formula-variable seams downstream
+packages (notably gascity.el) had each re-implemented:
+`beads-formula-var-choices` resolves a variable's allowed values
+(explicit `enum', else the name -> `metadata.gc.methodology' mapping
+in the new `beads-formula-enum-metadata-keys'), `beads-formula-methodology'
+reads that metadata, and `beads-formula-validate-vars' /
+`beads-formula-missing-required-vars' do the client-side required and
+`pattern' check.  `beads-formula-var-reader' takes an optional formula
+and reports the resolved `:choices' (and `enum' kind) from the same
+seam.  The `beads-formula' type now parses the formula's `metadata'.
+`docs/cross-repo-ownership.md' records the before/after module-ownership
+list, guarded by `lisp/test/beads-cross-repo-ownership-test.el'.
 
 ### Agent launch works in non-git beads projects / Gas City workspaces
 

@@ -38,6 +38,8 @@
 ;;; Forward Declarations
 
 (declare-function beads-sling-targets "beads-sling" (&optional bead))
+(declare-function beads-formula-var-choices "beads-formula"
+                  (var &optional formula))
 
 ;;; ============================================================
 ;;; Blank Helpers
@@ -51,11 +53,13 @@
 ;;; Variable Readers
 ;;; ============================================================
 
-(cl-defgeneric beads-formula-var-reader (var)
+(cl-defgeneric beads-formula-var-reader (var &optional formula)
   "Return the transient reader spec for formula variable VAR.
-The spec is a plist; `:kind' is one of `enum', `bool', `numeric',
-`file', `directory', `agent' or `string'.  Optional keys are `:name',
-`:prompt', `:required', `:default', `:pattern' and `:choices'.
+FORMULA is the formula VAR belongs to, when known; it supplies the
+methodology mapping `beads-formula-var-choices' consults for a
+built-in enum.  The spec is a plist; `:kind' is one of `enum', `bool',
+`numeric', `file', `directory', `agent' or `string'.  Optional keys are
+`:name', `:prompt', `:required', `:default', `:pattern' and `:choices'.
 
 The declared shape wins (an enum list, a boolean or integer `var-type'),
 then naming conventions (`context_path'/`*_path' is a file,
@@ -64,14 +68,17 @@ then naming conventions (`context_path'/`*_path' is a file,
 soft to plain string entry.  Downstream packages may specialize this
 generic on their own metadata.")
 
-(cl-defmethod beads-formula-var-reader ((var beads-formula-var))
+(cl-defmethod beads-formula-var-reader ((var beads-formula-var)
+                                        &optional formula)
   "Return the reader spec for VAR (see `beads-formula-var-reader')."
   (let ((name (or (oref var name) ""))
         (type (oref var var-type))
-        (enum (oref var enum))
+        (choices (if (fboundp 'beads-formula-var-choices)
+                     (beads-formula-var-choices var formula)
+                   (oref var enum)))
         (default (oref var default)))
     (list :kind (cond
-                 (enum 'enum)
+                 (choices 'enum)
                  ((equal type "bool") 'bool)
                  ((equal type "int") 'numeric)
                  ((or (equal name "context_path")
@@ -89,20 +96,22 @@ generic on their own metadata.")
           :required (oref var required)
           :default default
           :pattern (oref var pattern)
-          :choices enum)))
+          :choices choices)))
 
-(defun beads-formula-var-kind (var)
-  "Return VAR's reader kind symbol (a `beads-formula-var-reader' shortcut)."
-  (plist-get (beads-formula-var-reader var) :kind))
+(defun beads-formula-var-kind (var &optional formula)
+  "Return VAR's reader kind symbol in FORMULA.
+A `beads-formula-var-reader' shortcut."
+  (plist-get (beads-formula-var-reader var formula) :kind))
 
 ;;; ============================================================
 ;;; Reading One Value
 ;;; ============================================================
 
-(defun beads-formula-read-var (var)
+(defun beads-formula-read-var (var &optional formula)
   "Read one value for VAR using its `beads-formula-var-reader' spec.
-Returns the value as a string, or nil when the user leaves it blank."
-  (let* ((spec (beads-formula-var-reader var))
+FORMULA supplies the metadata enum mapping, when known.  Returns the
+value as a string, or nil when the user leaves it blank."
+  (let* ((spec (beads-formula-var-reader var formula))
          (kind (plist-get spec :kind))
          (prompt (concat (or (plist-get spec :prompt) "Value")
                          (when-let* ((default (plist-get spec :default)))
