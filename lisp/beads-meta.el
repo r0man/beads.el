@@ -142,6 +142,17 @@ Example: beads-command-close -> beads-close"
   (let ((name-str (symbol-name class-name)))
     (intern (replace-regexp-in-string "-command-" "-" name-str))))
 
+(defun beads-meta-generated-transient-p (prefix)
+  "Return non-nil when PREFIX is an auto-generated transient prefix.
+`beads-defcommand' generates one transient per command class (unless
+`:transient' is nil or `:manual') and marks the derived symbol with a
+non-nil `beads-generated-transient' property.  REQ-003/REQ-024 demote
+those prefixes to a reach-through backend: they must not sit on the
+primary dispatch key path.  Hand-built prefixes (including the
+`:manual' user-facing menus) never carry the property."
+  (and (symbolp prefix)
+       (get prefix 'beads-generated-transient)))
+
 (defun beads-meta-extract-option (keyword options)
   "Extract value for KEYWORD from OPTIONS plist and return (VALUE . REST).
 Returns (nil . OPTIONS) if KEYWORD is not found."
@@ -1806,7 +1817,13 @@ Returns the `progn' form."
                      `(put ',name ',(car pv) ',(cdr pv)))
                    symbol-properties)
          ,@(when generate-transient
-             `((beads-meta-define-transient ,name ,transient-prefix
+             ;; Mark the derived prefix so the primary-dispatch policy
+             ;; (REQ-003/REQ-024) can tell an auto-generated per-command
+             ;; transient from a hand-built one without loading the
+             ;; command module: the generated prefix is the reach-through
+             ;; backend, never the porcelain.
+             `((put ',transient-name 'beads-generated-transient t)
+               (beads-meta-define-transient ,name ,transient-prefix
                  ,short-doc
                  ,global-section)))
          ;; Consumer-supplied extra forms (e.g. a bang fn; nil for

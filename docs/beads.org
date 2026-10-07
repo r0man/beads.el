@@ -105,14 +105,21 @@ efficiently and predict where to find commands.
 
 ** Modes and Buffers
 
-Beads.el defines two major modes:
+Beads.el defines several major modes.  The redesigned porcelain uses
+=vui= for heterogeneous, collapsible boards and details, and
+=tabulated-list-mode= for homogeneous tables; see
+=docs/ui-redesign.md= for the full architecture and extension model.
+
+- {{{dfn(beads-status-mode)}}} :: A =vui= section board for the
+  current store.  This is the front door: =M-x beads= opens it.
+  Buffer names follow the pattern =*beads-status[PROJECT]*=.
 
 - {{{dfn(beads-list-mode)}}} :: A =tabulated-list-mode= derivative
   for browsing issues.  Supports sorting, filtering, marking, and
   bulk operations.  Buffer names follow the pattern
   =*beads-list[PROJECT]*=.
 
-- {{{dfn(beads-show-mode)}}} :: A =special-mode= derivative for
+- {{{dfn(beads-show-mode)}}} :: A =vui= section view for
   viewing a single issue's details.  Read-only, with section
   navigation, reference following, and inline editing.  Buffer names
   follow the pattern =*beads-show[PROJECT]*=.
@@ -123,24 +130,28 @@ Both modes share a common set of keybindings for agent commands
 
 ** Transient Commands
 
-Beads.el organizes its commands into a three-level transient
-hierarchy:
+Beads.el has one dispatch menu and one maintenance menu, following
+Magit's status/dispatch split:
 
-1. *Main dispatch* ({{{kbd(M-x beads)}}}) :: The top-level entry
-   point with 15--20 high-frequency commands.  This is the menu you
-   see when you type {{{kbd(M-x beads)}}}.
+1. *Status board* ({{{kbd(M-x beads)}}}) :: The front door is the
+   status buffer, not a transient.  {{{kbd(M-x beads)}}} opens
+   {{{fn(beads-status)}}}.
 
-2. *Ops menu* ({{{kbd(!)}}}) :: Mid-frequency operations like
-   defer, refile, stats, and workflow commands (gates, merge-slots,
-   swarms).
+2. *Dispatch menu* ({{{kbd(?)}}}) :: {{{fn(beads-dispatch)}}} is the
+   single command menu, opened with {{{kbd(?)}}} from every beads
+   buffer (or {{{kbd(M-x beads-dispatch)}}}).  It builds its context
+   group from the view at point.
 
-3. *Advanced menu* ({{{kbd(>)}}}) :: Low-frequency maintenance,
-   setup, integrations, and administration commands.
+3. *Maintenance menu* ({{{kbd(!)}}}) :: {{{fn(beads-maintenance)}}}
+   folds the old ops and advanced menus into one
+   admin/infrastructure menu.
 
-Domain-specific commands are grouped into sub-dispatches accessible
-from these menus: {{{kbd(d)}}} for dependencies, {{{kbd(L)}}} for
-labels, {{{kbd(m)}}} for molecules, {{{kbd(k)}}} for Dolt, and
-{{{kbd(.)}}} for configuration.
+The old =beads= transient content lives on verbatim as
+=beads-dispatch=; =beads-ops-menu.el=, =beads-advanced-menu.el= and
+=beads-more-menu= are gone.  Domain-specific commands are grouped
+into sub-dispatches reachable from the dispatch menu: {{{kbd(d)}}}
+for dependencies, {{{kbd(L)}}} for labels, {{{kbd(m)}}} for
+molecules, {{{kbd(k)}}} for Dolt, and {{{kbd(.)}}} for configuration.
 
 ** Context-Aware Actions
 
@@ -196,13 +207,25 @@ under the {{{kbd(B)}}} prefix:
 
 * Main Menu
 
-The main dispatch transient ({{{kbd(M-x beads)}}}) provides quick
-access to the most common commands.
+The front door is the status board ({{{kbd(M-x beads)}}}); the
+command menu is the dispatch transient.
 
 #+FINDEX: beads
-Key: {{{kbd(M-x beads)}}}
+#+FINDEX: beads-status
+Key: {{{kbd(M-x beads)}}} (=beads-status=)
 
-TODO: Document all main menu groups and bindings.
+#+FINDEX: beads-dispatch
+Key: {{{kbd(?)}}} (=beads-dispatch=)
+
+The status board shows the store's sections (ready, in progress,
+blocked, recent).  Press {{{kbd(?)}}} for the dispatch menu: view
+issues (list, ready, blocked, show), create/edit/close, dependencies,
+and the maintenance sub-menu.  {{{kbd(M-x beads-dashboard)}}} opens
+the full board.
+
+See =docs/ui-redesign.md= for the complete entry-point and navigation
+contract, and =menu-mockups.md= for the rendered layout of every
+menu.
 
 * Listing Issues
 :PROPERTIES:

@@ -25,7 +25,6 @@
 (require 'beads-prefix)
 (require 'beads-command-dep)
 (require 'beads-dashboard-sections)
-(require 'beads-status)
 (require 'beads-agent-keys)
 
 (declare-function beads-actions-claim "beads-actions")
@@ -256,6 +255,24 @@ the previous store's cached payload — see bde-jwxv)."
           (beads-dashboard--save-visibility
            (beads-dashboard--current-root) next))))))
 
+(defun beads-dashboard--provider-vnodes (collapsed generation buffer db-path)
+  "Return dashboard section vnodes for `beads-dashboard-section-providers'.
+COLLAPSED, GENERATION and BUFFER are threaded to each section exactly
+as the built-in sections receive them; DB-PATH scopes the async-key.
+Each provider `beads-section-spec' loader runs synchronously and its
+renderer receives the data; the pair is wrapped in the same async
+section shell the built-in sections use.  The empty provider hook
+returns nil, leaving the built-in dashboard unchanged (standalone)."
+  (mapcar (lambda (spec)
+            (beads-dashboard--section
+             (oref spec key) (oref spec title)
+             (lambda (resolve _reject)
+               (funcall resolve (funcall (oref spec loader))))
+             (oref spec renderer)
+             collapsed generation buffer
+             :db-path db-path))
+          (beads-dashboard--provider-specs)))
+
 ;;; Root Component
 
 (vui-defcomponent beads-dashboard--root
@@ -394,6 +411,10 @@ Sections receive collapse state as a prop because per-component
          collapsed generation buffer
          :db-path db-path
          :icon "🌐"))
+      (when-let* ((provider-vnodes
+                   (beads-dashboard--provider-vnodes
+                    collapsed generation buffer db-path)))
+        (apply #'vui-vstack provider-vnodes))
       (beads-dashboard--footer-vnode)))))
 
 ;;; Refresh / Idle
@@ -935,9 +956,10 @@ one-shot way to expand everything without unfolding each section by hand."
   "a"   beads-agent-prefix-map
   "q"   #'quit-window)
 
-;; TAB/S-TAB move by thing, SPC folds (dashboard-v3 §5.4).  Installed
-;; here too, not only inherited: vui binds <tab> in a parent map.
-(beads-thing-define-keys beads-dashboard-mode-map)
+;; TAB/S-TAB move by thing, SPC folds, ? dispatches, C-c b is reserved
+;; for extensions (dashboard-v3 §5.4, design.md §3.3).  Installed here
+;; too, not only inherited: vui binds <tab> in a parent map.
+(beads-mode--install-navigation-keys beads-dashboard-mode-map)
 
 (defun beads-dashboard-refresh-dispatch (&optional arg)
   "Refresh the dashboard.  With prefix ARG, do a hard refresh.
@@ -1126,6 +1148,16 @@ opens the board of the chosen project, not of the current buffer."
                       :db-path db)
        (buffer-name)))
     (pop-to-buffer buf)))
+
+;;;###autoload
+(defun beads ()
+  "Open the beads board.
+
+The primary entry point of beads.el: opens the full board
+\(`beads-dashboard').  Press `?' inside the buffer for the
+`beads-dispatch' menu."
+  (interactive)
+  (funcall #'beads-dashboard))
 
 (provide 'beads-dashboard)
 ;;; beads-dashboard.el ends here

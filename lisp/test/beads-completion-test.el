@@ -21,6 +21,7 @@
 (require 'beads-completion)
 (require 'beads-types)
 (require 'beads-agent-backend)
+(require 'beads-sling)
 
 ;; Declare marginalia-annotators as a dynamic variable so tests can let-bind it.
 ;; marginalia may not be loaded in the test environment, so we declare it here.
@@ -1755,6 +1756,54 @@ reader simply returns it — no display-string parsing required."
       (should entry)
       (should (eq 'beads-completion--marginalia-annotate-issue
                   (cadr entry))))))
+
+;;; Sling target completion
+
+(ert-deftest beads-completion-test-sling-target-table ()
+  "Sling target table returns target names with kind/description metadata."
+  (let ((beads-sling-target-functions
+         (list (lambda ()
+                 (list (beads-sling-target :name "beads.el/task"
+                                           :kind 'role
+                                           :description "Task work")
+                       (beads-sling-target :name "worktree: be-x"
+                                           :kind 'worktree
+                                           :description "branch be-x"))))))
+    (let* ((table (beads-completion-sling-target-table))
+           (candidates (all-completions "" table nil)))
+      (should (equal candidates '("beads.el/task" "worktree: be-x")))
+      (let ((meta (funcall table "" nil 'metadata)))
+        (should (eq (cdr (assq 'category meta)) 'beads-sling-target)))
+      (should (eq (get-text-property 0 'beads-sling-kind
+                                     (car candidates))
+                  'role))
+      (should (string= (beads-completion--sling-target-annotate
+                        (car candidates))
+                       " — role · Task work")))))
+
+(ert-deftest beads-completion-test-sling-target-group ()
+  "Sling targets group by capitalized kind; transform is identity."
+  (let ((cand (propertize "beads.el/task" 'beads-sling-kind 'role)))
+    (should (string= (beads-completion--sling-target-group cand nil) "Role"))
+    (should (eq (beads-completion--sling-target-group cand t) cand))
+    (should (string= (beads-completion--sling-target-group "x" nil) "Other"))))
+
+(ert-deftest beads-completion-test-read-sling-target ()
+  "The reader returns the selected sling target name."
+  (let ((beads-sling-target-functions
+         (list (lambda ()
+                 (list (beads-sling-target :name "beads.el/task"
+                                           :kind 'role))))))
+    (cl-letf (((symbol-function 'completing-read)
+               (lambda (&rest _) "beads.el/task")))
+      (should (string= "beads.el/task"
+                       (beads-completion-read-sling-target "Target: "))))))
+
+(ert-deftest beads-completion-test-setup-marginalia-sling-target ()
+  "Marginalia registration includes the sling target category."
+  (let ((marginalia-annotators nil))
+    (beads-completion-setup-marginalia)
+    (should (assq 'beads-sling-target marginalia-annotators))))
 
 (provide 'beads-completion-test)
 ;;; beads-completion-test.el ends here

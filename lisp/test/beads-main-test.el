@@ -20,7 +20,17 @@
 
 (require 'ert)
 (require 'beads)
-(require 'beads-status)
+(require 'beads-meta)
+(require 'beads-actions)
+;; Load the command modules whose auto-generated per-command transients
+;; were demoted off the primary dispatch, so their symbol property is set.
+(require 'beads-command-close)
+(require 'beads-command-reopen)
+(require 'beads-command-search)
+(require 'beads-command-diff)
+(require 'beads-command-history)
+
+(require 'beads-menu)
 
 ;;; Test Utilities
 
@@ -320,8 +330,12 @@
   (should (fboundp 'beads)))
 
 (ert-deftest beads-main-test-transient-is-prefix ()
-  "Test that beads is a transient prefix."
-  (should (get 'beads 'transient--prefix)))
+  "Test that beads-dispatch is the transient prefix."
+  ;; `M-x beads' is the status-buffer entry point now (REQ-001); the
+  ;; former prefix moved to `beads-menu.el' as `beads-dispatch'.
+  (should (get 'beads-dispatch 'transient--prefix))
+  (should-not (get 'beads 'transient--prefix))
+  (should (commandp 'beads)))
 
 (ert-deftest beads-main-test-transient-has-autoload ()
   "Test that beads command has autoload cookie.
@@ -587,15 +601,15 @@ by checking if the function is available after requiring beads."
 ;;; Hierarchical Dispatch Tests
 ;;; ============================================================
 
-(ert-deftest beads-main-test-ops-menu-defined ()
-  "Test that beads-ops-menu sub-dispatch is defined."
-  (should (fboundp 'beads-ops-menu))
-  (should (get 'beads-ops-menu 'transient--prefix)))
+(ert-deftest beads-main-test-dispatch-menu-defined ()
+  "Test that the beads-dispatch menu is defined."
+  (should (fboundp 'beads-dispatch))
+  (should (get 'beads-dispatch 'transient--prefix)))
 
-(ert-deftest beads-main-test-advanced-menu-defined ()
-  "Test that beads-advanced-menu sub-dispatch is defined."
-  (should (fboundp 'beads-advanced-menu))
-  (should (get 'beads-advanced-menu 'transient--prefix)))
+(ert-deftest beads-main-test-maintenance-menu-defined ()
+  "Test that the merged beads-maintenance menu is defined (REQ-023)."
+  (should (fboundp 'beads-maintenance))
+  (should (get 'beads-maintenance 'transient--prefix)))
 
 (ert-deftest beads-main-test-reopen-accessible ()
   "Test that beads-reopen is accessible."
@@ -673,6 +687,72 @@ This ensures no functionality was lost during refactoring."
   (should (fboundp 'beads-sql))
   (should (fboundp 'beads-jira))
   (should (fboundp 'beads-federation)))
+
+;;; ============================================================
+;;; Demoted generated transients (REQ-003 / REQ-024)
+;;; ============================================================
+
+(defun beads-main-test--suffix-pairs (spec)
+  "Collect (KEY . COMMAND) pairs reachable from transient layout SPEC.
+Walks vectors and lists; a suffix spec is a keyword-plist carrying
+:key/:command.  Does not recurse through a command symbol, so the
+pairs are the *direct* suffixes of the menu."
+  (cond
+   ((vectorp spec)
+    (seq-mapcat #'beads-main-test--suffix-pairs (append spec nil)))
+   ((and (consp spec) (symbolp (car spec)))
+    (let* ((rest (cdr spec))
+           (props (if (keywordp (car rest)) rest (car rest)))
+           (children (if (keywordp (car rest)) nil (cdr rest))))
+      (append (when (and (listp props)
+                         (plist-get props :key)
+                         (plist-get props :command))
+                (list (cons (plist-get props :key)
+                            (plist-get props :command))))
+              (seq-mapcat #'beads-main-test--suffix-pairs children))))
+   ((and (consp spec) (keywordp (car spec)))
+    (let ((key (plist-get spec :key))
+          (command (plist-get spec :command)))
+      (when (and key command) (list (cons key command)))))
+   ((consp spec)
+    (seq-mapcat #'beads-main-test--suffix-pairs spec))
+   (t nil)))
+
+(defun beads-main-test--layout-suffixes (menu)
+  "Return the (KEY . COMMAND) pairs registered on transient MENU."
+  (beads-main-test--suffix-pairs (get menu 'transient--layout)))
+
+;; The primary key path is the hand-built `beads-dispatch' from
+;; `beads-menu.el' (WI-9).  It deliberately exposes close/reopen/search
+;; directly, so the WI-2 "no generated transient on the dispatch"
+;; invariant is checked against the reach-through backend instead (see
+;; `beads-main-test-generated-transients-reach-through').
+
+(ert-deftest beads-main-test-generated-transients-reach-through ()
+  "The demoted generated transients are reachable via the backend menu."
+  (let ((suffixes (beads-main-test--layout-suffixes 'beads-commands-menu)))
+    (dolist (expected '(("x" . beads-close)
+                        ("o" . beads-reopen)
+                        ("/" . beads-search)
+                        ("H" . beads-history)
+                        ("D" . beads-diff)))
+      (should (member expected suffixes)))))
+
+(ert-deftest beads-main-test-demoted-commands-still-callable ()
+  "The demoted commands keep their generated prefixes and stay callable."
+  (dolist (cmd '(beads-close beads-reopen beads-search beads-history
+                 beads-diff))
+    (should (fboundp cmd))
+    (should (beads-meta-generated-transient-p cmd))))
+
+(ert-deftest beads-main-test-primary-dispatch-core-keys ()
+  "The hand-built dispatch binds the primary issue actions (WI-9)."
+  (require 'beads-menu)
+  (let ((suffixes (beads-main-test--layout-suffixes 'beads-dispatch)))
+    (should (member (cons "x" 'beads-close) suffixes))
+    (should (member (cons "o" 'beads-reopen) suffixes))
+    (should (member (cons "/" 'beads-search) suffixes))
+    (should (member (cons "!" 'beads-maintenance) suffixes))))
 
 (provide 'beads-main-test)
 ;;; beads-main-test.el ends here

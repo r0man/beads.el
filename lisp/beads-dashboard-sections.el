@@ -101,6 +101,36 @@ Returns:
          section."
   (when extra-for-section 0))
 
+;;; Section Providers
+
+(defvar beads-dashboard-section-providers nil
+  "Hook of functions contributing extra sections to the dashboard.
+Each function is called with no arguments and returns a list of
+`beads-section-spec' objects (see `beads-section.el'); their loaders
+run when the dashboard mounts and their renderers receive the loaded
+data.  Providers run on every dashboard render, so they must be
+side-effect-free.  An empty hook (the standalone default) adds no
+sections.
+
+Downstream use: Gas City appends a city/rig pulse section.")
+
+(defun beads-dashboard--provider-specs ()
+  "Return the deduped, ordered sections from the provider hook.
+Consults `beads-dashboard-section-providers', flattens the returned
+lists, drops entries that are not `beads-section-spec' objects, and
+dedupes by `key' (first provider wins).  The empty hook returns nil."
+  (let ((seen (make-hash-table :test #'eq))
+        (specs nil))
+    (dolist (provider beads-dashboard-section-providers)
+      (dolist (spec (funcall provider))
+        (when (and (eieio-object-p spec)
+                   (object-of-class-p spec 'beads-section-spec))
+          (let ((key (oref spec key)))
+            (unless (gethash key seen)
+              (puthash key t seen)
+              (push spec specs))))))
+    (nreverse specs)))
+
 ;;; Helper Component
 
 (defun beads-dashboard--toggle-glyph (collapsed)

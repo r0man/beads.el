@@ -76,7 +76,7 @@ Group them into 6 testing tiers:
 | beads-command-reopen | bd reopen | beads (o key) |
 | beads-command-delete | bd delete | (via beads-advanced-menu) |
 | beads-command-search | bd search | beads (/ key) |
-| beads-command-count | bd count | beads-more-menu |
+| beads-command-count | bd count | beads-ops-menu (c key) |
 
 ### Tier 2 — Workflow (should cover)
 
@@ -146,7 +146,7 @@ beads-agent, beads-swarm, beads-federation, beads-worktree-menu, integrations
 
 ### P2 — Smoke test (open and verify rendered)
 
-`beads-more-menu`, `beads-state-menu`, `beads-label-menu`,
+`beads-ops-menu`, `beads-advanced-menu`, `beads-state-menu`, `beads-label-menu`,
 `beads-label-add`, `beads-label-remove`, `beads-formula-menu`,
 `beads-mol`, `beads-dolt`, `beads-config`, `beads-edit--menu`,
 `beads-compose-metadata`, `beads-list-advanced`, `beads-list-filter-menu`

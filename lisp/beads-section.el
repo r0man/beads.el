@@ -44,11 +44,14 @@
 (require 'eieio)
 (require 'vui)
 (require 'beads-command)
+(require 'beads-faces)
 (require 'beads-command-blocked)
 (require 'beads-command-list)
 (require 'beads-command-ready)
 (require 'beads-types)
 (require 'beads-thing)
+(require 'beads-buffer)
+(require 'beads-faces)
 
 ;;; Forward Declarations
 
@@ -65,8 +68,9 @@
 ;;; Faces
 
 (defface beads-issue-line
-  '((t :inherit default))
-  "Face for clickable issue lines in section and dashboard buffers."
+  '((t :inherit beads-face-issue-line))
+  "Face for clickable issue lines in section and dashboard buffers.
+Derived from the canonical `beads-face-issue-line'."
   :group 'beads)
 
 ;;; Context Detection
@@ -168,10 +172,17 @@ When ISSUES is nil this component renders nothing."
 
 (defvar-keymap beads-section-mode-map
   :parent vui-mode-map
-  "RET" #'beads-section-visit-issue)
+  "RET" #'beads-section-visit-issue
+  ;; REQ-002 universal navigation contract: q buries, g refreshes,
+  ;; ? opens the hand-built dispatch menu.  TAB/S-TAB/SPC come from
+  ;; `beads-thing-define-keys' below.
+  "q" #'beads-section-quit
+  "g" #'beads-section-refresh
+  "?" #'beads-dispatch)
 
-;; TAB/S-TAB move by thing, SPC toggles (dashboard-v3 §5.4).
-(beads-thing-define-keys beads-section-mode-map)
+;; TAB/S-TAB move by thing, SPC toggles, ? dispatches, C-c b is
+;; reserved for extensions (dashboard-v3 §5.4, design.md §3.3).
+(beads-mode--install-navigation-keys beads-section-mode-map)
 
 (define-derived-mode beads-section-mode vui-mode "Beads"
   "Major mode for browsing beads issues using vui.el.
@@ -186,6 +197,90 @@ Key bindings:
   SPC     — Toggle the thing at point (fold a section)
   RET     — Visit issue at point (on issue lines)"
   :interactive nil)
+
+;;; Section Spec Registry
+
+(defclass beads-section-spec ()
+  ((key
+    :initarg :key
+    :type symbol
+    :documentation "Symbolic section key used for identity and lookup.")
+   (title
+    :initarg :title
+    :type string
+    :documentation "Human-readable section title.")
+   (loader
+    :initarg :loader
+    :type function
+    :documentation "Function of no arguments returning the section's data.")
+   (renderer
+    :initarg :renderer
+    :type function
+    :documentation "Function of one argument (the loader's data) returning a vnode.")
+   (keys
+    :initarg :keys
+    :initform nil
+    :type list
+    :documentation "Optional list of extra keybindings the section wants.")
+   (order
+    :initarg :order
+    :initform 0
+    :type number
+    :documentation "Sort order among registered sections; lower comes first."))
+  "Descriptor for a named, renderable beads section.
+A consumer registers one of these via `beads-section-register' so that
+other views (status, dashboard, formula) can render it without knowing
+where it came from.  Both `loader' and `renderer' are ordinary
+functions: the loader runs with no arguments and returns the data, and
+the renderer receives that data and returns a vui vnode.")
+
+(defvar beads-section--registry (make-hash-table :test #'eq)
+  "Registry of named sections, keyed by their symbolic `key'.
+Populated by `beads-section-register'; consumed by
+`beads-section-registered' and `beads-section-registered-vnodes'.")
+
+(defun beads-section-register (key title loader renderer &optional keys)
+  "Register a named section and return KEY.
+KEY is a symbol identifying the section.  TITLE is its display title.
+LOADER is a function of no arguments returning the section data.
+RENDERER is a function of one argument (the loader's data) returning a
+vui vnode.  KEYS, when non-nil, is a list of extra keybindings for the
+section.  Registering the same KEY twice replaces the previous spec."
+  (puthash key (beads-section-spec :key key :title title
+                                    :loader loader :renderer renderer
+                                    :keys keys)
+           beads-section--registry)
+  key)
+
+(defun beads-section-spec-for (key)
+  "Return the `beads-section-spec' registered for KEY, or nil.
+KEY is a symbol; returns nil when no section is registered.  Named
+`-for' because `beads-section-spec' is the EIEIO constructor."
+  (gethash key beads-section--registry))
+
+(defun beads-section-registered ()
+  "Return all registered section specs, sorted by order then key.
+A stable order lets the status and dashboard builders concatenate
+registered sections deterministically."
+  (let (specs)
+    (maphash (lambda (_ spec) (push spec specs)) beads-section--registry)
+    (sort specs
+          (lambda (a b)
+            (let ((ao (oref a order)) (bo (oref b order)))
+              (if (= ao bo)
+                  (string< (symbol-name (oref a key))
+                           (symbol-name (oref b key)))
+                (< ao bo)))))))
+
+(defun beads-section-registered-vnodes ()
+  "Return vnodes for every registered section, in registry order.
+Calls each spec's loader and, when it returns non-nil, its renderer.
+The empty registry returns nil (the standalone no-op)."
+  (delq nil
+        (mapcar (lambda (spec)
+                  (when-let* ((data (funcall (oref spec loader))))
+                    (funcall (oref spec renderer) data)))
+                (beads-section-registered))))
 
 ;;; Status Sections Hook
 
@@ -250,12 +345,32 @@ Fetches issues via `bd ready --json'."
 
 (defun beads-section-build-vnode ()
   "Build the complete section vnode tree from `beads-status-sections-hook'.
-Calls each hook function, collects non-nil results, and assembles
-them into a `vui-vstack' with spacing between sections."
-  (let ((vnodes (delq nil (mapcar #'funcall beads-status-sections-hook))))
+Calls each hook function, collects non-nil results, appends the vnodes
+of every section in `beads-section--registry', and assembles them into a
+`vui-vstack' with spacing between sections.  With no hook entries and an
+empty registry this returns an empty vstack (the standalone no-op)."
+  (let ((vnodes (append (delq nil (mapcar #'funcall beads-status-sections-hook))
+                        (beads-section-registered-vnodes))))
     (apply #'vui-vstack :spacing 1 vnodes)))
 
 ;;; Commands
+
+(defun beads-section-quit ()
+  "Bury the current beads section buffer.
+The REQ-002 `q' contract; every section-derived mode inherits it."
+  (interactive)
+  (quit-window))
+
+(defun beads-section-refresh ()
+  "Refresh the current beads section buffer in place.
+The REQ-002 `g' contract.  Section-derived modes are expected to
+override this with a view-specific refresh (e.g. the status buffer
+bumps its generation counter); this default refreshes through the
+buffer's `revert-buffer-function' when one is installed."
+  (interactive)
+  (if revert-buffer-function
+      (revert-buffer nil t)
+    (user-error "This view does not support refresh")))
 
 ;;;###autoload
 (defun beads-section-visit-issue ()

@@ -472,5 +472,27 @@ concrete.  Used so the Phase 3 runner unification is mechanical."
 
 (beads-terminal-register-builtin)
 
+;;; Generic entry points (tmux attach lives in beads-terminal-tmux.el)
+
+(declare-function beads-terminal-tmux-run "beads-terminal-tmux"
+                  (argv buffer-name &optional dir))
+(declare-function beads-terminal-tmux-attach "beads-terminal-tmux"
+                  (session &optional socket dir store))
+
+(defun beads-terminal-run (argv buffer-name &optional dir)
+  "Display the terminal buffer named BUFFER-NAME, spawning ARGV if needed.
+Generic wrapper over `beads-terminal-tmux-run', which reuses a live
+buffer or spawns ARGV through the selected backend."
+  (require 'beads-terminal-tmux)
+  (beads-terminal-tmux-run argv buffer-name dir))
+
+(defun beads-terminal-attach (session &optional socket dir store)
+  "Attach to tmux SESSION in a terminal buffer, without blocking Emacs.
+SOCKET selects a non-default tmux server; DIR is the working directory
+for the spawned terminal; STORE scopes the buffer's beads eldoc.
+Generic wrapper over `beads-terminal-tmux-attach'."
+  (require 'beads-terminal-tmux)
+  (beads-terminal-tmux-attach session socket dir store))
+
 (provide 'beads-terminal)
 ;;; beads-terminal.el ends here

@@ -28,6 +28,7 @@
 (require 'beads-buffer)
 (require 'beads-command)
 (require 'beads-command-dep)
+(require 'beads-faces)
 (require 'beads-meta)
 (require 'beads-option)
 (require 'beads-types)
@@ -151,63 +152,75 @@ View epic status and close eligible epics."
   :prefix "beads-epic-status-")
 
 (defface beads-epic-status-bullet-face
-  '((t :inherit default))
-  "Face for epic bullet (○)."
+  '((t :inherit beads-face-issue-line))
+  "Face for epic bullet (○).
+Derived from the canonical `beads-face-issue-line'."
   :group 'beads-epic-status)
 
 (defface beads-epic-status-id-face
-  '((t :inherit font-lock-constant-face :weight bold))
-  "Face for epic ID."
+  '((t :inherit beads-face-id :weight bold))
+  "Face for epic ID.
+Derived from the canonical `beads-face-id'."
   :group 'beads-epic-status)
 
 (defface beads-epic-status-title-face
-  '((t :inherit default))
-  "Face for epic title."
+  '((t :inherit beads-face-issue-line))
+  "Face for epic title.
+Derived from the canonical `beads-face-issue-line'."
   :group 'beads-epic-status)
 
 (defface beads-epic-status-progress-low-face
-  '((t :inherit error))
-  "Face for progress percentage < 33%."
+  '((t :inherit beads-face-error))
+  "Face for progress percentage < 33%.
+Derived from the canonical `beads-face-error'."
   :group 'beads-epic-status)
 
 (defface beads-epic-status-progress-medium-face
-  '((t :inherit warning))
-  "Face for progress percentage 33-66%."
+  '((t :inherit beads-face-warning))
+  "Face for progress percentage 33-66%.
+Derived from the canonical `beads-face-warning'."
   :group 'beads-epic-status)
 
 (defface beads-epic-status-progress-high-face
-  '((t :inherit success))
-  "Face for progress percentage > 66%."
+  '((t :inherit beads-face-success))
+  "Face for progress percentage > 66%.
+Derived from the canonical `beads-face-success'."
   :group 'beads-epic-status)
 
 (defface beads-epic-status-child-id-face
-  '((t :inherit font-lock-variable-name-face))
-  "Face for child issue ID."
+  '((t :inherit beads-face-id))
+  "Face for child issue ID.
+Derived from the canonical `beads-face-id'."
   :group 'beads-epic-status)
 
 (defface beads-epic-status-status-open-face
-  '((t :inherit default))
-  "Face for open status."
+  '((t :inherit beads-face-status-open))
+  "Face for open status.
+Derived from the canonical `beads-face-status-open'."
   :group 'beads-epic-status)
 
 (defface beads-epic-status-status-closed-face
-  '((t :inherit shadow))
-  "Face for closed status."
+  '((t :inherit beads-face-status-closed))
+  "Face for closed status.
+Derived from the canonical `beads-face-status-closed'."
   :group 'beads-epic-status)
 
 (defface beads-epic-status-status-in-progress-face
-  '((t :inherit warning))
-  "Face for in_progress status."
+  '((t :inherit beads-face-status-in-progress))
+  "Face for in_progress status.
+Derived from the canonical `beads-face-status-in-progress'."
   :group 'beads-epic-status)
 
 (defface beads-epic-status-status-blocked-face
-  '((t :inherit error))
-  "Face for blocked status."
+  '((t :inherit beads-face-status-blocked))
+  "Face for blocked status.
+Derived from the canonical `beads-face-status-blocked'."
   :group 'beads-epic-status)
 
 (defface beads-epic-status-eligible-face
-  '((t :inherit success :weight bold))
-  "Face for eligible for closure checkmark."
+  '((t :inherit beads-face-success :weight bold))
+  "Face for eligible for closure checkmark.
+Derived from the canonical `beads-face-success'."
   :group 'beads-epic-status)
 
 ;;; Variables
@@ -488,7 +501,7 @@ Format: ((epic-id . (expanded-p . children)) ...)")
 (defvar beads-epic-status-mode-map
   (let ((map (make-sparse-keymap)))
     ;; TAB/S-TAB move by epic or child, SPC expands (dashboard-v3 §5.4)
-    (beads-thing-define-keys map)
+    (beads-mode--install-navigation-keys map)
     (define-key map (kbd "N") #'beads-epic-status-next)
     (define-key map (kbd "P") #'beads-epic-status-previous)
     (define-key map (kbd "RET") #'beads-epic-status-show-at-point)

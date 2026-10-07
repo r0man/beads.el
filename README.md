@@ -11,24 +11,32 @@ leaving your editor.
 
 ## Features
 
+- 🪟 **Full board**: `M-x beads` opens a Magit-like, sectioned full board
+  rendered from `bd --json`
 - 📋 **Tabulated List Mode**: Browse issues with sortable columns (ID, status,
   priority, type, title)
-- 🔍 **Issue Detail View**: Rich formatting with markdown-like rendering and
-  clickable issue references
-- ⌨️ **Transient Menus**: Magit-style keyboard-driven interface for all bd
-  commands
+- 🔍 **Issue Detail View**: Rich, collapsible sections with markdown-like
+  rendering and clickable issue references
+- ⌨️ **Transient Menus**: A single `beads-dispatch` menu on `?` plus a
+  `beads-maintenance` menu on `!`; per-command transients stay reachable
+- 🧭 **One Movement Scheme**: `TAB`/`S-TAB` move, `SPC` toggles, in every view
+  (`beads-thing`)
 - 🚀 **Context-Aware**: Automatically detects issue IDs from current buffer
 - 💡 **Eldoc Integration**: Hover over issue references anywhere to see details
 - 🎯 **Complete Coverage**: All bd CLI commands available through transients
+- 🧩 **Extension Model**: Documented magit/forge-style seams (providers, hooks,
+  registries, `C-c b` keymap) for downstream packages such as `gascity.el`
 - 🔗 **Project Integration**: Seamless integration with Emacs project.el
 
 ## Requirements
 
-- **Emacs**: 27.1 or newer
-- **Dependencies**:
-  - `transient` (included in Emacs 28+, or install from MELPA)
-  - `project` (built-in)
-- **External**: `bd` executable in PATH
+- **Emacs**: 29.1 or newer
+- **Dependencies** (from MELPA):
+  - `transient` 0.10.1 or newer
+  - `sesman` 0.3.2 or newer
+  - `vui` 1.0.0 or newer
+- **External**: the `bd` executable in `PATH` (`dolt` and `graphviz` for the
+  full test suite)
 
 ## Installation
 
@@ -48,8 +56,9 @@ git clone https://github.com/yourusername/beads.el.git ~/path/to/beads.el
 ```elisp
 (use-package beads
   :load-path "~/path/to/beads.el/lisp"
-  :commands (beads beads-list beads-ready beads-show beads-create)
-  :bind ("C-c b" . beads)
+  :commands (beads beads-dispatch beads-list beads-ready
+             beads-show beads-create)
+  :bind ("C-c b" . beads)                 ; M-x beads opens the full board
   :hook (after-init . beads-eldoc-mode))  ; Enable eldoc support
 ```
 
@@ -60,7 +69,8 @@ For Emacs 29 or newer, you can use the built-in package-vc feature:
 ```elisp
 (use-package beads
   :vc (:fetcher github :repo "yourusername/beads.el")
-  :commands (beads beads-list beads-ready beads-show beads-create)
+  :commands (beads beads-dispatch beads-list beads-ready
+             beads-show beads-create)
   :bind ("C-c b" . beads)
   :hook (after-init . beads-eldoc-mode))  ; Enable eldoc support
 ```
@@ -132,22 +142,33 @@ basic compilation.
 
 ### Basic Workflow
 
-1. **Open Beads menu**: `M-x beads` (or your custom keybinding)
-2. **List issues**: Press `l` (list all) or `r` (ready issues)
-3. **Navigate**: Use arrow keys or `n`/`p` to move between issues
-4. **View issue**: Press `RET` or `s` on an issue
-5. **Create issue**: Press `c` from main menu
-6. **Update issue**: Press `u` from list or show buffer
-7. **Close issue**: Press `x` from list or show buffer
+1. **Open the board**: `M-x beads` (or your custom keybinding) opens
+   `beads-dashboard`, the Magit-like full board
+2. **Open the dispatch menu**: Press `?` in any beads buffer (or `M-x
+   beads-dispatch`) for the full command menu
+3. **List issues**: Press `l` (list all) or `r` (ready issues)
+4. **Navigate**: Use arrow keys or `n`/`p` to move between issues, `TAB`/
+   `S-TAB` to move between things
+5. **View issue**: Press `RET` or `s` on an issue
+6. **Create issue**: Press `c` from the dispatch menu
+7. **Update issue**: Press `u` from list or show buffer
+8. **Close issue**: Press `x` from list or show buffer
 
 **Tip:** Run `M-x beads-quickstart` to see an interactive tutorial within
 Emacs, or run `bd quickstart` from the command line
 
 ## Usage Guide
 
-### Main Menu (`M-x beads`)
+### Entry Points
 
-The root transient menu provides access to all beads.el commands:
+`M-x beads` opens the **full board** (`beads-dashboard`), a Magit-like,
+sectioned board for the current store.  From the board:
+
+- `?` opens **`beads-dispatch`**, the single command menu used in every
+  beads buffer.  `M-x beads-dispatch` opens it directly.
+- `!` opens **`beads-maintenance`**, the admin/infrastructure menu.
+
+The dispatch menu groups the common flows:
 
 **View Issues:**
 - `l` - List all issues (`beads-list`)
@@ -167,12 +188,14 @@ The root transient menu provides access to all beads.el commands:
   - `t` - Show dependency tree
   - `l` - List dependencies
 
-**Admin:**
+**Admin** (also `!`):
 - `S` - Show statistics (`beads-stats`)
 - `e` - Export to JSONL (`beads-export`)
 - `i` - Import from JSONL (`beads-import`)
 - `I` - Initialize beads project (`beads-init`)
 - `W` - Worktree management (`beads-worktree-menu`)
+
+See `docs/ui-redesign.md` for the full entry-point and navigation contract.
 
 ### Issue List Mode
 
@@ -825,60 +848,95 @@ Or upgrade to Emacs 28+ where transient is built-in.
 
 ## Architecture
 
-### File Structure
+beads.el layers a keyboard-first **porcelain** over the `bd` CLI.  `bd`
+is the plumbing; every view is a function of `bd … --json` output, and no
+bd logic is reimplemented.  The long-form description, the extension
+seam list, and the removed-surface inventory live in
+[`docs/ui-redesign.md`](docs/ui-redesign.md); the design record is
+`plans/beads-ui-redesign/design.md`.
+
+### Three layers
+
+1. **Command classes** — `beads-defcommand` in `beads-command.el`
+   generates, from one EIEIO class definition: the class, its CLI argument
+   serialization, an auto-generated transient, and result-type declarations
+   for parsing into `beads-types.el` objects.  The command-class inventory
+   tracks the `bd` CLI surface (the parity gate in `beads-audit.el`).
+2. **Execution** — `beads-command-execute` (synchronous; tests and
+   first-contact root discovery), `beads-command-execute-interactive`
+   (transient suffixes), and `beads-command-execute-async` (non-blocking,
+   with a concurrency cap and single-flight `:cache-key`).  Every view read
+   is asynchronous; `beads-render-guard-test.el` enforces that rendering
+   does no I/O.
+3. **Renderers** — `vui` (derived `beads-section-mode`) for
+   heterogeneous, collapsible, async boards and detail views;
+   `tabulated-list-mode` for homogeneous sortable/filterable tables;
+   `transient`/`special-mode` for argument collection and dispatch only.
+
+Movement is uniform and lives in `beads-thing.el`: every view stamps the
+`beads-thing` text property and binds `TAB`/`S-TAB`/`SPC` through
+`beads-thing-define-keys`.
+
+### Module map
 
 ```
 lisp/
-├── beads.el                      # Core: process, JSON, project
-├── beads-list.el                 # Tabulated list mode
-├── beads-show.el                 # Issue detail view
-├── beads-eldoc.el                # Eldoc integration for issue refs
-├── beads-create.el               # Create transient
-├── beads-update.el               # Update transient
-├── beads-misc.el                 # Misc transients (close/dep/stats/etc)
-│   (main transient menu is now in beads.el)
-├── beads-agent.el                # AI agent integration
-├── beads-worktree.el             # Worktree management transient
-├── beads-command-worktree.el     # EIEIO classes for bd worktree
-├── beads-completion.el           # Completion tables and helpers
-├── beads-reader.el               # Reader functions for transient infixes
-├── Makefile                      # Test runner
-└── test/
-    ├── beads-test.el             # Core functionality tests
-    ├── beads-list-test.el        # List mode tests
-    ├── beads-show-test.el        # Show mode tests
-    ├── beads-eldoc-test.el       # Eldoc integration tests
-    ├── beads-create-test.el      # Create transient tests
-    ├── beads-update-test.el      # Update transient tests
-    ├── beads-close-test.el       # Close transient tests
-    ├── beads-main-test.el        # Main menu tests
-    ├── beads-misc-test.el        # Misc commands tests
-    ├── beads-agent-test.el       # Agent integration tests
-    └── beads-worktree-test.el    # Worktree menu tests
+├── beads.el                    # Entry utilities; M-x beads -> beads-dashboard
+├── beads-menu.el               # beads-dispatch (?) and beads-maintenance (!)
+├── beads-dashboard.el          # the full board
+├── beads-dashboard-sections.el # board section providers
+├── beads-section.el            # vui section base, registry, beads-section thing
+├── beads-command-list.el       # tabulated list (filters, paging, actions)
+├── beads-command-show.el       # vui detail view
+├── beads-sling.el              # sling targets/backends/shape/preview
+├── beads-formula.el            # formula browser/detail/launch/follow
+├── beads-agent.el              # agent launch and sessions
+├── beads-agent-type.el         # role registry (class + register/get)
+├── beads-agent-backend.el      # backend registry
+├── beads-terminal.el           # terminal backends (vterm/eat/term/...)
+├── beads-terminal-tmux.el      # tmux attach, status mirror, mouse, scroll
+├── beads-faces.el              # the beads-face-* palette
+├── beads-actions.el            # at-point actions and action providers
+├── beads-buffer.el             # buffer naming and the C-c b extension map
+├── beads-remote.el             # TRAMP/ssh transport helpers
+├── beads-command-<name>.el     # one EIEIO class per bd subcommand
+├── beads-types.el              # JSON->EIEIO data model
+├── beads-meta.el               # slot metadata and code generation
+├── beads-audit.el              # CLI-parity gate
+└── test/                       # ERT suites, one per module
 ```
 
-### Key Design Patterns
+### Entry points and keys
 
-**Process Execution:**
-- EIEIO command classes: `beads-command`, `beads-command-list`, etc.
-- All commands use `--json` flag for structured output
-- Error handling with user-friendly messages
+- `M-x beads` → `beads-dashboard` (the full board); `?` → `beads-dispatch`
+  (the same menu in every beads buffer); `!` → `beads-maintenance`.
+- `M-x beads-list` / `beads-show` are the list and detail views.
+- Reserved keys: `q` bury, `g`/`C-u g` refresh/hard-refresh, `TAB`/`S-TAB`
+  move, `SPC` toggle, `RET` visit, `n`/`p` item, `N`/`P` section, `?`
+  dispatch, `/` filter.
+- `C-c b` is the reserved extension prefix (`beads-mode-extension-map`),
+  installed into every beads mode; `C-c b b` is bead-at-point.
 
-**Caching:**
-- Project root cached per directory
-- Version info cached globally
-- Database path cached per project
+### Extension model
 
-**Context Detection:**
-- Check `major-mode` to determine context
-- Extract issue ID from buffer name or current line
-- Fall back to `completing-read` when needed
+Downstream packages (notably `gascity.el`) attach only at named seams:
+store resolvers (`beads-store-resolvers`, `beads-store-prefix-functions`),
+menu providers (`beads-menu-providers`), section providers
+(`beads-section-register`, `beads-dashboard-section-providers`), action
+providers (`beads-action-providers`, `beads-after-action-functions`),
+sling targets/backends (`beads-sling-target-functions`,
+`beads-sling-backend-register`, `beads-sling-dispatch`), the agent type and
+backend registries, `beads-formula-launch`, `beads-terminal-attach`, and
+the `beads-face-*` names.  beads.el is fully usable with none of them
+present; `gascity.el` depends on beads.el, never the reverse.
 
-**Transient Menus:**
-- Infixes for arguments (stored in global state)
-- Suffixes for actions (execute commands)
-- Validation before execution
-- Reset commands to clear state
+### Caching and remote stores
+
+Project root, version, and database paths are cached per directory; eldoc
+results are cached per store with negative caching.  TRAMP stores run
+asynchronous reads as local `ssh -T` pipes (`beads-remote.el`), keep
+buffer identity host-qualified (`beads-buffer.el`), and do no wrong-side
+I/O when a view is opened with an explicit `:directory`.
 
 ## Testing
 
@@ -891,11 +949,14 @@ eldev test
 # Run tests with verbose output
 eldev -p -dtT test
 
-# Run specific test file
-eldev test test/beads-list-test.el
+# Run specific test file (matches against lisp/test/)
+eldev test -f beads-list-test.el
 
-# Run tests with coverage
-eldev test --coverage
+# Run a single test by name
+eldev test beads-command-close
+
+# Coverage needs source mode (-s); undercover cannot instrument .elc
+eldev -s -dtT test -U coverage/codecov.json '(not (tag :integration))'
 ```
 
 ### Test Coverage

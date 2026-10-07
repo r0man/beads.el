@@ -38,7 +38,7 @@
 the system prompt is non-nil role text."
   (beads-agent-types-register-builtin)
   (let ((issue (beads-agent-phase-1a-ii-test--issue)))
-    (dolist (name '("Task" "Review" "Plan" "QA"))
+    (dolist (name '("Task" "Review" "Plan"))
       (let* ((type (beads-agent-type-get name))
              (sys (beads-agent-type-system-prompt type issue))
              (user (beads-agent-type-build-user-prompt type issue)))
@@ -54,7 +54,7 @@ region for template types (checked over evaluated values)."
   (beads-agent-types-register-builtin)
   (let ((issue (beads-agent-phase-1a-ii-test--issue))
         (rx "<ISSUE-\\(ID\\|TITLE\\|DESCRIPTION\\)>"))
-    (dolist (name '("Task" "Review" "Plan" "QA"))
+    (dolist (name '("Task" "Review" "Plan"))
       (let* ((type (beads-agent-type-get name))
              (sys (beads-agent-type-system-prompt type issue))
              (user (beads-agent-type-build-user-prompt type issue)))
@@ -63,23 +63,16 @@ region for template types (checked over evaluated values)."
     ;; Role-only defaults themselves carry no placeholders (evaluated
     ;; defcustom/defconst values, not a source grep).
     (should-not (string-match-p rx beads-agent-review-prompt))
-    (should-not (string-match-p rx beads-agent-qa-prompt))
+    (should-not (string-match-p rx beads-agent-review-qa-prompt))
     (should-not (string-match-p rx beads-agent-plan-prompt))
     (should-not (string-match-p rx beads-agent-type-task--system-prompt))))
 
-;;; Builder carve-out: Custom + fallback excluded, asserted via builder
+;;; Builder carve-out: the orchestration fallback is a single-string builder
 
 (ert-deftest beads-agent-phase-1a-ii-test-builder-carve-out ()
-  "Custom and the orchestration fallback are builders: system-prompt
-nil, but the issue id is present via the builder path."
+  "The orchestration fallback is a builder and carries the issue id."
   (beads-agent-types-register-builtin)
-  (let* ((issue (beads-agent-phase-1a-ii-test--issue))
-         (custom (beads-agent-type-get "Custom")))
-    (should (null (beads-agent-type-system-prompt custom issue)))
-    (should (string-match-p
-             "bde-TEST"
-             (beads-agent-type-build-user-prompt custom issue)))
-    ;; Orchestration fallback (single-string builder, unchanged).
+  (let ((issue (beads-agent-phase-1a-ii-test--issue)))
     (should (string-match-p "bde-TEST"
                             (beads-agent--build-prompt issue)))))
 

@@ -150,13 +150,14 @@ INSTANCE-NUMBER is the session instance number (defaults to 1)."
         ;; Entry is (id [columns...])
         (should (equal "sess-1" (car entry)))
         (should (vectorp (cadr entry)))
-        ;; Check columns: Issue, Type, Title, Backend, ...
+        ;; Columns follow mockup §9: Issue, Role, Backend, Status,
+        ;; Duration, Worktree.
         (let ((vec (cadr entry)))
-          (should (= 7 (length vec)))
-          (should (equal "beads.el-42" (aref vec 0)))  ; Issue ID
-          (should (stringp (aref vec 1)))              ; Type cell
-          (should (equal "Test Issue" (aref vec 2)))   ; Title
-          (should (equal "claude-code-ide" (aref vec 3))))))))  ; Backend
+          (should (= 6 (length vec)))
+          (should (equal "beads.el-42" (aref vec 0)))     ; Issue ID
+          (should (stringp (aref vec 1)))                 ; Role cell
+          (should (equal "claude-code-ide" (aref vec 2))) ; Backend
+          (should (stringp (aref vec 3))))))))            ; Status
 
 (ert-deftest beads-agent-list-test-type-column-rendering ()
   "Type column renders the agent's identifier with #N suffix.
@@ -180,19 +181,19 @@ instance number even when narrower surfaces hide it."
         ;; Single-letter fallback honors `beads-agent-display-use-icons' nil.
         (should (string-match-p "T" cell))))))
 
-(ert-deftest beads-agent-list-test-mode-includes-type-column ()
-  "`beads-agent-list-mode' adds a sortable Type column after Issue."
+(ert-deftest beads-agent-list-test-mode-includes-role-column ()
+  "`beads-agent-list-mode' adds a sortable Role column after Issue."
   (with-temp-buffer
     (beads-agent-list-mode)
     (let ((cols (mapcar #'car (append tabulated-list-format nil))))
-      (should (member "Type" cols))
-      ;; Type sits between Issue and Title.
-      (should (equal '("Issue" "Type" "Title") (seq-take cols 3))))
+      (should (member "Role" cols))
+      ;; Role sits immediately after Issue (mockup §9).
+      (should (equal '("Issue" "Role") (seq-take cols 2))))
     ;; Sortable flag (3rd element of the spec).
-    (let ((type-spec (seq-find (lambda (s) (equal (car s) "Type"))
+    (let ((role-spec (seq-find (lambda (s) (equal (car s) "Role"))
                                (append tabulated-list-format nil))))
-      (should type-spec)
-      (should (nth 2 type-spec)))))
+      (should role-spec)
+      (should (nth 2 role-spec)))))
 
 ;;; Buffer Creation Tests
 
@@ -202,17 +203,20 @@ instance number even when narrower surfaces hide it."
     (beads-agent-list-mode)
     (should (eq major-mode 'beads-agent-list-mode))
     (should tabulated-list-format)
-    (should (= 7 (length tabulated-list-format)))))  ; 7 columns
+    (should (= 6 (length tabulated-list-format)))))  ; 6 columns (mockup §9)
 
 (ert-deftest beads-agent-list-test-keymap ()
-  "Test that keymap has expected bindings."
+  "Test that keymap follows the mockup §9 bindings."
   (let ((map beads-agent-list-mode-map))
-    (should (eq 'beads-agent-list-jump (lookup-key map (kbd "RET"))))
+    (should (eq 'beads-agent-list-attach (lookup-key map (kbd "RET"))))
     (should (eq 'beads-agent-list-jump (lookup-key map (kbd "j"))))
     (should (eq 'beads-agent-list-show-issue (lookup-key map (kbd "i"))))
+    (should (eq 'beads-agent-list-stop (lookup-key map (kbd "x"))))
     (should (eq 'beads-agent-list-stop (lookup-key map (kbd "s"))))
+    (should (eq 'beads-agent-list-stop-all (lookup-key map (kbd "X"))))
     (should (eq 'beads-agent-list-stop-all (lookup-key map (kbd "S"))))
     (should (eq 'beads-agent-list-restart (lookup-key map (kbd "r"))))
+    (should (eq 'beads-agent-list-dired (lookup-key map (kbd "d"))))
     (should (eq 'beads-agent-list-refresh (lookup-key map (kbd "g"))))
     (should (eq 'beads-agent-list-quit (lookup-key map (kbd "q"))))
     (should (eq 'beads-agent-list-cleanup (lookup-key map (kbd "c"))))

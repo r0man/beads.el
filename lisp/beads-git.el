@@ -170,17 +170,23 @@ Returns the path to the main repo, not the worktree."
 
 (defun beads-git-should-use-worktree-p (issue-id)
   "Determine whether to use a worktree for ISSUE-ID.
+Git worktrees require a git repository.  Outside one (a non-git beads
+project or Gas City workspace) this returns nil, so agent launch
+starts the agent in place instead of failing on a worktree it cannot
+create.
+
 Resolves the value of `beads-agent-use-worktrees':
 - t: Return t (always use worktrees)
 - nil: Return nil (never use worktrees)
 - \\='ask: Prompt the user and return their choice"
-  (pcase beads-agent-use-worktrees
-    ('t t)
-    ('nil nil)
-    ('ask
-     (yes-or-no-p (format "Use git worktree for agent on %s? " issue-id)))
-    ;; Unknown value: treat as truthy for backwards compatibility
-    (_ (and beads-agent-use-worktrees t))))
+  (and (beads-git-find-project-root)
+       (pcase beads-agent-use-worktrees
+         ('t t)
+         ('nil nil)
+         ('ask
+          (yes-or-no-p (format "Use git worktree for agent on %s? " issue-id)))
+         ;; Unknown value: treat as truthy for backwards compatibility
+         (_ (and beads-agent-use-worktrees t)))))
 
 (defun beads-git-list-worktrees ()
   "Return list of (path branch) pairs for all worktrees."

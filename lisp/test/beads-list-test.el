@@ -68,13 +68,16 @@ Handles missing fields gracefully with defaults."
 
 (defmacro beads-list-test--with-temp-buffer (issues command &rest body)
   "Create a temporary beads-list buffer with ISSUES and COMMAND, then run BODY.
-ISSUES should be a list of alists (test data format)."
+ISSUES should be a list of alists (test data format).
+The legacy flat layout is used so point/id assertions stay simple; the
+sectioned layout is exercised by the dedicated grouping tests."
   (declare (indent 2))
   `(with-temp-buffer
-     (beads-list-mode)
-     (let ((issue-objects (mapcar #'beads-list-test--alist-to-issue ,issues)))
-       (beads-list--populate-buffer issue-objects ,command))
-     ,@body))
+     (let ((beads-list-group-by-status nil))
+       (beads-list-mode)
+       (let ((issue-objects (mapcar #'beads-list-test--alist-to-issue ,issues)))
+         (beads-list--populate-buffer issue-objects ,command))
+       ,@body)))
 
 ;;; Buffer Creation Tests
 
@@ -2909,6 +2912,99 @@ Regression test for bug bde-evrx."
         (beads-list-mode)
         (beads-list-blocked-suffix)))
     (should called)))
+
+;;; Sectioned list redesign (WI-7)
+
+(defmacro beads-list-test--with-grouped-buffer (issues command &rest body)
+  "Create a beads-list buffer with grouping enabled and run BODY."
+  (declare (indent 2))
+  `(with-temp-buffer
+     (let ((beads-list-group-by-status t))
+       (beads-list-mode)
+       (let ((issue-objects (mapcar #'beads-list-test--alist-to-issue ,issues)))
+         (beads-list--populate-buffer issue-objects ,command))
+       ,@body)))
+
+(ert-deftest beads-list-test-grouped-sections-build ()
+  "Test that grouping builds one section per status in canonical order."
+  (beads-list-test--with-grouped-buffer
+   beads-list-test--sample-issues 'list
+   (should (= (length beads-list--sections) 4))
+   (should (equal (mapcar (lambda (s) (plist-get s :key)) beads-list--sections)
+                  '("in_progress" "open" "blocked" "closed")))
+   ;; 4 headers + 4 issues in the complete (unpaginated) entry list.
+   (should (= (length beads-pager--all-entries) 8))
+   (should (eq (car (car (car beads-pager--all-entries))) 'beads-list-section))
+   (should (string-match-p "In progress (1)"
+                           (aref (cadr (car beads-pager--all-entries)) 0)))))
+
+(ert-deftest beads-list-test-mark-all-with-sections ()
+  "Test `beads-list-mark-all' skips section headers and terminates.
+Regression for the infinite loop where a section header has a
+non-string tabulated id: neither `beads-list-mark' nor the old
+`(forward-line 0)' advanced point, so the loop never reached eob
+(be-ka4s)."
+  (beads-list-test--with-grouped-buffer
+   beads-list-test--sample-issues 'list
+   (beads-list-mark-all)
+   (should (= (length beads-list--marked-issues) 4))
+   (should (equal (sort (copy-sequence beads-list--marked-issues) #'string<)
+                  '("bd-1" "bd-2" "bd-3" "bd-4")))))
+
+(ert-deftest beads-list-test-grouped-section-toggle ()
+  "Test that folding a section hides its issues."
+  (beads-list-test--with-grouped-buffer
+   beads-list-test--sample-issues 'list
+   (beads-list--toggle-section "open")
+   (should (= (length beads-pager--all-entries) 7))
+   (should (plist-get (seq-find (lambda (s) (equal (plist-get s :key) "open"))
+                                beads-list--sections)
+                      :collapsed))
+   (beads-list--toggle-section "open")
+   (should (= (length beads-pager--all-entries) 8))))
+
+(ert-deftest beads-list-test-grouped-header-line ()
+  "Test the header line summarises counts and the active filter."
+  (beads-list-test--with-grouped-buffer
+   beads-list-test--sample-issues 'list
+   (let ((header (substring-no-properties (beads-list--header-line))))
+     (should (string-match-p "4 issues" header))
+     (should (string-match-p "filter: none" header)))))
+
+(ert-deftest beads-list-test-grouped-mode-line ()
+  "Test the mode-line lists the store and key hints."
+  (beads-list-test--with-grouped-buffer
+   beads-list-test--sample-issues 'list
+   (let ((line (substring-no-properties (beads-list--mode-line))))
+     (should (string-match-p "RET visit" line))
+     (should (string-match-p "filter" line)))))
+
+(ert-deftest beads-list-test-filter-description-from-spec ()
+  "Test that the filter description reflects the buffer spec."
+  (require 'beads-spec)
+  (beads-list-test--with-grouped-buffer
+   beads-list-test--sample-issues 'list
+   (setq beads-list--spec (beads-issue-spec :status "open" :type "bug"))
+   (should (equal (beads-list--filter-description) "status=open type=bug"))))
+
+(ert-deftest beads-list-test-sort-issues-by-priority ()
+  "Test the grouped-mode client-side sort comparator."
+  (let* ((issues (mapcar #'beads-list-test--alist-to-issue
+                         beads-list-test--sample-issues))
+         (beads-list--sort '("Priority" . nil))
+         (sorted (beads-list--sort-issues issues)))
+    (should (equal (mapcar (lambda (i) (oref i id)) sorted)
+                   '("bd-2" "bd-1" "bd-3" "bd-4")))))
+
+(ert-deftest beads-list-test-next-section-moves-to-header ()
+  "Test N moves point to the next section header."
+  (beads-list-test--with-grouped-buffer
+   beads-list-test--sample-issues 'list
+   (goto-char (point-min))
+   (beads-list-next-section)
+   (should (beads-list--section-at-point-p))
+   (should (string-match-p "Open" (substring-no-properties
+                                   (thing-at-point 'line t))))))
 
 (provide 'beads-list-test)
 ;;; beads-list-test.el ends here
