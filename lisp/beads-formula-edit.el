@@ -46,6 +46,8 @@
 (require 'beads-types)
 (require 'beads-faces)
 (require 'beads-prefix)
+(require 'beads-command-mol)
+(require 'beads-completion)
 
 ;;; Forward Declarations
 
@@ -770,6 +772,283 @@ See menu-mockups.md §10d."
               #'beads-formula-edit-source-at-point)
   (define-key beads-formula-show-mode-map (kbd "C")
               #'beads-formula-convert-at-point))
+
+(defvar beads-show--issue-id)
+
+;;; ============================================================
+;;; Command Assembly
+;;; ============================================================
+
+(defun beads-formula-distill-var-args (vars)
+  "Normalize VARS, a list of `variable=value' mapping strings.
+Blank entries are dropped; every remaining entry must contain a single
+`=' with non-empty sides.  The CLI accepts either
+`variable=value' or `value=variable', so the strings are passed through
+unchanged.  Signals a `user-error' for a malformed mapping."
+  (mapcar
+   (lambda (spec)
+     (let ((trimmed (and (stringp spec) (string-trim spec))))
+       (unless (and trimmed
+                    (string-match-p "=" trimmed)
+                    (not (string-empty-p (car (split-string trimmed "="))))
+                    (not (string-empty-p (cadr (split-string trimmed "=")))))
+         (user-error "Invalid variable mapping %S (want variable=value)" spec))
+       trimmed))
+   (cl-remove-if (lambda (spec)
+                   (or (null spec)
+                       (and (stringp spec) (string-empty-p (string-trim spec)))))
+                 vars)))
+
+(defun beads-formula-distill--command (state &optional dry-run)
+  "Build the `beads-command-mol-distill' command for STATE.
+STATE is the transient state plist.  DRY-RUN adds the `--dry-run' flag.
+The command runs with `:json nil' because `bd mol distill' reports
+human-readable text (the created path is parsed from it)."
+  (let ((formula-name (plist-get state :formula-name))
+        (output (plist-get state :output)))
+    (beads-command-mol-distill
+     :epic-id (plist-get state :epic-id)
+     :formula-name (and (stringp formula-name)
+                        (not (string-empty-p (string-trim formula-name)))
+                        (string-trim formula-name))
+     :output (and (stringp output)
+                  (not (string-empty-p (string-trim output)))
+                  (string-trim output))
+     :var (beads-formula-distill-var-args (plist-get state :vars))
+     :dry-run (and dry-run t)
+     :json nil)))
+
+(defun beads-formula-distill--output-path (text)
+  "Return the formula source path reported in TEXT, or nil.
+Recognises both the dry-run `Output:' line and the applied `Path:' line."
+  (when (stringp text)
+    (when (string-match "^[ \t]*\\(?:Output\\|Path\\):[ \t]*\\(.+\\)$" text)
+      (string-trim (match-string 1 text)))))
+
+;;; ============================================================
+;;; State
+;;; ============================================================
+
+(defvar beads-formula-distill--state nil
+  "Live state plist for `beads-formula-distill'.
+Keys: `:epic-id', `:formula-name', `:output' and `:vars'.")
+
+(defun beads-formula-distill--get (key)
+  "Return KEY from the live distill state, or nil."
+  (plist-get beads-formula-distill--state key))
+
+(defun beads-formula-distill--set (key value)
+  "Set KEY to VALUE in the live distill state and return VALUE."
+  (setq beads-formula-distill--state
+        (plist-put beads-formula-distill--state key value))
+  value)
+
+(defun beads-formula-distill--epic-at-point ()
+  "Return the issue id at point, or nil.
+Recognises `beads-show-mode' and `beads-epic-status-mode'."
+  (cond
+   ((derived-mode-p 'beads-show-mode)
+    (bound-and-true-p beads-show--issue-id))
+   ((derived-mode-p 'beads-epic-status-mode)
+    (get-text-property (point) 'epic-id))
+   (t nil)))
+
+(defun beads-formula-distill--read-issue (prompt)
+  "Read an issue id with PROMPT, requiring a match."
+  (beads-completion-read-issue prompt nil t))
+
+;;; ============================================================
+;;; Preview and Apply
+;;; ============================================================
+
+(defconst beads-formula-distill-preview-buffer-name
+  "*beads-distill-preview*"
+  "Buffer name for the `bd mol distill --dry-run' preview.")
+
+(defun beads-formula-distill--show-preview (text)
+  "Show TEXT in the read-only distill preview buffer and return it."
+  (let ((buffer (get-buffer-create
+                 beads-formula-distill-preview-buffer-name)))
+    (with-current-buffer buffer
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (insert (if (string-empty-p (or text ""))
+                    "No preview output.\n"
+                  text))
+        (goto-char (point-min))
+        (special-mode)))
+    (display-buffer buffer)
+    buffer))
+
+(defun beads-formula-distill--do-preview (state)
+  "Run `bd mol distill --dry-run' for STATE and show the preview.
+Returns the command's raw output."
+  (let* ((command (beads-formula-distill--command state t))
+         (text (beads-command-execute command)))
+    (beads-formula-distill--show-preview text)
+    text))
+
+(defun beads-formula-distill--display-last-preview ()
+  "Display the most recent distill preview buffer, if any."
+  (let ((buffer (get-buffer beads-formula-distill-preview-buffer-name)))
+    (if buffer
+        (display-buffer buffer)
+      (user-error "No distill preview yet — run `P' first"))))
+
+(defun beads-formula-distill--follow (path)
+  "Open the distilled formula source at PATH, or report it.
+PATH may be local or remote (TRAMP); a missing file just messages."
+  (if (and (stringp path) (file-exists-p path))
+      (find-file path)
+    (message "Distilled formula: %s" (or path "unknown"))))
+
+(defun beads-formula-distill--do-apply (state)
+  "Distill the epic in STATE, then follow to the created source file.
+Returns the created path, or nil when bd did not report one."
+  (let* ((command (beads-formula-distill--command state nil))
+         (text (beads-command-execute command))
+         (path (beads-formula-distill--output-path text)))
+    (beads-formula-distill--follow path)
+    path))
+
+;;; ============================================================
+;;; Transient Suffixes
+;;; ============================================================
+
+(defun beads-formula-distill--state-label (key fallback)
+  "Return the display value for KEY in the distill state, or FALLBACK."
+  (or (let ((value (beads-formula-distill--get key)))
+        (and (stringp value) (not (string-empty-p value)) value))
+      fallback))
+
+(transient-define-suffix beads-formula-distill--pick-epic ()
+  "Choose the epic to distill."
+  :description (lambda ()
+                 (format "Epic: %s"
+                         (or (beads-formula-distill--get :epic-id) "(none)")))
+  :transient t
+  (interactive)
+  (beads-formula-distill--set
+   :epic-id
+   (beads-formula-distill--read-issue
+    "Epic: "))
+  (transient--redisplay))
+
+(transient-define-suffix beads-formula-distill--pick-name ()
+  "Set the formula name; blank lets `bd' derive one from the epic."
+  :description (lambda ()
+                 (format "Formula name: %s"
+                         (beads-formula-distill--state-label
+                          :formula-name "(derived)")))
+  :transient t
+  (interactive)
+  (beads-formula-distill--set
+   :formula-name
+   (let ((name (read-string "Formula name (blank = derive): "
+                            (beads-formula-distill--get :formula-name))))
+     (and (not (string-empty-p (string-trim name))) (string-trim name))))
+  (transient--redisplay))
+
+(transient-define-suffix beads-formula-distill--pick-output ()
+  "Set the output directory for the distilled formula."
+  :description (lambda ()
+                 (format "Output dir: %s"
+                         (beads-formula-distill--state-label
+                          :output "(default)")))
+  :transient t
+  (interactive)
+  (beads-formula-distill--set
+   :output
+   (let ((dir (read-directory-name
+               "Output directory: "
+               (or (beads-formula-distill--get :output)
+                   default-directory))))
+     (and (not (string-empty-p dir)) dir)))
+  (transient--redisplay))
+
+(transient-define-suffix beads-formula-distill--add-var ()
+  "Add a `variable=value' mapping for the distilled formula."
+  :description (lambda ()
+                 (format "Var mappings: %d"
+                         (length (beads-formula-distill--get :vars))))
+  :transient t
+  (interactive)
+  (let ((spec (read-string "Var mapping (variable=value): ")))
+    (when (string-match-p "=" spec)
+      (beads-formula-distill--set
+       :vars (append (beads-formula-distill--get :vars) (list spec))))
+    (transient--redisplay)))
+
+(transient-define-suffix beads-formula-distill--clear-vars ()
+  "Clear all `variable=value' mappings."
+  :description "Clear var mappings"
+  :transient t
+  (interactive)
+  (beads-formula-distill--set :vars nil)
+  (transient--redisplay))
+
+(transient-define-suffix beads-formula-distill--preview ()
+  "Run `bd mol distill --dry-run' and show the preview."
+  :description "Preview (dry run)"
+  :transient t
+  (interactive)
+  (beads-formula-distill--do-preview beads-formula-distill--state)
+  (transient--redisplay))
+
+(transient-define-suffix beads-formula-distill--open-preview ()
+  "Re-display the last dry-run preview."
+  :description "Show last preview"
+  :transient t
+  (interactive)
+  (beads-formula-distill--display-last-preview)
+  (transient--redisplay))
+
+(transient-define-suffix beads-formula-distill--apply ()
+  "Distill the epic and follow to the created formula source."
+  :description "Distill"
+  (interactive)
+  (beads-formula-distill--do-apply beads-formula-distill--state)
+  (transient-quit-one))
+
+;;; ============================================================
+;;; Transient Prefix and Entry Point
+;;; ============================================================
+
+;;;###autoload
+(defun beads-formula-distill (&optional epic-id)
+  "Distill an epic into a reusable formula (REQ-SF-063).
+EPIC-ID defaults to the issue/epic at point, else is read with
+completion.  Opens the `beads-formula-distill--transient' flow."
+  (interactive
+   (list (or (beads-formula-distill--epic-at-point)
+             (beads-formula-distill--read-issue "Epic: "))))
+  (setq beads-formula-distill--state
+        (list :epic-id epic-id
+              :formula-name nil
+              :output nil
+              :vars nil))
+  (transient-setup 'beads-formula-distill--transient))
+
+(beads-define-prefix beads-formula-distill--transient ()
+  "Distill an epic into a reusable formula (REQ-SF-063).
+
+Collects the formula name, output directory and `variable=value'
+mappings, previews them with `bd mol distill --dry-run' (`P'), then
+writes the formula (`s') and opens its source.  Seeded by
+`beads-formula-distill', bound to `D' in the issue/epic views."
+  ["Epic"
+   (beads-formula-distill--pick-epic)
+   (beads-formula-distill--pick-name)
+   (beads-formula-distill--pick-output)]
+  ["Variables"
+   (beads-formula-distill--add-var)
+   (beads-formula-distill--clear-vars)]
+  ["Preview"
+   (beads-formula-distill--preview)
+   (beads-formula-distill--open-preview)]
+  ["Actions"
+   (beads-formula-distill--apply)
+   ("q" "Quit" transient-quit-one)])
 
 (provide 'beads-formula-edit)
 ;;; beads-formula-edit.el ends here

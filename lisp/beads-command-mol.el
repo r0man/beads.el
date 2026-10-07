@@ -350,26 +350,29 @@ Deletes a molecule without creating a digest.")
 (beads-defcommand beads-command-mol-distill (beads-command-global-options)
   ((epic-id
     :positional 1)
+   (formula-name
+    :positional 2)
    (dry-run
     :type boolean
-    :short-option "n"
+    :long-option "dry-run"
     :group "Options"
     :level 1
     :order 1)
    (output
-    :short-option "o"
+    :long-option "output"
     :type (or null string)
-    :prompt "Output file: "
+    :prompt "Output directory: "
     :group "Options"
     :level 1
     :order 2)
    (var
     :type (list-of string)
-    :short-option "v"
+    :long-option "var"
     :prompt "Variable (key=value): "
     :group "Options"
     :level 1
     :order 3))
+  :json nil
   :documentation "Represents bd mol distill command.
 Extracts a formula from an existing epic.")
 

@@ -17,6 +17,10 @@
 ;;; Code:
 
 (require 'ert)
+(require 'beads-command-mol)
+(require 'beads-command-misc)
+(require 'beads-command-create)
+(require 'beads-command-show)
 (require 'beads-formula-edit)
 (require 'beads-command-formula)
 (require 'beads-types)
@@ -390,6 +394,175 @@
                                    (plist-get d :message))))
                            diagnostics))))))
         (when (buffer-live-p buffer) (kill-buffer buffer))))))
+
+
+;;; ========================================
+;;; Command assembly
+;;; ========================================
+
+(ert-deftest beads-formula-edit-test-command-line-full ()
+  "The distill command carries epic, formula name, output, var and dry-run."
+  :tags '(:unit)
+  (let* ((state (list :epic-id "epic-1"
+                      :formula-name "my-flow"
+                      :output "/tmp/out"
+                      :vars '("feature_name=toggle" "design_ref=doc")))
+         (cmd (beads-formula-distill--command state nil))
+         (args (beads-command-line cmd)))
+    (should (member "distill" args))
+    (should (member "epic-1" args))
+    (should (member "my-flow" args))
+    (should (member "--output" args))
+    (should (member "/tmp/out" args))
+    (should (equal (cl-count "--var" args :test #'equal) 2))
+    (should (member "feature_name=toggle" args))
+    (should (member "design_ref=doc" args))
+    (should-not (member "--dry-run" args))
+    ;; `bd mol distill' emits human-readable text, never JSON.
+    (should-not (member "--json" args))))
+
+(ert-deftest beads-formula-edit-test-command-line-dry-run ()
+  "DRY-RUN adds `--dry-run' and omits blank optional slots."
+  :tags '(:unit)
+  (let* ((state (list :epic-id "epic-1" :formula-name "" :output "" :vars nil))
+         (args (beads-command-line (beads-formula-distill--command state t))))
+    (should (member "--dry-run" args))
+    (should-not (member "--output" args))
+    (should-not (member "--var" args))
+    ;; Blank optional positionals are not emitted.
+    (should (equal (cl-remove-if (lambda (arg) (member arg '("bd" "mol" "distill"
+                                                            "--dry-run")))
+                                 args)
+                   '("epic-1")))))
+
+(ert-deftest beads-formula-edit-test-var-args-normalizes ()
+  "Blank mappings are dropped and values are trimmed."
+  :tags '(:unit)
+  (should (equal (beads-formula-distill-var-args '(" a=1 " "" nil "b=2"))
+                 '("a=1" "b=2")))
+  (should (null (beads-formula-distill-var-args nil))))
+
+(ert-deftest beads-formula-edit-test-var-args-invalid ()
+  "A mapping without two non-empty sides is rejected."
+  :tags '(:unit)
+  (should-error (beads-formula-distill-var-args '("no-equals"))
+                :type 'user-error)
+  (should-error (beads-formula-distill-var-args '("=value"))
+                :type 'user-error)
+  (should-error (beads-formula-distill-var-args '("name="))
+                :type 'user-error))
+
+;;; ========================================
+;;; Output path parsing
+;;; ========================================
+
+(ert-deftest beads-formula-edit-test-output-path ()
+  "Both the dry-run `Output:' and applied `Path:' lines are recognized."
+  :tags '(:unit)
+  (should (equal (beads-formula-distill--output-path
+                  "\nFormula: x\nOutput: /tmp/x.formula.json\nStructure:\n")
+                 "/tmp/x.formula.json"))
+  (should (equal (beads-formula-distill--output-path
+                  "  Formula: x\n  Path: /repo/.beads/formulas/x.formula.json\n")
+                 "/repo/.beads/formulas/x.formula.json"))
+  (should (null (beads-formula-distill--output-path "no path here")))
+  (should (null (beads-formula-distill--output-path nil))))
+
+;;; ========================================
+;;; Preview and follow
+;;; ========================================
+
+(ert-deftest beads-formula-edit-test-preview-buffer ()
+  "The dry-run text is shown in the read-only preview buffer."
+  :tags '(:unit)
+  (let ((beads-formula-distill--state
+         (list :epic-id "epic-1" :formula-name nil :output nil :vars nil)))
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads-command-execute)
+                   (lambda (&rest _)
+                     "Formula: x\nOutput: /tmp/x.formula.json\n")))
+          (beads-formula-distill--do-preview beads-formula-distill--state)
+          (with-current-buffer beads-formula-distill-preview-buffer-name
+            (should (string-match-p "Output: /tmp/x.formula.json"
+                                    (buffer-string)))
+            (should (derived-mode-p 'special-mode))))
+      (when (get-buffer beads-formula-distill-preview-buffer-name)
+        (kill-buffer beads-formula-distill-preview-buffer-name)))))
+
+(ert-deftest beads-formula-edit-test-apply-follows-file ()
+  "A real created source file is opened at the reported path."
+  :tags '(:unit)
+  (let* ((file (make-temp-file "beads-distill-test-" nil ".formula.json"))
+         (opened nil)
+         (beads-formula-distill--state
+          (list :epic-id "epic-1" :formula-name "x" :output nil :vars nil)))
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads-command-execute)
+                   (lambda (&rest _) (format "Path: %s\n" file)))
+                  ((symbol-function 'find-file)
+                   (lambda (path &rest _) (setq opened path))))
+          (should (equal (beads-formula-distill--do-apply
+                          beads-formula-distill--state)
+                         file))
+          (should (equal opened file)))
+      (delete-file file))))
+
+;;; ========================================
+;;; Entry point
+;;; ========================================
+
+(ert-deftest beads-formula-edit-test-entry-point ()
+  "The entry point seeds the state and opens the distill transient."
+  :tags '(:unit)
+  (let ((setup-prefix nil)
+        (beads-formula-distill--state nil))
+    (cl-letf (((symbol-function 'transient-setup)
+               (lambda (prefix &rest _) (setq setup-prefix prefix))))
+      (beads-formula-distill "epic-42")
+      (should (eq setup-prefix 'beads-formula-distill--transient))
+      (should (equal (beads-formula-distill--get :epic-id) "epic-42")))))
+
+;;; ========================================
+;;; Integration: distill and re-cook
+;;; ========================================
+
+(ert-deftest beads-formula-edit-test-distill-integration ()
+  "Distill a temporary epic, then re-cook the created formula."
+  :tags '(:integration :slow)
+  (beads-test-skip-unless-bd)
+  (beads-test-with-temp-repo (:init-beads t)
+    (let* ((epic (beads-execute 'beads-command-create
+                                :title "Dark mode feature"
+                                :issue-type "epic"
+                                :description "Toggle feature_name for dark mode"))
+           (epic-id (oref epic id))
+           (child (beads-execute 'beads-command-create
+                                 :title "Add toggle"
+                                 :issue-type "task"
+                                 :parent epic-id
+                                 :description "implements feature_name"))
+           (child-id (oref child id))
+           (state (list :epic-id epic-id
+                        :formula-name "test-distill"
+                        :output nil
+                        :vars '("feature_name=toggle"))))
+      (should (stringp epic-id))
+      (should (stringp child-id))
+      ;; Distill.
+      (let* ((text (beads-command-execute
+                    (beads-formula-distill--command state nil)))
+             (path (beads-formula-distill--output-path text)))
+        (should (stringp path))
+        (should (file-exists-p path))
+        (should (string-match-p "\\.formula\\." path))
+        ;; Re-cook the distilled formula: it must be a loadable template.
+        (let ((cooked (beads-command-execute
+                       (beads-command-cook
+                        :formula-id "test-distill"
+                        :mode "compile"
+                        :json nil))))
+          (should (stringp cooked))
+          (should (string-match-p "add-toggle\\|Add toggle" cooked)))))))
 
 (provide 'beads-formula-edit-test)
 ;;; beads-formula-edit-test.el ends here
