@@ -217,12 +217,15 @@ condition list whose car is a symbol, or a message-first list such as
    ((and (consp err) (symbolp (car err))) (error-message-string err))
    (t (format "%s" err))))
 
-(defun beads-swarm-domain-error-p (parsed)
-  "Return the domain-error string in PARSED, or nil.
-`bd swarm create' and `bd swarm validate' can report a domain
-condition in a `{error: ...}' payload.  This is the single detector
-for that shape; a plain command failure (non-zero exit) is handled by
-the normal error path instead."
+;; `beads-swarm-domain-error-p' is the single canonical detector and lives
+;; in `beads-command-swarm.el' (WI-SF-15), next to the command classes it
+;; describes; `beads-swarm.el' requires that module and does not fork it.
+
+(defun beads-swarm--payload-error (parsed)
+  "Return the `error' string carried by PARSED, or nil.
+Unlike `beads-swarm-domain-error-p' this is not restricted to the
+recognised create/validate domain states: the list and status views
+treat any `{error: ...}' payload as an error to surface."
   (let ((err (beads-swarm--field parsed 'error)))
     (and (stringp err) (not (string-empty-p err)) err)))
 
@@ -230,7 +233,7 @@ the normal error path instead."
   "Return the swarm items in a `bd swarm list --json' RESULT.
 Returns nil for a domain-error payload."
   (cond
-   ((beads-swarm-domain-error-p result) nil)
+   ((beads-swarm--payload-error result) nil)
    ;; A `:result (list-of beads-swarm-list-item)' already gives a list of
    ;; typed items; accept it directly (WI-SF-15/WI-SF-16 boundary).
    ((and (listp result) (consp result)
@@ -502,7 +505,7 @@ epic title; nil matches everything."
   "Store RESULT in BUFFER's fleet list and re-render."
   (when (buffer-live-p buffer)
     (with-current-buffer buffer
-      (let ((err (beads-swarm-domain-error-p result)))
+      (let ((err (beads-swarm--payload-error result)))
         (setq beads-swarm-list--error err)
         (setq beads-swarm-list--items
               (unless err
@@ -944,7 +947,7 @@ Returns the empty string when there is no lane data yet."
   "Store status RESULT in BUFFER and continue loading its sections."
   (when (buffer-live-p buffer)
     (with-current-buffer buffer
-      (let ((err (beads-swarm-domain-error-p result)))
+      (let ((err (beads-swarm--payload-error result)))
         (if err
             (progn
               (setq beads-swarm--status nil
@@ -975,10 +978,10 @@ Returns the empty string when there is no lane data yet."
        (lambda (result)
          (when (buffer-live-p buffer)
            (with-current-buffer buffer
-             (setq beads-swarm--validate
-                   (unless (beads-swarm-domain-error-p result) result)
-                   beads-swarm--validate-error
-                   (beads-swarm-domain-error-p result))
+             (let ((err (or (beads-swarm-domain-error-p result)
+                            (beads-swarm--payload-error result))))
+               (setq beads-swarm--validate (unless err result)
+                     beads-swarm--validate-error err))
              (beads-swarm--render))))
        (lambda (err)
          (when (buffer-live-p buffer)
@@ -1253,10 +1256,10 @@ lanes as well."
        (lambda (result)
          (when (buffer-live-p buffer)
            (with-current-buffer buffer
-             (setq beads-swarm-waves--analysis
-                   (unless (beads-swarm-domain-error-p result) result)
-                   beads-swarm-waves--error
-                   (beads-swarm-domain-error-p result))
+             (let ((err (or (beads-swarm-domain-error-p result)
+                            (beads-swarm--payload-error result))))
+               (setq beads-swarm-waves--analysis (unless err result)
+                     beads-swarm-waves--error err))
              (beads-swarm-waves--render))))
        (lambda (err)
          (when (buffer-live-p buffer)
