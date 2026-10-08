@@ -70,7 +70,7 @@ generic on their own metadata.")
 
 (cl-defmethod beads-formula-var-reader ((var beads-formula-var)
                                         &optional formula)
-  "Return the reader spec for VAR (see `beads-formula-var-reader')."
+  "Return the reader spec for VAR in FORMULA (see `beads-formula-var-reader')."
   (let ((name (or (oref var name) ""))
         (type (oref var var-type))
         (choices (if (fboundp 'beads-formula-var-choices)

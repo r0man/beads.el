@@ -1300,7 +1300,9 @@ lanes as well."
 
 ;;;###autoload
 (cl-defun beads-swarm-waves (epic-id &key directory)
-  "Open the validate / ready-fronts (waves) view for EPIC-ID."
+  "Open the validate / ready-fronts (waves) view for EPIC-ID.
+With DIRECTORY, scope the view to that bead store instead of the one
+resolved from `default-directory'."
   (interactive (list (beads-completion-read-issue "Epic: " nil t)))
   (require 'beads-command-swarm)
   (beads-check-executable)
@@ -1349,7 +1351,7 @@ Reports a non-swarmable epic instead of creating, and surfaces the
         (beads-swarm-status-view epic-id)))))
 
 (defun beads-swarm-coordinator (swarm-id &optional new-coordinator)
-  "Set the coordinator (assignee) of SWARM-ID (WI-SF-18)."
+  "Set NEW-COORDINATOR as the coordinator (assignee) of SWARM-ID (WI-SF-18)."
   (interactive
    (list (beads-completion-read-issue "Swarm or epic: " nil t)
          (read-string "Coordinator: ")))
