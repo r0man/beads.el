@@ -48,6 +48,8 @@
 (require 'beads-command-gate)
 (require 'beads-command-swarm)
 (require 'beads-command-misc)
+;; WI-SF-04 moved the cook class out of `beads-command-misc'.
+(require 'beads-command-cook)
 (require 'beads-command-ready)
 (require 'beads-command-update)
 (require 'beads-command-close)
