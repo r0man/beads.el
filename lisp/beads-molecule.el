@@ -57,7 +57,6 @@
 
 (declare-function beads-show "beads-command-show")
 (declare-function beads-dispatch "beads")
-(declare-function beads-handoff "beads-handoff" (&optional arg))
 (declare-function beads-handoff-agent "beads-handoff" (&optional arg))
 (declare-function beads-bond "beads-bond" (&optional arg))
 (declare-function beads-gate-list "beads-gate" (&optional arg))
@@ -1019,10 +1018,9 @@ Runs the dry run first; applies only after confirmation."
 (defun beads-molecule-handoff ()
   "Hand the molecule or step at point off to an agent, when available."
   (interactive)
-  (cond ((fboundp 'beads-handoff) (call-interactively #'beads-handoff))
-        ((fboundp 'beads-handoff-agent)
-         (call-interactively #'beads-handoff-agent))
-        (t (user-error "Hand-off is not available"))))
+  (if (fboundp 'beads-handoff-agent)
+      (call-interactively #'beads-handoff-agent)
+    (user-error "Hand-off is not available")))
 
 (defun beads-molecule-bond ()
   "Bond the molecule or step at point, when available."

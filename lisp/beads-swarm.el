@@ -53,6 +53,7 @@
 (require 'beads-command)
 (require 'beads-command-swarm)
 (require 'beads-command-update)
+(require 'beads-command-show)
 (require 'beads-completion)
 (require 'beads-faces)
 (require 'beads-pager)
@@ -1399,9 +1400,10 @@ Reports a non-swarmable epic instead of creating, and surfaces the
 (defun beads-swarm-status-handoff ()
   "Hand the step at point off to an agent (WI-SF-18)."
   (interactive)
-  (let ((id (beads-swarm-status--require-issue)))
-    (if (fboundp 'beads-handoff)
-        (beads-handoff id)
+  (let* ((id (beads-swarm-status--require-issue))
+         (issue (beads-execute 'beads-command-show :issue-ids (list id))))
+    (if (fboundp 'beads-handoff-agent)
+        (beads-handoff-agent (beads-handoff-issue issue))
       (user-error "Hand-off is not available"))))
 
 (define-key beads-swarm-status-mode-map (kbd "a") #'beads-swarm-status-assign)
