@@ -165,7 +165,14 @@ first element is such an object.  This lets the swarm views read raw
    ((null obj) default)
    ((hash-table-p obj) (gethash key obj default))
    ((and (fboundp 'eieio-object-p) (eieio-object-p obj))
-    (if (slot-exists-p obj key) (slot-value obj key) default))
+    ;; Typed result slots use hyphenated names (`ready-fronts'), while
+    ;; callers pass the raw JSON key (`ready_fronts'); accept either.
+    (let ((slot (or (and (slot-exists-p obj key) key)
+                    (let ((hyphenated
+                           (intern (replace-regexp-in-string
+                                    "_" "-" (symbol-name key)))))
+                      (and (slot-exists-p obj hyphenated) hyphenated)))))
+      (if slot (slot-value obj slot) default)))
    ((and (consp obj) (keywordp (car obj)))
     (if (plist-member obj key) (plist-get obj key) default))
    ((listp obj)
@@ -222,6 +229,12 @@ the normal error path instead."
 Returns nil for a domain-error payload."
   (cond
    ((beads-swarm-domain-error-p result) nil)
+   ;; A `:result (list-of beads-swarm-list-item)' already gives a list of
+   ;; typed items; accept it directly (WI-SF-15/WI-SF-16 boundary).
+   ((and (listp result) (consp result)
+         (fboundp 'eieio-object-p) (eieio-object-p (car result)))
+    result)
+   ((and (fboundp 'eieio-object-p) (eieio-object-p result)) (list result))
    ((beads-swarm--field result 'swarms)
     (beads-swarm--as-list (beads-swarm--field result 'swarms)))
    ((vectorp result) (append result nil))

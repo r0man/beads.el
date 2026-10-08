@@ -32,21 +32,14 @@
   "Buffer-local formula name, declared so the entry test can bind it.")
 
 (defclass beads-bond-test-formula (beads-formula)
-  ((bond-points
-    :initarg :bond-points
-    :initform nil
-    :documentation "Bond points carried by the test formula."))
-  "A `beads-formula' carrying a `bond-points' slot for the tests.
-WI-SF-05 adds this slot to the real class; the subclass lets the bond
-tests exercise the typed path before that lands.")
+  ()
+  "A `beads-formula' for the bond tests.
+WI-SF-05 added the typed `bond-points' slot to the real class, so the
+subclass no longer redeclares it.")
 
-(defclass beads-bond-test-point ()
-  ((id :initarg :id :initform nil)
-   (description :initarg :description :initform nil)
-   (before-step :initarg :before-step :initform nil)
-   (after-step :initarg :after-step :initform nil)
-   (parallel :initarg :parallel :initform nil))
-  "An EIEIO bond point mirroring the typed form WI-SF-05 will add.")
+(defclass beads-bond-test-point (beads-formula-bond-point)
+  ()
+  "Test alias for the typed `beads-formula-bond-point' (WI-SF-05).")
 
 (defun beads-bond-test--stub-execute (result)
   "Return a `beads-command-execute' stub that always returns RESULT."
