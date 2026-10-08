@@ -150,8 +150,47 @@ As a Gas City operator, I want one timeline across all rigs.
 - gascity code changes; only optional attribution enrichment at an existing
   seam.
 
+## Integration Constraints (hard)
+
+Do **not** design new parallel dashboards. The design must show how the
+*customer's existing UI* is extended, and the mockups must render the current
+surfaces with the new behaviour (before/after), in ASCII/text.
+
+The proven pattern already exists in gascity.el for `gc events`; mirror it for
+`bd events` instead of inventing one:
+
+- `gascity-live.el` — ONE `gc events --follow` stream per city, JSONL parsed,
+  debounced, routed by event-type prefix to `gascity-live-invalidate-functions`;
+  `--after SEQ` gap-free resume, backoff reconnect, TRAMP ssh-pipe + poll
+  fallback; attach/detach per view.
+- `gascity-events.el` — the Events view (tabulated, newest-first, churn folding,
+  signal levels, filters, live append via `gascity-live`).
+- `gascity-event.el` — shared event model (levels, noise, folding, row text).
+- `gascity-pulse.el` — mode-line lighter fed from in-memory state.
+
+beads.el surfaces the design must extend (audit each; do not duplicate):
+
+- `beads-dashboard.el` / `beads-dashboard-sections.el` — vui sections, async
+  `:async-key` + generation refresh; sections are the natural live targets.
+- `beads-command-list.el` — `tabulated-list-mode` with `beads-list--refresh`
+  (`beads-spec`) and the existing list→show follow timer.
+- `beads-command-show.el` — sectioned special-mode buffer with
+  `beads-show-update-buffer` / `beads-refresh-show` and worktree-session
+  registration.
+- `beads-command.el` — `beads-command--single-flight` cache and
+  `beads-command--policy-probe`; a live invalidation seam belongs here.
+- `beads-section.el` — the `beads-section-register` provider registry.
+- `beads-menu.el` — `beads-dispatch` / `beads-maintenance`.
+- `beads-command-events.el` + `beads-event-record` (`beads-types.el`) — reuse.
+
+gascity.el side: explain how the city cockpit / `gascity-live` coexists with a
+`bd events` stream (no duplicate streams; a beads store may back a rig), and
+whether `gascity-live`'s bead routing should also invalidate beads.el views.
+
 ## Other Notes
 
+- Seed sketch (input only, superseded by the worker's `design.md`):
+  `design-seed.md`.
 - Source of truth for `bd` semantics: `bd events --help`, the 1.3 release
   notes, and the journal caveats (per-branch, per-replica, `bd dolt pull` and
   `bd sql` are not journaled, retention floors).

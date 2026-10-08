@@ -4,8 +4,8 @@ phase: design
 rig: beads.el
 rig_root: /home/roman/workspace/beads.el
 artifact_root: /home/roman/workspace/beads.el/plans
-schema: beads.events-live.design.v1
-artifact: design
+schema: beads.events-live.design-seed.v1
+artifact: design-seed
 status: approved
 scope: planning-and-build
 requirements: requirements.md
@@ -13,7 +13,7 @@ created_at: 2026-10-08T19:30:00Z
 updated_at: 2026-10-08T19:30:00Z
 ---
 
-# beads-live — Design
+# beads-live — Design (SEED SKETCH — superseded by the worker-authored design.md)
 
 ## 1. Thesis
 
