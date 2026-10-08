@@ -44,6 +44,9 @@
 (require 'beads-command)
 (require 'beads-command-mol)
 (require 'beads-command-list)
+(require 'beads-command-update)
+(require 'beads-command-close)
+(require 'beads-command-epic)
 (require 'beads-command-show)
 (require 'beads-section)
 (require 'beads-thing)
@@ -54,6 +57,11 @@
 
 (declare-function beads-show "beads-command-show")
 (declare-function beads-dispatch "beads")
+(declare-function beads-handoff "beads-handoff" (&optional arg))
+(declare-function beads-handoff-agent "beads-handoff" (&optional arg))
+(declare-function beads-bond "beads-bond" (&optional arg))
+(declare-function beads-gate-list "beads-gate" (&optional arg))
+(declare-function beads-gate "beads-gate" (&optional arg))
 
 ;;; Glyphs
 
@@ -838,6 +846,13 @@ M-x beads-molecule and an explicit id." root)
   "<return>" #'beads-molecule-inspect
   "g" #'beads-molecule-refresh
   "r" #'beads-molecule-toggle-ready-only
+  "n" #'beads-molecule-next
+  "c" #'beads-molecule-claim
+  "x" #'beads-molecule-close
+  "C" #'beads-molecule-close-eligible
+  "a" #'beads-molecule-handoff
+  "b" #'beads-molecule-bond
+  "G" #'beads-molecule-gate
   "]" #'beads-molecule-next-range
   "[" #'beads-molecule-previous-range
   "q" #'quit-window)
@@ -868,15 +883,27 @@ WI-SF-02.
 
 ;;; Commands
 
-(cl-defgeneric beads-molecule-action (action step)
+(cl-defgeneric beads-molecule-action (action step &optional reason)
   "Perform ACTION on molecule STEP and return the result.
-ACTION is a symbol: `inspect' opens the step in the issue detail view.
-WI-SF-02 adds `claim', `close' and `close-eligible'.")
-(cl-defmethod beads-molecule-action (action step)
+ACTION is a symbol: `inspect' opens the step in the issue detail view,
+`claim' claims it with `beads-command-update --claim', and `close'
+closes it with REASON.  Downstream packages may add methods for their
+own actions.")
+(cl-defmethod beads-molecule-action (action step &optional _reason)
   "Default implementation: dispatch ACTION on STEP."
   (pcase action
     ('inspect (beads-show (plist-get step :id)))
     (_ (user-error "Unsupported molecule action: %s" action))))
+(cl-defmethod beads-molecule-action ((_action (eql 'claim)) step
+                                     &optional _reason)
+  "Claim STEP with `beads-command-update --claim'."
+  (beads-execute 'beads-command-update
+                 :issue-ids (list (plist-get step :id)) :claim t))
+(cl-defmethod beads-molecule-action ((_action (eql 'close)) step
+                                     &optional reason)
+  "Close STEP with the required REASON."
+  (beads-execute 'beads-command-close
+                 :issue-ids (list (plist-get step :id)) :reason reason))
 
 (defun beads-molecule--step-at-point ()
   "Return the model step at point, or nil.
@@ -923,6 +950,93 @@ read back from the root component's loaded payload."
   (beads-molecule--bump :range
                         (beads-molecule--shift-range
                          (beads-molecule--root-state :range) -1)))
+
+;;; Work loop (WI-SF-02)
+
+(defun beads-molecule--ready-steps ()
+  "Return the model steps whose state is `ready'."
+  (seq-filter (lambda (step)
+                (eq (beads-molecule-step-state step) 'ready))
+              (plist-get (beads-molecule--current-model) :steps)))
+
+(defun beads-molecule--goto-step (id)
+  "Move point to the molecule step row for ID.  Return non-nil if found."
+  (seq-some (lambda (pos)
+              (when (equal (plist-get (beads-thing-at pos) :id) id)
+                (goto-char pos)
+                t))
+            (beads-thing-starts)))
+
+(defun beads-molecule-next ()
+  "Move point to the next ready step, wrapping at the frontier."
+  (interactive)
+  (let ((ready (beads-molecule--ready-steps)))
+    (unless ready
+      (user-error "No ready steps"))
+    (let* ((cur (beads-thing-at))
+           (cur-id (and (consp cur) (plist-get cur :id)))
+           (pos (and cur-id (cl-position cur-id ready
+                                         :key (lambda (s) (plist-get s :id))
+                                         :test #'equal)))
+           (next (nth (if pos (mod (1+ pos) (length ready)) 0) ready)))
+      (beads-molecule--goto-step (plist-get next :id)))))
+
+(defun beads-molecule-claim ()
+  "Claim the step at point, then refresh and advance to the next ready step."
+  (interactive)
+  (let ((step (beads-molecule--step-at-point)))
+    (unless step (user-error "No molecule step at point"))
+    (beads-molecule-action 'claim step)
+    (message "Claimed %s" (plist-get step :id))
+    (beads-molecule-refresh)
+    (ignore-errors (beads-molecule-next))))
+
+(defun beads-molecule-close ()
+  "Close the step at point with a required reason, then advance."
+  (interactive)
+  (let* ((step (beads-molecule--step-at-point))
+         (id (and step (plist-get step :id)))
+         (reason (and id (read-string (format "Close %s reason: " id)))))
+    (unless step (user-error "No molecule step at point"))
+    (when (or (null reason) (string-empty-p (string-trim reason)))
+      (user-error "A close reason is required"))
+    (beads-molecule-action 'close step reason)
+    (message "Closed %s" id)
+    (beads-molecule-refresh)
+    (ignore-errors (beads-molecule-next))))
+
+(defun beads-molecule-close-eligible ()
+  "Sweep the molecule root with `beads-command-epic-close-eligible'.
+Runs the dry run first; applies only after confirmation."
+  (interactive)
+  (let ((preview (beads-execute 'beads-command-epic-close-eligible :dry-run t)))
+    (when (and preview (not (string-empty-p (format "%s" preview))))
+      (when (yes-or-no-p "Close all eligible epics? ")
+        (beads-execute 'beads-command-epic-close-eligible)
+        (message "Closed eligible epics")
+        (beads-molecule-refresh)))))
+
+(defun beads-molecule-handoff ()
+  "Hand the molecule or step at point off to an agent, when available."
+  (interactive)
+  (cond ((fboundp 'beads-handoff) (call-interactively #'beads-handoff))
+        ((fboundp 'beads-handoff-agent)
+         (call-interactively #'beads-handoff-agent))
+        (t (user-error "Hand-off is not available"))))
+
+(defun beads-molecule-bond ()
+  "Bond the molecule or step at point, when available."
+  (interactive)
+  (if (fboundp 'beads-bond)
+      (call-interactively #'beads-bond)
+    (user-error "Bonding is not available")))
+
+(defun beads-molecule-gate ()
+  "Open the gate UI for the molecule or step at point, when available."
+  (interactive)
+  (cond ((fboundp 'beads-gate-list) (call-interactively #'beads-gate-list))
+        ((fboundp 'beads-gate) (call-interactively #'beads-gate))
+        (t (user-error "Gates are not available"))))
 
 (defun beads-molecule--shift-range (range delta)
   "Return RANGE shifted by DELTA pages, or nil.

@@ -519,5 +519,97 @@ callback instead of the success callback."
             (should (equal (oref (car gate-issues) id)
                            (plist-get (plist-get gated-build :gate) :id)))))))))
 
+;;; ============================================================
+;;; Work loop: actions and navigation (WI-SF-02)
+;;; ============================================================
+
+(defun beads-molecule-test--work-loop-buffer ()
+  "Return a buffer with two ready steps and a pending one, model bound."
+  (let ((buf (generate-new-buffer "*beads-molecule-work-loop*")))
+    (with-current-buffer buf
+      (setq-local beads-molecule--root "m")
+      (setq-local beads-molecule--collapsed nil)
+      (setq-local beads-molecule--model
+                  (list :steps (list (list :id "m.a" :title "A" :status "ready")
+                                     (list :id "m.b" :title "B" :status "ready")
+                                     (list :id "m.c" :title "C" :status "pending"))))
+      (insert (mapconcat #'identity
+                         (cl-loop for step in (plist-get beads-molecule--model :steps)
+                                  for i from 1
+                                  collect (beads-molecule--step-line step i))
+                         "\n"))
+      (goto-char (point-min)))
+    buf))
+
+(ert-deftest beads-molecule-test-action-claim-builds-update ()
+  "`claim' assembles a `beads-command-update --claim' for the step."
+  :tags '(:unit)
+  (let (captured)
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (cmd) (setq captured cmd) cmd)))
+      (beads-molecule-action 'claim (list :id "m.a")))
+    (should (eq 'beads-command-update (eieio-object-class captured)))
+    (should (equal '("m.a") (oref captured issue-ids)))
+    (should (oref captured claim))))
+
+(ert-deftest beads-molecule-test-action-close-builds-close ()
+  "`close' assembles a `beads-command-close' carrying the reason."
+  :tags '(:unit)
+  (let (captured)
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (cmd) (setq captured cmd) cmd)))
+      (beads-molecule-action 'close (list :id "m.a") "done"))
+    (should (eq 'beads-command-close (eieio-object-class captured)))
+    (should (equal '("m.a") (oref captured issue-ids)))
+    (should (equal "done" (oref captured reason)))))
+
+(ert-deftest beads-molecule-test-next-moves-to-ready-steps ()
+  "`n' walks the ready frontier and wraps."
+  :tags '(:unit)
+  (let ((buf (beads-molecule-test--work-loop-buffer)))
+    (unwind-protect
+        (with-current-buffer buf
+          (goto-char (point-min))
+          ;; Point starts on the first ready step, so `n' advances to the
+          ;; second, then wraps back to the first.
+          (beads-molecule-next)
+          (should (equal "m.b" (plist-get (beads-thing-at) :id)))
+          (beads-molecule-next)
+          (should (equal "m.a" (plist-get (beads-thing-at) :id)))
+          (beads-molecule-next)
+          (should (equal "m.b" (plist-get (beads-thing-at) :id))))
+      (kill-buffer buf))))
+
+(ert-deftest beads-molecule-test-close-requires-reason ()
+  "`x' refuses an empty reason before any command runs."
+  :tags '(:unit)
+  (let ((buf (beads-molecule-test--work-loop-buffer)))
+    (unwind-protect
+        (with-current-buffer buf
+          (beads-molecule--goto-step "m.a")
+          (cl-letf (((symbol-function 'read-string) (lambda (&rest _) "   ")))
+            (should-error (beads-molecule-close) :type 'user-error)))
+      (kill-buffer buf))))
+
+(ert-deftest beads-molecule-test-claim-refreshes-and-advances ()
+  "`c' claims, refreshes and advances."
+  :tags '(:unit)
+  (let ((buf (beads-molecule-test--work-loop-buffer))
+        (calls nil))
+    (unwind-protect
+        (with-current-buffer buf
+          (beads-molecule--goto-step "m.a")
+          (cl-letf (((symbol-function 'beads-command-execute)
+                     (lambda (cmd) (push (eieio-object-class cmd) calls) cmd))
+                    ((symbol-function 'beads-molecule-refresh)
+                     (lambda () (push 'refresh calls)))
+                    ((symbol-function 'beads-molecule-next)
+                     (lambda () (push 'next calls))))
+            (beads-molecule-claim))
+          (should (memq 'beads-command-update calls))
+          (should (memq 'refresh calls))
+          (should (memq 'next calls)))
+      (kill-buffer buf))))
+
 (provide 'beads-molecule-test)
 ;;; beads-molecule-test.el ends here
