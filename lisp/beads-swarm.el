@@ -52,6 +52,8 @@
 (require 'beads-buffer)
 (require 'beads-command)
 (require 'beads-command-swarm)
+(require 'beads-command-update)
+(require 'beads-completion)
 (require 'beads-faces)
 (require 'beads-pager)
 (require 'beads-thing)
@@ -1148,6 +1150,261 @@ lanes as well."
      (t
       (let ((id (beads-swarm-status--issue-id-at-point)))
         (if id (beads-show id) (user-error "No issue on this line")))))))
+
+;;; ============================================================
+;;; Validate / ready-fronts view (WI-SF-17, REQ-SF-093)
+;;; ============================================================
+
+(defvar-local beads-swarm-waves--analysis nil
+  "Parsed `bd swarm validate --json' result for the current view.")
+(defvar-local beads-swarm-waves--error nil
+  "Validate fetch error string, or nil.")
+(defvar-local beads-swarm-waves--epic-id nil
+  "Epic id shown by the current waves view.")
+(defvar-local beads-swarm-waves--directory nil
+  "Store directory the current waves view is scoped to.")
+(defvar-local beads-swarm-waves--verbose nil
+  "When non-nil the waves view renders the per-issue graph.")
+
+(defvar-keymap beads-swarm-waves-mode-map
+  :doc "Keymap for `beads-swarm-waves-mode'."
+  :parent special-mode-map
+  "RET" #'beads-swarm-waves-visit
+  "v" #'beads-swarm-waves-toggle-verbose
+  "g" #'beads-swarm-waves-refresh
+  "q" #'beads-swarm-waves-quit)
+
+(define-derived-mode beads-swarm-waves-mode special-mode "Beads-Swarm-Waves"
+  "Major mode for the swarm validate / ready-fronts (waves) view."
+  :interactive nil
+  (setq-local truncate-lines t)
+  (setq-local revert-buffer-function
+              (lambda (&rest _) (beads-swarm-waves-refresh))))
+
+(defun beads-swarm-waves--waves (analysis)
+  "Return ANALYSIS's ready fronts as a list of (:wave :issues) plists."
+  (mapcar (lambda (front)
+            (list :wave (or (beads-swarm--field front 'wave) 0)
+                  :issues (append (beads-swarm--field front 'issues) nil)))
+          (beads-swarm--as-list (beads-swarm--field analysis 'ready_fronts))))
+
+(defun beads-swarm-waves--insert-thing (text thing)
+  "Insert TEXT propertized with THING for beads-thing navigation."
+  (insert (propertize text 'beads-thing thing)))
+
+(defun beads-swarm-waves--render ()
+  "Render the current waves view from its analysis payload."
+  (let ((inhibit-read-only t))
+    (erase-buffer)
+    (if beads-swarm-waves--error
+        (insert (format "Swarm validate error: %s\n" beads-swarm-waves--error))
+      (let ((a beads-swarm-waves--analysis))
+        (insert (format "Swarm validate — %s\n\n"
+                        (or (beads-swarm--field a 'epic_title)
+                            beads-swarm-waves--epic-id)))
+        (insert (format "Swarmable: %s\n"
+                        (if (beads-swarm--field a 'swarmable) "yes" "NO")))
+        (insert (format (concat "Issues: %s   Closed: %s   "
+                                "Max parallelism: %s   Estimated sessions: %s\n\n")
+                        (or (beads-swarm--field a 'total_issues) "—")
+                        (or (beads-swarm--field a 'closed_issues) "—")
+                        (or (beads-swarm--field a 'max_parallelism) "—")
+                        (or (beads-swarm--field a 'estimated_sessions) "—")))
+        (insert "Ready fronts (parallel waves)\n")
+        (let ((waves (beads-swarm-waves--waves a)))
+          (if (null waves)
+              (insert "  (none)\n")
+            (dolist (wave waves)
+              (beads-swarm-waves--insert-thing
+               (format "  Wave %s: %s\n" (plist-get wave :wave)
+                       (string-join
+                        (mapcar (lambda (id) (format "%s" id))
+                                (plist-get wave :issues))
+                        ", "))
+               (list :kind 'wave :wave (plist-get wave :wave))))))
+        (insert "\n")
+        (dolist (key '(warnings errors))
+          (let ((items (beads-swarm--as-list (beads-swarm--field a key))))
+            (insert (format "%s (%d)\n" (capitalize (symbol-name key))
+                            (length items)))
+            (if (null items)
+                (insert "  (none)\n")
+              (dolist (item items)
+                (insert (format "  %s\n"
+                                (if (stringp item) item (format "%s" item))))))))
+        (when beads-swarm-waves--verbose
+          (insert "\nPer-issue graph\n")
+          (dolist (node (beads-swarm--as-list (beads-swarm--field a 'issues)))
+            (let ((id (beads-swarm--field node 'id)))
+              (beads-swarm-waves--insert-thing
+               (format "  %-18s wave=%s  depends_on=%s\n"
+                       (or id "?")
+                       (or (beads-swarm--field node 'wave) "—")
+                       (or (beads-swarm--field node 'depends_on) "—"))
+               (list :kind 'issue :id id)))))))))
+
+(defun beads-swarm-waves--load (buffer)
+  "Fetch validation data for BUFFER's epic and render it."
+  (when (buffer-live-p buffer)
+    (with-current-buffer buffer
+      (beads-swarm--execute-async
+       'beads-command-swarm-validate
+       (list 'swarm-validate beads-swarm-waves--epic-id)
+       (lambda (result)
+         (when (buffer-live-p buffer)
+           (with-current-buffer buffer
+             (setq beads-swarm-waves--analysis
+                   (unless (beads-swarm-domain-error-p result) result)
+                   beads-swarm-waves--error
+                   (beads-swarm-domain-error-p result))
+             (beads-swarm-waves--render))))
+       (lambda (err)
+         (when (buffer-live-p buffer)
+           (with-current-buffer buffer
+             (setq beads-swarm-waves--error (beads-swarm--error-string err))
+             (beads-swarm-waves--render))))
+       :epic-id beads-swarm-waves--epic-id))))
+
+(defun beads-swarm-waves--id-at-point ()
+  "Return the issue id on the current waves line, or nil."
+  (let ((thing (beads-thing-at)))
+    (and (consp thing) (eq (beads-thing-kind thing) 'issue)
+         (plist-get thing :id))))
+
+(defun beads-swarm-waves-visit ()
+  "Visit the per-issue node at point."
+  (interactive)
+  (if-let* ((id (beads-swarm-waves--id-at-point)))
+      (beads-show id)
+    (user-error "No issue on this line")))
+
+(defun beads-swarm-waves-toggle-verbose ()
+  "Toggle the per-issue graph in the waves view."
+  (interactive)
+  (setq beads-swarm-waves--verbose (not beads-swarm-waves--verbose))
+  (beads-swarm-waves--render))
+
+(defun beads-swarm-waves-refresh ()
+  "Reload the waves view from `bd swarm validate'."
+  (interactive)
+  (beads-swarm-waves--load (current-buffer)))
+
+(defun beads-swarm-waves-quit ()
+  "Bury the waves view."
+  (interactive)
+  (quit-window))
+
+;;;###autoload
+(cl-defun beads-swarm-waves (epic-id &key directory)
+  "Open the validate / ready-fronts (waves) view for EPIC-ID."
+  (interactive (list (beads-completion-read-issue "Epic: " nil t)))
+  (require 'beads-command-swarm)
+  (beads-check-executable)
+  (let* ((store (or (beads-store-resolve directory) beads-store-directory))
+         (default-directory (or store default-directory))
+         (project-root (if store
+                           (beads-store-project-root store)
+                         (or (beads--project-root) default-directory)))
+         (buffer (get-buffer-create
+                  (beads-buffer-utility "swarm-waves" epic-id project-root))))
+    (with-current-buffer buffer
+      (unless (derived-mode-p 'beads-swarm-waves-mode)
+        (beads-swarm-waves-mode))
+      (setq-local beads-swarm-waves--epic-id epic-id
+                  beads-swarm-waves--directory directory
+                  beads-store-directory store)
+      (beads-swarm-waves--load buffer))
+    (pop-to-buffer buffer)
+    buffer))
+
+;;; ============================================================
+;;; Create, coordinator and step actions (WI-SF-18, REQ-SF-090/095)
+;;; ============================================================
+
+(defun beads-swarm-create-flow (&optional epic-id)
+  "Create a swarm for EPIC-ID, validating first (WI-SF-18).
+Reports a non-swarmable epic instead of creating, and surfaces the
+`already exists' domain state instead of a raw error."
+  (interactive (list (beads-completion-read-issue "Epic: " nil t)))
+  (unless epic-id (user-error "No epic to swarm"))
+  (let ((preview (beads-execute 'beads-command-swarm-validate :epic-id epic-id)))
+    (when (and preview (not (beads-swarm--field preview 'swarmable)))
+      (user-error "Epic %s is not swarmable: %s" epic-id
+                  (beads-swarm--field preview 'errors)))
+    (let* ((input (read-string "Coordinator (blank = none): "))
+           (coordinator (and (not (string-empty-p (string-trim input)))
+                             (string-trim input)))
+           (force (yes-or-no-p "Force create if a swarm already exists? "))
+           (created (beads-execute 'beads-command-swarm-create
+                                   :epic-id epic-id
+                                   :coordinator coordinator
+                                   :force force)))
+      (if (beads-swarm-domain-error-p created)
+          (user-error "Swarm create: %s" (beads-swarm--field created 'error))
+        (message "Swarm created: %s" (beads-swarm--field created 'swarm_id))
+        (beads-swarm-status-view epic-id)))))
+
+(defun beads-swarm-coordinator (swarm-id &optional new-coordinator)
+  "Set the coordinator (assignee) of SWARM-ID (WI-SF-18)."
+  (interactive
+   (list (beads-completion-read-issue "Swarm or epic: " nil t)
+         (read-string "Coordinator: ")))
+  (beads-execute 'beads-command-update
+                 :issue-ids (list swarm-id) :assignee new-coordinator)
+  (message "Coordinator of %s set to %s" swarm-id new-coordinator))
+
+(defun beads-swarm-assign (issue-id assignee)
+  "Assign ISSUE-ID (a swarm step) to ASSIGNEE (WI-SF-18)."
+  (interactive
+   (list (beads-completion-read-issue "Step: " nil t)
+         (read-string "Assignee: ")))
+  (beads-execute 'beads-command-update
+                 :issue-ids (list issue-id) :assignee assignee)
+  (message "Assigned %s to %s" issue-id assignee))
+
+(defun beads-swarm-claim (issue-id)
+  "Claim swarm step ISSUE-ID (WI-SF-18)."
+  (interactive (list (beads-completion-read-issue "Step: " nil t)))
+  (beads-execute 'beads-command-update :issue-ids (list issue-id) :claim t)
+  (message "Claimed %s" issue-id))
+
+(defun beads-swarm-status--require-issue ()
+  "Return the issue id at point, or signal."
+  (or (beads-swarm-status--issue-id-at-point)
+      (user-error "No issue on this line")))
+
+(defun beads-swarm-status-assign ()
+  "Assign the step at point (WI-SF-18)."
+  (interactive)
+  (beads-swarm-assign (beads-swarm-status--require-issue)
+                      (read-string "Assignee: "))
+  (beads-swarm-status-refresh))
+
+(defun beads-swarm-status-claim ()
+  "Claim the step at point (WI-SF-18)."
+  (interactive)
+  (beads-swarm-claim (beads-swarm-status--require-issue))
+  (beads-swarm-status-refresh))
+
+(defun beads-swarm-status-coordinator ()
+  "Set the coordinator for the board's swarm/epic (WI-SF-18)."
+  (interactive)
+  (beads-swarm-coordinator (or beads-swarm--id (beads-swarm-status--require-issue))
+                           (read-string "Coordinator: "))
+  (beads-swarm-status-refresh))
+
+(defun beads-swarm-status-handoff ()
+  "Hand the step at point off to an agent (WI-SF-18)."
+  (interactive)
+  (let ((id (beads-swarm-status--require-issue)))
+    (if (fboundp 'beads-handoff)
+        (beads-handoff id)
+      (user-error "Hand-off is not available"))))
+
+(define-key beads-swarm-status-mode-map (kbd "a") #'beads-swarm-status-assign)
+(define-key beads-swarm-status-mode-map (kbd "c") #'beads-swarm-status-claim)
+(define-key beads-swarm-status-mode-map (kbd "C") #'beads-swarm-status-coordinator)
+(define-key beads-swarm-status-mode-map (kbd "h") #'beads-swarm-status-handoff)
 
 (provide 'beads-swarm)
 ;;; beads-swarm.el ends here

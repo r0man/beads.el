@@ -409,5 +409,55 @@ The buffer is killed afterwards."
       (beads-execute 'beads-command-close :issue-ids (list (oref a id))
                      :reason "done"))))
 
+;;; ============================================================
+;;; Validate / waves view and actions (WI-SF-17/18)
+;;; ============================================================
+
+(ert-deftest beads-swarm-test-waves-parses-ready-fronts ()
+  "`beads-swarm-waves--waves' reads the analysis ready fronts."
+  :tags '(:unit)
+  (let ((analysis (beads-swarm-analysis
+                   :ready-fronts (list (beads-ready-front :wave 0 :issues '("a" "b"))
+                                       (beads-ready-front :wave 1 :issues '("c"))))))
+    (should (equal '((:wave 0 :issues ("a" "b")) (:wave 1 :issues ("c")))
+                   (beads-swarm-waves--waves analysis)))))
+
+(ert-deftest beads-swarm-test-create-flow-blocks-non-swarmable ()
+  "`beads-swarm-create-flow' refuses a non-swarmable epic."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-command-execute)
+             (lambda (_cmd)
+               (beads-swarm-analysis :swarmable nil :errors '("cycle")))))
+    (should-error (beads-swarm-create-flow "ep-1") :type 'user-error)))
+
+(ert-deftest beads-swarm-test-create-flow-assembles-create ()
+  "`beads-swarm-create-flow' validates then creates with coordinator/force."
+  :tags '(:unit)
+  (let (captured)
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (cmd)
+                 (if (object-of-class-p cmd 'beads-command-swarm-create)
+                     (progn (setq captured cmd)
+                            (beads-swarm-create-result :swarm-id "sw-1"))
+                   (beads-swarm-analysis :swarmable t))))
+              ((symbol-function 'read-string) (lambda (&rest _) "alice"))
+              ((symbol-function 'yes-or-no-p) (lambda (&rest _) nil))
+              ((symbol-function 'beads-swarm-status-view) (lambda (&rest _) nil)))
+      (beads-swarm-create-flow "ep-1")
+      (should (object-of-class-p captured 'beads-command-swarm-create))
+      (should (equal "alice" (oref captured coordinator)))
+      (should-not (oref captured force)))))
+
+(ert-deftest beads-swarm-test-coordinator-assembles-update ()
+  "`beads-swarm-coordinator' assembles an update with the assignee."
+  :tags '(:unit)
+  (let (captured)
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (cmd) (setq captured cmd) cmd)))
+      (beads-swarm-coordinator "sw-1" "alice"))
+    (should (object-of-class-p captured 'beads-command-update))
+    (should (equal '("sw-1") (oref captured issue-ids)))
+    (should (equal "alice" (oref captured assignee)))))
+
 (provide 'beads-swarm-test)
 ;;; beads-swarm-test.el ends here
