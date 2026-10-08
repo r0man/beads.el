@@ -7,10 +7,11 @@
 
 ;;; Commentary:
 
-;; Unit tests for the formula browser/detail/launch UI and ABI in
+;; Unit tests for the formula browser/detail/instantiate UI and ABI in
 ;; `beads-formula.el': typed var readers, type grouping, detail
-;; sections, sling seeding, and the `beads-formula-launch' default.
-;; `beads-command-execute' is mocked, so no `bd' is required.
+;; sections, sling seeding, the instantiate generic/validation and the
+;; `beads-formula-launch' default.  `beads-command-execute' is mocked
+;; for the unit tests; the `:integration' tests drive the real `bd'.
 
 ;;; Code:
 
@@ -18,6 +19,7 @@
 (require 'beads-formula)
 (require 'beads-command-mol)
 (require 'beads-test)
+(require 'beads-integration-test)
 
 ;;; ========================================
 ;;; Typed variable readers
@@ -69,6 +71,105 @@
     (should (equal (plist-get spec :default) "auto"))
     (should (equal (plist-get spec :choices) '("auto" "manual")))
     (should (equal (plist-get spec :pattern) "^a"))))
+
+(ert-deftest beads-formula-test-var-choices-enum-wins ()
+  "An explicit var `enum' wins over the methodology mapping."
+  :tags '(:unit)
+  (let* ((formula (beads-formula
+                   :name "f"
+                   :metadata '((gc . ((methodology
+                                      . ((interaction_modes . ("from-meta")))))))))
+         (var (beads-formula-var :name "interaction_mode"
+                                 :enum '("explicit"))))
+    (should (equal (beads-formula-var-choices var formula) '("explicit")))))
+
+(ert-deftest beads-formula-test-var-choices-methodology ()
+  "A built-in var resolves its choices from `metadata.gc.methodology'."
+  :tags '(:unit)
+  (let* ((formula (beads-formula
+                   :name "f"
+                   :metadata '((gc . ((methodology
+                                      . ((interaction_modes
+                                          . ("autonomous" "interactive")))))))))
+         (var (beads-formula-var :name "interaction_mode")))
+    (should (equal (beads-formula-var-choices var formula)
+                   '("autonomous" "interactive")))
+    (should (equal (plist-get (beads-formula-var-reader var formula) :choices)
+                   '("autonomous" "interactive")))
+    (should (eq (beads-formula-var-kind var formula) 'enum))))
+
+(ert-deftest beads-formula-test-var-choices-none ()
+  "A var with no enum and no methodology entry degrades to nil."
+  :tags '(:unit)
+  (should-not (beads-formula-var-choices
+               (beads-formula-var :name "plain")
+               (beads-formula :name "f")))
+  (should-not (beads-formula-var-choices
+               (beads-formula-var :name "interaction_mode")
+               nil)))
+
+(ert-deftest beads-formula-test-from-json-metadata ()
+  "`bd formula show' metadata is parsed onto the formula."
+  :tags '(:unit)
+  (let ((formula (beads-formula-from-json
+                  '((formula . "f")
+                    (metadata . ((gc . ((methodology
+                                        . ((review_modes . ("agent" "human"))))))))))))
+    (should (equal (beads-formula-methodology formula)
+                   '((review_modes . ("agent" "human"))))
+            )))
+
+;;; ========================================
+;;; Validation seam
+;;; ========================================
+
+(ert-deftest beads-formula-test-missing-required-vars ()
+  "Required vars absent from (or blank in) the values are reported."
+  :tags '(:unit)
+  (let ((formula (beads-formula
+                  :name "f"
+                  :vars (list (beads-formula-var :name "req" :required t)
+                              (beads-formula-var :name "blank" :required t)
+                              (beads-formula-var :name "opt")))))
+    (should (equal (beads-formula-missing-required-vars
+                    formula '(("blank" . "   ")))
+                   '("req" "blank")))
+    (should (null (beads-formula-missing-required-vars
+                   formula '(("req" . "x") ("blank" . "y")))))))
+
+(ert-deftest beads-formula-test-validate-vars-missing-signals ()
+  "`beads-formula-validate-vars' refuses a missing required var."
+  :tags '(:unit)
+  (let ((formula (beads-formula
+                  :name "f"
+                  :vars (list (beads-formula-var :name "req" :required t)))))
+    (should-error (beads-formula-validate-vars formula nil) :type 'user-error)))
+
+(ert-deftest beads-formula-test-validate-vars-pattern-signals ()
+  "A value that fails the var's pattern is refused."
+  :tags '(:unit)
+  (let ((formula (beads-formula
+                  :name "f"
+                  :vars (list (beads-formula-var :name "slug" :pattern "\\`[a-z]+\\'")))))
+    (should-error (beads-formula-validate-vars formula '(("slug" . "123")))
+                  :type 'user-error)
+    (should (beads-formula-validate-vars formula '(("slug" . "good"))))))
+
+(ert-deftest beads-formula-test-validate-vars-blank-skips-pattern ()
+  "A blank value is the required check's business, not the pattern's."
+  :tags '(:unit)
+  (let ((formula (beads-formula
+                  :name "f"
+                  :vars (list (beads-formula-var :name "slug" :pattern "\\`[a-z]+\\'")))))
+    (should (beads-formula-validate-vars formula '(("slug" . "  "))))))
+
+(ert-deftest beads-formula-test-validate-vars-bad-regexp-degrades ()
+  "A pattern that does not compile degrades to no check."
+  :tags '(:unit)
+  (let ((formula (beads-formula
+                  :name "f"
+                  :vars (list (beads-formula-var :name "slug" :pattern "[unclosed")))))
+    (should (beads-formula-validate-vars formula '(("slug" . "anything"))))))
 
 ;;; ========================================
 ;;; Grouping
@@ -235,6 +336,8 @@
   :tags '(:unit)
   (should (equal (beads-formula--result-root-id '((root_id . "mol-1")))
                  "mol-1"))
+  (should (equal (beads-formula--result-root-id '((new_epic_id . "mol-2")))
+                 "mol-2"))
   (should (equal (beads-formula--result-root-id
                   '((foo . 1) (bar . ((id . "nested")))))
                  "nested"))
@@ -263,22 +366,518 @@
         (should (equal asked '("req")))
         (should (equal vars '(("req" . "value"))))))))
 
-(ert-deftest beads-formula-test-launch-standalone-reads-then-launches ()
-  "Standalone launch reads required vars and calls the launch generic."
+(ert-deftest beads-formula-test-launch-standalone-opens-instantiate ()
+  "Standalone launch opens the instantiate transient seeded with the recipe."
   :tags '(:unit)
-  (let ((launched nil))
+  (let ((setup nil))
     (cl-letf (((symbol-function 'beads-command-execute)
                (lambda (_cmd) (beads-formula :name "build-basic")))
-              ((symbol-function 'beads-formula-read-vars)
-               (lambda (_formula) '(("target" . "beads.el"))))
-              ((symbol-function 'beads-formula-launch)
-               (lambda (formula bead vars)
-                 (setq launched (list formula bead vars))
-                 'context)))
+              ((symbol-function 'transient-setup)
+               (lambda (prefix &rest args)
+                 (setq setup (cons prefix args)))))
       (beads-formula-launch-standalone "build-basic")
-      (should (equal (nth 1 launched) nil))
-      (should (equal (nth 2 launched) '(("target" . "beads.el"))))
-      (should (beads-formula-p (car launched))))))
+      (should (eq (car setup) 'beads-formula-instantiate--transient))
+      (let* ((scope (plist-get (cdr setup) :scope))
+             (recipe (plist-get scope :recipe)))
+        (should (beads-formula-p recipe))
+        (should (equal (plist-get scope :formula) "build-basic"))))))
+
+;;; ========================================
+;;; Phase recommendation and validation
+;;; ========================================
+
+;; WI-SF-05 adds the `phase' slot to `beads-formula'; until it lands,
+;; this test subclass carries the slot so the phase accessor and its
+;; recommendation can be exercised without touching `beads-types.el'.
+(defclass beads-formula-test-phase-formula (beads-formula)
+  ((phase
+    :initarg :phase
+    :initform nil
+    :documentation "Test-only declared phase; mirrors the WI-SF-05 slot."))
+  "A `beads-formula' with the provenance `phase' slot for tests.")
+
+(ert-deftest beads-formula-test-phase-accessor-defensive ()
+  "`beads-formula-phase' is nil when the slot is absent, never signals."
+  :tags '(:unit)
+  (should (null (beads-formula-phase (beads-formula :name "bare"))))
+  (should (equal (beads-formula-phase
+                  (beads-formula-test-phase-formula :name "release"
+                                                    :phase "vapor"))
+                 "vapor")))
+
+(ert-deftest beads-formula-test-phase-recommendation ()
+  "Vapor formulas recommend wisp; others recommend pour."
+  :tags '(:unit)
+  (should (eq (beads-formula-phase-recommendation
+               (beads-formula-test-phase-formula :name "release" :phase "vapor"))
+              'wisp))
+  (should (eq (beads-formula-phase-recommendation
+               (beads-formula-test-phase-formula :name "build" :phase "persistent"))
+              'pour))
+  (should (eq (beads-formula-phase-recommendation
+               (beads-formula :name "bare"))
+              'pour)))
+
+(ert-deftest beads-formula-test-phase-warning ()
+  "Pouring a vapor formula warns; wisp and persistent do not."
+  :tags '(:unit)
+  (should (stringp (beads-formula-phase-warning
+                    (beads-formula-test-phase-formula :name "release" :phase "vapor")
+                    'pour)))
+  (should (null (beads-formula-phase-warning
+                 (beads-formula-test-phase-formula :name "release" :phase "vapor")
+                 'wisp)))
+  (should (null (beads-formula-phase-warning
+                 (beads-formula-test-phase-formula :name "build" :phase "persistent")
+                 'pour))))
+
+(ert-deftest beads-formula-test-validate-var-required ()
+  "A required var without a value blocks; a default satisfies it."
+  :tags '(:unit)
+  (should (beads-formula-validate-var
+           (beads-formula-var :name "target" :required t) nil))
+  (should (null (beads-formula-validate-var
+                 (beads-formula-var :name "target" :required t :default "x")
+                 nil)))
+  (should (null (beads-formula-validate-var
+                 (beads-formula-var :name "target" :required t)
+                 "beads.el"))))
+
+(ert-deftest beads-formula-test-validate-var-pattern-enum-numeric ()
+  "Pattern, enum and numeric mismatches each name the variable."
+  :tags '(:unit)
+  (let ((pattern (beads-formula-validate-var
+                  (beads-formula-var :name "version" :pattern "\\`[0-9]+\\.[0-9]+\\.[0-9]+\\'")
+                  "1.0"))
+        (enum (beads-formula-validate-var
+               (beads-formula-var :name "environment" :enum '("staging" "production"))
+               "dev"))
+        (numeric (beads-formula-validate-var
+                  (beads-formula-var :name "max_iterations" :var-type "int")
+                  "many")))
+    (should (string-match-p "version" pattern))
+    (should (string-match-p "environment" enum))
+    (should (string-match-p "max_iterations" numeric))))
+
+(ert-deftest beads-formula-test-instantiate-validation-aggregates ()
+  "Validation collects every offending var in declaration order."
+  :tags '(:unit)
+  (let ((formula (beads-formula
+                  :name "f"
+                  :vars (list (beads-formula-var :name "target" :required t)
+                              (beads-formula-var :name "max_iterations" :var-type "int")
+                              (beads-formula-var :name "ok")))))
+    (let ((errors (beads-formula-instantiate-validation
+                   formula '(("max_iterations" . "many")))))
+      (should (= 2 (length errors)))
+      (should (string-match-p "target" (nth 0 errors)))
+      (should (string-match-p "max_iterations" (nth 1 errors))))))
+
+;;; ========================================
+;;; Instantiate generic
+;;; ========================================
+
+(ert-deftest beads-formula-test-instantiate-pour ()
+  "The pour phase dispatches to `bd mol pour' with vars and assignee."
+  :tags '(:unit)
+  (let ((captured nil))
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (cmd) (setq captured cmd) '((root_id . "mol-1")))))
+      (let ((beads-formula-instantiate-assignee "beads.el/task"))
+        (beads-formula-instantiate (beads-formula :name "build-basic")
+                                   'pour nil '(("target" . "beads.el"))))
+      (should (cl-typep captured 'beads-command-mol-pour))
+      (should (equal (oref captured proto-id) "build-basic"))
+      (should (equal (oref captured var) '("target=beads.el")))
+      (should (equal (oref captured assignee) "beads.el/task"))
+      (should-not (oref captured dry-run)))))
+
+(ert-deftest beads-formula-test-instantiate-wisp-and-root-only ()
+  "The wisp phases dispatch to `bd mol wisp', root-only only for `wisp-root-only'."
+  :tags '(:unit)
+  (let ((captured nil))
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (cmd) (setq captured cmd) nil)))
+      (beads-formula-instantiate (beads-formula :name "patrol") 'wisp nil nil)
+      (should (cl-typep captured 'beads-command-mol-wisp))
+      (should (equal (oref captured proto-id) "patrol"))
+      (should-not (oref captured root-only))
+      (beads-formula-instantiate (beads-formula :name "patrol")
+                                 'wisp-root-only nil nil)
+      (should (oref captured root-only)))))
+
+(ert-deftest beads-formula-test-instantiate-string-resolves ()
+  "The string method resolves the formula, then instantiates it."
+  :tags '(:unit)
+  (let ((captured nil))
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (cmd)
+                 (if (cl-typep cmd 'beads-command-formula-show)
+                     (beads-formula :name "pancakes")
+                   (setq captured cmd)
+                   nil))))
+      (beads-formula-instantiate "pancakes" 'pour nil nil)
+      (should (cl-typep captured 'beads-command-mol-pour))
+      (should (equal (oref captured proto-id) "pancakes")))))
+
+(ert-deftest beads-formula-test-instantiate-unknown-phase-signals ()
+  "An unknown phase signals rather than picking a default."
+  :tags '(:unit)
+  (should-error (beads-formula-instantiate
+                 (beads-formula :name "x") 'simmer nil nil)
+                :type 'error))
+
+;;; ========================================
+;;; Follow
+;;; ========================================
+
+(ert-deftest beads-formula-test-follow-opens-molecule-view ()
+  "Follow opens `beads-molecule-open' on the created root id."
+  :tags '(:unit)
+  (let ((opened nil))
+    (cl-letf (((symbol-function 'beads-molecule-open)
+               (lambda (root) (setq opened root))))
+      (let ((context (beads-formula-launch-context
+                      :shape 'formula :vars nil :warnings nil)))
+        (beads-formula-follow '((root_id . "mol-9")) context)
+        (should (equal opened "mol-9"))))))
+
+(ert-deftest beads-formula-test-follow-returns-context ()
+  "Follow with no recognizable root still returns the context."
+  :tags '(:unit)
+  (let ((context (beads-formula-launch-context :shape 'formula :warnings nil)))
+    (should (eq (beads-formula-follow nil context) context))))
+
+;;; ========================================
+;;; Instantiate transient behaviour
+;;; ========================================
+
+(ert-deftest beads-formula-test-instantiate-run-blocks-on-errors ()
+  "`s' refuses to instantiate while validation errors remain."
+  :tags '(:unit)
+  (let* ((recipe (beads-formula
+                  :name "f"
+                  :vars (list (beads-formula-var :name "target" :required t))))
+        (scope (beads-formula-instantiate--initial-scope recipe)))
+    (cl-letf (((symbol-function 'transient-scope) (lambda (&optional _type) scope))
+              ((symbol-function 'beads-command-execute)
+               (lambda (_cmd) (error "must not execute"))))
+      (should-error (beads-formula-instantiate--run) :type 'user-error))))
+
+(ert-deftest beads-formula-test-instantiate-run-instantiates-and-follows ()
+  "`s' validates, instantiates and follows when ready."
+  :tags '(:unit)
+  (let* ((recipe (beads-formula :name "build-basic"))
+         (scope (beads-formula-instantiate--initial-scope recipe))
+         (captured nil)
+         (followed nil))
+    (cl-letf (((symbol-function 'transient-scope) (lambda (&optional _type) scope))
+              ((symbol-function 'transient-quit-one) (lambda () nil))
+              ((symbol-function 'beads-command-execute)
+               (lambda (cmd) (setq captured cmd) '((new_epic_id . "mol-7"))))
+              ((symbol-function 'beads-formula-follow)
+               (lambda (result context) (setq followed (list result context)))))
+      (beads-formula-instantiate--run)
+      (should (cl-typep captured 'beads-command-mol-pour))
+      (should (equal (oref captured proto-id) "build-basic"))
+      (should followed))))
+
+(ert-deftest beads-formula-test-instantiate-header-blocked-and-ready ()
+  "The header reports blocked diagnostics and ready state."
+  :tags '(:unit)
+  (let* ((blocked (beads-formula
+                   :name "f"
+                   :description "d"
+                   :vars (list (beads-formula-var :name "target" :required t))))
+         (ready (beads-formula :name "g" :description "d")))
+    (should (string-match-p "Blocked"
+                            (beads-formula-instantiate--header
+                             (beads-formula-instantiate--initial-scope blocked))))
+    (should (string-match-p "Ready"
+                            (beads-formula-instantiate--header
+                             (beads-formula-instantiate--initial-scope ready))))))
+
+(ert-deftest beads-formula-test-instantiate-preview-renders-command ()
+  "The preview buffer renders the dry-run command line and output."
+  :tags '(:unit)
+  (let* ((recipe (beads-formula :name "build-basic" :description "d"))
+         (scope (beads-formula-instantiate--initial-scope recipe)))
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (cmd)
+                 (should (oref cmd dry-run))
+                 (should-not (oref cmd json))
+                 "Dry run: would pour 2 issues"))
+              ((symbol-function 'display-buffer) (lambda (&rest _args) nil)))
+      (unwind-protect
+          (progn
+            (beads-formula-instantiate-preview scope)
+            (with-current-buffer beads-formula-instantiate-preview-buffer-name
+              (should (string-match-p "bd mol pour build-basic" (buffer-string)))
+              (should (string-match-p "would pour 2 issues" (buffer-string)))))
+        (kill-buffer beads-formula-instantiate-preview-buffer-name)))))
+
+;;; ========================================
+;;; Integration: real bd mol pour / wisp
+;;; ========================================
+
+(defconst beads-formula-test--smoke-formula
+  "description = \"Smoke instantiate formula.\"
+formula = \"inst-smoke\"
+version = 1
+contract = \"graph.v2\"
+target_required = false
+
+[[steps]]
+id = \"one\"
+title = \"One\"
+"
+  "A minimal valid formula used by the instantiate integration tests.")
+
+(defun beads-formula-test--write-smoke-formula ()
+  "Write the smoke formula into the current repo's `.beads/formulas'."
+  (let ((file (expand-file-name ".beads/formulas/inst-smoke.formula.toml"
+                                default-directory)))
+    (make-directory (file-name-directory file) t)
+    (with-temp-file file (insert beads-formula-test--smoke-formula))
+    file))
+
+(ert-deftest beads-formula-test-instantiate-pour-integration ()
+  "`beads-formula-instantiate' pours through the real `bd'."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-temp-repo (:init-beads t :prefix "wisf")
+    (beads-formula-test--write-smoke-formula)
+    (let* ((recipe (beads-command-execute
+                    (beads-command-formula-show
+                     :formula-name "inst-smoke" :json t)))
+           (result (beads-formula-instantiate recipe 'pour nil nil)))
+      (should (beads-formula--result-root-id result)))))
+
+(ert-deftest beads-formula-test-instantiate-wisp-integration ()
+  "`beads-formula-instantiate' creates a wisp through the real `bd'."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-temp-repo (:init-beads t :prefix "wisf")
+    (beads-formula-test--write-smoke-formula)
+    (let* ((recipe (beads-command-execute
+                    (beads-command-formula-show
+                     :formula-name "inst-smoke" :json t)))
+           (result (beads-formula-instantiate recipe 'wisp-root-only nil nil)))
+      (should (beads-formula--result-root-id result)))))
+
+;;; ========================================
+;;; Provenance types (REQ-SF-010/011/052)
+;;; ========================================
+
+(defconst beads-formula-test--rich-json
+  '((formula . "rich")
+    (description . "Rich formula")
+    (version . 2)
+    (type . "workflow")
+    (phase . "vapor")
+    (extends . ["base-one" "base-two"])
+    (source . "/tmp/rich.formula.toml")
+    (vars . ((mode . ((description . "Mode")
+                      (type . "string")
+                      (enum . ["a" "b"])
+                      (pattern . "^[ab]$")
+                      (default . "a")
+                      (required . t)))))
+    (steps . [((id . "prepare") (title . "Prepare"))
+              ((id . "build")
+               (title . "Build")
+               (needs . ["prepare"])
+               (waits_for . "prep-gate")
+               (gate . ((id . "approve") (type . "human"))))])
+    (compose . ((aspects . ["security-audit" "logging"])
+                (bond_points . [((id . "entry")
+                                 (description . "Attach setup work here")
+                                 (before_step . "build"))
+                                ((id . "release-after")
+                                 (after_step . "verify")
+                                 (parallel . t))])
+                (expand . [((target . "build")
+                            (with . "expansion-formula"))])
+                (map . [((select . "*.verify")
+                         (with . "map-formula"))]))))
+  "Fixture mirroring `bd formula show rich --json'.")
+
+(ert-deftest beads-formula-test-from-json-provenance ()
+  "`beads-formula-from-json' reads phase, extends and composition."
+  :tags '(:unit)
+  (let ((formula (beads-formula-from-json beads-formula-test--rich-json)))
+    (should (equal (oref formula phase) "vapor"))
+    (should (equal (oref formula extends) '("base-one" "base-two")))
+    (should (equal (oref formula aspects) '("security-audit" "logging")))
+    (should (equal (oref formula expansions)
+                   '("expansion-formula" "map-formula")))
+    (should (= 2 (length (oref formula bond-points))))
+    (let ((entry (car (oref formula bond-points))))
+      (should (equal (oref entry id) "entry"))
+      (should (equal (oref entry before-step) "build"))
+      (should (equal (oref entry description) "Attach setup work here")))
+    (let ((release (nth 1 (oref formula bond-points))))
+      (should (equal (oref release after-step) "verify"))
+      (should (oref release parallel)))))
+
+(ert-deftest beads-formula-test-from-json-step-gate-waits-for ()
+  "Steps carry their declared gate and waits_for."
+  :tags '(:unit)
+  (let* ((formula (beads-formula-from-json beads-formula-test--rich-json))
+         (build (seq-find (lambda (step) (equal (oref step id) "build"))
+                          (oref formula steps))))
+    (should (equal (oref build waits-for) "prep-gate"))
+    (should (beads-formula-gate-p (oref build gate)))
+    (should (equal (oref (oref build gate) type) "human"))
+    (should (equal (oref (oref build gate) id) "approve"))))
+
+(ert-deftest beads-formula-test-from-json-var-constraints ()
+  "Variables keep their declared type, enum and pattern (REQ-SF-011)."
+  :tags '(:unit)
+  (let* ((formula (beads-formula-from-json beads-formula-test--rich-json))
+         (var (car (oref formula vars))))
+    (should (equal (oref var name) "mode"))
+    (should (equal (oref var var-type) "string"))
+    (should (equal (oref var enum) '("a" "b")))
+    (should (equal (oref var pattern) "^[ab]$"))
+    (should (oref var required))))
+
+(ert-deftest beads-formula-test-detail-sections-composition ()
+  "Detail sections list bond points and composition before source."
+  :tags '(:unit)
+  (let ((formula (beads-formula-from-json beads-formula-test--rich-json)))
+    (should (equal (mapcar (lambda (section) (plist-get section :key))
+                           (beads-formula-detail-sections formula))
+                   '(vars steps bond-points composition source)))
+    (should (equal (plist-get (nth 2 (beads-formula-detail-sections formula))
+                              :title)
+                   "Bond points (2)"))))
+
+(ert-deftest beads-formula-test-list-entry-columns ()
+  "The list row carries phase and an abbreviated source path."
+  :tags '(:unit)
+  (let* ((formula (beads-formula-summary
+                   :name "release"
+                   :formula-type "workflow"
+                   :phase "vapor"
+                   :source "/tmp/release.formula.toml"
+                   :steps 6
+                   :vars 1))
+         (entry (beads-formula-list--formula-to-entry formula))
+         (row (nth 1 entry)))
+    (should (equal (nth 0 entry) "release"))
+    (should (equal (aref row 4) "vapor"))
+    (should (equal (aref row 5) "/tmp/release.formula.toml"))
+    (should (= 6 (length row)))))
+
+(ert-deftest beads-formula-test-list-mode-has-provenance-columns ()
+  "The browser format exposes Name/Type/Steps/Vars/Phase/Source."
+  :tags '(:unit)
+  (with-temp-buffer
+    (beads-formula-list-mode)
+    (should (equal (mapcar #'car tabulated-list-format)
+                   '("Name" "Type" "Steps" "Vars" "Phase" "Source")))))
+
+;;; ========================================
+;;; Scope filter and shadowing
+;;; ========================================
+
+(ert-deftest beads-formula-test-scope-of ()
+  "`beads-formula-scope-of' classifies sources by search path."
+  :tags '(:unit)
+  (let* ((root (make-temp-file "beads-scope" t))
+         (project (expand-file-name ".beads/formulas" root)))
+    (unwind-protect
+        (progn
+          (should (eq (beads-formula-scope-of
+                       (expand-file-name "a.formula.toml" project) root)
+                      'project))
+          (should (eq (beads-formula-scope-of
+                       (expand-file-name "~/.beads/formulas/a.formula.toml")
+                       root)
+                      'user))
+          (should (eq (beads-formula-scope-of "/tmp/elsewhere/a.formula.toml"
+                                              root)
+                      'other))
+          (should (eq (beads-formula-scope-of nil root) 'other)))
+      (delete-directory root t))))
+
+(ert-deftest beads-formula-test-filter-by-scope ()
+  "`beads-formula-filter-by-scope' keeps only matching sources."
+  :tags '(:unit)
+  (let* ((root (make-temp-file "beads-scope" t))
+         (project (expand-file-name ".beads/formulas" root))
+         (project-formula (beads-formula-summary
+                           :name "proj"
+                           :source (expand-file-name "p.formula.toml" project)))
+         (user-formula (beads-formula-summary
+                        :name "user"
+                        :source (expand-file-name
+                                 "~/.beads/formulas/u.formula.toml")))
+         (formulas (list project-formula user-formula)))
+    (unwind-protect
+        (progn
+          (should (equal (beads-formula-filter-by-scope formulas 'all root)
+                         formulas))
+          (should (equal (beads-formula-filter-by-scope formulas 'project root)
+                         (list project-formula)))
+          (should (equal (beads-formula-filter-by-scope formulas 'user root)
+                         (list user-formula))))
+      (delete-directory root t))))
+
+(ert-deftest beads-formula-test-shadow-index-and-shadowed-by ()
+  "A same-name file lower on the search path is reported as shadowed."
+  :tags '(:unit)
+  (let* ((project (make-temp-file "beads-shadow-proj" t))
+         (gt (make-temp-file "beads-shadow-gt" t))
+         (project-dir (expand-file-name ".beads/formulas" project))
+         (gt-dir (expand-file-name ".beads/formulas" gt)))
+    (unwind-protect
+        (progn
+          (make-directory project-dir t)
+          (make-directory gt-dir t)
+          (with-temp-file (expand-file-name "build.formula.toml" project-dir)
+            (insert "formula = \"build\"\n"))
+          (with-temp-file (expand-file-name "build.formula.toml" gt-dir)
+            (insert "formula = \"build\"\n"))
+          (with-temp-file (expand-file-name "only.formula.toml" project-dir)
+            (insert "formula = \"only\"\n"))
+          (cl-letf (((symbol-function 'getenv)
+                     (lambda (name)
+                       (if (equal name "GT_ROOT") gt nil))))
+            (let* ((index (beads-formula-shadow-index project))
+                   (winner (beads-formula-summary
+                            :name "build"
+                            :source (expand-file-name "build.formula.toml"
+                                                      project-dir)))
+                   (solo (beads-formula-summary
+                          :name "only"
+                          :source (expand-file-name "only.formula.toml"
+                                                    project-dir))))
+              (should (equal (beads-formula-shadowed-by winner index)
+                             (list (expand-file-name "build.formula.toml"
+                                                     gt-dir))))
+              (should (null (beads-formula-shadowed-by solo index))))))
+      (delete-directory project t)
+      (delete-directory gt t))))
+
+(ert-deftest beads-formula-test-browser-entry-marks-shadowed ()
+  "A shadowing formula's Name cell carries the shadow marker."
+  :tags '(:unit)
+  (let* ((index (make-hash-table :test #'equal))
+         (formula (beads-formula-summary
+                   :name "build"
+                   :formula-type "workflow"
+                   :source "/proj/build.formula.toml")))
+    (puthash "build" (list "/proj/build.formula.toml" "/user/build.formula.toml")
+             index)
+    (with-temp-buffer
+      (setq-local beads-formula-browser-shadow-index index)
+      (let* ((entry (beads-formula-browser--entry formula))
+             (row (nth 1 entry)))
+        (should (equal (nth 0 entry) "build"))
+        (should (string-match-p "⧉shad" (aref row 0)))
+        (should (= 6 (length row)))))))
 
 (provide 'beads-formula-test)
 ;;; beads-formula-test.el ends here

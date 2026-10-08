@@ -4,6 +4,79 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Formula provenance and richer detail (WI-SF-05, REQ-SF-010/011/052)
+
+The formula browser now shows a **Phase** column and the **Source** path, and
+marks a formula whose name shadows a same-name formula lower on the `bd`
+search path with a `⧉shad` badge (help-echo names the shadowed path).  The
+scope filter (`/` in the browser, or a prefix arg to
+`beads-formula-browse`) switches between `project`, `user` and `all`.
+
+The formula detail now renders the declared `phase`, `version`, `extends`,
+`aspects`, expansion formulas, `compose.bond_points` (id, before/after,
+parallel), and each step's `type`, `depends_on`, `gate` and `waits_for`, plus
+every variable's declared type, enum, pattern, default and required flag.
+
+`beads-types.el` gains the matching parsed model: `beads-formula` slots for
+`phase`, `extends`, `compose`, `aspects`, `expansions` and `bond-points`,
+`beads-formula-step` slots for `step-type`, `gate` and `waits-for`, and the
+new `beads-formula-gate` and `beads-formula-bond-point` classes.
+
+### Cook porcelain and `beads-command-cook.el` (WI-SF-04)
+
+`bd cook` now has a porcelain: the `beads-cook` transient (opened with
+`K` from the maintenance menu) chooses compile or runtime mode, toggles
+`--persist` (with optional `--force`/`--prefix`) and adds `--var`
+substitutions.  `P` renders the exact `bd cook --dry-run`
+step/dependency tree in a `beads-cook-preview-mode` buffer without
+writing anything; a proto is written only when Persist is on, and Force
+without Persist is rejected before `bd` runs.  The `beads-command-cook`
+EIEIO class moved out of `beads-command-misc.el` into its own
+`beads-command-cook.el` (one file per subcommand).  The `beads-cook`
+autoload now points at `beads-cook.el`.
+
+### Swarm command results are typed (WI-SF-15)
+
+`beads-command-swarm-{create,list,status,validate}` now declare `:result`
+and return typed objects (`beads-swarm-create-result`, `beads-swarm-status`,
+`beads-swarm-analysis`, and the new `beads-swarm-list-item`,
+`beads-swarm-status-issue`, `beads-ready-front` and `beads-swarm-issue-node`
+helper classes) instead of raw JSON strings. `bd swarm create`/`validate`
+exit 0 on domain states, so the new `beads-swarm-domain-error-p` is the
+single detector for those `{error: ...}` payloads and the `swarmable=false`
+state. No command slots changed.
+### Standalone-first formula → molecule workflow plan published
+
+`plans/beads-standalone-formulas/` now holds the complete design for making
+the whole `bd` lifecycle — `formula → proto → molecule → swarm` —
+first-class in Emacs with `bd` alone and no gascity.  The plan **extends**
+the PR #67 redesign rather than forking it: every new surface composes the
+seams published there — `beads-formula-launch`,
+`beads-formula-var-reader`, `beads-sling-*`, `beads-thing`, the faces
+palette and `beads-command-execute-async` — and the swarm views reuse the
+existing `beads-command-swarm.el` classes and `beads-swarm` transient
+(REQ-SF-081).  The package ships `requirements.md`, `design.md`,
+`menu-mockups.md`, `decomposition.md`, `implementation-plan.md` and
+`plan-review.md` under `plans/beads-standalone-formulas/`, cross-referencing
+`plans/beads-ui-redesign/` (PR #67, `docs/ui-redesign.md`) instead of
+duplicating it.  44 `REQ-SF-*` requirements across nine gaps trace to the
+`WI-SF-01…19` work items.  The plan package is planning-only and changes no
+`.el` source file (REQ-SF-083).
+### Formula var choices/validation seams for downstream packages (REQ-SF-100)
+
+beads.el now owns the generic formula-variable seams downstream
+packages (notably gascity.el) had each re-implemented:
+`beads-formula-var-choices` resolves a variable's allowed values
+(explicit `enum', else the name -> `metadata.gc.methodology' mapping
+in the new `beads-formula-enum-metadata-keys'), `beads-formula-methodology'
+reads that metadata, and `beads-formula-validate-vars' /
+`beads-formula-missing-required-vars' do the client-side required and
+`pattern' check.  `beads-formula-var-reader' takes an optional formula
+and reports the resolved `:choices' (and `enum' kind) from the same
+seam.  The `beads-formula' type now parses the formula's `metadata'.
+`docs/cross-repo-ownership.md' records the before/after module-ownership
+list, guarded by `lisp/test/beads-cross-repo-ownership-test.el'.
+
 ### Agent launch works in non-git beads projects / Gas City workspaces
 
 `beads-agent-start` (and the sling, typed, and text-menu start paths)

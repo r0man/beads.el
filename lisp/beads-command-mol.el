@@ -244,8 +244,8 @@ Garbage-collects abandoned or closed wisps.")
     :long-option "type"
     :type (or null string)
     :short-option "t"
-    :prompt "Bond type (seq/par/gate): "
-    :choices ("seq" "par" "gate")
+    :prompt "Bond type (sequential/parallel/conditional): "
+    :choices ("sequential" "parallel" "conditional")
     :group "Options"
     :level 1
     :order 2)
@@ -350,26 +350,29 @@ Deletes a molecule without creating a digest.")
 (beads-defcommand beads-command-mol-distill (beads-command-global-options)
   ((epic-id
     :positional 1)
+   (formula-name
+    :positional 2)
    (dry-run
     :type boolean
-    :short-option "n"
+    :long-option "dry-run"
     :group "Options"
     :level 1
     :order 1)
    (output
-    :short-option "o"
+    :long-option "output"
     :type (or null string)
-    :prompt "Output file: "
+    :prompt "Output directory: "
     :group "Options"
     :level 1
     :order 2)
    (var
     :type (list-of string)
-    :short-option "v"
+    :long-option "var"
     :prompt "Variable (key=value): "
     :group "Options"
     :level 1
     :order 3))
+  :json nil
   :documentation "Represents bd mol distill command.
 Extracts a formula from an existing epic.")
 
@@ -515,6 +518,10 @@ Proto: template epic, Molecule: instantiated work."
   ["Combine"
    ("b" "Bond" beads-mol-bond)
    ("d" "Distill" beads-mol-distill)]
+  ["Workflow"
+   ("o" "Open view" beads-molecule-open)
+   ("a" "Hand off" beads-handoff-agent)
+   ("=" "Bond flow" beads-bond)]
   ["Lifecycle"
    ("s" "Show" beads-mol-show)
    ("c" "Current" beads-mol-current)

@@ -66,7 +66,12 @@
                    beads-face-agent-failed
                    beads-face-success
                    beads-face-warning
-                   beads-face-error))))
+                   beads-face-error
+                   beads-face-molecule-root
+                   beads-face-molecule-step
+                   beads-face-gate
+                   beads-face-swarm-coordinator
+                   beads-face-swarm-lane))))
 
 (ert-deftest beads-faces-test-module-faces-derive-from-palette ()
   "Semantic module faces are aliases that `:inherit' a palette face."

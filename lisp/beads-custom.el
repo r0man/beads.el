@@ -161,6 +161,22 @@ backend `name' slot; a name that is not registered is ignored.
   :type '(repeat string)
   :group 'beads-agent)
 
+;;; Formula Variables
+
+(defcustom beads-formula-enum-metadata-keys
+  '(("drain_policy" . allowed_drain_policies)
+    ("interaction_mode" . interaction_modes)
+    ("review_mode" . review_modes))
+  "Built-in mapping of a formula variable name to its methodology choice key.
+Some formula variables declare their allowed values in the formula's
+`metadata.gc.methodology' object rather than on the variable itself.  Each
+entry maps a variable name to the methodology key holding its choices; a
+variable with neither an explicit `enum' nor an entry here is read as plain
+text.  Downstream packages that ship additional methodology var names can
+add to this list (`beads-formula-var-choices' consults it)."
+  :type '(alist :key-type string :value-type symbol)
+  :group 'beads)
+
 ;;; Provide
 
 (provide 'beads-custom)

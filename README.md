@@ -853,7 +853,19 @@ is the plumbing; every view is a function of `bd … --json` output, and no
 bd logic is reimplemented.  The long-form description, the extension
 seam list, and the removed-surface inventory live in
 [`docs/ui-redesign.md`](docs/ui-redesign.md); the design record is
-`plans/beads-ui-redesign/design.md`.
+`plans/beads-ui-redesign/design.md` (PR #67).
+
+The follow-on plan,
+[`plans/beads-standalone-formulas/`](plans/beads-standalone-formulas/), makes
+the whole `bd` lifecycle (`formula → proto → molecule → swarm`) first-class
+with `bd` alone.  It extends the PR #67 seams above rather than forking them:
+`beads-formula-launch` and `beads-formula-var-reader` are the launch and
+variable-validation seams, movement stays `beads-thing`, async stays
+`beads-command-execute-async`, and the swarm views reuse the existing
+`beads-command-swarm.el` classes and `beads-swarm` transient.  Its design and
+surface mockups live in `plans/beads-standalone-formulas/design.md` and
+`menu-mockups.md`, and its requirements trace to work items in
+`decomposition.md`.
 
 ### Three layers
 

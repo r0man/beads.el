@@ -127,6 +127,35 @@
   "Face for error footers and validation."
   :group 'beads)
 
+;; Standalone formula/molecule/swarm surfaces (WI-SF-12, design.md §13b).
+;; Each derives from a canonical palette face so there is still one
+;; palette; these only name the new semantic roles.
+
+(defface beads-face-molecule-root
+  '((t :inherit beads-face-header :weight bold))
+  "Face for a molecule root (persistent `◆' or vapor `◇')."
+  :group 'beads)
+
+(defface beads-face-molecule-step
+  '((t :inherit beads-face-issue-line))
+  "Face for a molecule step row."
+  :group 'beads)
+
+(defface beads-face-gate
+  '((t :inherit beads-face-key))
+  "Face for a gate type glyph or label."
+  :group 'beads)
+
+(defface beads-face-swarm-coordinator
+  '((t :inherit beads-face-header :weight bold))
+  "Face for a swarm molecule or its coordinator."
+  :group 'beads)
+
+(defface beads-face-swarm-lane
+  '((t :inherit beads-face-issue-line))
+  "Face for a swarm worker/parallelism lane."
+  :group 'beads)
+
 ;;; Palette inventory
 
 (defconst beads-face-palette
@@ -148,7 +177,12 @@
     beads-face-agent-failed
     beads-face-success
     beads-face-warning
-    beads-face-error)
+    beads-face-error
+    beads-face-molecule-root
+    beads-face-molecule-step
+    beads-face-gate
+    beads-face-swarm-coordinator
+    beads-face-swarm-lane)
   "The documented `beads-face-*' palette.
 This is the public contract: extensions derive faces from these with
 `:inherit'.  It is also the list the face-coverage test walks, so a

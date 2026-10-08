@@ -119,7 +119,35 @@ Every one must remain reachable from `beads-maintenance' (REQ-023).")
                         beads-maintenance))
       (should (memq expected commands)))))
 
+(ert-deftest beads-menu-test-dispatch-standalone-formula-entries ()
+  "The dispatch menu carries the standalone formula/molecule entries.
+WI-SF-12 registers the new Molecule/Gate/Wisp/Swarm/Context surfaces on
+`beads-dispatch' (REQ-SF-082); swarm is promoted out of Maintenance."
+  :tags '(:unit)
+  (let ((commands (beads-menu-test--layout-commands 'beads-dispatch)))
+    (dolist (expected '(beads-mol beads-gate beads-wisp-list
+                        beads-swarm-list-view beads-context))
+      (should (memq expected commands)))))
+
+(ert-deftest beads-menu-test-maintenance-wisp-entry ()
+  "`beads-maintenance' also reaches the Wisp list (REQ-SF-082)."
+  :tags '(:unit)
+  (should (memq 'beads-wisp-list
+                (beads-menu-test--layout-commands 'beads-maintenance))))
+
 ;;; Providers
+
+(ert-deftest beads-menu-test-every-suffix-is-a-command ()
+  "Every suffix registered on the menus is an interactive command.
+Loading `beads' installs the autoloads for the standalone-formula
+surfaces (WI-SF-12), so a menu entry without a command behind it
+fails here instead of at render time."
+  :tags '(:unit)
+  (require 'beads)
+  (require 'beads-command-mol)
+  (dolist (menu '(beads-dispatch beads-maintenance beads-mol))
+    (dolist (command (beads-menu-test--layout-commands menu))
+      (should (commandp command)))))
 
 (ert-deftest beads-menu-test-provider-empty-is-noop ()
   "An empty provider hook contributes nothing."

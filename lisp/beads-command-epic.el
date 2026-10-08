@@ -37,6 +37,8 @@
 (require 'beads-prefix)
 (require 'beads-thing)
 
+(declare-function beads-formula-distill "beads-formula-edit" (&optional epic-id))
+
 ;; Forward declarations
 (declare-function beads-show "beads-command-show")
 (declare-function beads-list-mode "beads-command-list")
@@ -138,6 +140,7 @@ Use --dry-run to preview what would be closed without making changes."
 View epic status and close eligible epics."
   ["Epic Commands"
    ("s" "Status overview" beads-epic)
+   ("D" "Distill to formula" beads-formula-distill)
    ("c" "Close eligible" beads-epic-close-eligible-transient)])
 
 ;;; ============================================================
@@ -505,6 +508,8 @@ Format: ((epic-id . (expanded-p . children)) ...)")
     (define-key map (kbd "N") #'beads-epic-status-next)
     (define-key map (kbd "P") #'beads-epic-status-previous)
     (define-key map (kbd "RET") #'beads-epic-status-show-at-point)
+    ;; Distill the epic at point into a reusable formula (REQ-SF-063).
+    (define-key map (kbd "D") #'beads-formula-distill)
     (define-key map (kbd "n") #'beads-epic-status-next)
     (define-key map (kbd "p") #'beads-epic-status-previous)
     (define-key map (kbd "g") #'beads-epic-status-refresh)

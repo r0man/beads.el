@@ -60,6 +60,7 @@
 
 ;; Forward declarations
 (declare-function org-link-set-parameters "org" (type &rest parameters))
+(declare-function beads-formula-distill "beads-formula-edit" (&optional epic-id))
 (declare-function beads--get-database-path "beads-util" ())
 (declare-function beads-agent--get-backend "beads-agent-backend" (name))
 (declare-function beads-agent-backend-get-buffer "beads-agent-backend"
@@ -648,6 +649,8 @@ Called from `kill-buffer-hook' to clean up session state."
     (define-key map (kbd "s") #'beads-actions-set-status)
     (define-key map (kbd "e") #'beads-show-edit-field)
     (define-key map (kbd "d") #'beads-actions-close)
+    ;; Distill the issue/epic into a reusable formula (REQ-SF-063).
+    (define-key map (kbd "D") #'beads-formula-distill)
     (define-key map (kbd "C") #'beads-actions-claim)
     (define-key map (kbd "#") #'beads-actions-set-priority)
 

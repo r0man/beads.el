@@ -73,8 +73,20 @@
   :type 'integer
   :group 'beads-formula)
 
+(defcustom beads-formula-list-phase-width 8
+  "Width of Phase column in formula list."
+  :type 'integer
+  :group 'beads-formula)
+
+(defcustom beads-formula-list-source-width 45
+  "Width of Source column in formula list."
+  :type 'integer
+  :group 'beads-formula)
+
 (defcustom beads-formula-list-description-width 50
-  "Width of Description column in formula list."
+  "Width of Description column in formula list.
+Kept for callers that still set it; the browser now shows Source
+instead of Description."
   :type 'integer
   :group 'beads-formula)
 
@@ -328,10 +340,13 @@ Reuses existing buffer for same project-dir (directory is identity)."
   (propertize (or type "") 'face (beads-formula-list--type-face type)))
 
 (defun beads-formula-list--formula-to-entry (formula)
-  "Convert FORMULA (beads-formula-summary) to tabulated-list entry."
+  "Convert FORMULA (beads-formula-summary) to tabulated-list entry.
+The row carries the source path (abbreviated) and, when the producer
+supplies it, the declared phase."
   (let* ((name (or (oref formula name) ""))
          (type (oref formula formula-type))
-         (desc (or (oref formula description) ""))
+         (phase (oref formula phase))
+         (source (oref formula source))
          (steps (or (oref formula steps) 0))
          (vars (or (oref formula vars) 0)))
     (list name
@@ -339,7 +354,8 @@ Reuses existing buffer for same project-dir (directory is identity)."
                   (beads-formula-list--format-type type)
                   (number-to-string steps)
                   (number-to-string vars)
-                  desc))))
+                  (or phase "—")
+                  (if source (abbreviate-file-name source) "—")))))
 
 (defun beads-formula-list--populate-buffer (formulas &optional command-obj)
   "Populate current buffer with FORMULAS.
@@ -450,7 +466,8 @@ Type-group header rows (whose id is not a string) return nil."
                       :right-align t)
                 (list "Vars" beads-formula-list-vars-width t
                       :right-align t)
-                (list "Description" beads-formula-list-description-width t)))
+                (list "Phase" beads-formula-list-phase-width t)
+                (list "Source" beads-formula-list-source-width t)))
   (setq tabulated-list-padding 2)
   (setq tabulated-list-sort-key (cons "Name" nil))
   (tabulated-list-init-header)
@@ -511,35 +528,100 @@ Uses `beads-formula-list--normalize-directory' for path comparison."
   "Render variable NAME with VAR (beads-formula-var object)."
   (let ((desc (oref var description))
         (default (oref var default))
-        (required (oref var required)))
+        (required (oref var required))
+        (var-type (oref var var-type))
+        (enum (oref var enum))
+        (pattern (oref var pattern)))
     (insert (propertize (format "  %s" name) 'face 'font-lock-variable-name-face))
+    (when var-type
+      (insert (format "  type %s" var-type)))
     (when required
-      (insert (propertize " (required)" 'face 'font-lock-warning-face)))
+      (insert (propertize "  required" 'face 'font-lock-warning-face)))
     (insert "\n")
     (when desc
       (insert (format "    %s\n" desc)))
+    (when enum
+      (insert (format "    Enum: %s\n" (mapconcat #'identity enum ", "))))
+    (when pattern
+      (insert (format "    Pattern: %s\n" pattern)))
     (when default
       (insert (format "    Default: %s\n" default)))
     (insert "\n")))
+
+(defun beads-formula-show--render-gate (gate)
+  "Return a one-line description of GATE (a beads-formula-gate object)."
+  (let ((parts (delq nil
+                     (list (oref gate type)
+                           (oref gate id)
+                           (when (oref gate timeout)
+                             (format "timeout %s" (oref gate timeout)))
+                           (when (oref gate repo)
+                             (format "repo %s" (oref gate repo)))))))
+    (when parts
+      (mapconcat #'identity parts " "))))
 
 (defun beads-formula-show--render-step (step index)
   "Render STEP (beads-formula-step object) at INDEX."
   (let ((id (oref step id))
         (title (oref step title))
         (description (oref step description))
-        (needs (oref step needs)))
+        (step-type (oref step step-type))
+        (needs (oref step needs))
+        (depends-on (oref step depends-on))
+        (waits-for (oref step waits-for))
+        (gate (oref step gate)))
     (insert (propertize (format "%d. %s" (1+ index) (or title id))
                         'face 'font-lock-function-name-face)
             "\n")
     (when (and id title)
       (insert (format "   ID: %s\n" id)))
+    (when step-type
+      (insert (format "   Type: %s\n" step-type)))
     (when needs
       (insert (format "   Needs: %s\n" (mapconcat #'identity needs ", "))))
+    (when depends-on
+      (insert (format "   Depends on: %s\n" (mapconcat #'identity depends-on ", "))))
+    (when waits-for
+      (insert (format "   Waits for: %s\n" waits-for)))
+    (when gate
+      (insert (format "   Gate: %s\n" (beads-formula-show--render-gate gate))))
     (when description
       (insert "\n"
               (replace-regexp-in-string "^" "   " description)
               "\n"))
     (insert "\n")))
+
+(defun beads-formula-show--render-bond-point (bond-point)
+  "Render BOND-POINT (a beads-formula-bond-point object)."
+  (let ((id (oref bond-point id))
+        (description (oref bond-point description))
+        (before (oref bond-point before-step))
+        (after (oref bond-point after-step))
+        (parallel (oref bond-point parallel)))
+    (insert (propertize (format "  %s" (or id ""))
+                        'face 'font-lock-constant-face))
+    (cond
+     (before (insert (format "  before %s" before)))
+     (after (insert (format "  after %s" after))))
+    (when parallel
+      (insert (propertize "  parallel" 'face 'font-lock-warning-face)))
+    (when description
+      (insert (format "  — %s" description)))
+    (insert "\n")))
+
+(defun beads-formula-show--render-composition (formula)
+  "Render the composition rules of FORMULA (extends, aspects, expansions)."
+  (let ((extends (oref formula extends))
+        (aspects (oref formula aspects))
+        (expansions (oref formula expansions)))
+    (when (or extends aspects expansions)
+      (beads-formula-show--render-section "Composition")
+      (insert (format "  extends: %s\n"
+                      (if extends (mapconcat #'identity extends ", ") "—")))
+      (insert (format "  aspects: %s\n"
+                      (if aspects (mapconcat #'identity aspects ", ") "—")))
+      (insert (format "  expansions: %s\n"
+                      (if expansions (mapconcat #'identity expansions ", ") "—"))))))
 
 (defun beads-formula-show--render (formula)
   "Render FORMULA in current buffer."
@@ -548,20 +630,23 @@ Uses `beads-formula-list--normalize-directory' for path comparison."
     ;; Header
     (insert (propertize (format "Formula: %s" (oref formula name))
                         'face 'beads-formula-title-face)
-            "\n\n")
+            "\n")
+    (when-let* ((desc (oref formula description)))
+      (insert (propertize (string-trim-right desc)
+                          'face 'beads-formula-value-face)
+              "\n"))
+    (insert "\n")
     ;; Metadata
     (beads-formula-show--render-header "Type" (oref formula formula-type))
     (beads-formula-show--render-header "Version"
                                        (when (oref formula version)
                                          (number-to-string (oref formula version))))
+    (beads-formula-show--render-header "Phase" (oref formula phase))
     (beads-formula-show--render-header "Source" (oref formula source))
-    ;; Description
-    (when-let* ((desc (oref formula description)))
-      (beads-formula-show--render-section "Description")
-      (insert (string-trim-right desc) "\n"))
     ;; Variables
     (when-let* ((vars (oref formula vars)))
-      (beads-formula-show--render-section "Variables")
+      (beads-formula-show--render-section
+       (format "Vars (%d)" (length vars)))
       (dolist (var vars)
         (beads-formula-show--render-var (oref var name) var)))
     ;; Steps
@@ -571,6 +656,18 @@ Uses `beads-formula-list--normalize-directory' for path comparison."
       (cl-loop for step in steps
                for idx from 0
                do (beads-formula-show--render-step step idx)))
+    ;; Bond points
+    (when-let* ((bond-points (oref formula bond-points)))
+      (beads-formula-show--render-section
+       (format "Bond points (%d)" (length bond-points)))
+      (dolist (bond-point bond-points)
+        (beads-formula-show--render-bond-point bond-point)))
+    ;; Composition
+    (beads-formula-show--render-composition formula)
+    ;; Source
+    (when-let* ((source (oref formula source)))
+      (beads-formula-show--render-section "Source")
+      (insert (format "  %s\n" source)))
     (goto-char (point-min))))
 
 ;;; ============================================================
@@ -621,9 +718,10 @@ Uses `beads-formula-list--normalize-directory' for path comparison."
   "Keymap for `beads-formula-show-mode'.")
 
 ;; Imenu expression for formula show buffers
-;; Section format: "Description", "Variables", "Steps (N)" followed by ===
+;; Section format: "Vars (N)", "Steps (N)", "Bond points (N)",
+;; "Composition", "Source" followed by ===
 (defvar beads-formula-show-imenu-expression
-  '((nil "^\\(Description\\|Variables\\|Steps ([0-9]+)\\)$" 1))
+  '((nil "^\\(Vars ([0-9]+)\\|Steps ([0-9]+)\\|Bond points ([0-9]+)\\|Composition\\|Source\\)$" 1))
   "Imenu generic expression for formula show buffers.")
 
 (define-derived-mode beads-formula-show-mode special-mode "Beads-Formula"
