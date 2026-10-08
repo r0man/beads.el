@@ -420,7 +420,11 @@ rejects, so the flow could never build a valid command."
           (should (string-match-p "Type: parallel" (buffer-string)))
           (should (string-match-p "Phase: pour (persistent)" (buffer-string)))
           (should (string-match-p "Vars: name=ace" (buffer-string)))))
-    (ignore-errors (transient-quit-all))))
+    ;; Clear the transient stack completely: this test sets up a
+    ;; `beads-prefix' menu twice, and a stale stack entry can leak into
+    ;; later transient tests (e.g. beads-prefix-test nested menus).
+    (ignore-errors (transient-quit-all))
+    (beads-test--clear-transient-state)))
 
 (ert-deftest beads-bond-test-info-descriptions-are-quoted-lambdas ()
   "The header/footer `:info' values are quoted lambda forms.

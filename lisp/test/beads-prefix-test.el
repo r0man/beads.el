@@ -59,19 +59,34 @@
        (delete-directory home t)
        (delete-directory project t))))
 
+(defun beads-prefix-test--reset-transient ()
+  "Clear transient state so the next menu starts from a clean slate.
+A stale prefix/stack entry from an earlier transient test makes
+`transient--post-command' signal with a nil prefix; clearing it keeps
+these menu tests deterministic."
+  (ignore-errors (transient-quit-all))
+  (dolist (var '(transient--prefix transient--suffixes
+                 transient-current-prefix transient-current-suffixes
+                 transient-current-command transient--exitp
+                 transient--stack transient--window transient--showp
+                 overriding-terminal-local-map))
+    (when (boundp var) (set var nil))))
+
 (defun beads-prefix-test--switch-and-type (home project keys)
   "Open the test menu for PROJECT from a buffer in HOME, then type KEYS.
 Return the recorded directories, oldest first."
   (setq beads-prefix-test--seen nil)
   (let ((map (make-sparse-keymap)))
     (keymap-set map "<f12>" #'beads-prefix-test--menu)
-    (with-current-buffer (window-buffer)
-      (let ((default-directory home)
-            (overriding-local-map map))
-        (setq-local default-directory home)
-        (let ((project-current-directory-override project))
-          (execute-kbd-macro (kbd "<f12>")))
-        (execute-kbd-macro (kbd keys)))))
+    (unwind-protect
+        (with-current-buffer (window-buffer)
+          (let ((default-directory home)
+                (overriding-local-map map))
+            (setq-local default-directory home)
+            (let ((project-current-directory-override project))
+              (execute-kbd-macro (kbd "<f12>")))
+            (execute-kbd-macro (kbd keys))))
+      (beads-prefix-test--reset-transient)))
   (reverse beads-prefix-test--seen))
 
 ;;; Macro expansion
