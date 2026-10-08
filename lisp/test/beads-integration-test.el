@@ -225,6 +225,23 @@ Returns DIR for convenience."
     (when (boundp var)
       (set var nil))))
 
+(defun beads-test-delete-temp-dir (dir)
+  "Recursively delete DIR, tolerating concurrent writers.
+Async beads commands (for example the `beads-show' refresh that
+`beads-actions-claim' starts via `beads-actions--after-mutation') may
+still be writing into the store when a test body ends.  A single
+recursive delete can then race with a file created mid-walk and fail
+with \"Directory not empty\", so wait briefly for the writer to finish
+and retry.  Best-effort: never signals."
+  (let ((deadline (+ (float-time) 5.0)))
+    (while (and (file-directory-p dir)
+                (< (float-time) deadline))
+      (condition-case nil
+          (delete-directory dir t)
+        (file-error (sleep-for 0.2))))
+    (when (file-directory-p dir)
+      (ignore-errors (delete-directory dir t)))))
+
 (defun beads-test-create-temp-repo (&rest args)
   "Create a temporary git repository and return its directory.
 ARGS is a plist with optional keys:
@@ -259,7 +276,7 @@ bd to a production store; bd writes to the repo-local
             (beads-test--init-beads temp-dir prefix quiet))
           temp-dir)
       (error
-       (ignore-errors (delete-directory temp-dir t))
+       (beads-test-delete-temp-dir temp-dir)
        (signal (car err) (cdr err))))))
 
 ;;; ============================================================
@@ -341,8 +358,10 @@ Examples:
            (beads-test--clear-caches)
            ;; Optionally cleanup temp dir.  Embedded Dolt data lives
            ;; under .beads/embeddeddolt/ and is removed with the repo.
+           ;; Use the race-tolerant helper: an async beads command may
+           ;; still be writing when the test body ends.
            (when ,cleanup
-             (delete-directory ,temp-dir t)))))))
+             (beads-test-delete-temp-dir ,temp-dir)))))))
 
 ;;; ============================================================
 ;;; Helper Functions for Integration Tests

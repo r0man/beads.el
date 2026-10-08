@@ -168,8 +168,9 @@ For a project with default settings, use an empty list:
              (beads-test--clear-transient-state)
              ;; Clean up temp directory; embedded Dolt data lives under
              ;; .beads/embeddeddolt/ and is removed with the repo.
-             (when (file-directory-p ,temp-dir)
-               (delete-directory ,temp-dir t))))))))
+             ;; Use the race-tolerant helper: an async beads command may
+             ;; still be writing when the test body ends.
+             (beads-test-delete-temp-dir ,temp-dir)))))))
 
 (defun beads-test-execute-commands (cmds)
   (dolist (cmd cmds)
@@ -566,9 +567,8 @@ Uses `bd delete --force' to remove issues without re-initializing."
 Call this at the end of the test session (e.g., in a teardown hook).
 Removes the project directory; embedded Dolt data lives under
 .beads/embeddeddolt/ and is removed with it."
-  (when (and beads-test--shared-project-dir
-             (file-directory-p beads-test--shared-project-dir))
-    (delete-directory beads-test--shared-project-dir t))
+  (when beads-test--shared-project-dir
+    (beads-test-delete-temp-dir beads-test--shared-project-dir))
   (setq beads-test--shared-project-dir nil)
   (setq beads-test--shared-project-prefix nil))
 
