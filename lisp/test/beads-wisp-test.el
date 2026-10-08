@@ -395,12 +395,31 @@ to \"task\"; EPHEMERAL defaults to t."
 
 ;;; Integration
 
+(defconst beads-wisp-test--formula "wisp-flow"
+  "Local formula the wisp integration tests create and use.")
+
+(defun beads-wisp-test--write-formula (name)
+  "Write a minimal NAME formula into the current temp repo.
+The tests must not depend on a formula shipped by the host `bd'
+(`mol-do-work' exists in some builds only); a project formula works on
+every `bd' version."
+  (let ((path (expand-file-name (format ".beads/formulas/%s.formula.toml" name))))
+    (make-directory (file-name-directory path) t)
+    (with-temp-file path
+      (insert (format (concat "formula = \"%s\"\n"
+                              "description = \"wisp integration test\"\n"
+                              "type = \"workflow\"\nversion = 1\n\n"
+                              "[[steps]]\nid = \"s1\"\ntitle = \"%s step\"\ntype = \"task\"\n")
+                      name name)))
+    path))
+
 (defun beads-wisp-test--create-wisp ()
-  "Create a wisp from the bundled `mol-do-work' formula.
+  "Create a wisp from the local test formula.
 Returns the new root molecule id."
+  (beads-wisp-test--write-formula beads-wisp-test--formula)
   (let ((result (beads-command-execute
                  (beads-command-mol-wisp-create
-                  :proto-id "mol-do-work" :json t))))
+                  :proto-id beads-wisp-test--formula :json t))))
     (alist-get 'new_epic_id result)))
 
 (defun beads-wisp-test--live-wisps ()
