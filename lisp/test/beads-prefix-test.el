@@ -70,12 +70,20 @@ these menu tests deterministic."
                  transient-current-command transient--exitp
                  transient--stack transient--window transient--showp
                  overriding-terminal-local-map))
-    (when (boundp var) (set var nil))))
+    (when (boundp var) (set var nil)))
+  ;; `transient-quit-all' can leave these command hooks installed when a
+  ;; prior transient errored; a later `execute-kbd-macro' then runs
+  ;; `transient--post-command' with a nil prefix and signals.
+  (when (fboundp 'transient--post-command)
+    (remove-hook 'post-command-hook #'transient--post-command))
+  (when (fboundp 'transient--pre-command)
+    (remove-hook 'pre-command-hook #'transient--pre-command)))
 
 (defun beads-prefix-test--switch-and-type (home project keys)
   "Open the test menu for PROJECT from a buffer in HOME, then type KEYS.
 Return the recorded directories, oldest first."
   (setq beads-prefix-test--seen nil)
+  (beads-prefix-test--reset-transient)
   (let ((map (make-sparse-keymap)))
     (keymap-set map "<f12>" #'beads-prefix-test--menu)
     (unwind-protect
