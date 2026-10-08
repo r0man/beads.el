@@ -61,6 +61,9 @@
 
 (declare-function beads-show "beads-command-show")
 (declare-function beads-dispatch "beads")
+(declare-function beads-handoff-agent "beads-handoff"
+                  (&optional work backend-name agent-type-name))
+(declare-function beads-handoff-issue "beads-handoff" (issue))
 (declare-function beads-execute "beads-command")
 (declare-function beads-git-get-branch "beads-git")
 (declare-function beads-mode--install-navigation-keys "beads-buffer")
