@@ -662,7 +662,7 @@ Beads-Dashboard — beads.el (...)                                   ● live �
 ▾ 🕑 Recent changes (live)                              [open timeline… (t)]
     #1047 12:31:07  close   be-ndi6  github-pr-review      @beads/reviewer
     #1046 12:30:02  close   be-ijfx  WI-SF-02 (superseded) @mayor
-    #1045 12:29:48  update  ga-gi00b implement → shipped   @gascity/worker
+    #1045 12:29:48  update  be-ca9j  design → landed        @beads/designer
 KEYS: TAB/S-TAB next/prev · SPC fold · N/P section · [+/-/*] rows · g refresh · t timeline · R rewind · W live · q quit
 mode-line:  · live ∿3/s · seq 1047 · refreshed 1s ago · dolt:embedded · cap:4
 ```
@@ -736,7 +736,7 @@ DESCRIPTION
 
 ACTIVITY (live, newest first)                                   [open history… (H)]
   ◈ #1046  12:30:02  @mayor
-      status        open        → closed   (reopened)
+      status        open        → closed
       assignee      —           → alice
     #1041  12:20:11  @beads/worker
       status        open        → in_progress
@@ -760,9 +760,9 @@ beads events  last 1h · 47 · signal ≥ watch   op=close actor=@beads/*      �
   ─────────────────────────────────────────────────────────────────────────────────
   1047    12:31:07  ■  close             be-ndi6 github-pr-review @beads/reviewer
   1046    12:30:02  ■  close             be-ijfx WI-SF-02         @mayor
-  1045    12:29:48  ▲  update            ga-gi00b implement→shipped @gascity/worker
+  1045    12:29:48  ▲  update            be-ca9j design→landed    @beads/designer
   1044    12:29:31     comment           be-ndi6 "review passed"  @beads/reviewer
-  1043    12:28:02  ■  dep_add           be-ijfx ← be-yzbs        @mayor        (unblocked)
+  1043    12:28:02  ▲  update            be-ijfx is_blocked→false system        (derived, no actor)
   1042    12:27:44     create            be-ijfx WI-SF-02 …       @mayor
   ─── rewind cursor ▲ (r to rewind here) ────────────────────────────────────────────
   1041    12:20:11  ▲  update            be-w5b4 open→in_progress @beads/worker
