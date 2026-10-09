@@ -12,13 +12,16 @@ supersedes: design-seed.md
 scope: planning-only
 bd_version: 1.3.1
 created_at: 2026-10-08T20:15:00Z
-updated_at: 2026-10-08T20:15:00Z
+updated_at: 2026-10-09T10:22:00Z
+validation: experiments.md
 ---
 
 # beads-live — Design: extend the existing beads.el / gascity.el UI with the bd events journal
 
 > Planning only. This document changes no `.el` source. It is the design of
 > record for `plans/beads-events-live/`; it supersedes `design-seed.md`.
+> The empirical validation it builds on is `experiments.md` (run against
+> `bd 1.3.1`; verdict per assumption, falsifications folded in here).
 
 ## 0. Thesis in one paragraph
 
@@ -76,11 +79,24 @@ notifications — is kept and sharpened below.
 `beads-types.el` already defines `beads-event-record` with exactly the slots
 `bd events tail` documents (`seq ts op issue-id actor issue dep comment`), plus
 `beads-events-records-from-json-lines` (the JSONL parser) and
-`beads-event-record-from-json`. The `op` constants
-(`beads-event-created`, `-updated`, `-closed`, `-dependency-added`, …) already
-exist. **None of this is reimplemented.** `beads-event.el` (new) adds only
-*presentation over* that record: signal level, glyph, subject, field diff, and
-churn folding.
+`beads-event-record-from-json`. **The record class and parser are not
+reimplemented.** `beads-event.el` (new) adds only *presentation over* that
+record: signal level, glyph, subject, field diff, and churn folding.
+
+Two corrections from the empirical validation (`experiments.md` §2, §4):
+
+- The existing `beads-event-*` constants (`beads-event-created`, `-updated`,
+  `-closed`, `-dependency-added`, …) are the **audit-events vocabulary**
+  (`created`, `updated`, `claimed`, `status_changed`, `commented`, `closed`,
+  `reopened`, `dependency_added`, `dependency_removed`, `label_added`,
+  `label_removed`, `compacted`, `lease_reclaimed`). They are **not** the journal
+  op strings. The journal emits exactly seven ops — `create`, `update`,
+  `close`, `delete`, `dep_add`, `dep_remove`, `comment` — so `beads-event.el`
+  owns its own `op` → level/glyph mapping and must not reuse those constants.
+- The journal's `issue` object is a **sparse, `omitempty` partial**, not a full
+  issue. The existing `beads-event-record` `issue` slot still parses it into a
+  `beads-issue`, but untouched slots become nil, so the model must **merge**
+  present fields rather than substitute the object (see §4.3).
 
 ## 2. Audit of the current surfaces (the "before" state)
 
@@ -250,10 +266,24 @@ are not JSON objects are skipped), `beads-live-route` (op → invalidation kinds
 `beads-live--start-poll`/`--poll`, `beads-live--start`, `--stop`.
 
 **argv.** `beads-live--args` builds
-`("events" "tail" "--follow" "--json" [ "--since" SEQ ] [global options])`.
+`("events" "tail" "--follow" [ "--json" ] [ "--since" SEQ ] [global options])`.
 Global options come from the store: `--directory` (the resolved beads dir) —
 reuse the same scoping the views already use via `beads-store-directory`. The
 program is resolved by `beads-remote-find-executable` for the store's host.
+
+Empirically (`experiments.md` §3.1, §3.4):
+
+- `tail`/`export` print one JSON object per line **either way**; `--json` is a
+  no-op for success output, so the stream omits it. This matters on error:
+  with `--json` the pruned-floor failure is a **pretty-printed multi-line JSON
+  object on stdout**, while the human form is an `Error:` line on **stderr**.
+  Omitting `--json` keeps the truncation reason on stderr, where
+  `beads-live--classify` reads it, and keeps stdout strictly JSONL.
+- `--follow` flushes each record as it commits (observed with no added
+  buffering); it never exits, which is why it cannot use
+  `beads-command-execute-async`.
+- `--since` is strictly greater-than, and `--since <head>` is an empty success
+  (exit 0), not an error.
 
 **Transport.** Local: `make-process :connection-type 'pipe`.
 Remote single-hop ssh: a **local** `ssh -T` pipe built by
@@ -273,10 +303,14 @@ substitute a scripted emitter (no subprocess), exactly as the seed proposed and
 Pure functions over `beads-event-record` and `beads-issue`; no buffers, no
 processes, safe to require from the views and the pulse without the stream.
 
-- `beads-event-level` / `beads-event-glyph`: map `op` to a signal level. Default:
-  `close`/`delete`/`dep_add`(unblocking) → attention, `update`/`status_changed`
-  → watch, `comment`/`create` → none. Memoized like `gascity-event-level` and
-  user-extensible via `beads-event-levels`.
+- `beads-event-level` / `beads-event-glyph`: map the seven journal ops to a
+  signal level. Default: `close`/`delete`/`dep_add`(unblocking) → attention,
+  `update` → watch, `comment`/`create`/`dep_remove` → none. Because `claim`,
+  `reopen`, status, assignee, priority and **label** mutations all arrive as
+  `update` (`experiments.md` §1, §2 #1a), a finer level keys off the field diff
+  (`beads-event-diff`), not off a distinct op; there is **no** `status_changed`
+  op. Memoized like `gascity-event-level` and user-extensible via
+  `beads-event-levels`.
 - `beads-event-subject`: `"issue-id  title — op"` text for a row.
 - `beads-event-diff`: successive `beads-issue` snapshots → field-level diff
   (`status open → in_progress`, `assignee — → alice`,
@@ -333,6 +367,54 @@ snapshots in `record.issue`; the `beads-command` cache-invalidation seam; the
 gascity (standalone-first, AC-8); gascity already depends on beads, so it could
 later adopt `beads-live` — a follow-up, not this plan.
 
+### 3.6 Actor and session provenance (the contract the journal actually has)
+
+**The journal carries `actor` and nothing else about who acted.** There is no
+`session`, `session_id`, `agent`, `agent_type` or `template` field in a
+`bd events` record; `beads-event-record` accordingly has no session slot and
+must not grow one (`experiments.md` §2 #3, §3.3). This is the crux the seed
+got wrong by drawing `@beads/reviewer`, `@mayor` and
+`@gascity/worker (ec-wisp-j3ne2b)` as if the stream attributed a session.
+
+**The actor contract, stated once, for every surface:**
+
+1. `record.actor` is a bare string copied from the mutation's audit identity,
+   resolved by `bd` as `--actor` > `$BEADS_ACTOR` > `bd config actor` >
+   `git user.name` > `$USER` (empty string = unset). Gas City exports
+   `BEADS_ACTOR` per session (`GC_SESSION_NAME` / `GC_SESSION_ID` / `GC_AGENT`
+   are **not** read by `bd`), so in practice `actor` is a session name, a
+   session id, or a template path depending on how the caller set it. The UI
+   must treat it as an opaque label; it is **not** a stable user id and
+   **not** a session key.
+2. **`actor` may be absent.** A derived mutation (e.g. the dependent
+   `update` emitted when a blocker closes) has no request behind it and omits
+   `actor` entirely. Render those as `system` / *derived*, never guess an
+   owner. Do not use `actor` presence as a liveness or attribution invariant.
+3. `beads-event-actor-description` (`record` → string) is the **single**
+   presentation hook. Default implementation: use `actor` verbatim, or `system`
+   when absent. A user or gascity may override it to prettify
+   (`beads.el/core.control-dispatcher` → `dispatcher`). It never invents a
+   session.
+4. **Session attribution is derived, optional, second-class, and gascity-free.**
+   The city timeline (§7.12) may show a session/agent tag *only* by joining
+   `actor` against session data the embedding environment supplies, through
+   public, optional, gascity-free seams:
+   - `beads-event-session-resolver` — an abnormal hook
+     `(ROOT ACTOR) → string or nil`, nil by default (no resolution, no tag);
+   - a `beads-events-session-table` alist a caller can populate;
+   - gascity's existing `bead.*` seam may call `beads-live-invalidate` (below),
+     but beads.el's **default path references no gascity symbol** (AC-8).
+   When the resolver yields nothing, the session column is simply absent — not
+   a blank placeholder, not `unknown`.
+5. **`actor` is not a checkpoint or a stream key.** Streams key on
+   (canonical root, journal kind) and checkpoints on (root, branch, replica);
+   never on `actor`.
+
+Consequences for the design sections: the `actor` chip/filter in §7.7 filters
+on the literal string; §8's "(or a session id)" is the derived, optional case
+above; US-5's "when known, the session/agent" means *when a resolver says so*,
+never the default.
+
 ## 4. Event lifecycle
 
 ### 4.1 Capability detection and stream key
@@ -349,6 +431,14 @@ produce two streams.
 - journal off, or `bd` too old to know `events` → `mode 'poll`, state `poll`;
   **no stream process is started**, and the existing dashboard timer / list
   refresh behave exactly as today (AC-2).
+
+**Why the probe is mandatory.** With the journal off, `bd events tail` **exits
+0** and still prints any historical rows; the "journal is disabled" note goes
+to **stderr** (`experiments.md` §3.5). A `tail --follow` against a journal-off
+store therefore looks connected and merely silent. Capability must come from
+`bd config get events-journal` (`true`/`false`, exit 0), never from the stream
+failing or producing no output. The stderr note is the stream-side backstop
+signal for `beads-live--classify`.
 
 ### 4.2 Start / resume
 
@@ -375,11 +465,28 @@ produce two streams.
 `beads-event-record-from-json` → `beads-live--deliver`:
 
 1. advance `seq` to the max record seq;
-2. apply `record.issue` (the full post-mutation snapshot) to the model's
-   per-issue `issues` hash (nil snapshot = delete ⇒ tombstone stub);
-3. append to the bounded ring buffer and the per-issue log;
-4. run subscribers with the raw record;
-5. queue the `op` for debounced invalidation.
+2. **merge** `record.issue` into the model's per-issue `issues` hash. The
+   wire object is a **sparse, `omitempty` partial over a fixed field subset**:
+   for the fields it can carry (`id`, `title`, `status`, `priority`,
+   `issue_type`, `owner`, timestamps, and the optional non-zero `is_blocked`,
+   `assignee`, `labels`, `started_at`, `lease_expires_at`, `heartbeat_at`,
+   `closed_at`, `close_reason`) the snapshot is authoritative — an absent
+   optional field means its zero value (`is_blocked` absent clears a block,
+   `labels` absent clears labels), so it is applied, not skipped. Fields
+   outside that subset — `description`, dependencies, comments, `*_count`,
+   `revision` — are **never** in the wire object, so the baseline value is
+   preserved (`experiments.md` §2 #2, §3.2). A `nil` snapshot on `delete`
+   leaves a tombstone stub. Never substitute the parsed `beads-issue`
+   wholesale: it would clobber the fields the journal does not carry.
+3. expand multi-record mutations: a single `bd label add X a,b` emits **two**
+   `update` rows (one per label), and a `close`/`reopen` of a blocker emits an
+   **actor-less** derived `update` on each dependent first (`experiments.md`
+   §2 #1b, #1c). Each is applied as its own record; the UI labels the
+   actor-less ones `system`;
+4. append to the bounded ring buffer and the per-issue log;
+5. run subscribers with the raw record;
+6. queue the `op` (plus field delta, since claim/reopen/status/label are all
+   `update`) for debounced invalidation.
 
 After each debounced **batch** (not each line) the checkpoint seq is written
 (coalesced, e.g. 1s), so a crash replays at most one batch. A burst of factory
@@ -392,17 +499,25 @@ When `mode` is `poll` (journal off, non-ssh remote method, or `bd` too old), run
 `beads-command-events-tail` **without** `--follow` (`:since <seq>`, small
 `:limit`) through `beads-command-execute-async` on a
 `beads-live-poll-interval` (30s) timer, with a `:cache-key` so polls never
-overlap. Deliver only records with `seq > last`. This is the one place the
-command class is reused for the live feature, and it keeps the single-flight and
-concurrency caps.
+overlap. Deliver only records with `seq > last`, through the same sparse-merge
+path as §4.3. This is the one place the command class is reused for the live
+feature, and it keeps the single-flight and concurrency caps. (The class forces
+`--json`; on a pruned checkpoint that turns the failure into a stdout JSON
+object with exit 1, which `beads-command-execute` surfaces as a
+`beads-command-error` — the poll path treats that as the re-baseline trigger.)
 
 ### 4.5 Reconnect / backoff
 
 On process exit, `beads-live--classify` from the stderr tail:
 
 - journal-disabled/unknown-subcommand → `poll` (stop retrying the stream);
+- truncation (`events journal truncated:`) → `partial` + re-baseline (§4.6);
 - connection/host failure → `offline`;
 - anything else → `reconnecting`.
+
+The stream argv omits `--json` precisely so these diagnostics stay on stderr:
+with `--json`, the truncation error is printed to **stdout** as a
+pretty-printed multi-line object (`experiments.md` §3.6).
 
 Backoff follows `beads-live-backoff` `(2 5 15 60)` repeating, reset after
 `beads-live-stable-after` (15s) up. `beads-live-reconnect` (`g`) retries at
@@ -416,7 +531,12 @@ reset checkpoint to current head + brief `partial` state, with the reason in the
 header tooltip) happens when:
 
 - `--since <seq>` **fails** because the prefix was pruned (the documented
-  failure, AC-3);
+  failure, AC-3). Empirically the process exits 1; the human error (stderr) is
+  `Error: events journal truncated: checkpoint N is below the retained window
+  [F..H]; records … were pruned` with a `Hint: resume with --since F-1 …`, and
+  `--json` would carry `{"code":"events_journal_truncated","floor":F,
+  "head":H,"since":N}` (`experiments.md` §3.6). Detect on the stderr text and
+  re-baseline from `floor`/`head` (no `--json` on the stream), do not stall;
 - the branch changed (checkout) or the replica identity changed;
 - a periodic reconcile elapses (`beads-live-reconcile`, 600s, relaxed from the
   30s timer) — the safety net for `bd dolt pull` / `bd sql` writes the journal
@@ -440,7 +560,7 @@ double-refresh.
 ## 5. Data flow
 
 ```
- bd events tail --follow --json  ──► parse (beads-live-parse-chunk)
+ bd events tail --follow  ─────────► parse (beads-live-parse-chunk)
         ▲                                    │  beads-event-record
         │                                    ▼
         │                         beads-live--deliver ──► model (issues/log/ring)
@@ -470,7 +590,7 @@ double-refresh.
 | `lisp/beads-command.el` | EDIT | `beads-command-invalidate-cache`; `beads-command-live-p-function` seam; clear single-flight + dashboard cache on a live batch |
 | `lisp/beads-command-events.el` | EDIT | extend the `beads-events` transient with Live + Time-travel groups; no new classes |
 | `lisp/beads-menu.el` | EDIT | add "Recent changes" to `beads-dispatch` Views; add Live/Time-travel to `beads-maintenance` |
-| `lisp/beads-types.el` | **REUSE** | `beads-event-record`, `beads-events-records-from-json-lines`, op constants — unchanged |
+| `lisp/beads-types.el` | **REUSE** | `beads-event-record`, `beads-events-records-from-json-lines`, `-from-json` — unchanged. The `beads-event-*` constants are the **audit** vocabulary, not journal ops, and are not reused for journal mapping (§1.3) |
 | `lisp/beads-section.el` | **REUSE** | `beads-section-register` — unchanged |
 | `lisp/beads-remote.el` | **REUSE** | `beads-remote-ssh-pipe-argv`, `-find-executable`, `-prefix`, `-pure-path-assignment` — unchanged |
 | `lisp/beads-pager.el` | **REUSE** | window page size for the Events view — unchanged |
@@ -488,6 +608,17 @@ double-refresh.
 
 `◈` = `beads-event-changed` face (changed within `beads-live-change-window`,
 default 30s). Faces always `:inherit`.
+
+**Actor rendering (all mockups below).** The `@name` column is a
+*presentation* of the journal's bare `actor` string (the design renders
+`beads-event-actor-description` of it); the journal itself carries no `@`.
+`actor` is the only provenance the journal has; it is whatever
+`--actor`/`$BEADS_ACTOR`/`bd config actor`/`git user.name`/`$USER` resolved to
+(`experiments.md` §3.3). **No session or agent id is in the record.** Where a
+mockup shows a session suffix (e.g. city cockpit), it is explicitly *derived*
+and optional (§3.6), and none is shown by default. Rows with no `actor`
+(derived block/unblock cascades, `experiments.md` §2 #1c) render as `system`,
+not as a user.
 
 ### 7.1 Dashboard — before (today)
 
@@ -634,7 +765,7 @@ beads events  last 1h · 47 · signal ≥ watch   op=close actor=@beads/*      �
   1043    12:28:02  ■  dep_add           be-ijfx ← be-yzbs        @mayor        (unblocked)
   1042    12:27:44     create            be-ijfx WI-SF-02 …       @mayor
   ─── rewind cursor ▲ (r to rewind here) ────────────────────────────────────────────
-  1041    12:20:11  ▲  status_changed    be-w5b4 open→in_progress @beads/worker
+  1041    12:20:11  ▲  update            be-w5b4 open→in_progress @beads/worker
   j/k move · g follow · f filter(op/actor/issue/since) · C-c C-g group · RET visit · r rewind · e org · H issue history
 ```
 
@@ -645,7 +776,7 @@ beads events  grouped by issue · 6 issues · 12 churn folded                   
 ▾ be-ndi6  github-pr-review: PR #68 review        closed · @beads/reviewer
     #1047  12:31:07  close        → closed
     #1044  12:29:31  comment      "review passed"
-    #1031  12:18:40  status_changed open → in_progress
+    #1031  12:18:40  update       open → in_progress
     #1030  12:18:09  create       github-pr-review
 ▾ be-ijfx  WI-SF-02 molecule actions + work loop  closed · @mayor
     #1046  12:30:02  close        → closed
@@ -752,11 +883,14 @@ gc city  bright-lights                                              ● live ∿
   invalidates beads views too. This plan ships the seam; it does not edit
   gascity (requirements Out Of Scope: gascity code changes only as optional
   attribution at an existing seam).
-- **Optional attribution generic.** `beads-event-actor-description` maps
-  `record.actor` (or a session id) to a friendly name; gascity (or a user) can
-  override it. The default path references **no gascity symbol** (AC-8). The
-  merged city timeline (`beads-events-timeline-city`) is beads-only: it merges
-  beads store models, never mixes `gc` and `bd` seq spaces.
+- **Attribution is the actor string, session is derived and optional.**
+  `beads-event-actor-description` maps `record.actor` to a friendly name (or
+  `system` when absent); it never invents a session. A session/agent tag is
+  *only* produced by the optional, gascity-free `beads-event-session-resolver`
+  / `beads-events-session-table` seam (§3.6), and is absent by default. The
+  default path references **no gascity symbol** (AC-8). The merged city
+  timeline (`beads-events-timeline-city`) is beads-only: it merges beads store
+  models, never mixes `gc` and `bd` seq spaces.
 
 ## 9. Verification strategy
 
@@ -766,9 +900,16 @@ gc city  bright-lights                                              ● live ∿
   backoff schedule, re-baseline trigger on a pruned-`--since` error,
   poll-vs-stream classification, capability detection.
 - **Injection:** a scripted emitter substituted for `beads-live--spawn` drives
-  deterministic sequences (create → dep_add → status_changed → comment → close →
-  delete) with no subprocess; assert dashboard/list/show/events buffer contents
-  through `vui` render helpers, in the style of `beads-dashboard-test.el`.
+  deterministic sequences (create → dep_add → update/claim → comment → close →
+  reopen → label → delete) with no subprocess, **including** the multi-row label
+  add and the actor-less derived cascade rows; assert sparse-merge semantics
+  (record with `is_blocked` absent does not clear a known `t`), and
+  dashboard/list/show/events buffer contents through `vui` render helpers, in
+  the style of `beads-dashboard-test.el`.
+- **Black-box re-run:** the scripted sequence and raw journal in
+  `experiments.md` §1/§5 is reproducible against a temp project and `bd 1.3.1`;
+  re-run it when `bd` changes the journal contract (`experiments.md` is the
+  regression fixture for the assumptions this design depends on).
 - **Integration (`:integration`, tagged, skips without `bd`):** enable the
   journal in a temp repo (`beads-test-with-temp-repo-and-issues`), run real
   `bd create`/`dep add`/`close`, tail, and assert the model and buffers.
@@ -784,7 +925,9 @@ gc city  bright-lights                                              ● live ∿
 
 | Risk | Mitigation |
 |---|---|
-| Journal absent / `bd < 1.3` | Capability probe once; `poll` mode; no stream spawned; no error (AC-2) |
+| Journal absent / `bd < 1.3` | Capability probe once via `bd config get events-journal` (tail exits 0 when off, so a liveness check is not enough — §4.1); `poll` mode; no stream spawned; no error (AC-2) |
+| Sparse `record.issue` clobbers baseline fields | Merge only present keys; never substitute the parsed `beads-issue`; keep baseline `description`/dependencies/comments (§4.3, `experiments.md` §2 #2) |
+| Multi-row / actor-less records confuse attribution | Apply each record; label absent-actor rows `system`; never infer a session (§3.6, `experiments.md` §2 #1b/#1c) |
 | Journal is per-branch / per-replica | Checkpoint keyed by (root, branch, replica); discard on mismatch; never carry across (AC-3, help contract) |
 | Checkpoint seq pruned | `--since` failure detected → documented re-baseline (full read + reset + reason), not a silent stall (AC-3) |
 | `bd dolt pull` / `bd sql` writes unjournaled | Periodic relaxed reconcile baseline (600s) + stream resume full refresh; UI never claims `live` while reconciling |
@@ -832,6 +975,7 @@ gc city  bright-lights                                              ● live ∿
 | Hard constraint: gascity coexist, no dup streams | §4.1, §8 |
 | Mockups 1–6 + before/after | §7.1–7.6, §7.9, §7.12 (plus rewind/history/pulse/notify) |
 | Reuse `beads-event-record`, command classes | §1.3, §2.7, §6 |
+| Empirical validation of journal contract | `experiments.md` (§2 verdicts, §3 raw evidence, §4 findings); reflected in §1.3, §3.1, §3.2, §3.6, §4.1, §4.3, §4.4, §4.5, §4.6 |
 
 ## 13. Decisions log / open questions
 
@@ -839,13 +983,19 @@ gc city  bright-lights                                              ● live ∿
 event class; stream spawned via `make-process`, not `execute-async`; one stream
 per (root, journal kind); checkpoint keyed by branch+replica; re-baseline on
 prune/sync/replica-change; gascity integration is a documented seam, not a code
-change.
+change. From the validation (`experiments.md`): seven journal ops only;
+`record.issue` is merged under the field-subset rule, not substituted;
+capability comes from `bd config get events-journal`; the stream omits `--json`
+so truncation diagnostics stay on stderr; actor is the only provenance and
+session is derived/optional.
 
 **Open.** (a) Materialize rewind snapshots every Nth record, or replay from the
 bounded ring at the 100k retention floor? Proposed: replay from ring first,
 materialize only if profiling demands it. (b) Add a `bd serve` HTTP transport
 alongside `tail --follow`? Proposed: a transport generic in `beads-live`, `tail`
-first. (c) Does the `recent-changes` dashboard section render from the model or
+first; `bd serve` refuses the embedded-Dolt backend and documents no events
+route (`experiments.md` §3.7), so there is no HTTP journal transport to add yet.
+(c) Does the `recent-changes` dashboard section render from the model or
 from `beads-section-register` only? Proposed: register it so gascity can reuse
 it; the dashboard consumes the registry. (d) Split history/rewind into their own
 files once `beads-events.el` exceeds ~700 lines.
