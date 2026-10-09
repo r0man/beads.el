@@ -155,6 +155,90 @@ fails here instead of at render time."
   (should (equal (beads-menu--provider-children '(["X" ignore]))
                  '(["X" ignore]))))
 
+;;; Eager autoload coverage (be-qhpf)
+
+;; The dispatch/maintenance menus reference command modules that `beads'
+;; itself does not `require'.  Every such command must therefore be
+;; covered by the explicit "Main menu command autoloads" block in
+;; beads.el (or defined in beads.el), otherwise a bare (require 'beads)
+;; leaves it unbound and `transient-setup' aborts.  The tests below read
+;; beads.el's source instead of relying on which modules the test runner
+;; happens to have loaded, so they cannot be masked by load order.
+
+(defconst beads-menu-test--beads-source
+  (expand-file-name "../beads.el"
+                    (file-name-directory
+                     (or load-file-name buffer-file-name
+                         (locate-library "beads-menu-test"))))
+  "Path to the beads.el source file.")
+
+(defconst beads-menu-test--defining-heads
+  '(defun defmacro defalias define-derived-mode define-minor-mode
+    transient-define-suffix transient-define-prefix transient-define-group
+    beads-define-prefix beads-define-group beads-defcommand)
+  "Form heads whose second element names a function defined in the file.")
+
+(defconst beads-menu-test--missing-autoload-commands
+  '(beads-bootstrap beads-conflicts beads-context beads-events beads-github
+    beads-heartbeat beads-migrate-personal beads-provenance beads-reclaim
+    beads-schema beads-sync beads-unclaim)
+  "Menu commands that previously lacked an eager autoload (be-qhpf).")
+
+(defun beads-menu-test--read-forms (file)
+  "Read every top-level form from FILE."
+  (with-temp-buffer
+    (insert-file-contents file)
+    (goto-char (point-min))
+    (let (forms)
+      (condition-case nil
+          (while t (push (read (current-buffer)) forms))
+        (error nil))
+      (nreverse forms))))
+
+(defun beads-menu-test--unquote (sym)
+  "Return SYM with any `quote' wrapper removed."
+  (if (and (consp sym) (eq (car sym) 'quote)) (cadr sym) sym))
+
+(defun beads-menu-test--beads-coverage (forms)
+  "Return (AUTOLOADS . DEFINED) symbols declared in beads.el FORMS.
+AUTOLOADS is every symbol named by an `autoload' form; DEFINED is every
+symbol defined by a top-level definition form."
+  (let (autoloads defined)
+    (dolist (form forms)
+      (when (and (consp form) (symbolp (car form)))
+        (cond
+         ((eq (car form) 'autoload)
+          (push (beads-menu-test--unquote (cadr form)) autoloads))
+         ((memq (car form) beads-menu-test--defining-heads)
+          (push (beads-menu-test--unquote (cadr form)) defined)))))
+    (cons autoloads defined)))
+
+(ert-deftest beads-menu-test-menu-commands-covered-by-beads-autoloads ()
+  "Every menu suffix is eager-autoloaded or defined by beads.el.
+Reading beads.el's source keeps this independent of which other modules
+the runner has loaded, so a future menu addition whose module is not
+required by `beads' fails here (be-qhpf)."
+  :tags '(:unit)
+  (let* ((coverage (beads-menu-test--beads-coverage
+                    (beads-menu-test--read-forms beads-menu-test--beads-source)))
+         (autoloads (car coverage))
+         (defined (cdr coverage))
+         (commands (append (beads-menu-test--layout-commands 'beads-dispatch)
+                           (beads-menu-test--layout-commands 'beads-maintenance))))
+    (dolist (command commands)
+      ;; `ignore' and `transient-*' are menu sentinels, not commands to autoload.
+      (unless (or (eq command 'ignore)
+                  (string-prefix-p "transient-" (symbol-name command)))
+        (should (or (memq command autoloads)
+                    (memq command defined)))))))
+
+(ert-deftest beads-menu-test-missing-autoload-commands-are-fbound ()
+  "The formerly-missing menu commands are fbound after (require 'beads)."
+  :tags '(:unit)
+  (require 'beads)
+  (dolist (command beads-menu-test--missing-autoload-commands)
+    (should (fboundp command))))
+
 (ert-deftest beads-menu-test-provider-composition ()
   "Providers are collected and spliced into the dispatch provider group."
   (let* ((group ["City" ("c" "City status" ignore)])
