@@ -177,6 +177,89 @@ add to this list (`beads-formula-var-choices' consults it)."
   :type '(alist :key-type string :value-type symbol)
   :group 'beads)
 
+;;; Live Journal Streaming
+
+(defgroup beads-live nil
+  "Live `bd events' journal streaming.
+These options configure how beads.el follows a store's event journal,
+coalesces and applies records, recovers from disconnects, and degrades
+to polling when the journal is unavailable."
+  :group 'beads
+  :prefix "beads-live-")
+
+(defcustom beads-live-state-directory
+  (locate-user-emacs-file "beads-live/")
+  "Directory holding per-store live journal checkpoints.
+Each stream persists its last applied sequence number in an `.eld'
+file keyed by store root, branch and replica, so restarting Emacs
+resumes the tail without replaying the whole journal.  A checkpoint
+whose branch or replica no longer matches its store is discarded."
+  :type 'directory
+  :group 'beads-live)
+
+(defcustom beads-live-debounce 0.15
+  "Seconds to coalesce a burst of journal records before refreshing views.
+Records arriving within this window are applied to the in-memory model
+immediately but are batched into a single redisplay and a single
+checkpoint write, so a factory burst does not cause one refresh per
+record."
+  :type 'number
+  :group 'beads-live)
+
+(defcustom beads-live-poll-interval 30
+  "Seconds between fallback journal polls.
+Used when live tailing is unavailable (journal disabled, a remote
+method that cannot stream, or an older `bd'), and as the relaxed
+reconcile cadence while a live stream is active."
+  :type 'natnum
+  :group 'beads-live)
+
+(defcustom beads-live-backoff '(2 5 15 60)
+  "Reconnect backoff schedule in seconds, repeated while a stream is down.
+Each failed reconnect waits the next delay in this list, cycling back
+to the start after the last one, until a stream stays up for
+`beads-live-stable-after' seconds and the schedule resets."
+  :type '(repeat natnum)
+  :group 'beads-live)
+
+(defcustom beads-live-stable-after 15
+  "Seconds a stream must stay up before the reconnect backoff resets.
+A stream that dies sooner is treated as part of the same outage and
+the next backoff delay is used instead of restarting the schedule."
+  :type 'natnum
+  :group 'beads-live)
+
+(defcustom beads-live-reconcile 600
+  "Seconds between periodic full reconciles while a live stream is active.
+Reconciles re-read the store to pick up writes the journal never saw,
+such as those from `bd dolt pull' or direct SQL.  The UI reports a
+partial state while a reconcile is in flight and never claims `live'."
+  :type 'natnum
+  :group 'beads-live)
+
+(defcustom beads-live-change-window 30
+  "Seconds a row stays marked as recently changed after a journal update.
+The `beads-event-changed' face (the `◈' marker) fades after this window
+so a burst of activity is visible without permanently recolouring rows."
+  :type 'natnum
+  :group 'beads-live)
+
+(defcustom beads-events-notify-ops '("close" "dependency_added")
+  "Journal ops that may raise a desktop notification.
+Used by `beads-events-notify-mode' (opt-in, off by default).  The
+default notifies on closures and on dependency additions that make a
+bead ready; an unknown op name is ignored.  Notifications never fire
+while the mode is disabled."
+  :type '(repeat string)
+  :group 'beads-live)
+
+(defcustom beads-events-notify-rate-limit 60
+  "Minimum seconds between notifications for the same issue.
+Rate-limits a notify storm during a factory drain to at most one
+message per issue per interval.  Set to 0 to disable rate limiting."
+  :type 'natnum
+  :group 'beads-live)
+
 ;;; Provide
 
 (provide 'beads-custom)

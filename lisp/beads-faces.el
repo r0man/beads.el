@@ -259,6 +259,29 @@ STATE is a `beads-agent' state symbol.  `finished' maps to
     ('failed 'beads-face-agent-failed)
     (_ 'beads-face-agent-running)))
 
+;;; Live event journal faces (WI-LIVE-02)
+
+(defface beads-event-changed
+  '((t :inherit beads-face-warning))
+  "Face for a row whose issue changed within `beads-live-change-window'.
+Used for the `◈' marker on dashboard, list and timeline rows so recent
+activity is obvious and then fades."
+  :group 'beads-live)
+
+(defface beads-events-status
+  '((t :inherit beads-face-key))
+  "Face for the live journal status chip.
+Renders the `live ∿3/s · seq N' fragment and its `poll' and `partial'
+degradations in buffer headers and the mode line."
+  :group 'beads-live)
+
+(defface beads-events-rewind
+  '((t :inherit beads-face-section))
+  "Face for the read-only rewind header and mode line.
+Makes the non-live, time-travelled state visually distinct from the
+live views it mirrors."
+  :group 'beads-live)
+
 (provide 'beads-faces)
 
 ;;; beads-faces.el ends here
