@@ -95,4 +95,10 @@ bde-epic/
 # Gas City
 .beads/*
 !.beads/identity.toml
+# Project-owned formulas are versioned; Dolt data and the symlinked system
+# formulas under .beads/formulas/ stay ignored.
+!.beads/formulas/
+.beads/formulas/*
+!.beads/formulas/user-manual-screenshots.formula.toml
+!.beads/formulas/user-manual-screenshots.toml
 .pi/extensions/gc-hooks.js
