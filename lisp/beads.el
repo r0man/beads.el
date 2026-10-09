@@ -674,6 +674,47 @@ which shows daemon status and database statistics."
 ;;;###autoload
 (autoload 'beads-version "beads-command-misc" nil t)
 
+;; Additional commands referenced by the dispatch/maintenance menus that
+;; were previously omitted from this block.  Without these eager autoloads
+;; a bare (require 'beads) leaves them unbound and `transient-setup' fails
+;; with "Suffix command ... is not defined or autoloaded" (be-qhpf).
+;; beads-command-init
+;;;###autoload
+(autoload 'beads-bootstrap "beads-command-init" nil t)
+;; beads-command-conflicts
+;;;###autoload
+(autoload 'beads-conflicts "beads-command-conflicts" nil t)
+;; beads-handoff
+;;;###autoload
+(autoload 'beads-context "beads-handoff" nil t)
+;; beads-command-events
+;;;###autoload
+(autoload 'beads-events "beads-command-events" nil t)
+;; beads-command-integrations
+;;;###autoload
+(autoload 'beads-github "beads-command-integrations" nil t)
+;; beads-command-heartbeat
+;;;###autoload
+(autoload 'beads-heartbeat "beads-command-heartbeat" nil t)
+;; beads-command-migrate-personal
+;;;###autoload
+(autoload 'beads-migrate-personal "beads-command-migrate-personal" nil t)
+;; beads-command-provenance
+;;;###autoload
+(autoload 'beads-provenance "beads-command-provenance" nil t)
+;; beads-command-reclaim
+;;;###autoload
+(autoload 'beads-reclaim "beads-command-reclaim" nil t)
+;; beads-command-schema
+;;;###autoload
+(autoload 'beads-schema "beads-command-schema" nil t)
+;; beads-command-sync
+;;;###autoload
+(autoload 'beads-sync "beads-command-sync" nil t)
+;; beads-command-unclaim
+;;;###autoload
+(autoload 'beads-unclaim "beads-command-unclaim" nil t)
+
 ;; Label API autoloads — these are used by other modules (e.g., readers,
 ;; completion) that depend on beads.el, so they must be available early.
 ;;;###autoload
