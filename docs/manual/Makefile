@@ -8,6 +8,8 @@
 #   make screenshots SCOPE=views
 #                               regenerate one view subset
 #   make verify                 capture twice and assert byte-identical output
+#   make verify-scope SCOPE=show
+#                               assert a subset leaves other images untouched
 #   make clean                  remove generated HTML
 
 MANUAL_DIR := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
@@ -17,7 +19,7 @@ PAGES      := $(wildcard $(MANUAL_DIR)/*.org)
 SCOPE      ?= all
 EMACS      ?= emacs
 
-.PHONY: all manual screenshots verify clean
+.PHONY: all manual screenshots verify verify-scope clean
 
 all: manual
 
@@ -46,6 +48,11 @@ screenshots:
 # committed images alone.
 verify:
 	"$(MANUAL_DIR)/screenshots/capture.sh" --verify "$(SCOPE)"
+
+# Snapshot the committed images, run SCOPE, and fail if any non-selected image
+# changed (digest or mtime).  Requires a prior `make screenshots`.
+verify-scope:
+	"$(MANUAL_DIR)/screenshots/capture.sh" --verify-scope "$(SCOPE)"
 
 clean:
 	rm -rf "$(HTML_DIR)"

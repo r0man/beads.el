@@ -57,6 +57,7 @@ never `--batch`.
 ./capture.sh --scope dashboard,show
 ./capture.sh --scope changed       # views touched by the working diff
 ./capture.sh --verify all          # capture twice and assert byte-identity
+./capture.sh --verify-scope show   # a subset must leave other images untouched
 ./capture.sh --compress            # recompress the existing raws only
 ```
 
@@ -95,6 +96,20 @@ The target is **byte-identical output** for two runs of the same scope:
   but is not already `demo-N` with `demo-role`, as a backstop.
 - The samplers are fixed: the same private compositor resolution, the same
   frame geometry, the same themes, and the same font.
+
+### Subset isolation / verify-scope (AC-4)
+
+`capture.sh --verify-scope <subset>` proves a subset run cannot disturb the
+rest of the manual: it snapshots the `sha256` digest and `mtime` of every
+`docs/manual/images/*.png`, runs the subset through the real capture and
+compress path, and fails, naming each offending image, if any **non-selected**
+image changed byte-for-byte or in mtime. It requires a prior `--scope all`
+run to have populated `docs/manual/images/`.
+
+```sh
+./capture.sh --scope all            # populate images/
+./capture.sh --verify-scope show    # show/subset; all other images must not move
+```
 
 ## Configuration (environment variables)
 

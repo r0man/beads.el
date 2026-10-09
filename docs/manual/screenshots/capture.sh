@@ -98,6 +98,10 @@ Usage: capture.sh [--scope SCOPE] [--verify [SCOPE]] [--compress] [--help]
   --verify [SCOPE]
                   Capture SCOPE twice and fail, naming the drifting image,
                   unless every output is byte-identical.
+  --verify-scope SCOPE
+                  Subset-isolation proof: snapshot the committed images,
+                  run the SCOPE subset, and fail if any non-selected image
+                  changed (sha256 or mtime). Requires a prior `--scope all'.
   --compress      Recompress the raw PNGs already in BEADS_SHOT_STAGING.
   --help          Show this help.
 
@@ -357,9 +361,81 @@ verify_runs() {
   log "verify: byte-identical for $count image(s) (scope $SCOPE)"
 }
 
+# ---- Scope isolation (P3) ---------------------------------------------
+# A subset run must leave every non-selected committed image byte-for-byte
+# and mtime-identical (AC-4).  Snapshot digest+mtime of docs/manual/images/,
+# run the subset through the real capture+compress path, and diff the
+# non-selected entries.  Requires a prior `--scope all' capture.
+snapshot_images() {
+  local out="$1" f
+  : > "$out"
+  shopt -s nullglob
+  for f in "$IMAGES_DIR"/*.png; do
+    printf '%s %s %s\n' \
+      "$(sha256sum "$f" | cut -d' ' -f1)" "$(stat -c %Y "$f")" "$(basename "$f")" \
+      >> "$out"
+  done
+  shopt -u nullglob
+}
+
+view_name_selected() {
+  local base="${1%.png}" v
+  base="${base%-thumb}"
+  for v in "${SELECTED_VIEWS[@]}"; do
+    case "$base" in "$v"-dark|"$v"-light) return 0 ;; esac
+  done
+  return 1
+}
+
+verify_scope_isolation() {
+  local snap="$STAGING/scope-snapshot" name before after checked=0 drift=0
+  rm -rf "$snap"
+  mkdir -p "$snap"
+  snapshot_images "$snap/before"
+  if [ ! -s "$snap/before" ]; then
+    printf 'capture.sh: verify-scope: no committed images in %s; run --scope all first\n' \
+      "$IMAGES_DIR" >&2
+    exit 1
+  fi
+  log "verify-scope: snapshot of $(wc -l <"$snap/before") committed image(s) before scope $SCOPE"
+
+  rm -rf "$STAGING/scope-run"
+  mkdir -p "$STAGING/scope-run"
+  capture_into "$STAGING/scope-run"
+  compress "$STAGING/scope-run"
+  snapshot_images "$snap/after"
+
+  while read -r _ _ name; do
+    [ -n "$name" ] || continue
+    view_name_selected "$name" && continue
+    checked=$((checked + 1))
+    before="$(awk -v n="$name" '$3 == n {print; exit}' "$snap/before")"
+    after="$(awk -v n="$name" '$3 == n {print; exit}' "$snap/after")"
+    if [ "$before" != "$after" ]; then
+      log "verify-scope: DRIFT non-selected image changed: $name"
+      log "  before: $before"
+      log "  after:  $after"
+      drift=1
+    fi
+  done < "$snap/before"
+
+  if [ "$drift" -ne 0 ]; then
+    printf 'capture.sh: verify-scope FAILED for scope %s; non-selected image(s) changed above\n' \
+      "$SCOPE" >&2
+    exit 1
+  fi
+  [ "$checked" -gt 0 ] || {
+    printf 'capture.sh: verify-scope: scope %s selects every image (no non-selected image to check)\n' \
+      "$SCOPE" >&2
+    exit 1
+  }
+  log "verify-scope: $checked non-selected image(s) unchanged (digest + mtime) for scope $SCOPE"
+}
+
 # ---- Argument parsing -------------------------------------------------
 SCOPE="all"
 VERIFY=0
+VERIFY_SCOPE=0
 COMPRESS_ONLY=0
 POSITIONAL=""
 
@@ -372,6 +448,11 @@ while [ $# -gt 0 ]; do
       SCOPE="${1#--scope=}"; shift ;;
     --verify)
       VERIFY=1; shift ;;
+    --verify-scope)
+      [ $# -ge 2 ] || usage_error "--verify-scope requires an argument"
+      SCOPE="$2"; VERIFY_SCOPE=1; shift 2 ;;
+    --verify-scope=*)
+      SCOPE="${1#--verify-scope=}"; VERIFY_SCOPE=1; shift ;;
     --compress)
       COMPRESS_ONLY=1; shift ;;
     --help|-h)
@@ -408,7 +489,9 @@ else
   start_sway
 fi
 
-if [ "$VERIFY" = 1 ]; then
+if [ "$VERIFY_SCOPE" = 1 ]; then
+  verify_scope_isolation
+elif [ "$VERIFY" = 1 ]; then
   rm -rf "$STAGING/verify-a" "$STAGING/verify-b"
   capture_into "$STAGING/verify-a"
   capture_into "$STAGING/verify-b"
