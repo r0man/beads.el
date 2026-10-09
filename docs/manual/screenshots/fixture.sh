@@ -1,60 +1,56 @@
 #!/usr/bin/env bash
+# fixture.sh --- deterministic, isolated fixture for the screenshot pipeline.
 #
-# Deterministic, throwaway beads project for the manual screenshot pipeline.
+# Creates a throwaway git + beads project seeded from
+# fixtures/beads-fixture.jsonl, prints the absolute project directory, and
+# removes it again on teardown.  This is the base of REQ-005 (never touch the
+# repository's own .beads store or a live/agent store) and REQ-006 (the same
+# run produces the same store, independent of run-generated ids).
 #
-# The screenshot pipeline must render the same views on every machine without
-# ever touching a real store.  This script builds an isolated git project in a
-# fresh mktemp directory, seeds it from the role-keyed fixture beside it, and
-# prints the project directory on stdout.  Tear it down with `teardown DIR`.
+# Usage:
+#   docs/manual/screenshots/fixture.sh create              # create + seed; print path
+#   docs/manual/screenshots/fixture.sh teardown <dir>      # remove a created project
+#   docs/manual/screenshots/fixture.sh verify              # create, check, tear down
+#   docs/manual/screenshots/fixture.sh print-isolation-vars
+#   docs/manual/screenshots/fixture.sh --help
 #
-# Commands:
-#   fixture.sh create              create + seed a project, print its path
-#   fixture.sh teardown DIR        remove a project created by `create`
-#   fixture.sh verify              create, check the fixture, tear down, PASS
+# `create' (also `up', and the no-argument default) prints exactly one line:
+# the absolute path of the temporary project.  Every bd message goes to stderr,
+# so callers can capture the path with a plain `$(fixture.sh create)'.
 #
-# The fixture project never reads or writes the repository's own .beads store
-# nor any live/agent store: every bd call runs with the isolation variables
-# below unset, inside the mktemp directory.
+# Isolation (plan-review P2): the four environment variables below can reroute
+# `bd' to the shared production store.  They are unset before any bd call and
+# hardcoded here because a POSIX shell cannot source the Emacs Lisp constant
+# `beads-test-isolation-env-vars' (lisp/test/beads-integration-test.el).  Keep
+# the two lists in sync; lisp/test/beads-manual-test.el asserts the equality by
+# reading `fixture.sh print-isolation-vars'.
+#
+# The fixture is byte-reproducible: every issue, dependency, and comment in
+# fixtures/beads-fixture.jsonl pins its id, owner, created_by, and timestamps,
+# so two `create' runs export identical JSONL and render identical screenshots.
+
 set -euo pipefail
 
-# ---------------------------------------------------------------------------
-# Store isolation
-# ---------------------------------------------------------------------------
-#
-# A Gas Town agent shell exports all four of these variables and points bd at
-# the shared production rig store.  BEADS_DIR is the load-bearing one: it names
-# an absolute store path that overrides repo-local discovery, so `bd init`
-# would resolve the production store, see it already initialized, and exit
-# before the throwaway project is ever created.  The two Dolt port variables
-# and GC_DOLT_PORT are defence in depth.
-#
-# This list is deliberately hardcoded rather than sourced from Emacs Lisp; the
-# POSIX shell cannot read `beads-test-isolation-env-vars'.  W7's test asserts
-# this hardcoded list equals that Lisp constant so the two cannot drift.
-BEADS_FIXTURE_ISOLATION_VARS="BEADS_DIR BEADS_DOLT_PORT BEADS_DOLT_SERVER_PORT GC_DOLT_PORT"
+readonly FIXTURE_PREFIX="demo"
 
-unset BEADS_DIR
-unset BEADS_DOLT_PORT
-unset BEADS_DOLT_SERVER_PORT
-unset GC_DOLT_PORT
+# Hardcoded isolation list.  One name per array entry, in the same order as
+# `beads-test-isolation-env-vars' in lisp/test/beads-integration-test.el.
+readonly ISOLATION_ENV_VARS=(
+  BEADS_DIR
+  BEADS_DOLT_PORT
+  BEADS_DOLT_SERVER_PORT
+  GC_DOLT_PORT
+)
 
-# bd must never prompt for input while the pipeline runs unattended.
-export BD_NON_INTERACTIVE=1
-
-# ---------------------------------------------------------------------------
-# Paths
-# ---------------------------------------------------------------------------
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-FIXTURE_FILE="$SCRIPT_DIR/fixtures/beads-fixture.jsonl"
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+readonly SCRIPT_DIR
+readonly FIXTURE_FILE="$SCRIPT_DIR/fixtures/beads-fixture.jsonl"
+readonly FIXTURE_TMPDIR="${TMPDIR:-/tmp}"
+readonly FIXTURE_DIR_PREFIX="beads-fixture."
 
 # Marker written into every created project.  teardown refuses to delete a
 # directory without it, so a stray argument can never rm -rf a real checkout.
-FIXTURE_MARKER=".beads-fixture-project"
-
-# The role ids the fixture promises.  `verify` enforces these.
-FIXTURE_PREFIX="demo"
-FIXTURE_ROLE_COUNT=8
+readonly FIXTURE_MARKER=".beads-fixture-project"
 
 die() {
   printf 'fixture.sh: %s\n' "$*" >&2
@@ -65,6 +61,39 @@ require_tool() {
   command -v "$1" >/dev/null 2>&1 || die "required tool not found on PATH: $1"
 }
 
+usage() {
+  cat <<'EOF'
+Usage: fixture.sh <command>
+
+Commands:
+  create, up          Create and seed a throwaway project; print its path.
+                      This is the default when no command is given.
+  teardown <dir>      Remove a project created by `create'.
+  verify              Create a project, validate its role ids, dependencies,
+                      states, labels, and comments, then tear it down.
+  print-isolation-vars
+                      Print the hardcoded isolation variable names, one per
+                      line, for the drift test.
+  help, --help, -h    Show this help.
+
+Environment:
+  The four isolation variables (BEADS_DIR, BEADS_DOLT_PORT,
+  BEADS_DOLT_SERVER_PORT, GC_DOLT_PORT) are unset before every bd call, so the
+  temp project is always the only store bd can reach.
+EOF
+}
+
+unset_isolation_vars() {
+  local var
+  for var in "${ISOLATION_ENV_VARS[@]}"; do
+    unset "$var"
+  done
+}
+
+print_isolation_vars() {
+  printf '%s\n' "${ISOLATION_ENV_VARS[@]}"
+}
+
 # ---------------------------------------------------------------------------
 # create
 # ---------------------------------------------------------------------------
@@ -72,51 +101,52 @@ require_tool() {
 seed_project() {
   local project="$1"
 
-  [ -f "$FIXTURE_FILE" ] || die "fixture file not found: $FIXTURE_FILE"
-
   (
+    set -euo pipefail
     cd "$project"
 
     # An isolated repo needs a deterministic, local git identity; the fixture
     # never pushes anywhere.
     git init -q
-    git config user.email "fixture@beads.local"
+    git config user.email "fixture@beads.invalid"
     git config user.name "Beads Fixture"
 
-    # Initialize beads with the fixture prefix.  --skip-hooks/--skip-agents
-    # keep the throwaway project free of tool integrations the pipeline does
-    # not use, and keep creation fast and deterministic.  All bd chatter goes
-    # to stderr so `create' can reserve stdout for the project path.
-    bd init --prefix "$FIXTURE_PREFIX" --quiet --skip-hooks --skip-agents --non-interactive >&2 || exit 1
+    # --skip-hooks/--skip-agents keep the throwaway project free of tool
+    # integrations the pipeline does not use.  All bd chatter goes to stderr
+    # so `create' can reserve stdout for the project path.
+    bd init --prefix "$FIXTURE_PREFIX" --quiet --non-interactive \
+      --skip-hooks --skip-agents 1>&2
 
-    # Import the role-keyed fixture.  The JSONL already carries labels,
-    # parent-child and blocks dependencies, and comments, so the importer
-    # expresses all of them and no post-import bd writes are required.  If a
-    # future bd import drops one of those fields, apply it here with
-    # `bd label add' / `bd comment' before returning.
-    bd import "$FIXTURE_FILE" --quiet >&2 || exit 1
+    # The JSONL already carries labels, parent-child and blocks dependencies,
+    # and comments, so the importer expresses all of them and no post-import bd
+    # writes are required.  If a future bd import drops one of those fields,
+    # apply it here with `bd label add' / `bd comments add' before returning.
+    bd import "$FIXTURE_FILE" --quiet 1>&2
   )
 }
 
-cmd_create() {
+create_fixture() {
+  [ -r "$FIXTURE_FILE" ] || die "fixture data not found: $FIXTURE_FILE"
   require_tool bd
   require_tool git
   require_tool mktemp
 
   local project
-  project="$(mktemp -d "${TMPDIR:-/tmp}/beads-screenshot-fixture.XXXXXX")" \
-    || die "could not create temp directory"
+  project=$(mktemp -d "$FIXTURE_TMPDIR/$FIXTURE_DIR_PREFIX"XXXXXX) \
+    || die "mktemp -d failed under $FIXTURE_TMPDIR"
 
   # Clean up a half-built project if seeding fails partway.
   if ! seed_project "$project"; then
-    rm -rf "$project"
-    die "failed to seed fixture project"
+    rm -rf -- "$project"
+    die "failed to seed fixture project in $project"
   fi
 
-  : >"$project/$FIXTURE_MARKER"
-  [ -d "$project/.beads" ] || die "seed did not create $project/.beads"
+  [ -d "$project/.beads" ] || {
+    rm -rf -- "$project"
+    die "fixture project has no .beads store: $project"
+  }
 
-  # stdout is the contract: only the project directory goes here.
+  : >"$project/$FIXTURE_MARKER"
   printf '%s\n' "$project"
 }
 
@@ -124,19 +154,26 @@ cmd_create() {
 # teardown
 # ---------------------------------------------------------------------------
 
-cmd_teardown() {
+teardown_fixture() {
   local project="${1:-}"
-  [ -n "$project" ] || die "usage: fixture.sh teardown DIR"
+  [ -n "$project" ] || die "teardown needs the project directory"
 
   case "$project" in
-    */../*|*/..) die "refusing suspicious path: $project" ;;
+    "$FIXTURE_TMPDIR/$FIXTURE_DIR_PREFIX"*) ;;
+    *)
+      die "refusing to remove unexpected path: $project"
+      ;;
   esac
 
-  [ -d "$project" ] || die "not a directory: $project"
+  [ -d "$project" ] || {
+    printf 'fixture.sh: already gone: %s\n' "$project" >&2
+    return 0
+  }
   [ -f "$project/$FIXTURE_MARKER" ] \
     || die "refusing to remove $project: missing $FIXTURE_MARKER (not a fixture project)"
 
-  rm -rf "$project"
+  rm -rf -- "$project"
+  printf 'fixture.sh: removed %s\n' "$project" >&2
 }
 
 # ---------------------------------------------------------------------------
@@ -149,16 +186,27 @@ verify_project() {
 
   (
     cd "$project"
-    bd list --all --json
+    bd export
   ) | python3 -c '
 import json
 import re
 import sys
 
-prefix, role_count = sys.argv[1], int(sys.argv[2])
-issues = json.load(sys.stdin)
-if isinstance(issues, dict):
-    issues = [issues]
+fixture_path = sys.argv[1]
+prefix = sys.argv[2]
+
+issues = []
+for line in sys.stdin:
+    line = line.strip()
+    if line:
+        issues.append(json.loads(line))
+
+expected = []
+with open(fixture_path, encoding="utf-8") as handle:
+    for line in handle:
+        line = line.strip()
+        if line:
+            expected.append(json.loads(line)["id"])
 
 errors = []
 by_id = {}
@@ -168,17 +216,15 @@ for issue in issues:
         errors.append(f"duplicate id: {ident}")
     by_id[ident] = issue
 
-pattern = re.compile(rf"^{re.escape(prefix)}-\d+$")
+role_re = re.compile(rf"^{re.escape(prefix)}-[0-9]+(\.[0-9]+)*$")
 for ident in by_id:
-    if not pattern.match(ident):
+    if not role_re.match(ident):
         errors.append(f"non role id (auto-generated hash?): {ident}")
 
-expected = {f"{prefix}-{n}" for n in range(1, role_count + 1)}
-missing = expected - set(by_id)
+missing = [ident for ident in expected if ident not in by_id]
 if missing:
     errors.append(f"missing role ids: {sorted(missing)}")
 
-# Every dependency target must exist.
 for ident, issue in by_id.items():
     for dep in issue.get("dependencies") or []:
         target = dep.get("depends_on_id")
@@ -190,7 +236,6 @@ for required in ("open", "in_progress", "blocked", "closed"):
     if required not in statuses:
         errors.append(f"missing status: {required}")
 
-# An epic with at least two parent-child children.
 children = {}
 for ident, issue in by_id.items():
     for dep in issue.get("dependencies") or []:
@@ -215,22 +260,23 @@ if errors:
         print(f"fixture.sh: verify: {error}", file=sys.stderr)
     sys.exit(1)
 print(f"fixture.sh: verify: {len(by_id)} role-keyed issues OK")
-' "$FIXTURE_PREFIX" "$FIXTURE_ROLE_COUNT"
+' "$FIXTURE_FILE" "$FIXTURE_PREFIX"
 }
 
-cmd_verify() {
+verify_fixture() {
   require_tool bd
   require_tool git
   require_tool mktemp
 
-  local project=""
-  # `create` prints only the path; its diagnostics go to stderr.
-  if ! project="$(cmd_create)"; then
+  local project
+  if ! project=$(create_fixture); then
     die "failed to create fixture project"
   fi
-  trap 'rm -rf "${project:-}"' EXIT
+  trap 'rm -rf -- "${project:-}"' EXIT
 
   verify_project "$project"
+  rm -rf -- "$project"
+  trap - EXIT
   printf 'fixture.sh: PASS\n'
 }
 
@@ -238,21 +284,20 @@ cmd_verify() {
 # Dispatch
 # ---------------------------------------------------------------------------
 
-case "${1:-}" in
-  create)   cmd_create ;;
-  teardown) shift; cmd_teardown "${1:-}" ;;
-  verify)   cmd_verify ;;
-  *)
-    cat >&2 <<'USAGE'
-usage: fixture.sh create
-       fixture.sh teardown DIR
-       fixture.sh verify
+main() {
+  unset_isolation_vars
+  case "${1:-create}" in
+    create | up) create_fixture ;;
+    teardown | destroy | remove) teardown_fixture "${2:-}" ;;
+    verify) verify_fixture ;;
+    print-isolation-vars) print_isolation_vars ;;
+    help | --help | -h) usage ;;
+    *)
+      printf 'fixture.sh: unknown command: %s\n' "$1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+}
 
-create    build an isolated project from fixtures/beads-fixture.jsonl and
-          print its absolute path on stdout
-teardown  remove a project previously created by `create`
-verify    create, validate the fixture, tear down, and print PASS
-USAGE
-    exit 2
-    ;;
-esac
+main "$@"
