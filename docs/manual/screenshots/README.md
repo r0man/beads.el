@@ -188,20 +188,49 @@ popups).
 
 ## Cross-repo contract (REQ-009)
 
-The beads.el and gascity.el pipelines are legible as one system through this
-contract, owned here and mirrored by the `gascity.el` build (WI-5):
+This section is the single authoritative statement of the interface the
+beads.el and gascity.el manuals share (plan-review P4). The sibling
+`gascity.el` build (`gascity.el/doc/screenshots/`) mirrors it, so the two
+manuals read as one system. The *contract* is the formula interface and the
+image layout; the per-package file names and shot lists differ by design.
 
-- **Formula name**: `user-manual-screenshots` (one `scope` variable:
-  `all` | `changed` | comma-separated subset).
-- **Fixture**: referenced by role, ids of the form `demo-<role>`; a
-  deterministic, isolated temp project, never the repo or a live store.
-- **Layout**: `screenshots/` holds the pipeline; `images/` holds the
-  committed images, both relative to the manual directory (`docs/manual/`
-  here, `doc/` in gascity.el).
-- **Naming**: `<view>-<theme>.png` and `<view>-<theme>-thumb.png`, where
-  `theme` is `dark` or `light`.
-- **Verify**: re-run the same scope twice and fail, naming the drifting
-  image, unless output is byte-identical.
+The contract fixes exactly these values:
+
+- **Formula name**: `user-manual-screenshots`. A package that grows a user
+  manual declares this same formula name.
+- **Scope variable**: exactly one, `scope` — `all` captures every view,
+  `changed` selects the views touched by the working diff, and a
+  comma-separated list selects that exact subset. A subset run must not
+  rewrite or delete any out-of-scope image.
+- **Fixture**: referenced by role, never by a stored id; the generated ids
+  have the form `demo-<role>`. It is a deterministic, isolated temporary
+  project, never the repository or a live store.
+- **Layout**: `screenshots/` holds the pipeline and `images/` holds the
+  committed images, both relative to the manual directory.
+- **Naming**: `<view>-<theme>.png` for the full image and
+  `<view>-<theme>-thumb.png` for the thumbnail, where `theme` is `dark` or
+  `light`.
+- **Verify**: re-run a scope twice and fail, naming each drifting image,
+  unless the output is byte-identical.
+
+Concrete alignment with the sibling build:
+
+| Contract term | beads.el | gascity.el (mirrors this contract) |
+| --- | --- | --- |
+| Manual directory | `docs/manual/` | `doc/` |
+| Pipeline directory | `docs/manual/screenshots/` | `doc/screenshots/` |
+| Committed images | `docs/manual/images/` | `doc/images/` |
+| Capture engine | `screenshots/screenshot.el` | `screenshots/screenshot.el` (the same file, copied verbatim) |
+| Shot list | `screenshots/beads-shots.el` | `screenshots/gascity-shots.el` |
+| Orchestrator | `screenshots/capture.sh` | `screenshots/capture.sh` |
+| Image naming | `<view>-<theme>.png`, `-thumb.png` | identical |
+| Formula | `user-manual-screenshots` | the same name when its build adopts it |
+| Scope | `scope` = `all` \| `changed` \| subset | the same semantics |
+
+The engine is the one file shared **verbatim**; everything package-specific
+is a shot list plus the manifest/geometry table near the top of
+`capture.sh`. Do not fork the engine's logic — to refresh the copy, replace
+it with the upstream file and update the provenance hash above.
 
 ## Allowed differences
 
