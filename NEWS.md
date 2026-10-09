@@ -4,6 +4,19 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Menu commands are eagerly autoloaded (be-qhpf)
+
+Opening the dispatch (`?`) or maintenance (`!`) menu after a bare
+`(require 'beads)` no longer fails with `Suffix command <name> is not
+defined or autoloaded`.  The explicit "Main menu command autoloads" block
+in `beads.el` now covers the twelve menu commands it previously omitted:
+`beads-bootstrap`, `beads-conflicts`, `beads-context`, `beads-events`,
+`beads-github`, `beads-heartbeat`, `beads-migrate-personal`,
+`beads-provenance`, `beads-reclaim`, `beads-schema`, `beads-sync` and
+`beads-unclaim`.  A regression test asserts that every command referenced
+by the dispatch/maintenance transients is covered by `beads.el`
+(autoloaded or defined there), independent of test load order.
+
 ### Formula provenance and richer detail (WI-SF-05, REQ-SF-010/011/052)
 
 The formula browser now shows a **Phase** column and the **Source** path, and
