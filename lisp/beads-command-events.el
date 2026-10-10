@@ -116,14 +116,27 @@ pruning never affects issue data."
 
 ;;;###autoload (autoload 'beads-events "beads-command-events" nil t)
 (beads-define-prefix beads-events ()
-  "Read and manage the durable events journal.
+  "Read, follow, and time-travel the durable events journal.
 
 Parent transient for the `bd events' group; per project policy the
-group itself never gets an EIEIO class."
+group itself never gets an EIEIO class.  Journal holds the raw
+`bd events' commands; Live opens the journal views and the stream
+controls (`beads-live'); Time-travel opens an issue's history and the
+read-only rewind view (`beads-events-history', `beads-events-rewind')."
   [["Journal"
     ("t" "Tail records" beads-events-tail)
     ("e" "Export journal" beads-events-export)
-    ("p" "Prune records" beads-events-prune)
+    ("p" "Prune records" beads-events-prune)]
+   ["Live"
+    ("T" "Timeline (recent changes)" beads-events-timeline)
+    ("C" "City timeline" beads-events-timeline-city)
+    ("W" "Toggle live" beads-live-toggle)
+    ("g" "Reconnect" beads-live-reconnect)
+    ("S" "Stop live" beads-live-stop-all)]
+   ["Time-travel"
+    ("h" "Issue history" beads-events-history)
+    ("r" "Rewind..." beads-events-rewind)]
+   ["Quit"
     ("q" "Quit" transient-quit-one)]])
 
 (provide 'beads-command-events)
