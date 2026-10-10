@@ -1354,18 +1354,147 @@ Without the override, and with an explicit DIRECTORY, nothing changes."
   :tags '(:unit)
   (cl-flet ((resolved-in (home override &optional directory)
               (catch 'resolved
-                (cl-letf (((symbol-function 'beads-dashboard--project-root)
-                           (lambda () (throw 'resolved default-directory))))
-                  (with-temp-buffer
-                    (setq default-directory home)
-                    (let ((project-current-directory-override override))
-                      (if directory
-                          (beads-dashboard :directory directory)
-                        (beads-dashboard))))))))
+                (let ((beads-dashboard-live-auto-attach nil))
+                  (cl-letf (((symbol-function 'beads-dashboard--project-root)
+                             (lambda () (throw 'resolved default-directory))))
+                    (with-temp-buffer
+                      (setq default-directory home)
+                      (let ((project-current-directory-override override))
+                        (if directory
+                            (beads-dashboard :directory directory)
+                          (beads-dashboard)))))))))
     (should (equal (resolved-in "/tmp/home/" "/tmp/project") "/tmp/project/"))
     (should (equal (resolved-in "/tmp/home/" nil) "/tmp/home/"))
     (should (equal (resolved-in "/tmp/home/" "/tmp/project" "/tmp/explicit/")
                    "/tmp/explicit/"))))
+
+;;; Live Journal Integration (WI-LIVE-11)
+
+(ert-deftest beads-dashboard-test-live-record-marks-issue ()
+  "A subscribed journal record marks its issue as changed."
+  :tags '(:unit)
+  (with-temp-buffer
+    (setq-local beads-dashboard--live-changed (make-hash-table :test 'equal))
+    (beads-dashboard--live-record
+     (beads-event-record :seq 1 :op "update" :issue-id "bd-9"))
+    (should (gethash "bd-9" beads-dashboard--live-changed))
+    ;; Actor-less derived rows still mark by issue id.
+    (beads-dashboard--live-record
+     (beads-event-record :seq 2 :op "close" :issue-id "bd-10"))
+    (should (gethash "bd-10" beads-dashboard--live-changed))))
+
+(ert-deftest beads-dashboard-test-live-changed-ids-prunes-expired ()
+  "Expired changed ids are pruned and not returned."
+  :tags '(:unit)
+  (with-temp-buffer
+    (setq-local beads-dashboard--live-changed (make-hash-table :test 'equal))
+    (puthash "old" (- (float-time) 5) beads-dashboard--live-changed)
+    (puthash "new" (+ (float-time) 60) beads-dashboard--live-changed)
+    (should (equal '("new") (beads-dashboard--live-changed-ids)))
+    (should-not (gethash "old" beads-dashboard--live-changed))))
+
+(ert-deftest beads-dashboard-test-live-apply-marks ()
+  "`beads-dashboard--apply-live-marks' stamps ◈ and the changed face.
+Idempotent: applying twice does not insert a second marker."
+  :tags '(:unit)
+  (with-temp-buffer
+    (beads-dashboard-mode)
+    (setq-local beads-dashboard--live-changed (make-hash-table :test 'equal))
+    (puthash "bd-1" (+ (float-time) 60) beads-dashboard--live-changed)
+    (let* ((issue (beads-issue :id "bd-1" :title "One" :status "open"))
+           (sec (beads-issue-section :issue issue))
+           (inhibit-read-only t))
+      (insert (propertize "  bd-1 One\n" 'beads-section sec)))
+    (beads-dashboard--apply-live-marks)
+    (should (equal 1 (how-many "◈" (point-min))))
+    (should (string-match-p "◈ +bd-1 One" (buffer-string)))
+    (should (cl-some
+             (lambda (p)
+               (let ((face (get-text-property p 'face)))
+                 (or (eq face 'beads-event-changed)
+                     (and (listp face) (memq 'beads-event-changed face)))))
+             (number-sequence (point-min) (point-max))))
+    ;; Idempotent.
+    (beads-dashboard--apply-live-marks)
+    (should (equal 1 (how-many "◈" (point-min))))))
+
+(ert-deftest beads-dashboard-test-live-chip-delegates ()
+  "The dashboard chip comes from the store's live status fragment."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-live-header-string)
+             (lambda (&optional _dir) "● live ∿2/s"))
+            ((symbol-function 'beads-dashboard--current-root)
+             (lambda () "/tmp/p/")))
+    (should (equal "● live ∿2/s" (beads-dashboard--live-chip)))))
+
+(ert-deftest beads-dashboard-test-live-header-vnode-includes-chip ()
+  "The header vnode renders the live chip when one is available."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-dashboard--live-chip)
+             (lambda () "● live ∿1/s")))
+    (let ((rendered (format "%S" (beads-dashboard--header-vnode "/tmp/p/" nil))))
+      (should (string-match-p "live" rendered)))))
+
+(ert-deftest beads-dashboard-test-live-mode-line-chip ()
+  "The mode line carries the live chip without dropping auto:on."
+  :tags '(:unit)
+  (with-temp-buffer
+    (beads-dashboard-mode)
+    (beads-dashboard--update-mode-line (current-buffer) (float-time)
+                                       '(:backend embedded :max-concurrent 1)
+                                       t "● live ∿1/s")
+    (should (cl-some (lambda (seg)
+                       (and (stringp seg)
+                            (string-match-p "auto:on" seg)
+                            (string-match-p "live" seg)))
+                     mode-line-misc-info))))
+
+(ert-deftest beads-dashboard-test-live-refresh-bumps-live-seq ()
+  "A live batch bumps :live-seq (not :generation) and re-marks rows."
+  :tags '(:unit)
+  (with-temp-buffer
+    (beads-dashboard-mode)
+    (let (captured marked)
+      (cl-letf (((symbol-function 'beads-dashboard--root-state)
+                 (lambda (_key) 4))
+                ((symbol-function 'beads-dashboard--bump)
+                 (lambda (key value) (setq captured (cons key value))))
+                ((symbol-function 'beads-dashboard--apply-live-marks)
+                 (lambda () (setq marked t))))
+        (beads-dashboard--live-refresh))
+      (should (equal captured '(:live-seq . 5)))
+      (should marked))))
+
+(ert-deftest beads-dashboard-test-live-remote-store-not-attached ()
+  "A remote dashboard does not auto-attach (render-guard contract)."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-live-attach)
+             (lambda (&rest _) (error "must not attach a remote store"))))
+    (with-temp-buffer
+      (setq default-directory "/ssh:host:/srv/")
+      (setq-local beads-store-directory "/ssh:host:/srv/")
+      (beads-dashboard--live-setup (current-buffer))
+      (should (hash-table-p beads-dashboard--live-changed)))))
+
+(ert-deftest beads-dashboard-test-idle-refresh-skips-while-live ()
+  "The idle timer defers to a live stream but still fires otherwise."
+  :tags '(:unit)
+  (with-temp-buffer
+    (beads-dashboard-mode)
+    (let (refreshed)
+      (cl-letf (((symbol-function 'beads-live-status)
+                 (lambda (&optional _dir) '(:state live)))
+                ((symbol-function 'beads-dashboard-refresh)
+                 (lambda () (setq refreshed t))))
+        (beads-dashboard--idle-refresh (current-buffer)))
+      (should-not refreshed))
+    (let (refreshed)
+      (cl-letf (((symbol-function 'beads-live-status)
+                 (lambda (&optional _dir) '(:state poll)))
+                ((symbol-function 'beads-dashboard-refresh)
+                 (lambda () (setq refreshed t))))
+        (beads-dashboard--idle-refresh (current-buffer)))
+      (should refreshed))))
 
 (provide 'beads-dashboard-test)
 ;;; beads-dashboard-test.el ends here

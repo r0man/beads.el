@@ -14,6 +14,19 @@
 ;; `beads-dashboard-sections.el') load asynchronously and are wrapped
 ;; in `vui-error-boundary' so a per-section failure never blanks the
 ;; dashboard.  See `beads-dashboard-mode-map' for the keymap.
+;;
+;; Live journal integration (WI-LIVE-11): when `beads-live' is loaded,
+;; a dashboard attaches to its store's `bd events' stream on mount and
+;; detaches on kill.  A debounced live batch re-renders the buffer in
+;; place (a `:live-seq' bump, never a `:generation' bump, so no section
+;; is re-fetched) and stamps a `◈' changed marker plus the
+;; `beads-event-changed' face on rows touched within
+;; `beads-live-change-window'.  The header and mode line carry the
+;; `live'/`poll'/`partial' status chip; the 30s idle timer is retained
+;; only as the poll/reconcile fallback.  Remote stores are not
+;; auto-attached here because the capability probe would touch the
+;; host at mount time (the render-guard contract); they fall back to
+;; the existing timer until the remote live path is validated.
 
 ;;; Code:
 
@@ -33,6 +46,17 @@
 (declare-function beads--project-root "beads-util")
 (declare-function transient--prefix "transient")
 
+;; Live journal integration (WI-LIVE-11).  `beads-live.el' is optional
+;; at compile and load time so the dashboard stays standalone; every
+;; call below is guarded by `fboundp'.
+(declare-function beads-live-attach "beads-live"
+                  (&optional buffer &rest args))
+(declare-function beads-live-subscribe "beads-live" (fn &optional buffer))
+(declare-function beads-live-header-string "beads-live" (&optional dir))
+(declare-function beads-live-events-journal-enabled-p "beads-live"
+                  (dir &optional refresh))
+(declare-function beads-event-record-p "beads-types" (object))
+
 ;;; Variables
 
 (defvar beads-dashboard--buffer-name "*beads-dashboard*"
@@ -42,6 +66,16 @@
   "Seconds of Emacs idle time between auto-refresh ticks.
 Auto-refresh is OFF by default and toggled with `r' in the dashboard."
   :type 'number
+  :group 'beads)
+
+(defcustom beads-dashboard-live-auto-attach t
+  "Whether opening a dashboard attaches to its store's live journal.
+When non-nil and `beads-live' is available, a local dashboard attaches
+on mount and detaches on kill so journal records update it in place.
+Remote stores are never auto-attached here: the synchronous capability
+probe would touch the host at mount time, which the remote render guard
+forbids.  Bind to nil in batch/tests that must not start a stream."
+  :type 'boolean
   :group 'beads)
 
 (defcustom beads-dashboard-default-collapsed
@@ -64,6 +98,16 @@ Each project's entry maps SECTION-KEY -> non-negative integer or the
 symbol `all'.  Restored on buffer init so per-section `+'/`-'/`*'
 overrides persist across `g' (soft refresh) and across
 close-and-reopen.  `C-u g' (hard refresh) clears the project's entry.")
+
+(defvar-local beads-dashboard--live-changed nil
+  "Buffer-local hash-table mapping issue id -> changed-expiry float-time.
+Populated from the store's `bd events' subscription while the
+dashboard is attached, and consulted by
+`beads-dashboard--apply-live-marks' to stamp the changed-row marker.")
+
+(defvar-local beads-dashboard--live-subscription nil
+  "Handle from `beads-live-subscribe' for this dashboard, or nil.
+Killing the buffer unsubscribes through `beads-live-detach'.")
 
 (defvar-local beads-dashboard--last-good-data nil
   "Buffer-local hash table mapping SECTION-KEY -> last good payload.
@@ -144,12 +188,15 @@ per-section load-more state."
        (t (format "%dh ago" (/ delta 3600)))))))
 
 (defun beads-dashboard--update-mode-line (buffer last-refresh policy
-                                                 &optional auto-refresh)
+                                                 &optional auto-refresh
+                                                 live-chip)
   "Refresh the modeline for BUFFER from LAST-REFRESH and POLICY.
 AUTO-REFRESH is the current auto-refresh state — when non-nil the
 strip ends with `· auto:on' so the user has a visible cue that the
 idle timer is armed.  Omitted when auto-refresh is off to keep the
-strip short on the common path."
+strip short on the common path.  LIVE-CHIP, when non-nil, is the
+`beads-live-header-string' fragment appended so the live/poll/partial
+state is visible from any window showing the dashboard."
   (when (buffer-live-p buffer)
     (with-current-buffer buffer
       (let* ((rel (or (beads-dashboard--format-relative-time last-refresh)
@@ -158,13 +205,16 @@ strip short on the common path."
              (mc (or (plist-get policy :max-concurrent)
                      (beads-command--policy-max-concurrent))))
         (setq mode-line-misc-info
-              (list (format " · refreshed %s · dolt:%s · cap:%s%s"
+              (list (format " · refreshed %s · dolt:%s · cap:%s%s%s"
                             rel backend mc
-                            (if auto-refresh " · auto:on" "")))))
+                            (if auto-refresh " · auto:on" "")
+                            (if live-chip (format " · %s" live-chip) "")))))
       (force-mode-line-update))))
 
 (defun beads-dashboard--header-vnode (root db)
-  "Return the dashboard header vnode for project ROOT and DB path."
+  "Return the dashboard header vnode for project ROOT and DB path.
+A live journal chip (from `beads-live-header-string') is appended when
+`beads-live' is loaded and a stream covers ROOT."
   (let ((project-name (if root
                           (file-name-nondirectory (directory-file-name root))
                         "unknown")))
@@ -173,7 +223,10 @@ strip short on the common path."
       (vui-text " — " :face 'shadow)
       (vui-text project-name :face 'font-lock-constant-face)
       (when db
-        (vui-text (format " (%s)" db) :face 'shadow)))))
+        (vui-text (format " (%s)" db) :face 'shadow))
+      (when-let* ((chip (beads-dashboard--live-chip)))
+        (vui-text "  " :face 'shadow)
+        (vui-text chip :face 'beads-events-status)))))
 
 (defun beads-dashboard--footer-vnode ()
   "Return the dashboard footer vnode (key hints)."
@@ -287,6 +340,7 @@ Sections receive collapse state as a prop because per-component
           (extra     (beads-dashboard--load-extra project-root))
           (auto-refresh nil)
           (last-refresh (float-time))
+          (live-seq 0)
           (generation 0))
   :render
   (let ((buffer (current-buffer)))
@@ -296,9 +350,10 @@ Sections receive collapse state as a prop because per-component
                       beads-dashboard-auto-refresh-interval t
                       #'beads-dashboard--idle-refresh buffer)))
           (lambda () (when (timerp timer) (cancel-timer timer))))))
-    (vui-use-effect (last-refresh auto-refresh)
+    (vui-use-effect (last-refresh auto-refresh live-seq)
       (beads-dashboard--update-mode-line
-       buffer last-refresh beads-command--policy auto-refresh)
+       buffer last-refresh beads-command--policy auto-refresh
+       (beads-dashboard--live-chip))
       nil)
     (if (null project-root)
         ;; Short-circuit when invoked outside a beads project: render
@@ -478,12 +533,130 @@ re-probes the policy without raising on the missing root state."
       (message "Beads-Dashboard auto-refresh: %s" (if cur "off" "on")))))
 
 (defun beads-dashboard--idle-refresh (buffer)
-  "Idle callback that refreshes BUFFER without preempting transients."
+  "Idle callback that refreshes BUFFER without preempting transients.
+A `live' journal stream already updates the buffer in place, so the
+timer is skipped in that state; it remains the poll/reconcile fallback
+for a journal-off store (or one with no stream at all)."
   (when (and (buffer-live-p buffer)
              (not (bound-and-true-p transient--prefix)))
     (with-current-buffer buffer
-      (when (eq major-mode 'beads-dashboard-mode)
+      (when (and (eq major-mode 'beads-dashboard-mode)
+                 (not (eq (plist-get (and (fboundp 'beads-live-status)
+                                          (beads-live-status))
+                                     :state)
+                          'live)))
         (beads-dashboard-refresh)))))
+
+;;; Live Journal Integration (WI-LIVE-11)
+
+(defun beads-dashboard--live-window ()
+  "Return the changed-row retention window in seconds.
+Prefers the `beads-live-change-window' option and falls back to 30 so
+the dashboard byte-compiles and tests before WI-LIVE-02 lands."
+  (if (and (boundp 'beads-live-change-window)
+           (numberp beads-live-change-window))
+      beads-live-change-window
+    30))
+
+(defun beads-dashboard--live-remote-p ()
+  "Return non-nil when this dashboard's store is remote.
+Remote stores are not auto-attached: the synchronous capability probe
+would touch the host at mount time (remote render-guard contract)."
+  (let ((dir (or (and (bound-and-true-p beads-store-directory)
+                      (stringp beads-store-directory)
+                      (not (string-empty-p beads-store-directory))
+                      beads-store-directory)
+                 default-directory)))
+    (and (stringp dir) (file-remote-p dir))))
+
+(defun beads-dashboard--live-record (record)
+  "Mark RECORD's issue as changed for `beads-live-change-window' seconds.
+Runs as a `beads-live-subscribe' callback with the dashboard buffer
+current, so it updates only that buffer's changed-id table."
+  (when-let* ((tbl beads-dashboard--live-changed)
+              (id (and (fboundp 'beads-event-record-p)
+                       (beads-event-record-p record)
+                       (condition-case nil
+                           (oref record issue-id)
+                         (error nil)))))
+    (puthash id (+ (float-time) (beads-dashboard--live-window)) tbl)))
+
+(defun beads-dashboard--live-changed-ids ()
+  "Return the non-expired changed issue ids for this buffer.
+Expired entries are pruned from the table as a side effect."
+  (let ((now (float-time))
+        (tbl beads-dashboard--live-changed)
+        ids)
+    (when (hash-table-p tbl)
+      (maphash (lambda (id expiry)
+                 (if (< expiry now)
+                     (remhash id tbl)
+                   (push id ids)))
+               tbl))
+    ids))
+
+(defun beads-dashboard--live-chip ()
+  "Return the live/poll status chip for this dashboard, or nil.
+Pure and redisplay-safe; nil when `beads-live' is not loaded or no
+stream covers the store."
+  (when (fboundp 'beads-live-header-string)
+    (condition-case nil
+        (beads-live-header-string (beads-dashboard--current-root))
+      (error nil))))
+
+(defun beads-dashboard--apply-live-marks ()
+  "Stamp the changed marker and face on rows changed within the window.
+Idempotent: a row already marked is not re-marked.  Confined to the
+current dashboard buffer and run after each in-place live rerender."
+  (when (and beads-dashboard--live-changed
+             (hash-table-p beads-dashboard--live-changed)
+             (> (hash-table-count beads-dashboard--live-changed) 0))
+    (let ((ids (beads-dashboard--live-changed-ids)))
+      (when ids
+        (let ((inhibit-read-only t))
+          (with-silent-modifications
+            (save-excursion
+              (goto-char (point-min))
+              (while (not (eobp))
+                (let ((id (beads-dashboard--issue-id-at-line)))
+                  (when (and id (member id ids))
+                    (let ((beg (line-beginning-position))
+                          (end (line-end-position)))
+                      (add-face-text-property beg end 'beads-event-changed t)
+                      (goto-char beg)
+                      (unless (looking-at-p "◈")
+                        (insert "◈ ")))))
+                (forward-line 1)))))))))
+
+(defun beads-dashboard--live-refresh ()
+  "Re-render this dashboard in place after a debounced live batch.
+Bumps the `:live-seq' state (never `:generation', so no section is
+re-fetched) and re-stamps the changed-row markers."
+  (when (derived-mode-p 'beads-dashboard-mode)
+    (beads-dashboard--bump :live-seq
+                           (1+ (or (beads-dashboard--root-state :live-seq) 0)))
+    (beads-dashboard--apply-live-marks)))
+
+(defun beads-dashboard--live-setup (buffer)
+  "Attach BUFFER to its store's live journal and mark changed rows.
+A no-op when `beads-live' is not loaded, when
+`beads-dashboard-live-auto-attach' is nil, or for a remote store (the
+capability probe would touch the host at mount time).  Subscribes once
+per buffer so re-opening an attached dashboard does not duplicate the
+subscription."
+  (with-current-buffer buffer
+    (unless (hash-table-p beads-dashboard--live-changed)
+      (setq-local beads-dashboard--live-changed (make-hash-table :test 'equal)))
+    (when (and beads-dashboard-live-auto-attach
+               (not (beads-dashboard--live-remote-p))
+               (fboundp 'beads-live-attach))
+      (beads-live-attach buffer :kinds '(dashboard)
+                         :refresh #'beads-dashboard--live-refresh)
+      (when (and (fboundp 'beads-live-subscribe)
+                 (not beads-dashboard--live-subscription))
+        (setq-local beads-dashboard--live-subscription
+                    (beads-live-subscribe #'beads-dashboard--live-record
+                                          buffer))))))
 
 ;;; Section Toggle / Visibility Depth
 
@@ -1147,6 +1320,9 @@ opens the board of the chosen project, not of the current buffer."
                       :project-root root
                       :db-path db)
        (buffer-name)))
+    ;; Attach to the store's live journal after mount, so `◈' changed
+    ;; rows and the header chip have a root instance to update.
+    (beads-dashboard--live-setup buf)
     (pop-to-buffer buf)))
 
 ;;;###autoload
