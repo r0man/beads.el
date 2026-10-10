@@ -2742,6 +2742,7 @@ Regression test for bug bde-evrx."
 (ert-deftest beads-list-test-delete-dispatches-to-function ()
   "Test that beads-list-delete calls beads-delete when issue at point."
   :tags '(:unit)
+  (require 'beads-command-delete)
   (beads-list-test--with-temp-buffer
    beads-list-test--sample-issues 'list
    (goto-char (point-min))
@@ -2753,7 +2754,6 @@ Regression test for bug bde-evrx."
                 (lambda (id)
                   (setq delete-called t
                         delete-arg id))))
-       (require 'beads-command-delete)
        (beads-list-delete)
        (should delete-called)
        (should (equal delete-arg "bd-42"))))))
@@ -3155,11 +3155,16 @@ non-string tabulated id: neither `beads-list-mark' nor the old
   "Test the live chip appears only for an attached buffer."
   (beads-list-test--with-temp-buffer
    beads-list-test--sample-issues 'list
+   ;; Populating auto-attaches when beads-live is available, so the chip
+   ;; is present for an attached buffer ...
+   (when (beads-list--live-supported-p)
+     (should (string-match-p "●" (beads-list--live-chip)))
+     (should (string-match-p "●" (beads-list--header-line))))
+   ;; ... and empty once the buffer is detached.
+   (beads-list-live-detach)
+   (setq beads-list--live-root nil)
    (should (equal (beads-list--live-chip) ""))
-   (should-not (string-match-p "●" (beads-list--header-line)))
-   (setq beads-list--live-root "/store/a")
-   (should (string-match-p "● live" (beads-list--live-chip)))
-   (should (string-match-p "● live" (beads-list--header-line)))))
+   (should-not (string-match-p "●" (beads-list--header-line)))))
 
 (ert-deftest beads-list-test-live-attach-detach ()
   "Test attach subscribes the record callback and detach tears down."

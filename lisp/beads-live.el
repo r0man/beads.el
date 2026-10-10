@@ -624,13 +624,14 @@ or `created_by', so those stay absent and are read as their zero value."
     (cl-loop for (key . slot) in
              '((id . id) (title . title) (status . status)
                (priority . priority) (issue_type . issue-type)
-               (owner . owner) (assignee . assignee) (labels . labels)
+               (owner . owner) (created_by . created-by) (assignee . assignee) (labels . labels)
                (created_at . created-at) (updated_at . updated-at)
                (started_at . started-at) (closed_at . closed-at)
                (close_reason . close-reason)
                (lease_expires_at . lease-expires-at)
                (heartbeat_at . heartbeat-at))
-             collect (cons key (oref issue slot)))))
+             collect (cons key (and (slot-exists-p issue slot)
+                                    (slot-value issue slot))))))
 
 (defun beads-live--record-snapshot (record)
   "Return RECORD's raw wire issue snapshot.
@@ -1520,7 +1521,14 @@ kills its stderr buffer."
   "Call FN with every raw record of BUFFER's store, as it arrives.
 BUFFER (default current) is attached first when it has no stream.  FN
 runs with BUFFER current and stops when it is killed.  Returns a handle
-for `beads-live-unsubscribe'."
+for `beads-live-unsubscribe'.
+FN may also be passed second as `(beads-live-subscribe ROOT FN)', the
+root-first form some view code uses; the root is implicit in BUFFER's
+store, so it is accepted and ignored."
+  (when (stringp fn)
+    (let ((callback buffer))
+      (setq buffer (current-buffer))
+      (setq fn callback)))
   (with-current-buffer (or buffer (current-buffer))
     (let ((stream (or (and beads-live--root
                            (gethash (beads-live--stream-key beads-live--root)
