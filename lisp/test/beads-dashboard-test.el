@@ -1495,6 +1495,125 @@ Idempotent: applying twice does not insert a second marker."
                  (lambda () (setq refreshed t))))
         (beads-dashboard--idle-refresh (current-buffer)))
       (should refreshed))))
+;;; Recent changes (registry-provided section)
+
+(ert-deftest beads-dashboard-test-recent-changes-registered ()
+  "Dashboard registers the `recent-changes' spec in the shared registry.
+WI-LIVE-12: the section is registered through
+`beads-section-register-dashboard' so gascity can reuse it, and the
+dashboard consumes the registry rather than a parallel board."
+  :tags '(:unit)
+  (let ((spec (beads-section-spec-for 'recent-changes)))
+    (should spec)
+    (should (object-of-class-p spec 'beads-section-spec))
+    (should (eq 'recent-changes (oref spec key)))
+    (should (equal "Recent changes" (oref spec title)))
+    (should (oref spec dashboard))
+    (should (functionp (oref spec loader)))
+    (should (functionp (oref spec renderer)))))
+
+(ert-deftest beads-dashboard-test-recent-changes-loader-is-async ()
+  "The registered loader returns the dashboard async `(resolve reject)' thunk.
+A registered dashboard section must not do synchronous I/O at render
+time; the baseline reuses `beads-dashboard--make-loader'."
+  :tags '(:unit)
+  (let ((loader (oref (beads-section-spec-for 'recent-changes) loader)))
+    (should (functionp (funcall loader)))))
+
+(ert-deftest beads-dashboard-test-recent-changes-render ()
+  "The registered `recent-changes' renderer renders real issue rows.
+Reuses the dashboard issue-list renderer, so rows keep the
+`beads-section' text-property contract and the section limit."
+  :tags '(:unit)
+  (let* ((beads-dashboard-section-limit nil)
+         (issues (list (beads-issue :id "bd-rc1"
+                                    :title "Recent one"
+                                    :status "closed"
+                                    :priority 2
+                                    :issue-type "task")
+                       (beads-issue :id "bd-rc2"
+                                    :title "Recent two"
+                                    :status "open"
+                                    :priority 1
+                                    :issue-type "bug")))
+         (spec (beads-section-spec-for 'recent-changes))
+         (vnode (funcall (oref spec renderer) issues)))
+    (should (vui-vnode-p vnode))
+    (let ((children (vui-vnode-vstack-children vnode)))
+      (should (= 2 (length children)))
+      (let ((label (vui-vnode-button-label (car children))))
+        (should (string-match-p "bd-rc1" label))
+        (should (string-match-p "Recent one" label))))))
+
+(ert-deftest beads-dashboard-test-recent-changes-render-empty ()
+  "The registered `recent-changes' renderer tolerates no data."
+  :tags '(:unit)
+  (let ((vnode (funcall (oref (beads-section-spec-for 'recent-changes)
+                              renderer)
+                        nil)))
+    (should (vui-vnode-p vnode))))
+
+(ert-deftest beads-dashboard-test-registry-provider-specs-include-section ()
+  "The dashboard provider path collects the registered section.
+`beads-dashboard--registry-provider-specs' unions the downstream hook
+with the dashboard-flagged registry specs, so `recent-changes' is
+rendered by the dashboard without a parallel definition."
+  :tags '(:unit)
+  (let ((keys (mapcar (lambda (spec) (oref spec key))
+                      (beads-dashboard--registry-provider-specs))))
+    (should (memq 'recent-changes keys))))
+
+(ert-deftest beads-dashboard-test-registry-provider-specs-hook-wins ()
+  "A downstream hook spec shadows the registry spec with the same key."
+  :tags '(:unit)
+  (let* ((hook-spec (beads-section-spec
+                     :key 'recent-changes :title "Hook wins"
+                     :loader (lambda () nil) :renderer #'identity))
+         (beads-dashboard-section-providers (list (lambda () (list hook-spec))))
+         (specs (beads-dashboard--registry-provider-specs))
+         (matching (seq-filter (lambda (s) (eq (oref s key) 'recent-changes))
+                               specs)))
+    (should (= 1 (length matching)))
+    (should (equal "Hook wins" (oref (car matching) title)))))
+
+(ert-deftest beads-dashboard-test-provider-load-sync-contract ()
+  "A data-returning provider loader resolves immediately."
+  :tags '(:unit)
+  (let* ((spec (beads-section-spec :key 'sync-probe :title "Sync"
+                                   :loader (lambda () '(1 2 3))
+                                   :renderer #'identity))
+         (resolved nil)
+         (rejected nil))
+    (funcall (beads-dashboard--provider-load spec)
+             (lambda (value) (setq resolved value))
+             (lambda (err) (setq rejected err)))
+    (should (equal resolved '(1 2 3)))
+    (should-not rejected)))
+
+(ert-deftest beads-dashboard-test-provider-load-async-contract ()
+  "An async provider loader (a returned thunk) is invoked with callbacks."
+  :tags '(:unit)
+  (let* ((spec (beads-section-spec
+                :key 'async-probe :title "Async"
+                :loader (lambda ()
+                          (lambda (resolve _reject) (funcall resolve 'loaded)))
+                :renderer #'identity))
+         (resolved nil))
+    (funcall (beads-dashboard--provider-load spec)
+             (lambda (value) (setq resolved value))
+             #'ignore)
+    (should (equal resolved 'loaded))))
+
+(ert-deftest beads-dashboard-test-provider-load-rejects-on-error ()
+  "A loader error is forwarded to the reject callback, not signalled."
+  :tags '(:unit)
+  (let* ((spec (beads-section-spec :key 'boom :title "Boom"
+                                   :loader (lambda () (error "boom"))
+                                   :renderer #'identity))
+         (rejected nil))
+    (funcall (beads-dashboard--provider-load spec) #'ignore
+             (lambda (err) (setq rejected err)))
+    (should rejected)))
 
 (provide 'beads-dashboard-test)
 ;;; beads-dashboard-test.el ends here
