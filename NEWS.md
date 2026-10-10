@@ -4,6 +4,35 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Live dashboard, list, and show from the `bd events` journal (WI-LIVE-19, US-5, AC-8, HC-3)
+
+beads.el can follow `bd events tail --follow` with **one stream per store**
+and refresh the dashboard, list, and show buffers as mutations commit instead
+of waiting for the 30s poll.  The events timeline, per-issue history, read-only
+rewind, hooks, opt-in notifications, and the mode-line pulse read the same
+in-memory model; the existing 30s timer stays the fallback when the journal is
+off (`poll`), and a pruned checkpoint re-baselines instead of stalling.
+
+The feature is **standalone-first**: no default path references a gascity
+symbol, so everything renders with gascity absent (AC-8).  gascity may opt in
+to beads invalidation through the documented, gascity-free seam -- the public
+`beads-live-invalidate` function and the `beads-live-invalidate-functions`
+abnormal hook, called as `(ROOT KINDS OPS)` once per debounced batch:
+
+    (when (fboundp 'beads-live-invalidate)
+      (beads-live-invalidate root kinds ops))
+
+gascity's `bead.*` routing can call it from a
+`gascity-live-invalidate-functions` hook; this ships the seam but does not
+edit gascity.
+
+There is **exactly one `bd events` stream per store**, and the stream key
+includes the journal kind, so a `gc events` stream and a `bd events` stream
+over one directory are never conflated and a store never spawns two
+followers (HC-3).  The standalone guard
+(`lisp/test/beads-standalone-guard-test.el`) scans the live surface for
+gascity symbols and asserts the public seam is callable with gascity absent.
+
 ### Menu commands are eagerly autoloaded (be-qhpf)
 
 Opening the dispatch (`?`) or maintenance (`!`) menu after a bare
