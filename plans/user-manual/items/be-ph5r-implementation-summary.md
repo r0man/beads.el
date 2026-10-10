@@ -16,12 +16,10 @@ trace:
     - path: beads/be-ph5r
       hash: bead:be-ph5r
       ids: [REQ-007, REQ-008, REQ-010]
-    - path: plans/user-manual/requirements.md
-      hash: sha256:937abb5961549361d93d4ff428066c36a12b7a1062bdc407b1d47cf8c03ce1e5
     - path: plans/user-manual/implementation-plan.md
       hash: sha256:c9ab161d8c4f9d6737b885fad4b4f565fdf634ac3c805d248696439c209d920a
-    - path: plans/user-manual/plan-review.md
-      hash: sha256:a74c8dabbf7ceb73a82ec2c407066c32658a12a5fba8b578bf11089fcfc9585f
+    - path: plans/user-manual/requirements.md
+      hash: sha256:937abb5961549361d93d4ff428066c36a12b7a1062bdc407b1d47cf8c03ce1e5
     - path: AGENTS.md
       hash: sha256:74158cc19937453a2bb6c29ca9652e5fb4d6f8ca45a494cdc20a2601ed1f0aa4
     - path: NEWS.md
@@ -45,19 +43,103 @@ trace:
 
 ## Summary
 
-W7 adds the agent-facing instructions, the `NEWS.md` entry, and the manual
-test suite for the user-manual and screenshot pipeline (implementation plan
-WI-6; REQ-007, REQ-008, REQ-010; plan-review P2, P3). The changes were made in
-the source-anchor worktree
-`/home/roman/workspace/beads.el/worktrees/be-ph5r` and committed as
-`a06acb4f0b198a33aa012051deeeedc1342b94ee`.
+W7 adds the agent-facing manual/screenshot documentation, the `NEWS.md`
+entry, and the manual test suite (implementation plan WI-6; REQ-007, REQ-008,
+REQ-010; plan-review P2, P3; AC-7, AC-8, AC-10). The implementation commit is
+`a06acb4f0b198a33aa012051deeeedc1342b94ee` in the source-anchor worktree
+`/home/roman/workspace/beads.el/worktrees/be-ph5r`:
 
-W7 depends on W1–W6. The worktree was created at `origin/main` (`c551853`),
-which does not carry the pipeline (manual pages, fixture, engine, formula,
-images), so the branch fast-forwards to the completed W6 tip (`743f705`),
-whose history already merges W1 (`be-0n84`), W2/W5 (`be-hedp`), and the
-user-manual-screenshots formula (W4). The W7 commit is therefore a clean
-descendant of all dependencies.
+- `AGENTS.md` — new "User manual and screenshots" section naming the
+  `user-manual-screenshots` formula, the throwaway `demo-<role>` fixture, the
+  single `scope` variable (`all` / `changed` / comma-separated subset), the
+  `docs/manual/images/<view>-<theme>[-thumb].png` naming, the exact
+  regenerate + verify commands, the `--verify` reproducibility check, and a
+  pointer to the authoritative cross-repo contract in
+  `docs/manual/screenshots/README.md`.
+- `NEWS.md` — an "Unreleased" entry for the task-organized manual and the
+  reproducible screenshot pipeline.
+- `lisp/test/beads-manual-test.el` — the manual test suite (13 tests): fixture
+  parsing/role-id/dependency checks, the capture scope parser, the
+  manifest↔shot↔page↔image contract, the P2 isolation-list drift assertion,
+  and the shell-level `--scope`/`--verify`/`--verify-scope` checks.
+- `docs/manual/screenshots/capture.sh` — a resolution-only `--list-views`
+  seam (print the resolved view names and exit before any fixture/compositor
+  work) so the scope parser is unit-testable without `bd`, sway, or Emacs,
+  plus a `set -e` fix that lets `--scope changed` complete with an empty
+  selection.
+- `Eldev` — exclude `docs/manual/screenshots/**` from the package lint/build
+  fileset: `screenshot.el`/`beads-shots.el` are standalone capture scripts run
+  by `capture.sh` with `emacs -Q`, not package sources.
+
+The W7 worktree was created at `origin/main` (`c551853`), which does not carry
+the manual, fixture, formula, or pipeline it must test. To make the tests
+self-contained, the branch merges the completed dependency worktrees before
+W7: W1 (`be-1sab`, fixture), W2 (`be-ec91`, engine/orchestrator) + W5
+(`be-hedp`, contract README), W3 (`be-0n84`, manual pages), W4 (`be-rf87`,
+formula), and W6 (`be-z028`, images + `--verify-scope`). Those commits are
+ancestors of the W7 commit.
+
+## Intended Behavior
+
+- **REQ-007 (reproducible, verified).** `capture.sh --verify <scope>` runs a
+  scope twice and fails, naming each drifting image, unless the raw output is
+  byte-identical. `beads-manual-verify-detects-drift` drives that path with a
+  stub engine (`BEADS_SHOT_ENGINE`) whose second run writes different bytes
+  and asserts the non-zero exit and `verify FAILED` message, so the check can
+  fail loudly rather than passing unconditionally. The P3
+  `--verify-scope` subset-isolation digest/mtime guarantee is covered by
+  `beads-manual-verify-scope-leaves-non-selected`.
+- **REQ-008 (agent instructions).** `AGENTS.md` names the formula, fixture,
+  `scope` variable, image location/naming, exact regenerate + verify commands,
+  and the reproducibility check; it points at
+  `docs/manual/screenshots/README.md` as the single cross-repo contract.
+- **REQ-010 (repo conventions hold).** `eldev compile` and
+  `eldev -p -dtT lint` are clean and `eldev test -f beads-manual-test.el` is
+  13/13; `NEWS.md` gains an "Unreleased" entry.
+- **P2 (isolation list).** `beads-manual-isolation-list-matches-fixture`
+  runs `fixture.sh print-isolation-vars` and asserts the hardcoded four-name
+  list equals `beads-test-isolation-env-vars`, so the shell list cannot
+  silently drift from the Emacs constant.
+- **No product `lisp/` change.** The only Elisp added is the test file; the
+  shot list (`beads-shots.el`) is the W2 artifact, copied unchanged.
+
+## Changed Files
+
+- `AGENTS.md` (+33) — "User manual and screenshots" section.
+- `NEWS.md` (+13) — "User manual and reproducible screenshot pipeline"
+  Unreleased entry.
+- `Eldev` (+5/-1) — exclude `docs/manual/screenshots/**` from the standard
+  fileset.
+- `docs/manual/screenshots/capture.sh` (+14/-1) — `--list-views` argument,
+  parse, and resolution-only exit; `set -e`-safe `changed` selection.
+- `lisp/test/beads-manual-test.el` (new, 343 lines) — 10 `:unit` and 3
+  `:integration` tests.
+- `plans/user-manual/items/be-ph5r-implementation-summary.md` — this artifact.
+
+## Verification
+
+Run from the worktree `/home/roman/workspace/beads.el/worktrees/be-ph5r`:
+
+1. **First verification command** — `eldev test -f beads-manual-test.el` —
+   result **pass**: `Ran 13 tests, 13 results as expected, 0 unexpected`.
+2. `eldev compile` — result **pass** (package sources byte-compiled with no
+   errors).
+3. `eldev -p -dtT lint` — result **pass**: `Linters have no complaints`.
+4. `bash -n docs/manual/screenshots/capture.sh` — result **pass** (no syntax
+   errors); `--help` lists `--list-views`.
+5. `eldev test` (full suite) — result **one pre-existing environmental
+   failure**: `Ran 6351 tests, 6324 results as expected, 1 unexpected, 26
+   skipped`; the sole failure is `beads-audit-gate-no-new-slot-drift`, which
+   reports CLI/slot drift for the installed `bd`
+   (`list --include-ephemeral`, `purge --limit`, `purge --wisps-plane`). No
+   product class was touched by W7, so this is the pinned-`bd`-version parity
+   gate, not a regression from this commit.
+6. **Final proof command**, from the launcher rig root
+   `/home/roman/workspace/beads.el` after recording this artifact at
+   `gc.implementation.summary_path` on the workflow root:
+   `GC_BEAD_ID=be-f809 .gc/scripts/checks/build-artifact-valid.sh` — result
+   **pass** (`build artifact valid:
+   schema=gc.build.implementation-summary.v1`).
 
 | ID | Status |
 | --- | --- |
@@ -65,103 +147,21 @@ descendant of all dependencies.
 | REQ-008 | covered |
 | REQ-010 | covered |
 
-## Intended Behavior
-
-- **REQ-008 (agent instructions).** `AGENTS.md` gains a "User manual and
-  screenshots" section that names the `user-manual-screenshots` formula, the
-  throwaway `demo-<role>` fixture (`fixture.sh` +
-  `fixtures/beads-fixture.jsonl`), the single `scope` variable
-  (`all` | `changed` | comma-separated subset), the committed image
-  location/naming (`docs/manual/images/<view>-<theme>.png` plus
-  `-thumb.png`), the exact regenerate + verify commands
-  (`make -C docs/manual screenshots`,
-  `docs/manual/screenshots/capture.sh --scope <scope>` /
-  `--verify <scope>` / `--verify-scope <scope>`), the reproducibility check
-  (`--verify` fails, naming the drifting image, unless output is
-  byte-identical), and a one-line pointer to the cross-repo contract in
-  `docs/manual/screenshots/README.md`.
-- **REQ-010 (conventions).** `NEWS.md` gains an "Unreleased" entry for the
-  manual and pipeline. `lisp/test/beads-manual-test.el` is the only new
-  Elisp; no `lisp/` product code changes.
-- **REQ-007 (reproducibility guard).** The `:integration` `--verify` test
-  drives `capture.sh` with a fake engine that produces a different raw on
-  each run and asserts the verifier exits non-zero and reports
-  `verify FAILED`, so the check cannot silently pass.
-- **P2 (isolation-list drift).** The `:unit` drift test runs
-  `fixture.sh print-isolation-vars` and asserts the hardcoded list equals
-  `beads-test-isolation-env-vars`, so the two cannot silently diverge.
-- **P3 (subset isolation).** The `:integration` `--verify-scope` test
-  produces only an out-of-scope raw and asserts the digest/mtime isolation
-  check passes; the invalid-scope test asserts `--scope <invalid>` fails
-  before capturing.
-- **Testability.** `capture.sh` gains a resolution-only `--list-views`
-  seam: it resolves `scope` and prints the selected views without a fixture,
-  compositor, or capture, so the `:unit` scope-parser tests need no `bd`,
-  sway, or graphical Emacs.
-
-## Changed Files
-
-- `AGENTS.md` — new "User manual and screenshots" section (formula, fixture,
-  `scope`, image naming, regenerate + verify commands, reproducibility check,
-  cross-repo pointer). `sha256:74158cc1…0aa4`.
-- `NEWS.md` — "Unreleased" entry describing the manual and pipeline.
-  `sha256:ae659303…b6e9`.
-- `Eldev` — exclude `docs/manual/screenshots/**` from all eldev build
-  targets; those two `.el` files are standalone capture scripts run with
-  `emacs -Q` and need their own load path, so `eldev compile` otherwise
-  failed on `(require 'screenshot)`. `sha256:5f5a1d00…42b7`.
-- `docs/manual/screenshots/capture.sh` — add `--list-views` (resolution-only
-  output plus usage text) and fix `changed_views` so a partial `changed`
-  selection does not trip `set -e` on the last non-selected view.
-  `sha256:c8a1eb96…d930`.
-- `lisp/test/beads-manual-test.el` — new test file: fixture JSONL parses,
-  role ids unique, dependency targets exist, the scope parser
-  (`all`/`changed`/subset), every manifest view has a shot thunk and a manual
-  page, every referenced `images/*.png` exists, the P2 isolation-list drift
-  assertion, and the three `:integration` shell checks.
-  `sha256:b14099b8…5ec8`.
-- `plans/user-manual/items/be-ph5r-implementation-summary.md` — this artifact.
-
-## Verification
-
-Run from the worktree `/home/roman/workspace/beads.el/worktrees/be-ph5r`
-(worktree HEAD `a06acb4`, `pwd -P` equals the worktree path):
-
-1. **First verification command** — `eldev test -f beads-manual-test.el` —
-   result **pass** (`EXIT=0`):
-   `Ran 13 tests, 13 results as expected, 0 unexpected`.
-2. `eldev test -f beads-manual-test.el '(tag :unit)'` — result **pass**:
-   `Ran 10 tests, 10 results as expected, 0 unexpected`.
-3. `eldev compile` — result **pass** (`EXIT=0`, all `lisp/*.el` compiled).
-4. `eldev -p -dtT lint` — result **pass**:
-   `Linters have no complaints`.
-5. `eldev test` — result: `Ran 6351 tests, 6324 results as expected, 1
-   unexpected, 26 skipped`. The single failure is
-   `beads-audit-gate-no-new-slot-drift`, an **`:integration` CLI-parity gate**
-   that reads the installed `bd` (1.3.1 dev) and reports
-   `list --include-ephemeral`, `purge --limit`, `purge --wisps-plane` as new
-   flags. It reproduces at the dependency tip `743f705` with all W7 changes
-   stashed, so it is pre-existing environmental drift, not caused by W7; the
-   CI-pinned `bd` does not expose those flags. Fixing it belongs to a
-   command-parity work item because W7 may not change `lisp/` product code.
-6. **Final proof command** — from the launcher rig root
-   `/home/roman/workspace/beads.el`:
-   `GC_BEAD_ID=be-gzp7 .gc/scripts/checks/build-artifact-valid.sh` — result
-   **pass**: `build artifact valid: schema=gc.build.implementation-summary.v1`.
-
 ## Remaining Risks
 
-- **`--list-views` is a new capture.sh seam.** It is additive (resolution and
-  early exit before any fixture/compositor work) and documented in the script
-  help; it does not change the capture, verify, or compress paths.
-- **`changed_views` errexit fix.** The previous form ended the function with
-  `[ "$hit" = 1 ] && ...`, whose non-zero status aborted the whole script when
-  the last manifest view was not selected. The fix uses an `if` so a partial
-  `--scope changed` selection works; the `:unit` `changed` test guards it.
-- **`eldev test` has one unrelated `:integration` failure** (the bd
-  command-parity gate) that also fails on the untouched dependency tip in
-  this environment. It is recorded here rather than fixed, per W7's
-  no-product-code boundary.
-- **`beads-manual-scope-changed-maps-views`** temporarily appends to
-  `docs/manual/views.org` and restores it in an `unwind-protect`; the test is
-  serial within ERT, so it cannot race another test.
+- **Full-suite parity gate is red in this environment.**
+  `beads-audit-gate-no-new-slot-drift` (`:integration`) fails against the
+  installed `bd` because the live CLI exposes slots the class inventory does
+  not model. W7 changes no command class; the gate is expected to be resolved
+  by the separate CLI-parity work or recorded in `beads-meta-parity-*`.
+- **The `:integration` shell checks use a stub engine, not a GUI capture.**
+  They exercise the orchestrator's selection/verify/subset logic without
+  sway/Emacs, so they do not re-prove the pixel reproducibility that W6's
+  summary already demonstrated with a real headless capture. A host without
+  the GUI stack can still run the full `beads-manual-test.el`.
+- **`--scope changed` selection depends on the working tree.** The unit test
+  pins `BEADS_SHOT_BASE=HEAD` and mutates `docs/manual/views.org`; a caller
+  relying on `origin/HEAD` resolution instead needs the remote ref present.
+- **Merged dependency branches.** The W7 commit sits on top of the W1–W6
+  merge commits; the publish/integration stage should treat W7 as the
+  integrating node rather than merging those worktrees again.
