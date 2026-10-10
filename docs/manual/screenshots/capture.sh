@@ -103,6 +103,8 @@ Usage: capture.sh [--scope SCOPE] [--verify [SCOPE]] [--compress] [--help]
                   run the SCOPE subset, and fail if any non-selected image
                   changed (sha256 or mtime). Requires a prior `--scope all'.
   --compress      Recompress the raw PNGs already in BEADS_SHOT_STAGING.
+  --list-views    Resolve --scope and print the selected view names (one
+                  per line), then exit without capturing anything.
   --help          Show this help.
 
 Environment:
@@ -164,7 +166,7 @@ changed_views() {
     for src in ${VIEW_SOURCES[$view]}; do
       if printf '%s\n' "$changed" | grep -qxF "$src"; then hit=1; break; fi
     done
-    [ "$hit" = 1 ] && SELECTED_VIEWS+=("$view")
+    if [ "$hit" = 1 ]; then SELECTED_VIEWS+=("$view"); fi
   done < <(all_views)
 }
 
@@ -437,6 +439,7 @@ SCOPE="all"
 VERIFY=0
 VERIFY_SCOPE=0
 COMPRESS_ONLY=0
+LIST_VIEWS=0
 POSITIONAL=""
 
 while [ $# -gt 0 ]; do
@@ -455,6 +458,8 @@ while [ $# -gt 0 ]; do
       SCOPE="${1#--verify-scope=}"; VERIFY_SCOPE=1; shift ;;
     --compress)
       COMPRESS_ONLY=1; shift ;;
+    --list-views)
+      LIST_VIEWS=1; shift ;;
     --help|-h)
       usage; exit 0 ;;
     -*)
@@ -472,6 +477,14 @@ if [ -n "$POSITIONAL" ]; then
 fi
 
 resolve_scope "$SCOPE"
+
+# Resolution-only mode: print the selected views and stop before any fixture,
+# compositor, or capture work runs.  This is the seam `beads-manual-test.el'
+# uses to unit-test the scope parser without bd, sway, or Emacs.
+if [ "$LIST_VIEWS" = 1 ]; then
+  for v in "${SELECTED_VIEWS[@]}"; do printf '%s\n' "$v"; done
+  exit 0
+fi
 
 mkdir -p "$STAGING"
 
