@@ -1,4 +1,4 @@
-;;; beads-events-test.el --- Tests for beads-events -*- lexical-binding: t; -*-
+;;; beads-events-test.el --- Tests for the beads events views -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2026
 
@@ -7,33 +7,47 @@
 
 ;;; Commentary:
 
-;; ERT `:unit' tests for beads-events.el (WI-LIVE-15): the timeline and
-;; city-timeline views over the `bd events' journal.  The pure model
-;; (`beads-event.el') and the stream supervisor (`beads-live.el') are
-;; absent in isolation; every test injects records directly and stubs
-;; the live chip with `cl-letf', so no subprocess is spawned.
+;; ERT `:unit' tests for the beads events views over the `bd events'
+;; journal: the timeline and city-timeline views (WI-LIVE-15) plus the
+;; per-issue history and read-only rewind views (WI-LIVE-16,
+;; `lisp/beads-events-history.el', `lisp/beads-events-rewind.el').
+;; Records are injected directly and the live chip is stubbed with
+;; `cl-letf', so no subprocess is spawned.
 
 ;;; Code:
 
 (require 'ert)
-(require 'beads-events)
+(require 'cl-lib)
+(require 'seq)
+(require 'beads-event)
 (require 'beads-types)
+(require 'beads-events)
+(require 'beads-events-history)
+(require 'beads-events-rewind)
+
+;;; Helpers
 
 (defun beads-events-test--issue (&rest args)
   "Build a `beads-issue' for tests from ARGS."
   (apply #'beads-issue
          :id "be-1" :title "A title" :status "open" args))
 
-(defun beads-events-test--record (seq time op issue-id actor &rest args)
-  "Build a `beads-event-record' at SEQ/TIME/OP/ISSUE-ID/ACTOR.
-ARGS may add an `:issue' snapshot."
-  (apply #'beads-event-record
-         :seq seq
-         :ts (format-time-string "%Y-%m-%dT%H:%M:%SZ" time t)
-         :op op
-         :issue-id issue-id
-         :actor actor
-         args))
+(defun beads-events-test--record (seq &rest args)
+  "Build a `beads-event-record' at SEQ.
+If the first of ARGS is a number it is the explicit TIME in seconds;
+otherwise the timestamp is derived from SEQ.  The remaining ARGS are
+OP ISSUE-ID ACTOR and an optional `:issue' snapshot."
+  (let* ((time (if (numberp (car args)) (pop args) (+ seq 1600000000)))
+         (op (pop args))
+         (issue-id (pop args))
+         (actor (pop args)))
+    (apply #'beads-event-record
+           :seq seq
+           :ts (format-time-string "%Y-%m-%dT%H:%M:%SZ" time t)
+           :op op
+           :issue-id issue-id
+           :actor actor
+           args)))
 
 (defmacro beads-events-test--with-view (records &rest body)
   "Render RECORDS in a fresh `beads-events-mode' buffer, then run BODY."
@@ -323,6 +337,278 @@ ARGS may add an `:issue' snapshot."
   (should (equal (beads-events--glyph
                   (beads-events-test--record 1 100 "close" "be-1" "a"))
                  "■")))
+(defmacro beads-events-test--with-history (records &rest body)
+  "Render RECORDS in a fresh history buffer, then run BODY."
+  (declare (indent 1))
+  `(with-temp-buffer
+     (beads-events-history-mode)
+     (setq beads-events-history--store nil
+           beads-events-history--issue-id "be-1"
+           beads-events-history--records ,records)
+     (beads-events-history--render)
+     ,@body))
+
+(defun beads-events-test--state->alist (state)
+  "Return STATE hash as an id-sorted alist for comparison."
+  (let ((pairs (sort (mapcar (lambda (id) (cons id (gethash id state)))
+                             (hash-table-keys state))
+                     (lambda (a b) (string< (car a) (car b))))))
+    pairs))
+
+(defun beads-events-test--live-at (records k baseline)
+  "Independent reference reducer for AC-6.
+Apply RECORDS with seq <= K over BASELINE (id . wire alist) using the
+journal's sparse-merge contract, and return the id-sorted state alist."
+  (let ((state (make-hash-table :test 'equal))
+        (subset '(id title status priority issue_type owner created_by
+                  created_at updated_at is_blocked assignee labels
+                  started_at lease_expires_at heartbeat_at closed_at
+                  close_reason)))
+    (dolist (pair baseline)
+      (puthash (car pair) (cdr pair) state))
+    (dolist (record (sort (copy-sequence records)
+                          (lambda (a b) (< (oref a seq) (oref b seq)))))
+      (when (<= (oref record seq) k)
+        (let* ((id (oref record issue-id))
+               (snap (beads-events-history--issue->snapshot (oref record issue))))
+          (if (null snap)
+              (puthash id :deleted state)
+            (let ((merged (cl-remove-if
+                           (lambda (pair) (memq (car pair) subset))
+                           (copy-sequence (gethash id state)))))
+              (dolist (key subset)
+                (when-let* ((pair (assq key snap)))
+                  (push (cons key (cdr pair)) merged)))
+              (puthash id (nreverse merged) state))))))
+    (beads-events-test--state->alist state)))
+
+;;; History
+
+(ert-deftest beads-events-test-history-mode-activation ()
+  "`beads-events-history-mode' derives from `special-mode' and is read-only."
+  :tags '(:unit)
+  (with-temp-buffer
+    (beads-events-history-mode)
+    (should (eq major-mode 'beads-events-history-mode))
+    (should (derived-mode-p 'special-mode))
+    (should buffer-read-only)))
+
+(ert-deftest beads-events-test-history-records-for-issue ()
+  "History keeps only the issue's records, oldest-first."
+  :tags '(:unit)
+  (let ((records (list (beads-events-test--record 30 "close" "be-2" "b")
+                       (beads-events-test--record 10 "create" "be-1" "a")
+                       (beads-events-test--record 20 "update" "be-1" "a")
+                       (beads-events-test--record 5 "create" "be-1" "a"))))
+    (should (equal (mapcar (lambda (r) (oref r seq))
+                           (beads-events-history--records-for-issue records "be-1"))
+                   '(5 10 20)))))
+
+(ert-deftest beads-events-test-history-update-diff ()
+  "An update renders its field-level diff."
+  :tags '(:unit)
+  (let ((previous (beads-events-test--issue :status "open")))
+    (let ((lines (beads-events-history--diff-lines
+                  (beads-events-test--record
+                   20 "update" "be-1" "alice"
+                   :issue (beads-events-test--issue
+                           :status "in_progress" :assignee "alice"))
+                  previous)))
+      (should (seq-some (lambda (l)
+                          (string-match-p "status open → in_progress" l))
+                        lines))
+      (should (seq-some (lambda (l) (string-match-p "assignee .* → alice" l))
+                        lines)))))
+
+(ert-deftest beads-events-test-history-delete-tombstone ()
+  "A delete renders a tombstone record, not a field diff."
+  :tags '(:unit)
+  (let ((lines (beads-events-history--diff-lines
+                (beads-events-test--record 40 "delete" "be-1" "alice")
+                (beads-events-test--issue :status "closed"))))
+    (should (equal lines '("deleted be-1")))))
+
+(ert-deftest beads-events-test-history-render ()
+  "Rendering the history shows each record and its diff, newest-first."
+  :tags '(:unit)
+  (beads-events-test--with-history
+      (list (beads-events-test--record
+             10 "create" "be-1" "alice"
+             :issue (beads-events-test--issue :status "open"))
+            (beads-events-test--record
+             20 "update" "be-1" "alice"
+             :issue (beads-events-test--issue :status "in_progress"))
+            (beads-events-test--record
+             30 "close" "be-1" "alice"
+             :issue (beads-events-test--issue :status "closed")))
+    (let ((text (buffer-string)))
+      (should (string-match-p "3 events" text))
+      (should (string-match-p "status open → in_progress" text))
+      (should (string-match-p "status in_progress → closed" text))
+      ;; newest-first: the close block precedes the create block.
+      (should (< (string-match-p "close" text)
+                 (string-match-p "create" text))))))
+
+(ert-deftest beads-events-test-history-inject-via-entry-point ()
+  "The entry point accepts injected records and renders them."
+  :tags '(:unit)
+  (let ((records (list (beads-events-test--record
+                        10 "create" "be-1" "alice"
+                        :issue (beads-events-test--issue :status "open")))))
+    (cl-letf (((symbol-function 'pop-to-buffer) #'ignore))
+      (beads-events-history "be-1" nil records))
+    (with-current-buffer "*beads-events-history[beads][be-1]*"
+      (should (= 1 (length beads-events-history--records)))
+      (should (string-match-p "create" (buffer-string))))))
+
+;;; Rewind target parsing
+
+(ert-deftest beads-events-test-rewind-parse-target ()
+  "Absolute and relative rewind targets resolve against the head."
+  :tags '(:unit)
+  (should (eq 'live (beads-events-rewind--parse-target "" 100)))
+  (should (eq 'live (beads-events-rewind--parse-target "   " 100)))
+  (should (= 40 (beads-events-rewind--parse-target "40" 100)))
+  (should (= 95 (beads-events-rewind--parse-target "-5" 100)))
+  (should (= 100 (beads-events-rewind--parse-target "+5" 100)))
+  (should (= 0 (beads-events-rewind--parse-target "-500" 100)))
+  (should (eq 'live (beads-events-rewind--parse-target nil 100))))
+
+(ert-deftest beads-events-test-rewind-parse-target-invalid ()
+  "A malformed target signals a user error."
+  :tags '(:unit)
+  (should-error (beads-events-rewind--parse-target "junk" 100)
+                :type 'user-error))
+
+;;; Rewind replay and AC-6
+
+(defun beads-events-test--baseline ()
+  "Return the independent AC-6 baseline state."
+  '(("be-1" . ((id . "be-1") (title . "One") (status . "open")
+               (description . "keep me") (priority . 2)))))
+
+(defun beads-events-test--script ()
+  "Return the AC-6 scripted record sequence."
+  (list
+   (beads-events-test--record
+    10 "update" "be-1" "alice"
+    :issue (beads-events-test--issue :id "be-1" :title "One"
+                                     :status "in_progress" :priority 2))
+   (beads-events-test--record
+    20 "close" "be-1" "alice"
+    :issue (beads-events-test--issue :id "be-1" :title "One"
+                                     :status "closed" :priority 2))
+   (beads-events-test--record
+    30 "update" "be-1" "bob"
+    :issue (beads-events-test--issue :id "be-1" :title "One"
+                                     :status "closed" :priority 2
+                                     :assignee "alice"))
+   (beads-events-test--record
+    40 "create" "be-2" "bob"
+    :issue (beads-events-test--issue :id "be-2" :title "Two" :status "open"))
+   (beads-events-test--record 50 "delete" "be-2" "bob")))
+
+(ert-deftest beads-events-test-rewind-state-at-fields ()
+  "Rewind at K shows the state as of K, preserving non-wire fields."
+  :tags '(:unit)
+  (let* ((records (beads-events-test--script))
+         (baseline (beads-events-test--baseline))
+         (at-20 (beads-events-rewind--state-at records baseline 20))
+         (at-30 (beads-events-rewind--state-at records baseline 30))
+         (at-50 (beads-events-rewind--state-at records baseline 50)))
+    ;; At K=20: closed, no assignee yet.
+    (should (equal (alist-get 'status (gethash "be-1" at-20)) "closed"))
+    (should (null (alist-get 'assignee (gethash "be-1" at-20))))
+    ;; Non-wire fields survive the sparse merge.
+    (should (equal (alist-get 'description (gethash "be-1" at-20)) "keep me"))
+    ;; At K=30: the assignee update landed.
+    (should (equal (alist-get 'assignee (gethash "be-1" at-30)) "alice"))
+    ;; At K=50: be-2 is a tombstone, be-1 still present.
+    (should (eq (gethash "be-2" at-50) :deleted))
+    (should (consp (gethash "be-1" at-50)))))
+
+(ert-deftest beads-events-test-rewind-ac6-property ()
+  "AC-6: rewind at K equals the independently reduced live state at K.
+The baseline is seeded independently and K=30 is well above the start
+of the scripted window, so the assertion is not vacuous."
+  :tags '(:unit)
+  (let* ((records (beads-events-test--script))
+         (baseline (beads-events-test--baseline)))
+    (dolist (k '(20 30 40 50))
+      (should (equal (beads-events-test--state->alist
+                      (beads-events-rewind--state-at records baseline k))
+                     (beads-events-test--live-at records k baseline))))
+    ;; The head state must still be live: be-1 assigned, be-2 deleted.
+    (let ((head (beads-events-rewind--state-at records baseline 50)))
+      (should (equal (alist-get 'assignee (gethash "be-1" head)) "alice"))
+      (should (eq (gethash "be-2" head) :deleted)))))
+
+(ert-deftest beads-events-test-rewind-below-baseline-not-vacuous ()
+  "Rewind below the first record keeps the seeded baseline."
+  :tags '(:unit)
+  (let ((state (beads-events-rewind--state-at
+                (beads-events-test--script)
+                (beads-events-test--baseline)
+                0)))
+    (should (= 1 (hash-table-count state)))
+    (should (equal (alist-get 'status (gethash "be-1" state)) "open"))))
+
+;;; Rewind view
+
+(ert-deftest beads-events-test-rewind-render-and-step ()
+  "The rewind buffer renders read-only, and g/G step by record."
+  :tags '(:unit)
+  (with-temp-buffer
+    (beads-events-rewind-mode)
+    (beads-events-rewind--configure
+     nil (beads-events-test--script) (beads-events-test--baseline))
+    (beads-events-rewind--set-seq 30)
+    (should buffer-read-only)
+    (should (= beads-events-rewind--seq 30))
+    (let ((text (buffer-string)))
+      (should (string-match-p "State at seq 30" text))
+      (should (string-match-p "be-1" text)))
+    ;; g steps to the next record seq, G back.
+    (beads-events-rewind-forward)
+    (should (= beads-events-rewind--seq 40))
+    (beads-events-rewind-backward)
+    (should (= beads-events-rewind--seq 30))
+    (beads-events-rewind-backward)
+    (should (= beads-events-rewind--seq 20))))
+
+(ert-deftest beads-events-test-rewind-header-face ()
+  "The rewind header carries the distinct rewind face."
+  :tags '(:unit)
+  (with-temp-buffer
+    (beads-events-rewind-mode)
+    (let ((header (beads-events-rewind--header-line)))
+      (should (string-match-p "REWIND" header))
+      (should (eq (get-text-property 1 'face header) 'beads-events-rewind)))))
+
+;;; Never writes
+
+(defun beads-events-test--source-file (feature)
+  "Return the readable .el source file of FEATURE, or nil."
+  (let ((file (locate-library (symbol-name feature))))
+    (when file
+      (if (string-suffix-p ".elc" file)
+          (let ((el (concat (file-name-sans-extension file) ".el")))
+            (and (file-readable-p el) el))
+        file))))
+
+(ert-deftest beads-events-test-history-rewind-never-write ()
+  "Neither module executes a `bd' command or spawns a process."
+  :tags '(:unit)
+  (dolist (feature '(beads-events-history beads-events-rewind))
+    (let* ((file (beads-events-test--source-file feature))
+           (source (and file
+                        (with-temp-buffer
+                          (insert-file-contents file)
+                          (buffer-string)))))
+      (should source)
+      (should-not (string-match-p "beads-command-execute" source))
+      (should-not (string-match-p
+                   "make-process\\|start-process\\|call-process" source)))))
 
 (provide 'beads-events-test)
 ;;; beads-events-test.el ends here
