@@ -1354,18 +1354,266 @@ Without the override, and with an explicit DIRECTORY, nothing changes."
   :tags '(:unit)
   (cl-flet ((resolved-in (home override &optional directory)
               (catch 'resolved
-                (cl-letf (((symbol-function 'beads-dashboard--project-root)
-                           (lambda () (throw 'resolved default-directory))))
-                  (with-temp-buffer
-                    (setq default-directory home)
-                    (let ((project-current-directory-override override))
-                      (if directory
-                          (beads-dashboard :directory directory)
-                        (beads-dashboard))))))))
+                (let ((beads-dashboard-live-auto-attach nil))
+                  (cl-letf (((symbol-function 'beads-dashboard--project-root)
+                             (lambda () (throw 'resolved default-directory))))
+                    (with-temp-buffer
+                      (setq default-directory home)
+                      (let ((project-current-directory-override override))
+                        (if directory
+                            (beads-dashboard :directory directory)
+                          (beads-dashboard)))))))))
     (should (equal (resolved-in "/tmp/home/" "/tmp/project") "/tmp/project/"))
     (should (equal (resolved-in "/tmp/home/" nil) "/tmp/home/"))
     (should (equal (resolved-in "/tmp/home/" "/tmp/project" "/tmp/explicit/")
                    "/tmp/explicit/"))))
+
+;;; Live Journal Integration (WI-LIVE-11)
+
+(ert-deftest beads-dashboard-test-live-record-marks-issue ()
+  "A subscribed journal record marks its issue as changed."
+  :tags '(:unit)
+  (with-temp-buffer
+    (setq-local beads-dashboard--live-changed (make-hash-table :test 'equal))
+    (beads-dashboard--live-record
+     (beads-event-record :seq 1 :op "update" :issue-id "bd-9"))
+    (should (gethash "bd-9" beads-dashboard--live-changed))
+    ;; Actor-less derived rows still mark by issue id.
+    (beads-dashboard--live-record
+     (beads-event-record :seq 2 :op "close" :issue-id "bd-10"))
+    (should (gethash "bd-10" beads-dashboard--live-changed))))
+
+(ert-deftest beads-dashboard-test-live-changed-ids-prunes-expired ()
+  "Expired changed ids are pruned and not returned."
+  :tags '(:unit)
+  (with-temp-buffer
+    (setq-local beads-dashboard--live-changed (make-hash-table :test 'equal))
+    (puthash "old" (- (float-time) 5) beads-dashboard--live-changed)
+    (puthash "new" (+ (float-time) 60) beads-dashboard--live-changed)
+    (should (equal '("new") (beads-dashboard--live-changed-ids)))
+    (should-not (gethash "old" beads-dashboard--live-changed))))
+
+(ert-deftest beads-dashboard-test-live-apply-marks ()
+  "`beads-dashboard--apply-live-marks' stamps ◈ and the changed face.
+Idempotent: applying twice does not insert a second marker."
+  :tags '(:unit)
+  (with-temp-buffer
+    (beads-dashboard-mode)
+    (setq-local beads-dashboard--live-changed (make-hash-table :test 'equal))
+    (puthash "bd-1" (+ (float-time) 60) beads-dashboard--live-changed)
+    (let* ((issue (beads-issue :id "bd-1" :title "One" :status "open"))
+           (sec (beads-issue-section :issue issue))
+           (inhibit-read-only t))
+      (insert (propertize "  bd-1 One\n" 'beads-section sec)))
+    (beads-dashboard--apply-live-marks)
+    (should (equal 1 (how-many "◈" (point-min))))
+    (should (string-match-p "◈ +bd-1 One" (buffer-string)))
+    (should (cl-some
+             (lambda (p)
+               (let ((face (get-text-property p 'face)))
+                 (or (eq face 'beads-event-changed)
+                     (and (listp face) (memq 'beads-event-changed face)))))
+             (number-sequence (point-min) (point-max))))
+    ;; Idempotent.
+    (beads-dashboard--apply-live-marks)
+    (should (equal 1 (how-many "◈" (point-min))))))
+
+(ert-deftest beads-dashboard-test-live-chip-delegates ()
+  "The dashboard chip comes from the store's live status fragment."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-live-header-string)
+             (lambda (&optional _dir) "● live ∿2/s"))
+            ((symbol-function 'beads-dashboard--current-root)
+             (lambda () "/tmp/p/")))
+    (should (equal "● live ∿2/s" (beads-dashboard--live-chip)))))
+
+(ert-deftest beads-dashboard-test-live-header-vnode-includes-chip ()
+  "The header vnode renders the live chip when one is available."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-dashboard--live-chip)
+             (lambda () "● live ∿1/s")))
+    (let ((rendered (format "%S" (beads-dashboard--header-vnode "/tmp/p/" nil))))
+      (should (string-match-p "live" rendered)))))
+
+(ert-deftest beads-dashboard-test-live-mode-line-chip ()
+  "The mode line carries the live chip without dropping auto:on."
+  :tags '(:unit)
+  (with-temp-buffer
+    (beads-dashboard-mode)
+    (beads-dashboard--update-mode-line (current-buffer) (float-time)
+                                       '(:backend embedded :max-concurrent 1)
+                                       t "● live ∿1/s")
+    (should (cl-some (lambda (seg)
+                       (and (stringp seg)
+                            (string-match-p "auto:on" seg)
+                            (string-match-p "live" seg)))
+                     mode-line-misc-info))))
+
+(ert-deftest beads-dashboard-test-live-refresh-bumps-live-seq ()
+  "A live batch bumps :live-seq (not :generation) and re-marks rows."
+  :tags '(:unit)
+  (with-temp-buffer
+    (beads-dashboard-mode)
+    (let (captured marked)
+      (cl-letf (((symbol-function 'beads-dashboard--root-state)
+                 (lambda (_key) 4))
+                ((symbol-function 'beads-dashboard--bump)
+                 (lambda (key value) (setq captured (cons key value))))
+                ((symbol-function 'beads-dashboard--apply-live-marks)
+                 (lambda () (setq marked t))))
+        (beads-dashboard--live-refresh))
+      (should (equal captured '(:live-seq . 5)))
+      (should marked))))
+
+(ert-deftest beads-dashboard-test-live-remote-store-not-attached ()
+  "A remote dashboard does not auto-attach (render-guard contract)."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-live-attach)
+             (lambda (&rest _) (error "must not attach a remote store"))))
+    (with-temp-buffer
+      (setq default-directory "/ssh:host:/srv/")
+      (setq-local beads-store-directory "/ssh:host:/srv/")
+      (beads-dashboard--live-setup (current-buffer))
+      (should (hash-table-p beads-dashboard--live-changed)))))
+
+(ert-deftest beads-dashboard-test-idle-refresh-skips-while-live ()
+  "The idle timer defers to a live stream but still fires otherwise."
+  :tags '(:unit)
+  (with-temp-buffer
+    (beads-dashboard-mode)
+    (let (refreshed)
+      (cl-letf (((symbol-function 'beads-live-status)
+                 (lambda (&optional _dir) '(:state live)))
+                ((symbol-function 'beads-dashboard-refresh)
+                 (lambda () (setq refreshed t))))
+        (beads-dashboard--idle-refresh (current-buffer)))
+      (should-not refreshed))
+    (let (refreshed)
+      (cl-letf (((symbol-function 'beads-live-status)
+                 (lambda (&optional _dir) '(:state poll)))
+                ((symbol-function 'beads-dashboard-refresh)
+                 (lambda () (setq refreshed t))))
+        (beads-dashboard--idle-refresh (current-buffer)))
+      (should refreshed))))
+;;; Recent changes (registry-provided section)
+
+(ert-deftest beads-dashboard-test-recent-changes-registered ()
+  "Dashboard registers the `recent-changes' spec in the shared registry.
+WI-LIVE-12: the section is registered through
+`beads-section-register-dashboard' so gascity can reuse it, and the
+dashboard consumes the registry rather than a parallel board."
+  :tags '(:unit)
+  (let ((spec (beads-section-spec-for 'recent-changes)))
+    (should spec)
+    (should (object-of-class-p spec 'beads-section-spec))
+    (should (eq 'recent-changes (oref spec key)))
+    (should (equal "Recent changes" (oref spec title)))
+    (should (oref spec dashboard))
+    (should (functionp (oref spec loader)))
+    (should (functionp (oref spec renderer)))))
+
+(ert-deftest beads-dashboard-test-recent-changes-loader-is-async ()
+  "The registered loader returns the dashboard async `(resolve reject)' thunk.
+A registered dashboard section must not do synchronous I/O at render
+time; the baseline reuses `beads-dashboard--make-loader'."
+  :tags '(:unit)
+  (let ((loader (oref (beads-section-spec-for 'recent-changes) loader)))
+    (should (functionp (funcall loader)))))
+
+(ert-deftest beads-dashboard-test-recent-changes-render ()
+  "The registered `recent-changes' renderer renders real issue rows.
+Reuses the dashboard issue-list renderer, so rows keep the
+`beads-section' text-property contract and the section limit."
+  :tags '(:unit)
+  (let* ((beads-dashboard-section-limit nil)
+         (issues (list (beads-issue :id "bd-rc1"
+                                    :title "Recent one"
+                                    :status "closed"
+                                    :priority 2
+                                    :issue-type "task")
+                       (beads-issue :id "bd-rc2"
+                                    :title "Recent two"
+                                    :status "open"
+                                    :priority 1
+                                    :issue-type "bug")))
+         (spec (beads-section-spec-for 'recent-changes))
+         (vnode (funcall (oref spec renderer) issues)))
+    (should (vui-vnode-p vnode))
+    (let ((children (vui-vnode-vstack-children vnode)))
+      (should (= 2 (length children)))
+      (let ((label (vui-vnode-button-label (car children))))
+        (should (string-match-p "bd-rc1" label))
+        (should (string-match-p "Recent one" label))))))
+
+(ert-deftest beads-dashboard-test-recent-changes-render-empty ()
+  "The registered `recent-changes' renderer tolerates no data."
+  :tags '(:unit)
+  (let ((vnode (funcall (oref (beads-section-spec-for 'recent-changes)
+                              renderer)
+                        nil)))
+    (should (vui-vnode-p vnode))))
+
+(ert-deftest beads-dashboard-test-registry-provider-specs-include-section ()
+  "The dashboard provider path collects the registered section.
+`beads-dashboard--registry-provider-specs' unions the downstream hook
+with the dashboard-flagged registry specs, so `recent-changes' is
+rendered by the dashboard without a parallel definition."
+  :tags '(:unit)
+  (let ((keys (mapcar (lambda (spec) (oref spec key))
+                      (beads-dashboard--registry-provider-specs))))
+    (should (memq 'recent-changes keys))))
+
+(ert-deftest beads-dashboard-test-registry-provider-specs-hook-wins ()
+  "A downstream hook spec shadows the registry spec with the same key."
+  :tags '(:unit)
+  (let* ((hook-spec (beads-section-spec
+                     :key 'recent-changes :title "Hook wins"
+                     :loader (lambda () nil) :renderer #'identity))
+         (beads-dashboard-section-providers (list (lambda () (list hook-spec))))
+         (specs (beads-dashboard--registry-provider-specs))
+         (matching (seq-filter (lambda (s) (eq (oref s key) 'recent-changes))
+                               specs)))
+    (should (= 1 (length matching)))
+    (should (equal "Hook wins" (oref (car matching) title)))))
+
+(ert-deftest beads-dashboard-test-provider-load-sync-contract ()
+  "A data-returning provider loader resolves immediately."
+  :tags '(:unit)
+  (let* ((spec (beads-section-spec :key 'sync-probe :title "Sync"
+                                   :loader (lambda () '(1 2 3))
+                                   :renderer #'identity))
+         (resolved nil)
+         (rejected nil))
+    (funcall (beads-dashboard--provider-load spec)
+             (lambda (value) (setq resolved value))
+             (lambda (err) (setq rejected err)))
+    (should (equal resolved '(1 2 3)))
+    (should-not rejected)))
+
+(ert-deftest beads-dashboard-test-provider-load-async-contract ()
+  "An async provider loader (a returned thunk) is invoked with callbacks."
+  :tags '(:unit)
+  (let* ((spec (beads-section-spec
+                :key 'async-probe :title "Async"
+                :loader (lambda ()
+                          (lambda (resolve _reject) (funcall resolve 'loaded)))
+                :renderer #'identity))
+         (resolved nil))
+    (funcall (beads-dashboard--provider-load spec)
+             (lambda (value) (setq resolved value))
+             #'ignore)
+    (should (equal resolved 'loaded))))
+
+(ert-deftest beads-dashboard-test-provider-load-rejects-on-error ()
+  "A loader error is forwarded to the reject callback, not signalled."
+  :tags '(:unit)
+  (let* ((spec (beads-section-spec :key 'boom :title "Boom"
+                                   :loader (lambda () (error "boom"))
+                                   :renderer #'identity))
+         (rejected nil))
+    (funcall (beads-dashboard--provider-load spec) #'ignore
+             (lambda (err) (setq rejected err)))
+    (should rejected)))
 
 (provide 'beads-dashboard-test)
 ;;; beads-dashboard-test.el ends here

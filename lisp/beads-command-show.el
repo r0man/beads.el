@@ -70,6 +70,20 @@
 (declare-function outline-hide-subtree "outline" (&optional event))
 (declare-function org-link-store-props "org" (&rest args))
 
+;; Forward declarations for the optional live layer: the show buffer
+;; integrates with `beads-live' and the pure `beads-event' model when
+;; they are loaded, and stays static otherwise.
+(declare-function beads-live-attach "beads-live" (&optional buffer &rest args))
+(declare-function beads-live-subscribe "beads-live" (fn &optional buffer))
+(declare-function beads-live-header-string "beads-live" (&optional dir))
+(declare-function beads-live-model "beads-live" (stream))
+(declare-function beads-live--model-logs "beads-live" (model))
+(declare-function beads-event-record-diff "beads-event" (record &optional previous))
+(declare-function beads-event-diff-string "beads-event" (change))
+(declare-function beads-event-actor-description "beads-event" (record))
+(declare-function beads-event-time "beads-event" (record))
+(declare-function beads-event-window-seconds "beads-event" (window))
+
 ;;; Show Command
 
 (beads-defcommand beads-command-show (beads-command-global-options)
@@ -225,6 +239,19 @@ Set to nil to disable truncation."
                  (const :tag "No truncation" nil))
   :group 'beads-show)
 
+(defcustom beads-show-live t
+  "Whether show buffers attach to their store's live events journal.
+When non-nil, the buffer subscribes when the live layer is loaded and
+re-renders itself after a debounced batch that touches its issue.
+When nil, the buffer is static and only `g' refreshes it."
+  :type 'boolean
+  :group 'beads-show)
+
+(defcustom beads-show-activity-limit 20
+  "Maximum number of journal records kept in a show buffer's ACTIVITY log."
+  :type 'natnum
+  :group 'beads-show)
+
 ;;; Faces
 
 (defface beads-show-header-face
@@ -333,6 +360,13 @@ Derived from the canonical `beads-face-priority-low'."
 Used for notes like \"(N comments omitted)\"; empty sections are
 now skipped entirely instead of showing a placeholder.")
 
+(defface beads-show-activity-changed-face
+  '((t :inherit (beads-event-changed warning)))
+  "Face for the live-change marker in the show ACTIVITY section.
+Inherits `beads-event-changed' from the live layer and falls back to
+`warning' when that face is not defined."
+  :group 'beads-show)
+
 ;;; Constants
 
 (defconst beads-show-issue-id-regexp beads-issue-id-regexp
@@ -366,6 +400,26 @@ Updated on refresh to reflect current branch.")
 (defvar-local beads-show--proj-name nil
   "Project name for display.
 Used when multiple projects have show buffers open.")
+
+(defvar beads-show--live-inhibit noninteractive
+  "When non-nil, `beads-show' does not attach to a live stream.
+Initialized from `noninteractive': a live stream is an interactive
+feature, so batch runs (including the test suite) never spawn one.
+Tests that exercise the wiring rebind this to nil.")
+
+(defvar-local beads-show--live-stream nil
+  "The live stream this show buffer is attached to, or nil.")
+
+(defvar-local beads-show--live-handle nil
+  "The `beads-live-subscribe' handle for this show buffer, or nil.")
+
+(defvar-local beads-show--activity nil
+  "Newest-first list of `beads-event-record' for this buffer's issue.
+Seeded from the store's live model when available and appended by the
+live subscriber; bounded by `beads-show-activity-limit'.")
+
+(defvar-local beads-show--activity-dirty nil
+  "Non-nil when a live record for this issue arrived since the last render.")
 
 ;;; Buffer Lookup by Project Directory
 ;;
@@ -451,7 +505,12 @@ navigating in beads-list.  Returns BUFFER."
   (with-current-buffer buffer
     (unless (derived-mode-p 'beads-show-mode)
       (beads-show-mode))
-    (setq beads-show--issue-id issue-id))
+    (setq beads-show--issue-id issue-id)
+    ;; A follow navigation switches the buffer to another issue, so the
+    ;; ACTIVITY log is for the previous one; reset it and re-seed.
+    (setq beads-show--activity nil
+          beads-show--activity-dirty nil)
+    (beads-show--live-attach))
   (beads-show--load buffer issue-id)
   buffer)
 
@@ -562,6 +621,210 @@ in BUFFER."
             (funcall done (apply #'beads-execute 'beads-command-show
                                  (beads-show--command-args issue-id)))
           (error (funcall fail err)))))))
+
+;;; Live journal integration (WI-LIVE-14)
+;;
+;; A show buffer displays exactly one issue, so live integration is per
+;; issue: a subscriber records this issue's journal records into a
+;; bounded buffer-local log, and a debounced batch re-fetches and
+;; re-renders only when one of those records arrived.  The ACTIVITY
+;; section renders that log.  Every `beads-live' / `beads-event' entry
+;; point is resolved at call time and guarded by `fboundp', so this file
+;; loads and behaves statically when the live layer is absent.
+
+(defun beads-show--activity-add (record)
+  "Prepend RECORD to this buffer's bounded ACTIVITY log."
+  (push record beads-show--activity)
+  (when (and (natnump beads-show-activity-limit)
+             (> (length beads-show--activity) beads-show-activity-limit))
+    (setq beads-show--activity
+          (seq-take beads-show--activity beads-show-activity-limit))))
+
+(defun beads-show--live-record (record)
+  "Handle one raw journal RECORD for the current show buffer.
+Runs with the show buffer current; records for other issues are
+ignored, so a busy store does not churn this buffer."
+  (when (and beads-show--issue-id
+             (equal (oref record issue-id) beads-show--issue-id))
+    (beads-show--activity-add record)
+    (setq beads-show--activity-dirty t)))
+
+(defun beads-show--activity-seed ()
+  "Seed the ACTIVITY log from the store's live model, when present.
+The model's per-issue log is newest-first and gives a freshly opened
+buffer its recent history.  Any error (no model, no log, an older live
+layer) leaves the buffer-local log untouched."
+  (when (and beads-show--live-stream
+             beads-show--issue-id
+             (fboundp 'beads-live-model)
+             (fboundp 'beads-live--model-logs))
+    (condition-case nil
+        (let* ((model (beads-live-model beads-show--live-stream))
+               (logs (and model (beads-live--model-logs model)))
+               (records (and logs (gethash beads-show--issue-id logs))))
+          (when records
+            (setq beads-show--activity
+                  (seq-take records beads-show-activity-limit))))
+      (error nil))))
+
+(defun beads-show--live-attach ()
+  "Attach the current show buffer to its store's live journal.
+A no-op when `beads-show-live' is nil, in a batch run (see
+`beads-show--live-inhibit'), or when the live layer is not loaded."
+  (when (and beads-show-live
+             (not beads-show--live-inhibit)
+             (require 'beads-live nil t))
+    (setq beads-show--live-stream
+          (beads-live-attach (current-buffer)
+                             :refresh #'beads-show--live-refresh
+                             :kinds '(show)))
+    (when (and (fboundp 'beads-live-subscribe)
+               (null beads-show--live-handle))
+      (setq beads-show--live-handle
+            (beads-live-subscribe #'beads-show--live-record
+                                  (current-buffer))))
+    (beads-show--activity-seed))
+  beads-show--live-stream)
+
+(defun beads-show--live-refresh ()
+  "Re-render the current show buffer after a debounced live batch.
+`beads-live-attach' calls this with the buffer current, and only when
+a record for this issue arrived, so it re-fetches just this issue and
+preserves point.  Other show buffers are untouched."
+  (when (and beads-show--activity-dirty
+             beads-show--issue-id
+             (derived-mode-p 'beads-show-mode))
+    (setq beads-show--activity-dirty nil)
+    (beads-show--refresh-preserving-point)))
+
+(defun beads-show--refresh-preserving-point ()
+  "Re-fetch and re-render the current show issue, restoring point.
+Point is clamped into the new buffer, so a re-render that shortens the
+text cannot move it past the end."
+  (let ((pos (point))
+        (id beads-show--issue-id)
+        (buffer (current-buffer)))
+    (beads-show--load
+     buffer id
+     :after (lambda ()
+              (goto-char (min pos (point-max)))))))
+
+(defun beads-show--live-string ()
+  "Return the live status chip for this buffer's store, or nil."
+  (when (fboundp 'beads-live-header-string)
+    (condition-case nil
+        (beads-live-header-string
+         (or beads-store-directory default-directory))
+      (error nil))))
+
+(defun beads-show--insert-live-chip ()
+  "Append the live status chip to the title line, when a stream exists."
+  (when-let* ((chip (beads-show--live-string)))
+    (save-excursion
+      (goto-char (point-min))
+      (end-of-line)
+      (insert "  " chip))))
+
+(defun beads-show--activity-actor (record)
+  "Return RECORD's actor for display, or \"system\" when absent."
+  (if (fboundp 'beads-event-actor-description)
+      (beads-event-actor-description record)
+    (let ((actor (oref record actor)))
+      (if (and (stringp actor) (not (string-empty-p actor)))
+          actor
+        "system"))))
+
+(defun beads-show--activity-time (record)
+  "Return RECORD's timestamp as a float, or 0 when absent/unparseable."
+  (if (fboundp 'beads-event-time)
+      (beads-event-time record)
+    (let ((ts (oref record ts)))
+      (if (and (stringp ts) (not (string-empty-p ts)))
+          (condition-case nil (float-time (date-to-time ts)) (error 0))
+        0))))
+
+(defun beads-show--activity-changed-p (record)
+  "Return non-nil when RECORD falls inside the live change window."
+  (let* ((window (if (boundp 'beads-live-change-window)
+                     beads-live-change-window
+                   30))
+         (seconds (cond
+                   ((numberp window) window)
+                   ((and (stringp window)
+                         (fboundp 'beads-event-window-seconds))
+                    (beads-event-window-seconds window))
+                   (t 30)))
+         (at (beads-show--activity-time record)))
+    (and (> at 0) (<= (- (float-time) at) seconds))))
+
+(defun beads-show--activity-diff (record previous)
+  "Return RECORD's field-diff display lines against PREVIOUS.
+Uses the pure `beads-event' model when loaded, and a minimal op line
+otherwise, so the ACTIVITY section renders with or without it."
+  (if (fboundp 'beads-event-record-diff)
+      (condition-case nil
+          (mapcar (lambda (change)
+                    (if (fboundp 'beads-event-diff-string)
+                        (beads-event-diff-string change)
+                      (format "%S" change)))
+                  (beads-event-record-diff record previous))
+        (error nil))
+    (pcase (oref record op)
+      ("comment"
+       (let ((body (alist-get 'text (oref record comment))))
+         (when (and (stringp body) (not (string-empty-p body)))
+           (list (format "comment %S" body)))))
+      ((or "dep_add" "dep_remove")
+       (list (format "%s %s" (oref record op)
+                     (or (alist-get 'target (oref record dep)) ""))))
+      ("delete" (list (format "deleted %s" (or (oref record issue-id) ""))))
+      ("create" (list (format "create %s" (or (oref record issue-id) ""))))
+      (_ (list (or (oref record op) ""))))))
+
+(defun beads-show--insert-activity-entry (record diff-lines)
+  "Insert one ACTIVITY row for RECORD, followed by DIFF-LINES."
+  (let ((seq (oref record seq))
+        (actor (beads-show--activity-actor record))
+        (time (beads-show--activity-time record)))
+    (insert "  ")
+    (if (beads-show--activity-changed-p record)
+        (insert (propertize "◈ " 'face 'beads-show-activity-changed-face))
+      (insert "  "))
+    (insert (propertize (if (integerp seq) (format "#%d" seq) "#?")
+                        'face 'shadow))
+    (insert "  ")
+    (when (> time 0)
+      (insert (propertize (format-time-string "%H:%M:%S" time) 'face 'shadow))
+      (insert "  "))
+    (insert (propertize (if (equal actor "system")
+                            "system"
+                          (format "@%s" actor))
+                        'face 'beads-show-label-face))
+    (insert "\n")
+    (dolist (line diff-lines)
+      (insert "      " (propertize line 'face 'beads-show-value-face) "\n"))))
+
+(defun beads-show--render-activity ()
+  "Insert this buffer's ACTIVITY rows, newest first.
+Inserts nothing when the log is empty, so the section disappears like
+every other empty section.  A record's diff is computed against the
+next-older record's issue snapshot, which the journal guarantees is
+the state the newer record applied to."
+  (let* ((records (vconcat beads-show--activity))
+         (count (length records)))
+    (dotimes (i count)
+      (let* ((record (aref records i))
+             (older (and (< (1+ i) count) (aref records (1+ i))))
+             (diff (beads-show--activity-diff
+                    record (and older (oref older issue)))))
+        (beads-show--insert-activity-entry record diff)))))
+
+(defun beads-show--insert-activity-section ()
+  "Insert the live ACTIVITY section, hidden when there is no activity."
+  (beads-show--insert-section-with "ACTIVITY"
+    (lambda ()
+      (when beads-show--activity
+        (beads-show--render-activity)))))
 
 ;;; Worktree Session Integration
 ;;
@@ -2035,6 +2298,7 @@ buffer only shows sections that have data."
     ;; bde-go3g: beads.el: Magit-like Emacs interface for Beads
     ;; ○ Open  P1  Epic  Roman Scherer
     (insert (beads-show--format-title-line id title status priority type owner))
+    (beads-show--insert-live-chip)
     (insert "\n")
     ;; Identity block: a rule, the navigation hints, the store, and the
     ;; breadcrumb back to the originating view (mockup §5a).
@@ -2082,6 +2346,10 @@ buffer only shows sections that have data."
     (beads-show--insert-section "Design" design)
     (beads-show--insert-section "Acceptance Criteria" acceptance)
     (beads-show--insert-section "Notes" notes)
+
+    ;; Live ACTIVITY journal (WI-LIVE-14).  Hidden when the buffer has
+    ;; no activity, exactly like every other empty section.
+    (beads-show--insert-activity-section)
 
     ;; Metadata map, labels, lease
     (beads-show--insert-metadata-section metadata)
@@ -2210,6 +2478,9 @@ store-scoped buffer inherits its store."
       ;; walks git over TRAMP for a remote store.
       (unless (file-remote-p project-dir)
         (beads-show--register-with-session))
+      ;; Subscribe before the first fetch so records that land during
+      ;; the load are not lost; a no-op without the live layer.
+      (beads-show--live-attach)
       ;; The buffer needs the full rendering data: --long
       ;; --include-comments --include-dependents (JSON-only flags;
       ;; plain `bd show --json' omits the extended metadata, comment

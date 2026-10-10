@@ -839,8 +839,12 @@ Signals `beads-json-parse-error' if JSON parsing fails (for JSON commands)."
                             proc-stderr)))
 
             (if (zerop proc-exit-code)
-                ;; Success: parse output and return result directly
-                (beads-command-parse command proc-stdout)
+                ;; Success: parse output and return result directly.  A
+                ;; completed foreground command invalidates the command
+                ;; caches unless a live stream already covers the store
+                ;; (WI-LIVE-10).
+                (prog1 (beads-command-parse command proc-stdout)
+                  (beads-command--foreground-refresh))
               ;; Signal error with complete information
               (signal 'beads-command-error
                       (list (format "Command failed with exit code %d"
@@ -922,6 +926,63 @@ nil when the queue is empty.")
 Maps cache-key -> plist `(:process P :waiters W)'.  When a duplicate
 request arrives while one is in flight, its callbacks are added to the
 waiter list and share the existing process's result.")
+
+;;; Live invalidation seam (WI-LIVE-10)
+;;
+;; The command layer owns the coalescing/`last-good' caches that a live
+;; stream's echo invalidates.  `beads-live.el' requires this file, so the
+;; dependency must run one way only: a function-variable seam
+;; (`beads-command-live-p-function') lets beads-live supply its predicate
+;; without a circular require (design.md §4.7, plan WI-LIVE-10).
+
+(defvar beads-command-live-p-function 'beads-live-active-p
+  "Function of a store directory answering whether a live stream covers it.
+Defaults to `beads-live-active-p' (`beads-live.el'), but is consulted
+only when that function is already defined, so this file never
+requires `beads-live.el'.  While it answers non-nil for a store, a
+completed foreground write leaves cache invalidation to the stream's
+echo (deduped by seq); nil disables the live-aware path entirely.")
+
+(defun beads-command-live-active-p (&optional directory)
+  "Return non-nil when a live stream covers DIRECTORY.
+DIRECTORY defaults to `default-directory'.  Resolves
+`beads-command-live-p-function' through the function-variable seam;
+a nil value or a function symbol that is not yet defined means no
+live coverage.  This is the seam that lets `beads-command.el' stay
+free of a `beads-live.el' require."
+  (let ((fn beads-command-live-p-function)
+        (dir (or directory default-directory)))
+    (cond
+     ((null fn) nil)
+     ((functionp fn) (and (funcall fn dir) t))
+     ((and (symbolp fn) (fboundp fn)) (and (funcall fn dir) t))
+     (t nil))))
+
+(defun beads-command-invalidate-cache ()
+  "Clear cached command state so the next read is fresh.
+Clears the `beads-command--single-flight' coalescing table (so a
+coalesced re-read spawns afresh) and every live dashboard buffer's
+`beads-dashboard--last-good-data' stale-while-revalidate cache.  This
+is the public seam that a live batch and a completed foreground write
+use (design.md 4.3/4.7); it never signals, and a missing dashboard
+module simply means there is no dashboard cache to clear."
+  (clrhash beads-command--single-flight)
+  (dolist (buffer (buffer-list))
+    (with-current-buffer buffer
+      (when-let* ((cache (bound-and-true-p beads-dashboard--last-good-data)))
+        (when (hash-table-p cache)
+          (clrhash cache)))))
+  nil)
+
+(defun beads-command--foreground-refresh (&optional directory)
+  "Invalidate command caches after a completed foreground write.
+When `beads-command-live-active-p' answers non-nil for DIRECTORY the
+live stream's echo already invalidates the views, so this is a no-op;
+otherwise it calls `beads-command-invalidate-cache'.  Returns non-nil
+when it invalidated the caches."
+  (unless (beads-command-live-active-p directory)
+    (beads-command-invalidate-cache)
+    t))
 
 (defun beads-command--remote-async-command (cmd)
   "Wrap argv CMD so its stderr is discarded on the remote host.

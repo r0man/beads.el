@@ -36,6 +36,27 @@
 ;; implementation worktree.  A module that is not locatable is reported as
 ;; pending and is scanned automatically the moment it lands; the core
 ;; command-layer modules ARE present, so the guard is never vacuous.
+;;
+;; WI-LIVE-19 extends the same guard to the beads-events-live surface
+;; (`beads-live', `beads-event', `beads-events', `beads-pulse').  AC-8 is
+;; "everything renders with gascity absent; no gascity symbol on any default
+;; path", and HC-3 is "one `bd events' stream per store, never a duplicate and
+;; never mixed with a `gc events' stream".  Scanning the live surface for a
+;; gascity symbol enforces both: a module that referenced `gascity-live' or
+;; `gascity-live--bead-routes' on a default path could neither be
+;; standalone-first nor be trusted to keep the two journals apart.
+;;
+;; The seam gascity is *allowed* to use is data, not a reference: the public
+;; `beads-live-invalidate' function and the `beads-live-invalidate-functions'
+;; abnormal hook, called as (ROOT KINDS OPS) once per debounced batch.
+;; gascity's `bead.*' routing may opt in with
+;;
+;;   (when (fboundp 'beads-live-invalidate)
+;;     (beads-live-invalidate root kinds ops))
+;;
+;; from a `gascity-live-invalidate-functions' hook.  This is documented here
+;; and in NEWS.md, not implemented: gascity is not edited, and beads-live
+;; never calls gascity.
 
 ;;; Code:
 
@@ -134,10 +155,33 @@ on; their presence keeps the guard from passing vacuously.")
   "Standalone-surface modules owned by sibling work items.
 Scanned when locatable, reported pending otherwise.")
 
+(defconst beads-standalone-guard--live-modules
+  '("beads-live" "beads-event" "beads-events" "beads-pulse")
+  "The live-events surface added by the beads-events-live plan.
+`beads-live' owns the stream supervisor and the public gascity seam;
+`beads-event' is the pure model, `beads-events' the views and
+`beads-pulse' the mode-line lighter.  Scanned when locatable, reported
+pending otherwise, exactly like the sibling modules.")
+
+(defconst beads-standalone-guard--live-seam-functions
+  '(beads-live-invalidate beads-live-active-p)
+  "The public, gascity-free seam gascity may call (`when fboundp').
+`beads-live-invalidate' (DIR &optional KINDS OPS) lets gascity's
+`bead.*' routing refresh the beads views of DIR's store;
+`beads-live-active-p' reports whether a stream already covers DIR, so
+the command layer (and gascity) can defer a foreground write to it.")
+
+(defconst beads-standalone-guard--live-seam-hooks
+  '(beads-live-invalidate-functions)
+  "The abnormal hook `(ROOT KINDS OPS)' run once per debounced batch.
+The command-layer cache and the views attach here; gascity uses it
+only through the fboundp seam above, never the reverse.")
+
 (defun beads-standalone-guard--surface-modules ()
   "Return the full standalone-surface module list."
   (append beads-standalone-guard--core-modules
-          beads-standalone-guard--sibling-modules))
+          beads-standalone-guard--sibling-modules
+          beads-standalone-guard--live-modules))
 
 (defun beads-standalone-guard--scan-modules ()
   "Scan the standalone surface.
@@ -272,6 +316,47 @@ pending, never silently passed."
                             (format " (pending modules: %S)" pending)
                           ""))))
     (should (null violations))))
+
+(ert-deftest beads-standalone-guard-test-live-surface-scanned ()
+  "The live-events modules are on the scanned standalone surface.
+A module not yet landed in this worktree is tracked as pending rather
+than dropped, so the gascity-symbol scan covers it the moment it lands."
+  :tags '(:unit)
+  (let ((scan (beads-standalone-guard--scan-modules)))
+    (dolist (module beads-standalone-guard--live-modules)
+      (should (or (member module (plist-get scan :present))
+                  (member module (plist-get scan :pending)))))))
+
+(ert-deftest beads-standalone-guard-test-live-gascity-seam ()
+  "The public invalidation seam is gascity-free (AC-8) and per store (HC-3).
+gascity opts in by calling `beads-live-invalidate' when it is fboundp;
+beads-live itself references no gascity symbol, so a beads store never
+shares or duplicates a `gc events' stream.  When the module has landed
+the seam is exercised for real; otherwise the source scan covers it the
+moment it lands."
+  :tags '(:unit)
+  (let ((file (locate-library "beads-live")))
+    (if (null file)
+        (should (member "beads-live"
+                        (plist-get (beads-standalone-guard--scan-modules)
+                                   :pending)))
+      (require 'beads-live nil 'noerror)
+      (dolist (symbol beads-standalone-guard--live-seam-functions)
+        (should (fboundp symbol)))
+      (dolist (symbol beads-standalone-guard--live-seam-hooks)
+        (should (boundp symbol)))
+      ;; `beads-live-canonical-root' dissects a TRAMP name through
+      ;; `beads-remote-prefix', which uses `tramp-tramp-file-p'; TRAMP is an
+      ;; Emacs built-in and is always loadable, so load it the way a real
+      ;; session has it.
+      (require 'tramp)
+      ;; No stream covers this fictional store, so a synthetic batch is a
+      ;; safe no-op.  Gascity is absent (see the gascity-absent test), so the
+      ;; call cannot reach it.
+      (should-not (beads-live-invalidate
+                   "/nonexistent/beads-standalone-guard"))
+      (should-not (beads-live-active-p
+                   "/nonexistent/beads-standalone-guard")))))
 
 (ert-deftest beads-standalone-guard-test-flow-commands-are-bd-only ()
   "Every standalone flow assembles only `bd'-backed command objects.

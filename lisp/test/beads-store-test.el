@@ -152,9 +152,17 @@
             (let ((default-directory "/tmp/"))
               (funcall entry))
             (should lines)
-            (dolist (line lines)
-              (should (equal (beads-store-test--directory-arg line)
-                             "/tmp/store-c/")))
+            ;; The live capability probe (`bd config get events-journal')
+            ;; is captured too; only the list entry point under test is
+            ;; scoped to the store.
+            (let ((scoped (seq-filter
+                           (lambda (line)
+                             (member (cadr line) '("list" "ready" "blocked")))
+                           lines)))
+              (should scoped)
+              (dolist (line scoped)
+                (should (equal (beads-store-test--directory-arg line)
+                               "/tmp/store-c/"))))
             (setq bufs (seq-filter
                         (lambda (b)
                           (with-current-buffer b
@@ -167,7 +175,12 @@
               (should (equal default-directory "/tmp/store-c/"))
               (setq lines nil)
               (beads-list-refresh t)
-              (should (equal (beads-store-test--directory-arg (car lines))
+              (should (equal (beads-store-test--directory-arg
+                              (seq-find
+                               (lambda (line)
+                                 (member (cadr line)
+                                         '("list" "ready" "blocked")))
+                               lines))
                              "/tmp/store-c/"))))
         (beads-store-test--kill bufs)))))
 
