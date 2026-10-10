@@ -35,6 +35,10 @@
 (defvar beads-executable "bd"
   "Path to the bd executable for testing.")
 
+;; Declared rather than required so the WI-LIVE-10 cache-invalidation
+;; unit tests stay offline (no vui/dashboard load).
+(defvar beads-dashboard--last-good-data)
+
 ;;; Integration Test: beads-command-init
 
 (ert-deftest beads-command-test-init-basic ()
@@ -2142,6 +2146,99 @@ before the process finishes."
     (should (null beads-command--queue))
     (should (null beads-command--queue-tail)))
   (beads-command-test--reset-async-state))
+
+;;; Unit Tests: live invalidation seam (WI-LIVE-10)
+
+(ert-deftest beads-command-test-live-active-p-seam ()
+  "The live predicate reads `beads-command-live-p-function' and passes DIR."
+  :tags '(:unit)
+  (let ((beads-command-live-p-function nil))
+    (should-not (beads-command-live-active-p "/tmp/store")))
+  (let ((beads-command-live-p-function (lambda (dir) (equal dir "/live/store"))))
+    (should (beads-command-live-active-p "/live/store"))
+    (should-not (beads-command-live-active-p "/other/store"))))
+
+(ert-deftest beads-command-test-live-active-p-unbound-function-is-nil ()
+  "A nil or not-yet-defined seam function means no live coverage."
+  :tags '(:unit)
+  (let ((beads-command-live-p-function 'beads-command-test--no-such-function))
+    (should-not (beads-command-live-active-p "/tmp/store"))))
+
+(ert-deftest beads-command-test-invalidate-cache-clears-single-flight ()
+  "`beads-command-invalidate-cache' empties the single-flight table."
+  :tags '(:unit)
+  (clrhash beads-command--single-flight)
+  (unwind-protect
+      (progn
+        (puthash 'key (list :process nil :waiters nil)
+                 beads-command--single-flight)
+        (should (= 1 (hash-table-count beads-command--single-flight)))
+        (beads-command-invalidate-cache)
+        (should (= 0 (hash-table-count beads-command--single-flight))))
+    (clrhash beads-command--single-flight)))
+
+(ert-deftest beads-command-test-invalidate-cache-clears-dashboard-last-good ()
+  "`beads-command-invalidate-cache' empties a dashboard's last-good hash."
+  :tags '(:unit)
+  (let ((buf (generate-new-buffer " *beads-test-dashboard*")))
+    (unwind-protect
+        (progn
+          (with-current-buffer buf
+            (setq-local beads-dashboard--last-good-data
+                        (make-hash-table :test 'equal))
+            (puthash 'recent "payload" beads-dashboard--last-good-data))
+          (beads-command-invalidate-cache)
+          (with-current-buffer buf
+            (should (hash-table-p beads-dashboard--last-good-data))
+            (should (= 0 (hash-table-count
+                          beads-dashboard--last-good-data)))))
+      (kill-buffer buf))))
+
+(ert-deftest beads-command-test-live-active-suppresses-foreground-refresh ()
+  "A live stream leaves the foreground refresh a no-op (WI-LIVE-10)."
+  :tags '(:unit)
+  (clrhash beads-command--single-flight)
+  (unwind-protect
+      (progn
+        (puthash 'key (list :process nil) beads-command--single-flight)
+        (let ((beads-command-live-p-function (lambda (_dir) t)))
+          (should-not (beads-command--foreground-refresh "/live/store"))
+          (should (= 1 (hash-table-count beads-command--single-flight)))))
+    (clrhash beads-command--single-flight)))
+
+(ert-deftest beads-command-test-foreground-refresh-invalidates-when-not-live ()
+  "Without a covering stream the foreground refresh clears the caches."
+  :tags '(:unit)
+  (clrhash beads-command--single-flight)
+  (unwind-protect
+      (progn
+        (puthash 'key (list :process nil) beads-command--single-flight)
+        (let ((beads-command-live-p-function nil))
+          (should (beads-command--foreground-refresh "/offline/store"))
+          (should (= 0 (hash-table-count beads-command--single-flight)))))
+    (clrhash beads-command--single-flight)))
+
+(ert-deftest beads-command-test-sync-execute-foreground-refresh-gated-by-live ()
+  "A successful synchronous execute invalidates unless a stream covers it."
+  :tags '(:unit)
+  (clrhash beads-command--single-flight)
+  (unwind-protect
+      (progn
+        ;; Not live: the completed foreground command clears the cache.
+        (puthash 'key "in-flight" beads-command--single-flight)
+        (let ((beads-command-live-p-function nil))
+          (cl-letf (((symbol-function 'process-file)
+                     (beads-test--mock-call-process 0 "[]")))
+            (beads-execute 'beads-command-list :json t))
+          (should (= 0 (hash-table-count beads-command--single-flight))))
+        ;; Live: the stream's echo owns invalidation, so the cache stays.
+        (puthash 'key2 "in-flight" beads-command--single-flight)
+        (let ((beads-command-live-p-function (lambda (_dir) t)))
+          (cl-letf (((symbol-function 'process-file)
+                     (beads-test--mock-call-process 0 "[]")))
+            (beads-execute 'beads-command-list :json t))
+          (should (= 1 (hash-table-count beads-command--single-flight)))))
+    (clrhash beads-command--single-flight)))
 
 (provide 'beads-command-test)
 ;;; beads-command-test.el ends here
