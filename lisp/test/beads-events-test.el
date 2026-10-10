@@ -26,6 +26,7 @@
 (require 'beads-events-rewind)
 
 ;;; Helpers
+(require 'beads-pulse)
 
 (defun beads-events-test--issue (&rest args)
   "Build a `beads-issue' for tests from ARGS."
@@ -609,6 +610,168 @@ of the scripted window, so the assertion is not vacuous."
       (should-not (string-match-p "beads-command-execute" source))
       (should-not (string-match-p
                    "make-process\\|start-process\\|call-process" source)))))
+
+(defmacro beads-events-test--with-clean-notify (&rest body)
+  "Run BODY with the notification rate table and mode reset."
+  (declare (indent 0))
+  `(unwind-protect
+       (progn
+         (clrhash beads-events-notify--last)
+         ,@body)
+     (beads-events-notify-mode -1)
+     (clrhash beads-events-notify--last)))
+
+(defun beads-events-notify-test--record (seq op issue-id)
+  "Build a `beads-event-record' at SEQ with OP and ISSUE-ID."
+  (beads-event-record :seq seq :op op :issue-id issue-id
+                      :ts "2026-10-10T12:00:00Z" :actor "alice"))
+
+;;; Notifications
+
+(ert-deftest beads-events-test-notify-inert-when-disabled ()
+  "The notification handler raises nothing while the mode is off."
+  :tags '(:unit)
+  (beads-events-test--with-clean-notify
+    (let ((calls 0))
+      (cl-letf (((symbol-function 'beads-events-notify--display)
+                 (lambda (_title _body) (setq calls (1+ calls)))))
+        (should-not (bound-and-true-p beads-events-notify-mode))
+        (beads-events-notify-handler (beads-events-notify-test--record 1 "close" "be-1")
+                                     "/tmp/store/")
+        (should (= calls 0))))))
+
+(ert-deftest beads-events-test-notify-fires-on-configured-op ()
+  "An enabled mode notifies once for a configured op."
+  :tags '(:unit)
+  (beads-events-test--with-clean-notify
+    (beads-events-notify-mode 1)
+    (let ((calls 0) (seen nil))
+      (cl-letf (((symbol-function 'beads-events-notify--display)
+                 (lambda (title body) (setq calls (1+ calls)
+                                            seen (list title body)))))
+        (beads-events-notify-handler (beads-events-notify-test--record 1 "close" "be-42")
+                                     "/tmp/store/")
+        (should (= calls 1))
+        (should (string-match-p "beads-live" (car seen)))
+        (should (string-match-p "be-42" (cadr seen)))
+        (should (string-match-p "close" (cadr seen)))))))
+
+(ert-deftest beads-events-test-notify-ignores-unconfigured-op ()
+  "An op outside `beads-events-notify-ops' raises nothing."
+  :tags '(:unit)
+  (beads-events-test--with-clean-notify
+    (beads-events-notify-mode 1)
+    (let ((calls 0))
+      (cl-letf (((symbol-function 'beads-events-notify--display)
+                 (lambda (_title _body) (setq calls (1+ calls)))))
+        (beads-events-notify-handler (beads-events-notify-test--record 1 "comment" "be-1")
+                                     "/tmp/store/")
+        (should (= calls 0))))))
+
+(ert-deftest beads-events-test-notify-dep-add-alias ()
+  "The default op set selects a `dep_add' record via its alias."
+  :tags '(:unit)
+  (beads-events-test--with-clean-notify
+    (beads-events-notify-mode 1)
+    (let ((calls 0))
+      (cl-letf (((symbol-function 'beads-events-notify--display)
+                 (lambda (_title _body) (setq calls (1+ calls)))))
+        (beads-events-notify-handler (beads-events-notify-test--record 1 "dep_add" "be-1")
+                                     "/tmp/store/")
+        (should (= calls 1))))))
+
+(ert-deftest beads-events-test-notify-rate-limited-per-issue ()
+  "A second notification for the same issue is rate-limited."
+  :tags '(:unit)
+  (beads-events-test--with-clean-notify
+    (beads-events-notify-mode 1)
+    (let ((calls 0))
+      (cl-letf (((symbol-function 'beads-events-notify--rate-limit)
+                 (lambda () 60))
+                ((symbol-function 'beads-events-notify--display)
+                 (lambda (_title _body) (setq calls (1+ calls)))))
+        (beads-events-notify-handler
+         (beads-events-notify-test--record 1 "close" "be-same") "/tmp/store/")
+        (beads-events-notify-handler
+         (beads-events-notify-test--record 2 "close" "be-same") "/tmp/store/")
+        (should (= calls 1))
+        (beads-events-notify-handler
+         (beads-events-notify-test--record 3 "close" "be-other") "/tmp/store/")
+        (should (= calls 2))))))
+
+(ert-deftest beads-events-test-notify-mode-toggles-hook ()
+  "Enabling adds the handler to `beads-event-hooks'; disabling removes it."
+  :tags '(:unit)
+  (beads-events-test--with-clean-notify
+    (beads-events-notify-mode 1)
+    (should (memq 'beads-events-notify-handler beads-event-hooks))
+    (beads-events-notify-mode -1)
+    (should-not (memq 'beads-events-notify-handler beads-event-hooks))))
+
+;;; Pulse
+
+(ert-deftest beads-events-test-pulse-line-empty ()
+  "The pulse string is empty with no published or live stores."
+  :tags '(:unit)
+  (clrhash beads-pulse--cities)
+  (should (string-empty-p (beads-pulse-mode-line-string))))
+
+(ert-deftest beads-events-test-pulse-segment-published ()
+  "A published store contributes an abbreviated, counted segment."
+  :tags '(:unit)
+  (clrhash beads-pulse--cities)
+  (let ((buf (generate-new-buffer "beads-pulse-test")))
+    (unwind-protect
+        (progn
+          (beads-pulse-publish "/tmp/beads-store" buf "beads.el"
+                               :open 3 :inflight 5 :blocked 12 :seq 1047)
+          (let ((line (beads-pulse-mode-line-string)))
+            (should (string-match-p "beads\\[" line))
+            (should (string-match-p "be " line))
+            (should (string-match-p "3·5·12" line))))
+      (kill-buffer buf)
+      (clrhash beads-pulse--cities))))
+
+(ert-deftest beads-events-test-pulse-redisplay-safe ()
+  "The pulse string never starts a process or runs a command.
+Any `bd' execution at redisplay would signal here."
+  :tags '(:unit)
+  (clrhash beads-pulse--cities)
+  (let ((buf (generate-new-buffer "beads-pulse-test")))
+    (unwind-protect
+        (progn
+          (beads-pulse-publish "/tmp/beads-store" buf "beads.el"
+                               :open 1 :inflight 0 :blocked 0 :seq 9)
+          (cl-letf (((symbol-function 'beads-command-execute)
+                     (lambda (&rest _) (error "pulse ran beads-command-execute")))
+                    ((symbol-function 'call-process)
+                     (lambda (&rest _) (error "pulse ran call-process")))
+                    ((symbol-function 'make-process)
+                     (lambda (&rest _) (error "pulse ran make-process")))
+                    ((symbol-function 'start-process)
+                     (lambda (&rest _) (error "pulse ran start-process"))))
+            (should (stringp (beads-pulse-mode-line-string)))
+            (should (beads-pulse-mode-line-string))))
+      (kill-buffer buf)
+      (clrhash beads-pulse--cities))))
+
+(ert-deftest beads-events-test-pulse-record-samples ()
+  "`beads-pulse-record' keeps a bounded oldest-first sample ring."
+  :tags '(:unit)
+  (clrhash beads-pulse--samples)
+  (beads-pulse-record "/tmp/beads-store" 1)
+  (beads-pulse-record "/tmp/beads-store" 5)
+  (beads-pulse-record "/tmp/beads-store" 3)
+  (should (equal '(1 5 3) (beads-pulse-store-samples "/tmp/beads-store")))
+  (clrhash beads-pulse--samples))
+
+(ert-deftest beads-events-test-pulse-sparkline ()
+  "The sparkline maps a range onto the eight levels."
+  :tags '(:unit)
+  (should (string-empty-p (beads-pulse-sparkline nil)))
+  (should (string= "▁▁" (beads-pulse-sparkline '(4 4))))
+  (should (string= "▁█" (beads-pulse-sparkline '(0 1))))
+  (should (= 5 (length (beads-pulse-sparkline '(1 2 3 4 5))))))
 
 (provide 'beads-events-test)
 ;;; beads-events-test.el ends here

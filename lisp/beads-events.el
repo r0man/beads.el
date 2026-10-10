@@ -37,6 +37,12 @@
 ;;
 ;; History (`beads-events-history') and rewind (`beads-events-rewind')
 ;; are WI-LIVE-16 and live in their own files once this module grows.
+;;
+;; This file also carries the opt-in notification mode (WI-LIVE-17):
+;; `beads-events-notify-mode' turns the public per-record
+;; `beads-event-hooks' seam into desktop notifications for configured
+;; ops, rate-limited per issue with a `message' fallback.  The view and
+;; notification halves add disjoint top-level definitions.
 
 ;;; Code:
 
@@ -50,6 +56,10 @@
 (require 'beads-pager)
 (require 'beads-thing)
 (require 'beads-buffer)
+
+(defvar beads-event-hooks)
+(defvar beads-events-notify-ops)
+(defvar beads-events-notify-rate-limit)
 
 (declare-function beads-live-attach "beads-live" (&optional buffer &rest args))
 (declare-function beads-live-detach "beads-live" (&optional buffer))
@@ -903,6 +913,123 @@ supplies one."
       (beads-events--sync-format)
       (beads-events-refresh))
     (pop-to-buffer buffer)))
+
+;;; Notifications (WI-LIVE-17, US-4/AC-7)
+
+(defconst beads-events-notify--dep-aliases '("dep_add" "dependency_added")
+  "Op spellings that all mean a dependency addition.
+`beads-events-notify-ops' names the configured op set; the journal
+records the mutation as `dep_add', so either spelling selects it.")
+
+(defvar beads-events-notify--last (make-hash-table :test 'equal)
+  "Issue id → float time of its last notification.
+Used by `beads-events-notify-rate-limit'; purely in-memory.")
+
+(defun beads-events-notify--ops ()
+  "Return the configured notification op names, with a safe default.
+Reads `beads-events-notify-ops' when the option is loaded (WI-LIVE-02),
+otherwise uses the documented default."
+  (if (boundp 'beads-events-notify-ops)
+      beads-events-notify-ops
+    '("close" "dependency_added")))
+
+(defun beads-events-notify--rate-limit ()
+  "Return the per-issue notification interval in seconds.
+Reads `beads-events-notify-rate-limit' when the option is loaded
+\(WI-LIVE-02\), otherwise uses the documented default of 60 seconds."
+  (if (boundp 'beads-events-notify-rate-limit)
+      beads-events-notify-rate-limit
+    60))
+
+(defun beads-events-notify--record-p (record)
+  "Return non-nil when RECORD is a `beads-event-record'."
+  (and (fboundp 'beads-event-record-p) (beads-event-record-p record)))
+
+(defun beads-events-notify--op (record)
+  "Return RECORD's journal op, or nil when it has none.
+Tolerant of a missing event model so the mode is inert, not broken,
+when the pure model is absent."
+  (cond
+   ((beads-events-notify--record-p record) (oref record op))
+   ((consp record) (alist-get 'op record))
+   (t nil)))
+
+(defun beads-events-notify--issue-id (record)
+  "Return RECORD's issue id, or nil when it has none."
+  (cond
+   ((beads-events-notify--record-p record) (oref record issue-id))
+   ((consp record) (alist-get 'issue-id record))
+   (t nil)))
+
+(defun beads-events-notify--title (record)
+  "Return a human phrase for RECORD's issue: ID and title when known."
+  (let ((id (beads-events-notify--issue-id record))
+        (issue (and (beads-events-notify--record-p record) (oref record issue))))
+    (if (and issue (fboundp 'beads-issue-p) (beads-issue-p issue))
+        (format "%s %s" (or id (oref issue id) "bead") (or (oref issue title) ""))
+      (or id "bead"))))
+
+(defun beads-events-notify--configured-p (op)
+  "Return non-nil when OP is one of the configured notification ops."
+  (let ((ops (beads-events-notify--ops)))
+    (cond
+     ((member op ops) t)
+     ((member op beads-events-notify--dep-aliases)
+      (seq-some (lambda (alias) (member alias ops))
+                beads-events-notify--dep-aliases))
+     (t nil))))
+
+(defun beads-events-notify--rate-ok-p (issue-id now)
+  "Return non-nil when ISSUE-ID may notify at NOW, and record NOW.
+Honors `beads-events-notify-rate-limit'; a limit of zero disables rate
+limiting.  A nil ISSUE-ID is never rate limited."
+  (let ((limit (beads-events-notify--rate-limit)))
+    (if (or (null issue-id) (not (numberp limit)) (<= limit 0))
+        t
+      (let ((last (gethash issue-id beads-events-notify--last)))
+        (when (or (null last) (>= (- now last) limit))
+          (puthash issue-id now beads-events-notify--last)
+          t)))))
+
+(defun beads-events-notify--display (title body)
+  "Show desktop notification TITLE/BODY, falling back to `message'.
+Uses `notifications-notify' on a graphical display when available."
+  (if (and (fboundp 'notifications-notify) (display-graphic-p))
+      (notifications-notify :title title :body body)
+    (message "%s: %s" title body)))
+
+(defun beads-events-notify-handler (record root)
+  "Notify on journal RECORD of store ROOT when it is a configured op.
+The handler is inert while `beads-events-notify-mode' is off, so
+disabling the mode silences it even when it stays on the hook."
+  (when (and (bound-and-true-p beads-events-notify-mode)
+             (beads-events-notify--configured-p
+              (beads-events-notify--op record)))
+    (let* ((id (beads-events-notify--issue-id record))
+           (now (float-time)))
+      (when (beads-events-notify--rate-ok-p id now)
+        (beads-events-notify--display
+         (format "beads-live · %s"
+                 (if (or (null root) (string-empty-p root))
+                     "beads"
+                   (file-name-nondirectory (directory-file-name root))))
+         (format "%s — %s"
+                 (beads-events-notify--title record)
+                 (beads-events-notify--op record)))))))
+
+;;;###autoload
+(define-minor-mode beads-events-notify-mode
+  "Opt-in desktop notifications for configured journal operations.
+While enabled, every applied journal record whose op is in
+`beads-events-notify-ops' raises a desktop notification (or a
+`message' on a non-graphical display), rate-limited to one per issue
+per `beads-events-notify-rate-limit' seconds.  Notifications never
+fire while the mode is disabled."
+  :global t
+  :group 'beads
+  (if beads-events-notify-mode
+      (add-hook 'beads-event-hooks #'beads-events-notify-handler)
+    (remove-hook 'beads-event-hooks #'beads-events-notify-handler)))
 
 (provide 'beads-events)
 ;;; beads-events.el ends here
