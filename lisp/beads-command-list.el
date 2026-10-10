@@ -79,6 +79,17 @@
 (declare-function beads-command-update "beads-command-update" (&rest args))
 (defvar beads-show--issue-id)
 
+;; Forward declarations for the optional beads-live integration.  beads.el is
+;; standalone-first (AC-8): these symbols live in beads-live.el, which may not
+;; be loaded (or present), so every call site is guarded by `fboundp'.
+(defvar beads-live-change-window)
+(defvar beads-live-invalidate-functions)
+(declare-function beads-live-attach "beads-live" (&optional root))
+(declare-function beads-live-detach "beads-live" (&optional root))
+(declare-function beads-live-subscribe "beads-live" (root function))
+(declare-function beads-live-unsubscribe "beads-live" (token))
+(declare-function beads-live-header-string "beads-live" (root))
+
 ;;; List Command
 
 (beads-defcommand beads-command-list (beads-command-global-options)
@@ -661,6 +672,15 @@ intermediate position.  Modeled after `magit-update-other-window-delay'."
   :type 'number
   :group 'beads-list)
 
+(defcustom beads-list-live-refresh-delay 0.2
+  "Debounce in seconds for live-refreshing list rows.
+After a `bd events' record arrives, wait this long before re-rendering,
+so a burst of factory events coalesces into a single redisplay.  This is
+the list's own debounce on top of the stream's; the two are independent
+and both bound the redisplay rate."
+  :type 'number
+  :group 'beads-list)
+
 (defcustom beads-list-group-by-status t
   "When non-nil, render the beads list as status-grouped sections.
 The list gets a header block (counts, active filter, store), one
@@ -749,6 +769,13 @@ Derived from the canonical `beads-face-agent-failed' for theme
 consistency."
   :group 'beads-list)
 
+(defface beads-list-changed
+  '((t :inherit beads-event-changed))
+  "Face for a list row changed by the live event stream.
+Inherits `beads-event-changed' (defined with the beads-live faces); the
+`◈' marker and this face fade after `beads-live-change-window'."
+  :group 'beads-list)
+
 ;;; Variables
 
 (defvar-local beads-list--command nil
@@ -804,6 +831,27 @@ pending target rather than scheduling multiple timers.")
 (defvar-local beads-list--pending-show-timer nil
   "Timer for pending show buffer update, or nil.
 Stored so we can cancel it when `beads-list-follow-mode' is disabled.")
+
+;; Live-refresh state (see the "Live Refresh" section below).  This is the
+;; list's side of the beads-live/`bd events' integration and is unrelated to
+;; `beads-list-follow-mode', which follows point navigation, not the journal.
+
+(defvar-local beads-list--changed-ids nil
+  "Hash table of issue id to `float-time' of its last live change.
+Populated from journal records; drives the `◈' changed-row marker until
+`beads-live-change-window' elapses.")
+
+(defvar-local beads-list--live-root nil
+  "Canonical store root this list buffer is attached to, or nil.
+Nil means unattached: the buffer renders exactly as before the live
+feature (AC-2) and shows no live chip.")
+
+(defvar-local beads-list--live-subscription nil
+  "Opaque token returned by `beads-live-subscribe', or nil.
+Used to unsubscribe on detach and to keep attach idempotent.")
+
+(defvar-local beads-list--live-timer nil
+  "Pending debounced live-refresh timer for this buffer, or nil.")
 
 ;;; Buffer Lookup by Project Directory
 ;;
@@ -962,6 +1010,68 @@ already shows this issue.  Returns non-nil when it handled the row."
         (display-buffer buf '(nil (inhibit-same-window . t)))))
     t))
 
+(defconst beads-list--changed-glyph "◈"
+  "Glyph prefixed to list rows changed by the live event stream.")
+
+(defun beads-list--change-window ()
+  "Return the changed-row window in seconds.
+Reads `beads-live-change-window' when beads-live is loaded, otherwise
+falls back to the documented default of 30 seconds."
+  (if (boundp 'beads-live-change-window)
+      beads-live-change-window
+    30))
+
+(defun beads-list--mark-changed (id &optional time)
+  "Record that issue ID changed at TIME (defaulting to now).
+No-op for a nil ID.  The marker is dropped once older than
+`beads-list--change-window'."
+  (when id
+    (unless (hash-table-p beads-list--changed-ids)
+      (setq beads-list--changed-ids (make-hash-table :test #'equal)))
+    (puthash id (or time (float-time)) beads-list--changed-ids)))
+
+(defun beads-list--changed-p (id)
+  "Return non-nil when issue ID changed within the live change window."
+  (when (and id (hash-table-p beads-list--changed-ids))
+    (let ((when (gethash id beads-list--changed-ids)))
+      (and when
+           (< (- (float-time) when) (beads-list--change-window))))))
+
+(defun beads-list--prune-changed ()
+  "Drop changed-row timestamps older than the live change window."
+  (when (hash-table-p beads-list--changed-ids)
+    (let ((window (beads-list--change-window))
+          (now (float-time))
+          expired)
+      (maphash (lambda (id when)
+                 (when (>= (- now when) window)
+                   (push id expired)))
+               beads-list--changed-ids)
+      (dolist (id expired)
+        (remhash id beads-list--changed-ids)))))
+
+(defun beads-list--restore-marks ()
+  "Re-apply `beads-list--marked-issues' tags after a repopulate.
+`tabulated-list-print' erases the tag padding, so a refresh would
+otherwise drop the visual marks even though `beads-list--marked-issues'
+is retained.  Point is left untouched."
+  (when beads-list--marked-issues
+    (save-excursion
+      (goto-char (point-min))
+      (while (not (eobp))
+        (when-let* ((id (beads-list--current-issue-id)))
+          (when (member id beads-list--marked-issues)
+            (tabulated-list-put-tag ">" nil)))
+        (forward-line 1)))))
+
+(defun beads-list--issue-display-id (id &optional changed)
+  "Return ID for the ID column, marking CHANGED rows with the live glyph."
+  (if changed
+      (concat (propertize (concat beads-list--changed-glyph " ")
+                          'face 'beads-list-changed)
+              id)
+    id))
+
 (defun beads-list--issue-to-entry (issue)
   "Convert ISSUE (beads-issue object) to tabulated-list entry."
   (let* ((id (oref issue id))
@@ -975,7 +1085,8 @@ already shows this issue.  Returns non-nil when it handled the row."
          (updated-str (beads-list--format-date updated))
          (agent-str (beads-list--format-agent id)))
     (list id
-          (vector id
+          (vector (beads-list--issue-display-id
+                   id (beads-list--changed-p id))
                   type
                   (beads-list--format-status status)
                   (beads-list--format-priority priority)
@@ -993,6 +1104,7 @@ collapsible status-grouped sections; otherwise as a flat table."
         beads-list--raw-issues issues
         beads-list--command-obj command-obj
         beads-list--last-error nil)
+  (beads-list--prune-changed)
   (if beads-list-group-by-status
       (progn
         (setq beads-list--sections (beads-list--make-sections issues))
@@ -1000,6 +1112,8 @@ collapsible status-grouped sections; otherwise as a flat table."
         (beads-pager-set-entries (beads-list--sectioned-entries)))
     (setq beads-list--sections nil)
     (beads-pager-set-entries (mapcar #'beads-list--issue-to-entry issues)))
+  (beads-list--restore-marks)
+  (beads-list-live-attach)
   (force-mode-line-update))
 
 (defun beads-list--current-issue-id ()
@@ -1187,17 +1301,18 @@ sections omit their issues."
      " · ")))
 
 (defun beads-list--header-line ()
-  "Return the list header line: title, counts and active filter."
+  "Return the list header line: title, counts, filter and live chip."
   (let* ((name (or beads-list--proj-name "beads"))
          (count (length beads-list--raw-issues))
          (counts (beads-list--counts-string))
          (filter (beads-list--filter-description)))
     (concat
      (propertize (format "Beads list — %s" name) 'face 'beads-face-header)
-     (format "  [%d issue%s%s · filter: %s]  (g refresh)"
+     (format "  [%d issue%s%s · filter: %s%s]  (g refresh)"
              count (if (= count 1) "" "s")
              (if (string-empty-p counts) "" (concat " · " counts))
-             filter))))
+             filter
+             (beads-list--live-chip)))))
 
 (defun beads-list--mode-line ()
   "Return the list mode-line: store, marks, paging and key hints."
@@ -1582,6 +1697,159 @@ This is useful when agent state changes to update the AI indicator column."
 Update the AI indicator column when sessions start or stop.
 ACTION and SESSION are provided by `beads-agent-state-change-hook'."
   (beads-list-refresh-all))
+
+;;; Live Refresh
+;;
+;; `beads-live' (Wave 1 of the beads-events-live plan) supervises one
+;; `bd events tail --follow' stream per canonical store root.  A list buffer
+;; attaches to its store's stream; the stream calls the per-buffer record
+;; callback for each journal record and the global
+;; `beads-live-invalidate-functions' hook per debounced batch.  The record
+;; callback marks the affected row with `◈' (see
+;; `beads-list--issue-to-entry'); the batch callback refreshes the rows in
+;; place through `beads-list--populate-buffer' (via `beads-list-refresh'),
+;; which preserves point and, via `beads-list--restore-marks', marks.
+;;
+;; The feature is optional: without beads-live (or with the journal off) the
+;; list renders exactly as before and shows no chip (AC-2); every reference to
+;; a beads-live symbol is guarded by `fboundp'/`boundp' (AC-8).
+
+(defun beads-list--record-issue-id (record)
+  "Return the issue id carried by RECORD, or nil.
+Accepts a `beads-event-record' or a plain alist with an `issue-id' key."
+  (cond
+   ((and (fboundp 'beads-event-record-p) (beads-event-record-p record))
+    (oref record issue-id))
+   ((consp record) (cdr (assq 'issue-id record)))
+   (t nil)))
+
+(defun beads-list--note-record (record)
+  "Mark the row for RECORD's issue changed and schedule a live refresh."
+  (when-let* ((id (beads-list--record-issue-id record)))
+    (beads-list--mark-changed id)
+    (beads-list--live-schedule)))
+
+(defun beads-list--live-schedule ()
+  "Schedule a debounced in-place refresh of the current list buffer.
+A pending timer absorbs later requests, so a burst coalesces into one
+redisplay."
+  (unless (and beads-list--live-timer (timerp beads-list--live-timer))
+    (let ((buffer (current-buffer)))
+      (setq beads-list--live-timer
+            (run-at-time
+             beads-list-live-refresh-delay nil
+             (lambda ()
+               (when (buffer-live-p buffer)
+                 (with-current-buffer buffer
+                   (setq beads-list--live-timer nil)
+                   (beads-list--live-refresh)))))))))
+
+(defun beads-list--live-cancel ()
+  "Cancel this buffer's pending live refresh timer, if any."
+  (when (and beads-list--live-timer (timerp beads-list--live-timer))
+    (cancel-timer beads-list--live-timer))
+  (setq beads-list--live-timer nil))
+
+(defun beads-list--live-refresh ()
+  "Refresh this list buffer in place, preserving point and marks.
+Silent and error-tolerant: a live batch must never surface a refresh
+error to the stream."
+  (when beads-list--command
+    (condition-case nil
+        (beads-list-refresh 'silent)
+      (error nil))))
+
+(defun beads-list-live-refresh (&optional root)
+  "Refresh every list buffer attached to ROOT in place.
+With ROOT nil, refresh every live-attached list buffer.  Refresh keeps
+point and marks (see `beads-list--restore-marks')."
+  (dolist (buffer (buffer-list))
+    (when (buffer-live-p buffer)
+      (with-current-buffer buffer
+        (when (and (derived-mode-p 'beads-list-mode)
+                   (or (null root)
+                       (equal root beads-list--live-root)))
+          (beads-list--live-refresh))))))
+
+(defun beads-list--live-invalidate (root &optional _kinds _ops)
+  "Schedule a refresh of list buffers for ROOT after a live batch.
+Callback for `beads-live-invalidate-functions' (signature ROOT KINDS
+OPS).  Each buffer debounces again, so bursts still coalesce."
+  (dolist (buffer (buffer-list))
+    (when (buffer-live-p buffer)
+      (with-current-buffer buffer
+        (when (and (derived-mode-p 'beads-list-mode)
+                   (equal root beads-list--live-root))
+          (beads-list--live-schedule))))))
+
+(defun beads-list--store-root ()
+  "Return the canonical store root this list buffer belongs to."
+  (or beads-store-directory beads-list--project-dir
+      (ignore-errors (beads--project-root))
+      default-directory))
+
+(defun beads-list--live-supported-p ()
+  "Return non-nil when beads-live is available to attach to."
+  (or (fboundp 'beads-live-subscribe)
+      (fboundp 'beads-live-attach)))
+
+(defun beads-list-live-attach (&optional root)
+  "Attach the current list buffer to its store's live stream.
+ROOT defaults to `beads-list--store-root'.  When beads-live is present,
+subscribes the per-buffer record callback and registers with the stream;
+otherwise this is a no-op so the buffer degrades to today's behaviour
+\(AC-2) and shows no chip.  Idempotent per buffer."
+  (interactive)
+  (require 'beads-live nil t)
+  (when (beads-list--live-supported-p)
+    (let* ((root (or root (beads-list--store-root)))
+           (already (and root (equal root beads-list--live-root))))
+      (setq beads-list--live-root root)
+      (unless already
+        (when (and root
+                   (fboundp 'beads-live-subscribe)
+                   (null beads-list--live-subscription))
+          (let ((buffer (current-buffer)))
+            (setq beads-list--live-subscription
+                  (beads-live-subscribe
+                   root
+                   (lambda (record)
+                     (when (buffer-live-p buffer)
+                       (with-current-buffer buffer
+                         (beads-list--note-record record))))))))
+        (when (and root (fboundp 'beads-live-attach))
+          (ignore-errors (beads-live-attach root))))
+      (add-hook 'kill-buffer-hook #'beads-list-live-detach nil t)
+      beads-list--live-root)))
+
+(defun beads-list-live-detach ()
+  "Detach the current list buffer from its store's live stream."
+  (interactive)
+  (beads-list--live-cancel)
+  (when (and beads-list--live-subscription
+             (fboundp 'beads-live-unsubscribe))
+    (ignore-errors
+      (beads-live-unsubscribe beads-list--live-subscription)))
+  (setq beads-list--live-subscription nil)
+  (when (and beads-list--live-root (fboundp 'beads-live-detach))
+    (ignore-errors (beads-live-detach beads-list--live-root)))
+  (setq beads-list--live-root nil)
+  (remove-hook 'kill-buffer-hook #'beads-list-live-detach t))
+
+(defun beads-list--live-chip ()
+  "Return the header-line live/poll status fragment, or empty string.
+Reads the stream status from beads-live when loaded; without it (or when
+unattached) returns the empty string, so the header is unchanged (AC-2)."
+  (if (not beads-list--live-root)
+      ""
+    (let ((fragment
+           (cond
+            ((fboundp 'beads-live-header-string)
+             (beads-live-header-string beads-list--live-root))
+            (t "● live"))))
+      (if (and fragment (not (string-empty-p fragment)))
+          (concat " · " (propertize fragment 'face 'beads-face-success))
+        ""))))
 
 (defun beads-list-show ()
   "Show details for the issue at point in other window."
@@ -2276,6 +2544,13 @@ a call from a store-scoped buffer inherits its store."
 (defvar beads-agent-state-change-hook)
 ;; Append to end of hook list so this runs AFTER sesman registers the session
 (add-hook 'beads-agent-state-change-hook #'beads-list--on-agent-state-change t)
+
+;; Register for debounced live invalidation batches.  beads-live.el defines the
+;; hook; declaring it here keeps this file loadable standalone (AC-8).  The
+;; callback filters by `beads-list--live-root', so unattached buffers are
+;; untouched.
+(defvar beads-live-invalidate-functions)
+(add-hook 'beads-live-invalidate-functions #'beads-list--live-invalidate)
 
 ;;; Footer
 (provide 'beads-command-list)
