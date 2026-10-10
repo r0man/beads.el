@@ -333,6 +333,7 @@ read-only and never writes."
       (beads-events-history--render))
     (pop-to-buffer buffer)))
 
+;;;###autoload
 (defun beads-events-history-at-point ()
   "Show the history of the issue of the record at point.
 Bound to `H' in `beads-events-mode'."
@@ -342,12 +343,6 @@ Bound to `H' in `beads-events-mode'."
     (unless (and record (oref record issue-id))
       (user-error "No issue at point"))
     (beads-events-history (oref record issue-id))))
-
-;;; beads-events integration (resolved after that module loads)
-
-(with-eval-after-load 'beads-events
-  (when (boundp 'beads-events-mode-map)
-    (keymap-set beads-events-mode-map "H" #'beads-events-history-at-point)))
 
 (provide 'beads-events-history)
 ;;; beads-events-history.el ends here

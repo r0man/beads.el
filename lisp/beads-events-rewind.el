@@ -158,7 +158,7 @@ HEAD.  Signals `user-error' on anything else."
   (read-string "Rewind to seq (or -N / +N, blank = live): "))
 
 (defun beads-events-rewind--next-seq (records k)
-  "Return the smallest record seq greater than K, or nil."
+  "Return the smallest record seq in RECORDS greater than K, or nil."
   (let ((next nil))
     (dolist (record records)
       (let ((seq (or (oref record seq) 0)))
@@ -167,7 +167,7 @@ HEAD.  Signals `user-error' on anything else."
     next))
 
 (defun beads-events-rewind--previous-seq (records k)
-  "Return the largest record seq less than K, or nil."
+  "Return the largest record seq in RECORDS less than K, or nil."
   (let ((prev nil))
     (dolist (record records)
       (let ((seq (or (oref record seq) 0)))
@@ -361,6 +361,7 @@ before them (used by tests).  Rewind never writes."
           (beads-events-rewind--set-seq resolved))
         (pop-to-buffer buffer)))))
 
+;;;###autoload
 (defun beads-events-rewind-at-point ()
   "Rewind to the seq of the record at point.
 Bound to `r' in `beads-events-mode'."
@@ -370,12 +371,6 @@ Bound to `r' in `beads-events-mode'."
     (unless record
       (user-error "No event at point"))
     (beads-events-rewind (or (oref record seq) 0))))
-
-;;; beads-events integration (resolved after that module loads)
-
-(with-eval-after-load 'beads-events
-  (when (boundp 'beads-events-mode-map)
-    (keymap-set beads-events-mode-map "r" #'beads-events-rewind-at-point)))
 
 (provide 'beads-events-rewind)
 ;;; beads-events-rewind.el ends here

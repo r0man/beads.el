@@ -77,6 +77,8 @@
 (declare-function beads-event-window-seconds "beads-event" (window))
 (declare-function beads-event-fold "beads-event" (records &optional bucket))
 (declare-function beads-show "beads-command-show" (issue-id &rest args))
+(declare-function beads-events-history-at-point "beads-events-history" ())
+(declare-function beads-events-rewind-at-point "beads-events-rewind" ())
 (declare-function org-mode "org" (&optional arg))
 
 ;;; Options
@@ -817,6 +819,8 @@ TITLE is the table's `#+TITLE'."
     (keymap-set map "e" #'beads-events-org-export)
     (keymap-set map "RET" #'beads-events-visit)
     (keymap-set map "W" #'beads-events-toggle-live)
+    (keymap-set map "H" #'beads-events-history-at-point)
+    (keymap-set map "r" #'beads-events-rewind-at-point)
     (keymap-set map "]" #'beads-pager-next-page)
     (keymap-set map "[" #'beads-pager-prev-page)
     (beads-mode--install-navigation-keys map)
