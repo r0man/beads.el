@@ -2742,6 +2742,7 @@ Regression test for bug bde-evrx."
 (ert-deftest beads-list-test-delete-dispatches-to-function ()
   "Test that beads-list-delete calls beads-delete when issue at point."
   :tags '(:unit)
+  (require 'beads-command-delete)
   (beads-list-test--with-temp-buffer
    beads-list-test--sample-issues 'list
    (goto-char (point-min))
@@ -2753,7 +2754,6 @@ Regression test for bug bde-evrx."
                 (lambda (id)
                   (setq delete-called t
                         delete-arg id))))
-       (require 'beads-command-delete)
        (beads-list-delete)
        (should delete-called)
        (should (equal delete-arg "bd-42"))))))
@@ -3005,6 +3005,217 @@ non-string tabulated id: neither `beads-list-mark' nor the old
    (should (beads-list--section-at-point-p))
    (should (string-match-p "Open" (substring-no-properties
                                    (thing-at-point 'line t))))))
+
+;;; Live Refresh Tests
+;;
+;; `beads-list-follow-mode' follows point navigation and is untouched; the
+;; live-refresh behaviour consumes the optional beads-live/`bd events' stream.
+
+(ert-deftest beads-list-test-live-changed-marker ()
+  "Test that a changed issue carries the `◈' marker and face."
+  (with-temp-buffer
+    (let* ((issue (beads-list-test--alist-to-issue
+                   (car beads-list-test--sample-issues)))
+           (id (oref issue id)))
+      ;; Unchanged: the ID column is the bare id.
+      (should (equal (aref (cadr (beads-list--issue-to-entry issue)) 0) id))
+      (beads-list--mark-changed id)
+      (let* ((entry (beads-list--issue-to-entry issue))
+             (displayed (aref (cadr entry) 0)))
+        (should (beads-list--changed-p id))
+        (should (string-prefix-p (concat beads-list--changed-glyph " ")
+                                 displayed))
+        (should (string-suffix-p id displayed))
+        (should (eq (get-text-property 0 'face displayed)
+                    'beads-list-changed))))))
+
+(ert-deftest beads-list-test-live-changed-expires ()
+  "Test that a change older than the window is not marked and is pruned."
+  (with-temp-buffer
+    (let ((beads-live-change-window 30.0))
+      (beads-list--mark-changed "bd-9" (- (float-time) 120))
+      (should-not (beads-list--changed-p "bd-9"))
+      (beads-list--prune-changed)
+      (should-not (gethash "bd-9" beads-list--changed-ids)))))
+
+(ert-deftest beads-list-test-live-record-issue-id ()
+  "Test issue-id extraction from records and alists."
+  (should (equal (beads-list--record-issue-id
+                  (beads-event-record :seq 3 :op "update" :issue-id "bd-7"))
+                 "bd-7"))
+  (should (equal (beads-list--record-issue-id '((seq . 4) (issue-id . "bd-8")))
+                 "bd-8"))
+  (should-not (beads-list--record-issue-id nil)))
+
+(ert-deftest beads-list-test-live-note-record-schedules ()
+  "Test that a record marks its row and schedules a debounced refresh."
+  (beads-list-test--with-temp-buffer
+   beads-list-test--sample-issues 'list
+   (beads-list--note-record (beads-event-record :seq 5 :op "update"
+                                                :issue-id "bd-2"))
+   (should (beads-list--changed-p "bd-2"))
+   (should (timerp beads-list--live-timer))
+   (beads-list--live-cancel)
+   (should-not beads-list--live-timer)))
+
+(ert-deftest beads-list-test-live-schedule-coalesces ()
+  "Test that repeated scheduling reuses one pending timer."
+  (beads-list-test--with-temp-buffer
+   beads-list-test--sample-issues 'list
+   (beads-list--live-schedule)
+   (let ((first beads-list--live-timer))
+     (beads-list--live-schedule)
+     (should (eq first beads-list--live-timer)))
+   (beads-list--live-cancel)))
+
+(ert-deftest beads-list-test-live-refresh-preserves-point-and-marks ()
+  "Test live refresh keeps point and re-applies mark tags."
+  (cl-letf (((symbol-function 'beads-command-execute)
+             (lambda (&rest _)
+               (beads-test--mock-command-result
+                (apply #'vector
+                       (mapcar #'beads-issue-from-json
+                               beads-list-test--sample-issues))))))
+    (beads-list-test--with-temp-buffer
+     beads-list-test--sample-issues 'list
+     (goto-char (point-min))
+     (let ((id (beads-list--current-issue-id)))
+       (beads-list-mark)
+       (should (member id beads-list--marked-issues))
+       (goto-char (point-min))
+       (forward-line 2)
+       (let ((pos (point)))
+         (beads-list--live-refresh)
+         (should (= (point) pos))
+         (should (member id beads-list--marked-issues))
+         ;; The visual mark survives the repopulate.
+         (goto-char (point-min))
+         (should (search-forward id nil t))
+         (beginning-of-line)
+         (should (string-prefix-p
+                  ">" (buffer-substring-no-properties
+                       (line-beginning-position)
+                       (1+ (line-beginning-position))))))))))
+
+(ert-deftest beads-list-test-live-refresh-matching-root ()
+  "Test that `beads-list-live-refresh' only touches buffers for ROOT."
+  (let ((calls-a 0)
+        (calls-b 0)
+        (buf-a (generate-new-buffer " *beads-list-live-a*"))
+        (buf-b (generate-new-buffer " *beads-list-live-b*")))
+    (unwind-protect
+        (progn
+          (with-current-buffer buf-a
+            (beads-list-mode)
+            (setq beads-list--command 'list
+                  beads-list--live-root "/store/a"))
+          (with-current-buffer buf-b
+            (beads-list-mode)
+            (setq beads-list--command 'list
+                  beads-list--live-root "/store/b"))
+          (cl-letf (((symbol-function 'beads-list--live-refresh)
+                     (lambda ()
+                       (if (equal beads-list--live-root "/store/a")
+                           (cl-incf calls-a)
+                         (cl-incf calls-b)))))
+            (beads-list-live-refresh "/store/a"))
+          (should (= calls-a 1))
+          (should (= calls-b 0)))
+      (kill-buffer buf-a)
+      (kill-buffer buf-b))))
+
+(ert-deftest beads-list-test-live-invalidate-schedules-matching-root ()
+  "Test that the invalidation hook schedules only buffers for ROOT."
+  (let ((scheduled-a nil)
+        (scheduled-b nil)
+        (buf-a (generate-new-buffer " *beads-list-live-c*"))
+        (buf-b (generate-new-buffer " *beads-list-live-d*")))
+    (unwind-protect
+        (progn
+          (with-current-buffer buf-a
+            (beads-list-mode)
+            (setq beads-list--command 'list
+                  beads-list--live-root "/store/a"))
+          (with-current-buffer buf-b
+            (beads-list-mode)
+            (setq beads-list--command 'list
+                  beads-list--live-root "/store/b"))
+          (cl-letf (((symbol-function 'beads-list--live-schedule)
+                     (lambda ()
+                       (if (equal beads-list--live-root "/store/a")
+                           (setq scheduled-a t)
+                         (setq scheduled-b t)))))
+            (beads-list--live-invalidate "/store/a" '(update) '("update")))
+          (should scheduled-a)
+          (should-not scheduled-b))
+      (kill-buffer buf-a)
+      (kill-buffer buf-b))))
+
+(ert-deftest beads-list-test-live-header-chip ()
+  "Test the live chip appears only for an attached buffer."
+  (beads-list-test--with-temp-buffer
+   beads-list-test--sample-issues 'list
+   ;; Populating auto-attaches when beads-live is available, so the chip
+   ;; is present for an attached buffer ...
+   (when (beads-list--live-supported-p)
+     (should (string-match-p "●" (beads-list--live-chip)))
+     (should (string-match-p "●" (beads-list--header-line))))
+   ;; ... and empty once the buffer is detached.
+   (beads-list-live-detach)
+   (setq beads-list--live-root nil)
+   (should (equal (beads-list--live-chip) ""))
+   (should-not (string-match-p "●" (beads-list--header-line)))))
+
+(ert-deftest beads-list-test-live-attach-detach ()
+  "Test attach subscribes the record callback and detach tears down."
+  (let ((subscribed nil)
+        (sub-root nil)
+        (attached nil)
+        (unsubscribed nil)
+        (detached nil))
+    (cl-letf (((symbol-function 'beads-live-subscribe)
+               (lambda (root function)
+                 (setq sub-root root subscribed function)
+                 'token))
+              ((symbol-function 'beads-live-attach)
+               (lambda (root) (setq attached root)))
+              ((symbol-function 'beads-live-unsubscribe)
+               (lambda (token) (setq unsubscribed token)))
+              ((symbol-function 'beads-live-detach)
+               (lambda (root) (setq detached root))))
+      (with-temp-buffer
+        (beads-list-mode)
+        (setq beads-list--command 'list
+              beads-list--project-dir "/store/a"
+              beads-list--live-root nil
+              beads-list--live-subscription nil)
+        (should (equal (beads-list-live-attach) "/store/a"))
+        (should (equal sub-root "/store/a"))
+        (should (functionp subscribed))
+        (should (equal attached "/store/a"))
+        (should (equal beads-list--live-root "/store/a"))
+        (funcall subscribed (beads-event-record :seq 1 :op "update"
+                                                :issue-id "bd-1"))
+        (should (beads-list--changed-p "bd-1"))
+        (beads-list--live-cancel)
+        (beads-list-live-detach)
+        (should (eq unsubscribed 'token))
+        (should (equal detached "/store/a"))
+        (should-not beads-list--live-root)))))
+
+(ert-deftest beads-list-test-live-attach-inert-without-support ()
+  "Test attach is a no-op when beads-live is unavailable (AC-2)."
+  (cl-letf (((symbol-function 'beads-live-subscribe) nil)
+            ((symbol-function 'beads-live-attach) nil))
+    (with-temp-buffer
+      (beads-list-mode)
+      (setq beads-list--command 'list
+            beads-list--project-dir "/store/a"
+            beads-list--live-root nil)
+      (should-not (beads-list--live-supported-p))
+      (should-not (beads-list-live-attach))
+      (should-not beads-list--live-root)
+      (should (equal (beads-list--live-chip) "")))))
 
 (provide 'beads-list-test)
 ;;; beads-list-test.el ends here

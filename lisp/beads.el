@@ -715,6 +715,26 @@ which shows daemon status and database statistics."
 ;;;###autoload
 (autoload 'beads-unclaim "beads-command-unclaim" nil t)
 
+;; beads-events / beads-live views and controls (WI-LIVE-15, -16; be-b125)
+;; The Events journal views are referenced from the `beads-events'
+;; transient and the dispatch/maintenance menus; the live controls are
+;; referenced from the `beads-events' transient.  Eager-autoload them so
+;; a bare (require 'beads) can render those menus (cf. be-qhpf).
+;;;###autoload
+(autoload 'beads-events-timeline "beads-events" nil t)
+;;;###autoload
+(autoload 'beads-events-timeline-city "beads-events" nil t)
+;;;###autoload
+(autoload 'beads-events-history "beads-events-history" nil t)
+;;;###autoload
+(autoload 'beads-events-rewind "beads-events-rewind" nil t)
+;;;###autoload
+(autoload 'beads-live-toggle "beads-live" nil t)
+;;;###autoload
+(autoload 'beads-live-reconnect "beads-live" nil t)
+;;;###autoload
+(autoload 'beads-live-stop-all "beads-live" nil t)
+
 ;; Label API autoloads — these are used by other modules (e.g., readers,
 ;; completion) that depend on beads.el, so they must be available early.
 ;;;###autoload

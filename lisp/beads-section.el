@@ -226,13 +226,27 @@ Key bindings:
     :initarg :order
     :initform 0
     :type number
-    :documentation "Sort order among registered sections; lower comes first."))
+    :documentation "Sort order among registered sections; lower comes first.")
+   (dashboard
+    :initarg :dashboard
+    :initform nil
+    :type boolean
+    :documentation "Non-nil when the section is dashboard-only.
+Dashboard sections are rendered by `beads-dashboard' through the
+shared registry and are skipped by the status-buffer builder
+`beads-section-registered-vnodes'.  Their loader follows the dashboard
+contract: a function of no arguments that returns either the data or
+the dashboard `(resolve reject)' async thunk produced by
+`beads-dashboard--make-loader'."))
   "Descriptor for a named, renderable beads section.
 A consumer registers one of these via `beads-section-register' so that
 other views (status, dashboard, formula) can render it without knowing
 where it came from.  Both `loader' and `renderer' are ordinary
 functions: the loader runs with no arguments and returns the data, and
-the renderer receives that data and returns a vui vnode.")
+the renderer receives that data and returns a vui vnode.  A
+`dashboard' section (`beads-section-register-dashboard') instead uses
+the dashboard async loader contract and is only rendered by the
+dashboard.")
 
 (defvar beads-section--registry (make-hash-table :test #'eq)
   "Registry of named sections, keyed by their symbolic `key'.
@@ -250,6 +264,24 @@ section.  Registering the same KEY twice replaces the previous spec."
                                     :loader loader :renderer renderer
                                     :keys keys)
            beads-section--registry)
+  key)
+
+(defun beads-section-register-dashboard (key title loader renderer &optional keys)
+  "Register a dashboard-only named section and return KEY.
+KEY is a symbol identifying the section and TITLE is its display
+title.  Like `beads-section-register', but the section is rendered by
+`beads-dashboard' through the shared registry and is skipped by the
+status-buffer builder (`beads-section-registered-vnodes').  LOADER
+follows the dashboard loader contract instead of the plain data
+contract: it is a function of no arguments that returns either the
+section data (the historical synchronous provider shape) or the
+dashboard `(resolve reject)' async thunk returned by
+`beads-dashboard--make-loader'.  RENDERER still receives the resolved
+data and returns a vui vnode.  KEYS, when non-nil, is a list of extra
+keybindings for the section.  Registering the same KEY twice replaces
+the previous spec."
+  (beads-section-register key title loader renderer keys)
+  (oset (beads-section-spec-for key) dashboard t)
   key)
 
 (defun beads-section-spec-for (key)
@@ -273,13 +305,16 @@ registered sections deterministically."
                 (< ao bo)))))))
 
 (defun beads-section-registered-vnodes ()
-  "Return vnodes for every registered section, in registry order.
-Calls each spec's loader and, when it returns non-nil, its renderer.
-The empty registry returns nil (the standalone no-op)."
+  "Return vnodes for every status-registered section, in registry order.
+Calls each non-dashboard spec's loader and, when it returns non-nil,
+its renderer.  Sections registered with
+`beads-section-register-dashboard' are dashboard-only and are skipped
+here.  The empty registry returns nil (the standalone no-op)."
   (delq nil
         (mapcar (lambda (spec)
-                  (when-let* ((data (funcall (oref spec loader))))
-                    (funcall (oref spec renderer) data)))
+                  (unless (oref spec dashboard)
+                    (when-let* ((data (funcall (oref spec loader))))
+                      (funcall (oref spec renderer) data))))
                 (beads-section-registered))))
 
 ;;; Status Sections Hook
