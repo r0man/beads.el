@@ -122,11 +122,13 @@ EOF
 # ---- Isolation ---------------------------------------------------------
 # Unset every variable in beads-test-isolation-env-vars so a value inherited
 # from an agent shell cannot reroute the capture into the repo or a live
-# store.  fixture.sh hardcodes the same four names; keep them in sync.
-for _var in BEADS_DIR BEADS_DOLT_PORT BEADS_DOLT_SERVER_PORT GC_DOLT_PORT; do
-  unset "$_var"
-done
-unset _var
+# store.  fixture.sh holds the single editable list; read it back through
+# `print-isolation-vars' so capture.sh cannot silently drift from it
+# (plan-review P2).
+if [ -r "$FIXTURE_SH" ]; then
+  while IFS= read -r _var; do unset "$_var"; done \
+    < <("$FIXTURE_SH" print-isolation-vars)
+fi
 
 # ---- Scope resolution --------------------------------------------------
 

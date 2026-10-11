@@ -125,6 +125,15 @@ and are ignored."
             (lambda (_name)
               (beads-shots--normalize-frame (selected-frame))))
 
+;; The dashboard mode line renders a wall-clock relative timestamp
+;; ("refreshed 0s ago").  How long the asynchronous settle takes is not
+;; part of the view, so pin the label for capture; otherwise two separate
+;; invocations can differ by a second and `--verify'/`--scope all' stop
+;; being byte-identical (REQ-007).  This affects only this screenshot
+;; process -- the product keeps its live relative time.
+(advice-add 'beads-dashboard--format-relative-time :override
+            (lambda (&rest _) "0s ago"))
+
 ;;; View thunks
 ;;
 ;; Each thunk opens a view and returns the buffer to capture.  The vui
@@ -283,8 +292,8 @@ Then clear the echo area, so the export shows no stray message."
         (set-frame-size (selected-frame) 200 58)
         (setq default-directory
               (file-name-as-directory
-               (beads-shots-getenv "BEADS_SHOT_DIR"
-                                   (expand-file-name "~/workspace/beads.el"))))
+               (or (beads-shots-getenv "BEADS_SHOT_DIR" nil)
+                   (error "BEADS_SHOT_DIR must point at the fixture project (run via capture.sh)"))))
         (beads-shots--progress "theme=%s outdir=%s dir=%s"
                                screenshot-theme screenshot-output-dir
                                default-directory)

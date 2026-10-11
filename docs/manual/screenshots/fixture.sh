@@ -47,6 +47,10 @@ readonly SCRIPT_DIR
 readonly FIXTURE_FILE="$SCRIPT_DIR/fixtures/beads-fixture.jsonl"
 readonly FIXTURE_TMPDIR="${TMPDIR:-/tmp}"
 readonly FIXTURE_DIR_PREFIX="beads-fixture."
+# Fixed, seeded project basename.  beads.el derives the buffer and mode-line
+# name from the project basename, so a random `mktemp' suffix leaks into every
+# screenshot and makes two separate capture invocations differ (REQ-007/AC-7).
+readonly FIXTURE_PROJECT_NAME="${FIXTURE_DIR_PREFIX}project"
 
 # Marker written into every created project.  teardown refuses to delete a
 # directory without it, so a stray argument can never rm -rf a real checkout.
@@ -129,11 +133,17 @@ create_fixture() {
   [ -r "$FIXTURE_FILE" ] || die "fixture data not found: $FIXTURE_FILE"
   require_tool bd
   require_tool git
-  require_tool mktemp
 
-  local project
-  project=$(mktemp -d "$FIXTURE_TMPDIR/$FIXTURE_DIR_PREFIX"XXXXXX) \
-    || die "mktemp -d failed under $FIXTURE_TMPDIR"
+  # Deterministic project path (REQ-007): a stale fixture left by an
+  # interrupted run is ours to replace; anything without the marker is
+  # refused so a fixed name can never clobber a real checkout.
+  local project="$FIXTURE_TMPDIR/$FIXTURE_PROJECT_NAME"
+  if [ -e "$project" ]; then
+    [ -f "$project/$FIXTURE_MARKER" ] \
+      || die "refusing to reuse non-fixture path: $project"
+    rm -rf -- "$project"
+  fi
+  mkdir -p -- "$project" || die "mkdir failed: $project"
 
   # Clean up a half-built project if seeding fails partway.
   if ! seed_project "$project"; then
@@ -266,7 +276,6 @@ print(f"fixture.sh: verify: {len(by_id)} role-keyed issues OK")
 verify_fixture() {
   require_tool bd
   require_tool git
-  require_tool mktemp
 
   local project
   if ! project=$(create_fixture); then

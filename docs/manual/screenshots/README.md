@@ -19,10 +19,12 @@ screenshots/
 ## What it does
 
 1. Creates (or reuses) a **deterministic, throwaway fixture project** — a
-   fresh `mktemp` git repo with its own `bd` store seeded from
-   `fixtures/beads-fixture.jsonl`. It never reads or writes the repository's
-   own `.beads` store or a live/agent store (REQ-005). Pass
-   `BEADS_SHOT_PROJECT=/path` to reuse an existing fixture instead.
+   git repo at `${TMPDIR:-/tmp}/beads-fixture.project` with its own `bd` store
+   seeded from `fixtures/beads-fixture.jsonl`. The fixed basename keeps the
+   project name (and the mode line that displays it) identical across
+   invocations. It never reads or writes the repository's own `.beads` store
+   or a live/agent store (REQ-005). Pass `BEADS_SHOT_PROJECT=/path` to reuse
+   an existing fixture instead.
 2. Starts a **private, headless Wayland compositor** (`sway` with the
    wlroots headless backend) so capture frames never appear on the user's
    desktop. Windows are floated so Emacs's requested frame size is honored
@@ -45,7 +47,7 @@ never `--batch`.
 | Emacs (pgtk/GUI) | renders the views; `x-export-frames` | 30.2 |
 | `sway` (wlroots headless) | private capture display | 1.11 |
 | ImageMagick `convert` | compress + thumbnail | 6.9 |
-| `bd` + `git` + `mktemp` | create the fixture project | 1.3.1 |
+| `bd` + `git` | create the fixture project | 1.3.1 |
 | `ef-themes` | the capture themes | 2.1.0 |
 | `python3` | only `fixture.sh verify` (the structural check) | — |
 
@@ -94,6 +96,10 @@ The target is **byte-identical output** for two runs of the same scope:
   with `advice-add` on `screenshot-export` and `screenshot-export-frame`)
   replaces any `beads-issue-id-regexp` match that shares the fixture prefix
   but is not already `demo-N` with `demo-role`, as a backstop.
+- The dashboard status line shows a wall-clock relative timestamp
+  (`refreshed Ns ago`). For capture only, `beads-shots.el` overrides
+  `beads-dashboard--format-relative-time` to a fixed `0s ago`, so the
+  settle duration cannot leak into the image.
 - The samplers are fixed: the same private compositor resolution, the same
   frame geometry, the same themes, and the same font.
 

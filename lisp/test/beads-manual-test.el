@@ -120,6 +120,23 @@ ENV is passed through to `beads-manual-test--run'."
         (forward-line 1)))
     (nreverse issues)))
 
+(defun beads-manual-test--export-ids (project)
+  "Return the issue ids `bd export' reports from seeded PROJECT.
+The isolation variables are unset for the subprocess so an inherited
+agent-shell value cannot reroute bd to a live store."
+  (let ((default-directory (file-name-as-directory project)))
+    (let* ((result (beads-manual-test--run
+                    "bd" '("export") beads-test-isolation-env-vars))
+           (code (car result))
+           (output (cdr result)))
+      (should (equal code 0))
+      (delq nil
+            (mapcar (lambda (line)
+                      (when (string-prefix-p "{" line)
+                        (alist-get 'id (json-parse-string
+                                        line :object-type 'alist))))
+                    (split-string output "[\n\r]+" t))))))
+
 (defun beads-manual-test--manual-pages ()
   "Return (FILE . CONTENTS) for every Org page under the manual directory."
   (mapcar (lambda (file) (cons file (beads-manual-test--slurp file)))
@@ -174,6 +191,31 @@ ENV is passed through to `beads-manual-test--run'."
     (dolist (issue issues)
       (dolist (dependency (alist-get 'dependencies issue))
         (should (member (alist-get 'depends_on_id dependency) ids))))))
+
+(ert-deftest beads-manual-fixture-export-has-no-generated-ids ()
+  "A seeded fixture exports only the stable `demo-<n>' role ids (AC-6).
+This inspects a real seeded store, complementing the JSONL-only checks:
+bd must not stamp a run-generated hash onto any imported issue."
+  :tags '(:integration)
+  (skip-unless (file-executable-p beads-manual-test--fixture))
+  (skip-unless (executable-find "bd"))
+  (let* ((result (beads-manual-test--run beads-manual-test--fixture '("create")))
+         (code (car result))
+         (project (seq-find
+                   (lambda (line)
+                     (and (file-directory-p line)
+                          (file-exists-p
+                           (expand-file-name ".beads-fixture-project" line))))
+                   (split-string (cdr result) "[\n\r]+" t))))
+    (should (equal code 0))
+    (should project)
+    (unwind-protect
+        (let ((ids (beads-manual-test--export-ids project)))
+          (should (= (length ids) (length (beads-manual-test--fixture-issues))))
+          (dolist (id ids)
+            (should (string-match-p "\\`demo-[0-9]+\\'" id))))
+      (beads-manual-test--run
+       beads-manual-test--fixture (list "teardown" project)))))
 
 ;;; ============================================================
 ;;; Scope parser (REQ-004)
