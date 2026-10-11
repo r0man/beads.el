@@ -2240,5 +2240,18 @@ before the process finishes."
           (should (= 1 (hash-table-count beads-command--single-flight)))))
     (clrhash beads-command--single-flight)))
 
+(ert-deftest beads-command-test-error-message-shapes ()
+  "The async error formatter accepts every shape a handler may see."
+  :tags '(:unit)
+  (should (equal (beads-command-error-message "boom") "boom"))
+  (should (equal (beads-command-error-message
+                  '("Command failed with exit code 1" :exit-code 1))
+                 "Command failed with exit code 1"))
+  (should (string-match-p
+           "Validation"
+           (beads-command-error-message
+            '(beads-validation-error "Validation failed"))))
+  (should (stringp (beads-command-error-message nil))))
+
 (provide 'beads-command-test)
 ;;; beads-command-test.el ends here

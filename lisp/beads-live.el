@@ -1439,7 +1439,7 @@ polls coalesce; a pruned checkpoint re-baselines (AC-3)."
              (beads-live--set-state stream 'poll nil))
            (lambda (err)
              (setf (beads-live--stream-poll-busy stream) nil)
-             (let ((message (error-message-string err)))
+             (let ((message (beads-command-error-message err)))
                (if (beads-live-truncation-p message)
                    (beads-live--rebaseline
                     stream "events journal truncated (poll)")
@@ -1447,7 +1447,7 @@ polls coalesce; a pruned checkpoint re-baselines (AC-3)."
            :cache-key (concat (beads-live--stream-key root) "\0poll"))
         (error
          (setf (beads-live--stream-poll-busy stream) nil)
-         (beads-live--set-state stream 'offline (error-message-string err)))))))
+         (beads-live--set-state stream 'offline (beads-command-error-message err)))))))
 
 ;;; Attach / detach (WI-LIVE-09)
 

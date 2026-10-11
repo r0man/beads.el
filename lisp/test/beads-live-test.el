@@ -1277,6 +1277,31 @@ their baseline value.  An absent optional field is its zero value."
         (should (eq (beads-live--stream-state stream) 'offline))
         (should-not (beads-live--stream-poll-busy stream))))))
 
+(ert-deftest beads-live-test-poll-error-raw-report-does-not-signal ()
+  "A poll failure formats the raw report `beads-command-execute-async' delivers.
+The real report is a message-first list, which `error-message-string'
+rejects with `wrong-type-argument'; the handler must not signal while
+marking the stream offline."
+  :tags '(:unit)
+  (beads-live-test--with-registry
+    (let* ((root (make-temp-file "beads-live-store-" t))
+           (stream (beads-live--stream-for root)))
+      (cl-letf (((symbol-function 'beads-command-execute-async)
+                 (lambda (_command _on-success on-error &rest _kw)
+                   (funcall on-error
+                            (list "Command failed with exit code 1"
+                                  :command "bd events tail"
+                                  :exit-code 1
+                                  :stdout ""
+                                  :stderr "Error: no beads project found"))))
+                ((symbol-function 'run-at-time)
+                 (lambda (&rest _) 'fake-timer)))
+        (beads-live--poll stream)
+        (should (eq (beads-live--stream-state stream) 'offline))
+        (should (equal (beads-live--stream-reason stream)
+                       "Command failed with exit code 1"))
+        (should-not (beads-live--stream-poll-busy stream))))))
+
 ;;; WI-LIVE-09 — attach / detach
 
 (ert-deftest beads-live-test-attach-detach-refcount ()

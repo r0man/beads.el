@@ -360,6 +360,25 @@ ERRORS may be a string, a list of strings, or nil."
     (mapconcat #'identity errors "; "))
    (t (format "%s" errors))))
 
+(defun beads-command-error-message (err)
+  "Return the human-readable message of an async command error ERR.
+`beads-command-execute-async' hands its ON-ERROR callback a report
+list whose head is the message string (followed by :command,
+:exit-code, :stdout, :stderr, ...), while a synchronous
+`condition-case' binds a condition whose head is the error symbol.
+This accepts either, plus a bare string, so a handler that formats a
+failure never signals by mistake (`error-message-string' rejects a
+message-first list)."
+  (cond
+   ((stringp err) err)
+   ((null err) "Unknown error")
+   ((and (consp err) (stringp (car err))) (car err))
+   ((and (consp err) (symbolp (car err)))
+    (condition-case nil
+        (error-message-string err)
+      (error (format "%S" err))))
+   (t (format "%S" err))))
+
 (defun beads-command--validate-string-list (value field-name)
   "Validate that VALUE is nil or a list of strings.
 FIELD-NAME is used in error messages.

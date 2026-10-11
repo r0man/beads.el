@@ -4,6 +4,17 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Async command failures no longer crash the error path (WI-LIVE-21)
+
+A failed asynchronous `bd` command hands its `ON-ERROR` callback a
+message-first report list, which `error-message-string` rejects with
+`wrong-type-argument`.  `beads-live--poll`, `beads-refresh-show`, and
+`beads-show--display-error` formatted that report directly, so a poll
+against a store with no database could abort the refresh path instead
+of marking the stream offline (and, under `debug-on-error`, fail the
+surrounding test).  The new `beads-command-error-message` helper
+accepts every error shape and those three call sites now use it.
+
 ### Live dashboard, list, and show from the `bd events` journal (WI-LIVE-19, US-5, AC-8, HC-3)
 
 beads.el can follow `bd events tail --follow` with **one stream per store**

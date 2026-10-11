@@ -580,7 +580,7 @@ Ignored when BUFFER was killed or switched to another issue meanwhile."
         (insert (propertize "Error loading issue\n\n" 'face 'error))
         ;; A sync failure is an error condition; an async one arrives
         ;; as the failure text (from a sentinel: must never signal).
-        (insert (if (stringp err) err (error-message-string err)))
+        (insert (beads-command-error-message err))
         (goto-char (point-min))))))
 
 (cl-defun beads-show--load (buffer issue-id &key after on-error)
@@ -2525,7 +2525,7 @@ for a remote store."
               (message "Refreshed %s" id))
      :on-error (lambda (err)
                  (message "Failed to refresh: %s"
-                          (error-message-string err))))))
+                          (beads-command-error-message err))))))
 
 (defun beads-show-next-section ()
   "Move to the next section in the show buffer."

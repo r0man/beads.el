@@ -254,6 +254,25 @@
           (should-not (beads-show--live-attach))))
       (should-not called))))
 
+(ert-deftest beads-command-show-test-display-error-raw-report ()
+  "A raw async error report renders without signaling.
+`beads-command-execute-async' passes a message-first plist, which
+`error-message-string' rejects; `beads-show--display-error' must use
+the safe formatter."
+  :tags '(:unit)
+  (let ((buffer (generate-new-buffer " *beads-show-error-test*")))
+    (unwind-protect
+        (progn
+          (beads-show--display-error
+           buffer
+           (list "Command failed with exit code 1"
+                 :command "bd show" :exit-code 1
+                 :stderr "Error: no beads database found"))
+          (with-current-buffer buffer
+            (should (string-match-p "Command failed with exit code 1"
+                                    (buffer-string)))))
+      (kill-buffer buffer))))
+
 ;;; Diff rendering
 
 (ert-deftest beads-command-show-test-activity-diff-uses-event-model ()
