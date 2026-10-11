@@ -131,6 +131,43 @@ dedupes by `key' (first provider wins).  The empty hook returns nil."
               (push spec specs))))))
     (nreverse specs)))
 
+(defun beads-dashboard--registry-provider-specs ()
+  "Return the full ordered list of dashboard section specs.
+Combines the downstream `beads-dashboard-section-providers' hook
+\(first wins) with the dashboard-flagged specs registered in the shared
+`beads-section' registry, deduped by key.  The registry is how the
+`recent-changes' section reaches the dashboard so a downstream package
+such as gascity can reuse it without adding a parallel dashboard.  The
+empty hook and empty registry return nil (the standalone no-op)."
+  (let ((seen (make-hash-table :test #'eq))
+        (specs nil))
+    (dolist (spec (beads-dashboard--provider-specs))
+      (puthash (oref spec key) t seen)
+      (push spec specs))
+    (dolist (spec (beads-section-registered))
+      (when (and (oref spec dashboard)
+                 (not (gethash (oref spec key) seen)))
+        (puthash (oref spec key) t seen)
+        (push spec specs)))
+    (nreverse specs)))
+
+(defun beads-dashboard--provider-load (spec)
+  "Return a dashboard `:load' thunk for section SPEC.
+SPEC's loader is called with no arguments.  When it returns a function
+it is the dashboard `(resolve reject)' async loader and is invoked
+with the section's resolve/reject callbacks; when it returns data
+instead, that data is resolved immediately.  This keeps the historical
+data-returning provider contract working while letting a registered
+dashboard section load asynchronously (so a remote store's render
+never does synchronous I/O)."
+  (lambda (resolve reject)
+    (condition-case err
+        (let ((result (funcall (oref spec loader))))
+          (if (functionp result)
+              (funcall result resolve reject)
+            (funcall resolve result)))
+      (error (funcall reject err)))))
+
 ;;; Helper Component
 
 (defun beads-dashboard--toggle-glyph (collapsed)
@@ -668,6 +705,41 @@ commands can resolve the enclosing section."
           (list 'beads-dashboard-section-key section-key)))
        (let ((eid id))
          (lambda () (beads-show eid))))))))
+
+;;; Recent Changes (registry-provided baseline)
+
+(defun beads-dashboard--recent-changes-loader ()
+  "Return the dashboard async `:load' thunk for `recent-changes'.
+Baseline over the existing `bd list' loader: the most recently
+updated issues across every status, newest first, capped like the
+other sections.  The command runs through
+`beads-command-execute-async' (via `beads-dashboard--make-loader'), so
+the global concurrency policy applies and a remote store never does
+synchronous I/O at render time.  This is the reusable baseline the
+registered `recent-changes' section starts from; a live/event-backed
+loader can replace it by re-registering the same key."
+  (beads-dashboard--make-loader
+   (beads-command-list :all t
+                       :sort "updated"
+                       :limit (or beads-dashboard-section-limit 25)
+                       :json t)
+   '(list recent-changes)))
+
+(defun beads-dashboard-render-recent-changes (issues &optional section-key extra-rows)
+  "Render the registered `recent-changes' section from ISSUES.
+SECTION-KEY defaults to `recent-changes' and EXTRA-ROWS is threaded
+through so the rows keep the standard issue-row contract, the section
+limit, and the trailing `… and N more' affordance.  Reuses the
+existing issue-list renderer rather than a parallel dashboard."
+  (beads-dashboard--render-issue-list
+   (or issues '())
+   (or section-key 'recent-changes)
+   extra-rows))
+
+(beads-section-register-dashboard
+ 'recent-changes "Recent changes"
+ #'beads-dashboard--recent-changes-loader
+ #'beads-dashboard-render-recent-changes)
 
 ;;; Federation
 

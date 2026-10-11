@@ -416,6 +416,7 @@ expanded.  Use this instead of `file-remote-p' wherever NAME may be a
 host-only name such as \"/ssh:host:\" — `file-remote-p' expands its
 argument, and expanding an EMPTY localname asks the host for its home
 directory, a synchronous round trip."
+  (require 'tramp)
   (when (and (stringp name) (tramp-tramp-file-p name))
     (when-let* ((vec (ignore-errors (tramp-dissect-file-name name))))
       (tramp-make-tramp-file-name vec 'noloc))))

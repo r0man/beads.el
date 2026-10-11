@@ -100,6 +100,7 @@ gascity's `[City]' group when that package is present."
     ("v" "Graph" beads-graph-all)
     ("D" "Dashboard" beads-dashboard)
     ("H" "History" beads-history)
+    ("R" "Recent changes" beads-events-timeline)
     ("Y" "Orphans" beads-orphans)
     ("t" "Stats" beads-stats)
     ("X" "Context" beads-context)]
@@ -147,6 +148,13 @@ menu.  Every command the two menus held is reachable from here."
    ("[" "Todo" beads-todo)
    ("e" "Events" beads-events)
    ("/" "Query" beads-query)]
+  ["Events (live)"
+   ("," "Recent changes" beads-events-timeline)
+   ("." "City timeline" beads-events-timeline-city)
+   ("#" "Toggle live" beads-live-toggle)]
+  ["Events (time travel)"
+   ("-" "Issue history" beads-events-history)
+   ("^" "Rewind..." beads-events-rewind)]
   ["Workflow"
    ("g" "Gate" beads-gate)
    ("w" "Swarm" beads-swarm)
