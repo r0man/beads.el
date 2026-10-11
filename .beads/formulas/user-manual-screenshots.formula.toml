@@ -1,0 +1,114 @@
+description = """
+Capture and verify the beads.el user-manual screenshots from a
+deterministic, throwaway fixture project.
+
+`scope` selects what to regenerate:
+- `all` (default): every view in the capture manifest
+- `changed`: only the views whose source files changed since BEADS_SHOT_BASE
+- a comma-separated view list: a named subset
+
+A subset run never rewrites or deletes an out-of-scope image. The executable
+substance of the pipeline lives in docs/manual/screenshots/capture.sh,
+fixture.sh, and beads-shots.el, so it is testable without an agent.
+"""
+formula = "user-manual-screenshots"
+version = 1
+target_required = false
+
+[requires]
+formula_compiler = ">=2.0.0"
+
+[catalog]
+name = "user-manual-screenshots"
+description = "Capture and verify the beads.el manual screenshots."
+
+[vars.scope]
+description = """
+Capture scope: `all` regenerates every screenshot, `changed` regenerates only
+the affected images, and a comma-separated view list is a named subset.
+Non-selected images stay byte-for-byte untouched.
+"""
+default = "all"
+
+[[steps]]
+id = "prepare"
+title = "Prepare the throwaway fixture project"
+metadata = { "gc.run_target" = "gc.run-operator" }
+description = """
+Create the deterministic, isolated fixture project the capture runs against:
+
+    docs/manual/screenshots/fixture.sh create
+
+The command prints the absolute project directory. It imports
+fixtures/beads-fixture.jsonl, so the project is already seeded and ready for
+capture. No repository or live store is read or written (REQ-005); record the
+printed path for the capture and teardown steps.
+"""
+
+[[steps]]
+id = "seed"
+title = "Seed and validate the fixture issues"
+needs = ["prepare"]
+metadata = { "gc.run_target" = "gc.run-operator" }
+description = """
+The fixture project is seeded from
+docs/manual/screenshots/fixtures/beads-fixture.jsonl by `fixture.sh create`
+(stable `demo-<role>` ids, dependencies, labels, and comments). Confirm the
+seeded store is structurally sound before capturing:
+
+    docs/manual/screenshots/fixture.sh verify
+
+The check is GUI-free, so it also runs in CI.
+"""
+
+[[steps]]
+id = "capture"
+title = "Capture the selected screenshots"
+needs = ["seed"]
+metadata = { "gc.run_target" = "gc.run-operator" }
+description = """
+Capture the selected scope against the fixture and write the committed images
+under docs/manual/images/ as <view>-<theme>[-thumb].png:
+
+    docs/manual/screenshots/capture.sh --scope {{scope}}
+
+Point BEADS_SHOT_PROJECT at the project prepared above so this step reuses it
+(without it, capture.sh creates and tears down its own throwaway project).
+Only the selected views are captured and compressed, so a subset run leaves
+every other image untouched (REQ-004).
+"""
+
+[[steps]]
+id = "verify"
+title = "Verify the selected screenshots are reproducible"
+needs = ["capture"]
+metadata = { "gc.run_target" = "gc.run-operator" }
+description = """
+Re-run the same scope twice and fail, naming every image that is not
+byte-identical:
+
+    docs/manual/screenshots/capture.sh --verify {{scope}}
+
+The orchestrator runs the exec-mode check below after this iteration; it is
+the same two-run comparison, driven without an agent.
+"""
+
+[steps.check]
+max_attempts = 1
+
+[steps.check.check]
+mode = "exec"
+path = "docs/manual/screenshots/formula-verify.sh"
+timeout = "30m"
+
+[[steps]]
+id = "teardown"
+title = "Remove the throwaway fixture project"
+needs = ["verify"]
+metadata = { "gc.run_target" = "gc.run-operator" }
+description = """
+Remove the temporary fixture project created by the prepare step so the store
+is never reused or left behind:
+
+    docs/manual/screenshots/fixture.sh teardown <project>
+"""

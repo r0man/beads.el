@@ -197,6 +197,39 @@ the exact constant to edit. The `:integration` gate tests skip when
 Historical audit snapshots live in `.cli-audit/<timestamp>/` and the
 design notes in `.designs/command-parity/`.
 
+## User manual and screenshots
+
+The user manual lives under `docs/manual/` (one Org file per task area plus
+`index.org`). Its images are produced by the `user-manual-screenshots`
+formula (`gc formula show user-manual-screenshots`), whose executable
+substance is `docs/manual/screenshots/`:
+
+- `fixture.sh` creates a deterministic, throwaway project under `mktemp` and
+  imports `fixtures/beads-fixture.jsonl` (stable `demo-<role>` ids,
+  dependencies, labels, comments). It unsets every variable in
+  `beads-test-isolation-env-vars`, so a capture can never touch the repo's
+  `.beads` store or a live store.
+- One variable, `scope`, selects what to regenerate: `all`, `changed`, or a
+  comma-separated list of view names. A subset run never rewrites or deletes
+  an out-of-scope image.
+- Committed images live at `docs/manual/images/<view>-<theme>.png` plus a
+  `<view>-<theme>-thumb.png` thumbnail (`theme` is `dark` or `light`).
+
+Regenerate and verify:
+
+```sh
+make -C docs/manual screenshots                     # capture.sh --scope all
+docs/manual/screenshots/capture.sh --scope show
+docs/manual/screenshots/capture.sh --verify all      # reproducibility
+docs/manual/screenshots/capture.sh --verify-scope show  # subset isolation
+```
+
+`capture.sh --verify <scope>` runs the scope twice and fails, naming the
+drifting image, unless the output is byte-identical; that is the
+reproducibility check. `:unit` coverage lives in
+`lisp/test/beads-manual-test.el`. See `docs/manual/screenshots/README.md`
+for the cross-repo contract with `gascity.el`.
+
 ## Remote store testing (TRAMP)
 
 beads.el already supports remote (TRAMP) stores; keep it that way. The
