@@ -1440,11 +1440,13 @@ be-j2b phase 3 slot closure)."
     (should (memq 'long slots))
     (should (memq 'format slots))
     (should (memq 'all slots))
-    ;; Should have 63 slots with transient keys
+    (should (memq 'include-ephemeral slots))
+    ;; Should have 64 slots with transient keys
     ;; (beads--normalize-slot infers :transient-key for all command options;
     ;; 57 + skip-labels/brief/external-ref/external-contains/max-rows/offset
-    ;; from the be-j2b phase 3 slot closure)
-    (should (= 63 (length slots)))))
+    ;; from the be-j2b phase 3 slot closure, plus include-ephemeral from
+    ;; the bd 1.3.1 CLI sync)
+    (should (= 64 (length slots)))))
 
 (ert-deftest beads-meta-list-option-slots ()
   "Test that non-positional CLI options are identified."
@@ -1464,16 +1466,17 @@ be-j2b phase 3 slot closure)."
     ;; Should include global options inherited from beads-command-global-options
     (should (memq 'actor options))
     (should (memq 'verbose options))
-    ;; All slots have :long-option: 63 command-list + 1 json + 11 global
-    ;; options (the bd 1.3.0 --mem-profile slot made it 11)
-    (should (= 75 (length options)))))
+    ;; All slots have :long-option: 64 command-list + 1 json + 11 global
+    ;; options (the bd 1.3.0 --mem-profile slot made it 11; bd 1.3.1 added
+    ;; include-ephemeral)
+    (should (= 76 (length options)))))
 
 (ert-deftest beads-meta-list-generate-infix-specs ()
   "Test that infix specs can be generated from beads-command-list."
   (let ((specs (beads-meta-generate-infix-specs
                 'beads-command-list "beads-list")))
-    ;; Should have specs for all 63 transient-enabled slots
-    (should (= 63 (length specs)))
+    ;; Should have specs for all 64 transient-enabled slots
+    (should (= 64 (length specs)))
     ;; Check for specific infixes
     (let ((status-spec (cl-find-if
                         (lambda (s)
