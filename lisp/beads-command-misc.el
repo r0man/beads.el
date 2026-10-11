@@ -1162,7 +1162,20 @@ Garbage collects: decays old issues, compacts Dolt, runs GC.")
     :group "Options"
     :level 1
     :order 4
-    :documentation "Only purge beads matching ID glob pattern (e.g., *-wisp-*)"))
+    :documentation "Only purge beads matching ID glob pattern (e.g., *-wisp-*)")
+   (limit
+    :type (or null string integer)
+    :prompt "Limit: "
+    :group "Options"
+    :level 1
+    :order 5
+    :documentation "Purge at most N beads this run, oldest-closed first (0 = no limit)")
+   (wisps-plane
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 6
+    :documentation "Select every closed row in the wisps table, including --no-history beads"))
   :documentation "Represents bd purge command.
 Deletes closed ephemeral beads to reclaim space.")
 

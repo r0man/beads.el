@@ -346,6 +346,12 @@
       :group "Special Filters"
       :level 3
       :order 6)
+     (include-ephemeral
+      :type boolean
+      :group "Special Filters"
+      :level 3
+      :order 7
+      :documentation "Include ephemeral wisp-plane rows (normally hidden).")
 
      (limit
       :short-option "n"
