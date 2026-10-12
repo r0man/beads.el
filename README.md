@@ -333,7 +333,6 @@ Transient menu for creating new issues:
 
 **Actions:**
 - `RET` - Create issue
-- `P` - Preview command
 - `r` - Reset all fields
 
 **Example workflow:**
@@ -362,7 +361,6 @@ Context-aware transient menu for updating existing issues:
 
 **Actions:**
 - `RET` - Apply updates
-- `P` - Preview command
 - `r` - Reset all fields
 
 **Smart Updates:**

@@ -389,8 +389,9 @@ Forge uses hierarchical menu organization:
 
 beads.el follows the same split as Magit's status/dispatch pair:
 
-- `beads-status` is the Magit-like front door (`M-x beads`), not a
-  transient.
+- `M-x beads` opens `beads-dashboard` (the Magit-like board), not a
+  transient.  `beads-status` is only the internal `bd status` snapshot
+  helper behind the dashboard stats strip and `beads-stats`.
 - `beads-dispatch` - the single hand-built top-level dispatch on `?`,
   opened from every beads buffer (`beads-menu.el`).
 - `beads-maintenance` - the admin/infrastructure menu on `!`.
@@ -510,23 +511,23 @@ beads-show-issue           ; Prompt for issue ID
 
 - `c` - Create
 - `u` - Update
-- `k` - Close (kill)
-- `s` - Show
+- `d` - Close at point
+- `RET` - Visit/show item at point
 - `l` - List
 - `r` - Ready (show ready issues)
 - `b` - Blocked (show blocked issues)
+- `s` - Set status
+- `#` - Priority
+- `C` - Claim
 - `g` - Refresh (already standard in Emacs)
-- `p` - Preview
-- `RET` - Visit/show item at point
+- `?` - Dispatch
 
 ### 6. Validation and Preview
 
-**Magit/Forge provide preview and validation:**
+**Magit/Forge provide validation, and interactive previews for costly or
+ambiguous actions:**
 
 ```elisp
-;; Preview what will be executed
-("p" "Preview command" beads-create--preview :transient t)
-
 ;; Reset form
 ("r" "Reset" beads-create--reset :transient t)
 
@@ -534,7 +535,10 @@ beads-show-issue           ; Prompt for issue ID
 ("c" "Create issue" beads-create--execute)
 ```
 
-**beads.el already has this!** Keep this pattern.
+**beads.el does this.**  Keep interactive previews (`beads-delete-preview`,
+`beads-bond-preview`, `beads-cook-preview`, agent prompt previews, sling
+previews), but do **not** add a static "Preview command" suffix that just
+echoes the raw `bd` command line -- that redundant affordance was removed.
 
 ### 7. Level System
 
@@ -573,7 +577,6 @@ Optional
 
 Actions
  c  Create issue
- p  Preview command
  r  Reset
  q  Quit
 ```
