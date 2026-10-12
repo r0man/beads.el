@@ -649,29 +649,6 @@ This uses transient's standard argument parsing with dash-style flags."
     (transient--redisplay)
     (message "All fields reset")))
 
-(transient-define-suffix beads-create--preview ()
-  "Preview the bd create command that will be executed."
-  :key "P"
-  :description "Preview command"
-  :transient t
-  (interactive)
-  (let* ((args (transient-args 'beads-create))
-         (cmd (beads-create--parse-transient-args args)))
-    (if (not cmd)
-        (let ((msg "Validation errors: Failed to parse transient arguments"))
-          (message "%s" msg)
-          msg)
-      (let ((error-msg (beads-command-validate cmd)))
-        (if error-msg
-            (let ((msg (format "Validation errors: %s" error-msg)))
-              (message "%s" msg)
-              msg)
-          (let* ((cmd-list (beads-command-line cmd))
-                 (cmd-string (mapconcat #'shell-quote-argument cmd-list " "))
-                 (preview-msg (format "Command: %s" cmd-string)))
-            (message "%s" preview-msg)
-            preview-msg))))))
-
 ;;; Transient Menu - Groups
 
 (beads-define-group beads-create--required-section
@@ -724,7 +701,6 @@ Transient levels control which field groups are visible (cycle with C-x l):
   beads-option-global-section
   ["Actions"
    (beads-create--execute)
-   (beads-create--preview)
    (beads-create--reset)])
 
 ;; Auto-generated transient for testing/internal use

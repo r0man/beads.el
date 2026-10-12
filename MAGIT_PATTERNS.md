@@ -324,9 +324,10 @@ Magit and Forge use consistent buffer naming:
 - `*forge-topics*` - Global list (all repositories)
 
 **Pattern for beads.el:**
-- `*beads-list: PROJECT*` - Project-specific issue list (already implemented)
-- `*beads-show: bd-123*` - Issue detail view (already implemented)
-- Follow `*name: context*` or `*name*` pattern
+- `*beads-list[ROOT]*` - Project-specific issue list (already implemented)
+- `*beads-show[ROOT]/ID TITLE*` - Issue detail view (already implemented)
+- Follow the `*name[ROOT]*` convention for project views and plain
+  `*name*` for global ones (see `beads-buffer.el`; F9)
 
 ### Buffer Modes
 
@@ -418,7 +419,7 @@ Each provider is called with no arguments on every `?`, returns a list of
 group vectors acceptable to `transient-define-prefix`, and must be
 side-effect-free; the empty list is the standalone no-op.  `gascity.el`
 appends a `[City]` group this way.  The same provider shape recurs across
-the extension seams documented in `docs/ui-redesign.md`
+the extension seams documented in `AGENTS.md`
 (`beads-dashboard-section-providers`, `beads-action-providers`,
 `beads-sling-target-functions`, ...).
 

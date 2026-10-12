@@ -56,7 +56,7 @@ git clone https://github.com/yourusername/beads.el.git ~/path/to/beads.el
 ```elisp
 (use-package beads
   :load-path "~/path/to/beads.el/lisp"
-  :commands (beads beads-dispatch beads-list beads-ready
+  :commands (beads beads-dispatch beads-list-all beads-ready
              beads-show beads-create)
   :bind ("C-c b" . beads)                 ; M-x beads opens the full board
   :hook (after-init . beads-eldoc-mode))  ; Enable eldoc support
@@ -69,7 +69,7 @@ For Emacs 29 or newer, you can use the built-in package-vc feature:
 ```elisp
 (use-package beads
   :vc (:fetcher github :repo "yourusername/beads.el")
-  :commands (beads beads-dispatch beads-list beads-ready
+  :commands (beads beads-dispatch beads-list-all beads-ready
              beads-show beads-create)
   :bind ("C-c b" . beads)
   :hook (after-init . beads-eldoc-mode))  ; Enable eldoc support
@@ -168,44 +168,51 @@ sectioned board for the current store.  From the board:
   beads buffer.  `M-x beads-dispatch` opens it directly.
 - `!` opens **`beads-maintenance`**, the admin/infrastructure menu.
 
-The dispatch menu groups the common flows:
+The dispatch menu (`?`) groups the common flows:
 
-**View Issues:**
-- `l` - List all issues (`beads-list`)
-- `r` - Show ready issues (`beads-ready`)
-- `b` - Show blocked issues (`beads-blocked`)
-- `s` - Show specific issue (`beads-show`)
-
-**Create/Edit:**
-- `c` - Create new issue (`beads-create`)
+**Issues:**
+- `l` - List all issues (`beads-list-all`)
+- `c` - Create new issue (`beads-compose-create`)
+- `/` - Search (`beads-search`)
+- `i` - Show specific issue (`beads-show`)
 - `u` - Update issue (`beads-update`)
 - `x` - Close issue (`beads-close`)
+- `o` - Reopen issue (`beads-reopen`)
+- `e` - Edit field (`beads-edit`)
 
-**Dependencies:**
-- `d` - Manage dependencies (`beads-dep`)
-  - `a` - Add dependency
-  - `r` - Remove dependency
-  - `t` - Show dependency tree
-  - `l` - List dependencies
+**Workflow:**
+- `r` - Ready work (`beads-ready`)
+- `b` - Blocked work (`beads-blocked`)
+- `d` - Dependencies (`beads-dep`)
+- `#` - Priority (`beads-actions-set-priority`)
+- `C` - Claim (`beads-actions-claim`)
+- `s` - Set status (`beads-actions-set-status`)
+- `m` - Molecules, `G` - Gates, `w` - Wisps, `S` - Swarms, `T` - Types
 
-**Admin** (also `!`):
-- `S` - Show statistics (`beads-stats`)
-- `e` - Export to JSONL (`beads-export`)
-- `i` - Import from JSONL (`beads-import`)
-- `I` - Initialize beads project (`beads-init`)
-- `W` - Worktree management (`beads-worktree-menu`)
+**Views:**
+- `a` - Agents, `F` - Formulas, `v` - Graph, `D` - Dashboard,
+  `H` - History, `R` - Recent changes, `Y` - Orphans, `t` - Stats,
+  `X` - Context
 
-See `docs/ui-redesign.md` for the full entry-point and navigation contract.
+**Manage:**
+- `L` - Labels, `k` - Dolt, `.` - Config, `W` - Worktrees
+
+**Maintenance** (also `!`):
+- `!` - Maintenance (`beads-maintenance`)
+- `g` - Refresh cache (`beads-refresh-menu`)
+
+The full, test-enforced key contract lives in `docs/key-registry.md`.
 
 ### Issue List Mode
 
-When viewing issue lists (via `beads-list`, `beads-ready`, `beads-blocked`):
+When viewing issue lists (via `beads-list-all`, `beads-ready`, `beads-blocked`):
 
 **Navigation:**
 - `n` / `p` - Next/previous issue
 - `TAB` / `S-TAB` - Next/previous row (wraps)
 - `SPC` - Show the issue at point in another window, or close it again
-- `RET` / `s` - Show issue details
+- `RET` - Show issue details
+- `s` - Set status
 - `g` - Refresh list
 - `q` - Quit buffer
 
@@ -215,7 +222,7 @@ When viewing issue lists (via `beads-list`, `beads-ready`, `beads-blocked`):
 **Marking:**
 - `m` - Mark issue
 - `u` - Unmark issue
-- `M` - Mark all
+- `* !` - Mark all
 - `U` - Unmark all
 
 ### Issue Show Mode
@@ -495,20 +502,19 @@ Full example with customization and keybindings:
 | Command        | Default Key | Context    | Description           |
 |----------------|-------------|------------|-----------------------|
 | `beads`        | -           | Global     | Open main menu        |
-| `beads-list`   | `l`         | Main menu  | List all issues       |
-| `beads-ready`  | `r`         | Main menu  | Show ready issues     |
-| `beads-blocked`| `b`         | Main menu  | Show blocked issues   |
-| `beads-show`   | `s` or `RET`| List mode  | Show issue details    |
-| `beads-create` | `c`         | Main menu  | Create new issue      |
-| `beads-update` | `u`         | Main menu  | Update issue          |
-| `beads-close`  | `x`         | Main menu  | Close issue           |
-| `beads-dep`    | `d`         | Main menu  | Dependency submenu    |
-| `beads-stats`  | `S`         | Main menu  | Show statistics       |
-| `beads-export` | `e`         | Main menu  | Export to JSONL       |
-| `beads-import` | `i`         | Main menu  | Import from JSONL     |
-| `beads-init`   | `I`         | Main menu  | Initialize project    |
-| `beads-worktree-menu` | `W`  | Main menu  | Worktree management   |
-| `beads-agent-sling` | `w`    | Agent menu | Sling to worktree     |
+| `beads-list-all` | `l`       | Dispatch   | List all issues       |
+| `beads-ready`  | `r`         | Dispatch   | Show ready issues     |
+| `beads-blocked`| `b`         | Dispatch   | Show blocked issues   |
+| `beads-show`   | `i`         | Dispatch   | Show a specific issue |
+| `beads-show`   | `RET`       | List mode  | Show issue at point   |
+| `beads-create` | `c`         | Dispatch   | Create new issue      |
+| `beads-update` | `u`         | Dispatch   | Update issue          |
+| `beads-close`  | `x`         | Dispatch   | Close issue (menu)    |
+| `beads-close`  | `d`         | List/show  | Close issue at point  |
+| `beads-dep`    | `d`         | Dispatch   | Dependency submenu    |
+| `beads-reopen` | `o`         | Dispatch   | Reopen issue          |
+| `beads-stats`  | `t`         | Dispatch   | Show statistics       |
+| `beads-maintenance` | `!`    | Dispatch   | Maintenance submenu   |
 
 Within list/show buffers:
 - `n` / `p` - Navigate
@@ -850,10 +856,10 @@ Or upgrade to Emacs 28+ where transient is built-in.
 
 beads.el layers a keyboard-first **porcelain** over the `bd` CLI.  `bd`
 is the plumbing; every view is a function of `bd … --json` output, and no
-bd logic is reimplemented.  The long-form description, the extension
-seam list, and the removed-surface inventory live in
-[`docs/ui-redesign.md`](docs/ui-redesign.md); the design record is
-`plans/beads-ui-redesign/design.md` (PR #67).
+bd logic is reimplemented.  The long-form description and extension seam
+list live in [`AGENTS.md`](AGENTS.md) (mirrored by `CLAUDE.md`); the
+enforced key contract is in [`docs/key-registry.md`](docs/key-registry.md),
+and the design record is `plans/beads-ui-redesign/design.md` (PR #67).
 
 The follow-on plan,
 [`plans/beads-standalone-formulas/`](plans/beads-standalone-formulas/), makes
@@ -922,7 +928,7 @@ lisp/
 
 - `M-x beads` → `beads-dashboard` (the full board); `?` → `beads-dispatch`
   (the same menu in every beads buffer); `!` → `beads-maintenance`.
-- `M-x beads-list` / `beads-show` are the list and detail views.
+- `M-x beads-list-all` / `beads-show` are the list and detail views.
 - Reserved keys: `q` bury, `g`/`C-u g` refresh/hard-refresh, `TAB`/`S-TAB`
   move, `SPC` toggle, `RET` visit, `n`/`p` item, `N`/`P` section, `?`
   dispatch, `/` filter.

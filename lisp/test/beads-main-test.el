@@ -411,8 +411,9 @@ by checking if the function is available after requiring beads."
   (should (featurep 'beads-command-create)))
 
 (ert-deftest beads-main-test-list-command-available ()
-  "Test that beads-list command is available from menu."
-  (should (fboundp 'beads-list)))
+  "Test that the beads-list entry point is available from menu."
+  (should (fboundp 'beads-list-filters))
+  (should (fboundp 'beads-list-all)))
 
 (ert-deftest beads-main-test-ready-command-available ()
   "Test that beads-ready command is available from menu."
@@ -630,7 +631,7 @@ by checking if the function is available after requiring beads."
 (ert-deftest beads-main-test-core-issues-commands-in-main ()
   "Test that core issue commands are directly in main dispatch."
   ;; These should be top-level commands accessible from the main menu
-  (should (fboundp 'beads-list))
+  (should (fboundp 'beads-list-filters))
   (should (fboundp 'beads-create))
   (should (fboundp 'beads-show))
   (should (fboundp 'beads-update))
@@ -654,7 +655,7 @@ by checking if the function is available after requiring beads."
   "Test that all commands from original flat menu are still defined.
 This ensures no functionality was lost during refactoring."
   ;; Issue operations
-  (should (fboundp 'beads-list))
+  (should (fboundp 'beads-list-filters))
   (should (fboundp 'beads-create))
   (should (fboundp 'beads-show))
   (should (fboundp 'beads-update))

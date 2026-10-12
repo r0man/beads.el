@@ -1089,7 +1089,7 @@ does not check whether fields have actually changed."
       ;; No beads-list--command-obj bound
       (let ((beads-list--command-obj nil))
         (beads-list-filter)
-        (should (eq called #'beads-list))))))
+        (should (eq called #'beads-list-filters))))))
 
 ;;; ============================================================
 ;;; beads-agent.el - Agent at Point Tests

@@ -156,50 +156,6 @@ May signal user-error (validation) or invalid-slot-type (EIEIO)."
     ;; Should fail with user-error because reason is required
     (should-error (beads-close--execute) :type 'user-error)))
 
-;;; Tests for Preview
-
-(ert-deftest beads-close-test-preview-valid ()
-  "Test preview command with valid parameters."
-  (let ((message-output nil))
-    (cl-letf (((symbol-function 'transient-args)
-               (lambda (_prefix) '("--id=bd-42" "--reason=Fixed")))
-              ((symbol-function 'message)
-               (lambda (fmt &rest args)
-                 (setq message-output (apply #'format fmt args)))))
-      ;; Preview displays message (returns nil but shows output)
-      (beads-close--preview)
-      (should (stringp message-output)))))
-
-(ert-deftest beads-close-test-preview-validation-failure ()
-  "Test preview handles invalid input gracefully.
-May signal error (EIEIO type check) or show validation message."
-  (let ((message-output nil))
-    (cl-letf (((symbol-function 'transient-args)
-               (lambda (_prefix) '("--id=")))
-              ((symbol-function 'message)
-               (lambda (fmt &rest args)
-                 (setq message-output (apply #'format fmt args)))))
-      (condition-case _err
-          (progn
-            (beads-close--preview)
-            ;; If we get here, preview showed validation message
-            (should (stringp message-output))
-            (should (string-match-p "Validation" message-output)))
-        ;; EIEIO type check may fire before validation
-        (invalid-slot-type t)))))
-
-(ert-deftest beads-close-test-preview-without-reason ()
-  "Test preview without reason."
-  (let ((message-output nil))
-    (cl-letf (((symbol-function 'transient-args)
-               (lambda (_prefix) '("--id=bd-42")))
-              ((symbol-function 'message)
-               (lambda (fmt &rest args)
-                 (setq message-output (apply #'format fmt args)))))
-      ;; Preview shows validation errors (reason is required)
-      (beads-close--preview)
-      (should (stringp message-output)))))
-
 ;;; Tests for Transient Definition
 
 (ert-deftest beads-close-test-transient-defined ()
@@ -218,8 +174,7 @@ May signal error (EIEIO type check) or show validation message."
 (ert-deftest beads-close-test-suffix-commands-defined ()
   "Test that all suffix commands are defined."
   (should (fboundp 'beads-close--execute))
-  (should (fboundp 'beads-close--reset))
-  (should (fboundp 'beads-close--preview)))
+  (should (fboundp 'beads-close--reset)))
 
 ;;; Integration Tests
 

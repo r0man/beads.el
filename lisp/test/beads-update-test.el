@@ -214,12 +214,6 @@
   "Test that beads-update--menu is a transient prefix."
   (should (get 'beads-update--menu 'transient--prefix)))
 
-(ert-deftest beads-update-test-suffix-commands-defined ()
-  "Test that all suffix commands are defined."
-  (should (fboundp 'beads-update--execute))
-  (should (fboundp 'beads-update--reset))
-  (should (fboundp 'beads-update--preview)))
-
 ;;; Edge Cases
 
 (ert-deftest beads-update-test-edge-case-unicode-title ()
@@ -383,41 +377,6 @@
         (should (string-match-p "Failed to update issue" result))))))
 
 ;;; Tests for Preview Command
-
-(ert-deftest beads-update-test-preview-success ()
-  "Test that preview returns command string."
-  (let ((beads-update--issue-id "bd-42")
-        (beads-update--original-data beads-update-test--sample-issue))
-    (cl-letf (((symbol-function 'transient-args)
-               (lambda (_) '("--status=in_progress")))
-              ((symbol-function 'beads-command-line)
-               (lambda (_) '("update" "--status=in_progress" "bd-42"))))
-      (let ((result (beads-update--preview)))
-        (should result)
-        (should (string-match-p "Command:" result))
-        (should (string-match-p "Changes:" result))))))
-
-(ert-deftest beads-update-test-preview-validation-error ()
-  "Test that preview returns validation error message."
-  (let ((beads-update--issue-id nil)  ; Missing ID triggers validation error
-        (beads-update--original-data beads-update-test--sample-issue))
-    (cl-letf (((symbol-function 'transient-args)
-               (lambda (_) nil)))
-      (let ((result (beads-update--preview)))
-        (should result)
-        (should (string-match-p "Validation errors" result))))))
-
-(ert-deftest beads-update-test-preview-handles-error ()
-  "Test that preview handles errors gracefully."
-  (let ((beads-update--issue-id "bd-42")
-        (beads-update--original-data beads-update-test--sample-issue))
-    (cl-letf (((symbol-function 'transient-args)
-               (lambda (_) '("--status=in_progress")))
-              ((symbol-function 'beads-command-line)
-               (lambda (_) (error "Build failed"))))
-      (let ((result (beads-update--preview)))
-        (should result)
-        (should (string-match-p "Error:" result))))))
 
 ;;; Tests for Fetch Issue
 
@@ -620,31 +579,6 @@ Regression test for bug bde-6d0v."
         (should (member "--status" cmd-line))))))
 
 ;;; Regression Tests for Bug bde-z65s
-
-(ert-deftest beads-update-test-transient-args-uses-correct-prefix ()
-  "Test that execute and preview use correct transient prefix name.
-Regression test for bug bde-z65s: 'Not a transient prefix: beads-update'."
-  (let ((beads-update--issue-id "bd-42")
-        (beads-update--original-data beads-update-test--sample-issue)
-        (beads-auto-refresh nil)
-        (transient-args-called-with nil))
-    ;; Mock transient-args to capture what it's called with
-    (cl-letf (((symbol-function 'transient-args)
-               (lambda (prefix)
-                 (setq transient-args-called-with prefix)
-                 '("--status=in_progress")))
-              ((symbol-function 'beads-command-execute)
-               (lambda (_cmd) beads-update-test--sample-issue))
-              ((symbol-function 'beads--invalidate-completion-cache) #'ignore))
-      ;; Test execute
-      (beads-update--execute)
-      (should (eq transient-args-called-with 'beads-update--menu))
-      ;; Reset and test preview
-      (setq transient-args-called-with nil)
-      (cl-letf (((symbol-function 'beads-command-line)
-                 (lambda (_) '("update" "bd-42" "--status" "in_progress"))))
-        (beads-update--preview)
-        (should (eq transient-args-called-with 'beads-update--menu))))))
 
 ;;; Tests for beads-command-update parse method
 

@@ -1531,18 +1531,6 @@ Uses directory-aware buffer identity: same project = same buffer."
     (transient--redisplay)
     (message "All filters reset")))
 
-(transient-define-suffix beads-list--transient-preview ()
-  "Preview the bd list command that will be executed."
-  :key "P"
-  :description "Preview command"
-  :transient t
-  (interactive)
-  (let* ((args (transient-args 'beads-list-advanced))
-         (command (beads-list--parse-transient-args args))
-         (cmd-line (beads-command-line command))
-         (cmd-string (mapconcat #'shell-quote-argument cmd-line " ")))
-    (message "Command: %s" cmd-string)))
-
 ;;; Transient Groups
 
 (beads-define-group beads-list--basic-filters-section
@@ -1588,13 +1576,16 @@ Uses directory-aware buffer identity: same project = same buffer."
 
 ;;; Main Transient (Pattern 2: switch-based with curated infixes)
 
-;;;###autoload (autoload 'beads-list "beads-command-list" nil t)
-(beads-define-prefix beads-list ()
-  "List issues with filters.
+;;;###autoload (autoload 'beads-list-filters "beads-command-list" nil t)
+(beads-define-prefix beads-list-filters ()
+  "Filter issues before listing.
 
-A magit-style switch-based transient for listing issues.
-Type l l to list all issues, or toggle filters first:
-l -s open l  — list only open issues."
+A magit-style switch-based transient for listing issues.  Toggle
+filters first, then press l to list all matching issues:
+l -s open l  — list only open issues.
+
+The dispatch `l' opens `beads-list-all' directly; this transient is
+reached from a list buffer when further filtering is needed."
   ["Filters"
    ("-s" "Status" "--status="
     :choices ("open" "closed" "in_progress" "blocked" "deferred"))
@@ -1640,7 +1631,6 @@ Transient levels control which filter groups are visible
   beads-option-global-section
   ["Actions"
    ("x" "List issues" beads-list--transient-execute)
-   ("P" "Preview command" beads-list--transient-preview)
    ("R" "Reset all filters" beads-list--transient-reset)])
 
 ;;; Commands
@@ -2040,7 +2030,7 @@ the flat mode, defer to the `tabulated-list-mode' built-in sorting."
   (beads-list--refresh beads-list-default-spec))
 
 (defun beads-list-filter ()
-  "Open beads-list transient menu with current filter pre-selected.
+  "Open the filter transient with the current filter pre-selected.
 If in a beads-list buffer, the current spec is used to pre-populate
 the transient menu options."
   (interactive)
@@ -2072,23 +2062,25 @@ the transient menu options."
       (let ((slot 'ready-only))
         (when (slot-value spec slot)
           (push "--ready" args)))
-      (put 'beads-list 'transient--value (nreverse args))))
+      (put 'beads-list-filters 'transient--value (nreverse args))))
   ;; Open the transient menu
-  (call-interactively #'beads-list))
+  (call-interactively #'beads-list-filters))
 
 ;;; Pattern 2 Suffix Commands
 
+;;;###autoload
 (defun beads-list-all ()
   "List all issues using current transient filter values.
 Converts transient args to a `beads-issue-spec' and refreshes the
-list buffer.  This is the primary suffix for the Pattern 2
-`beads-list' transient."
+list buffer.  This is the primary entry point for listing issues:
+the dispatch binds `l' directly to it, and it is the `l' suffix of
+the `beads-list-filters' transient."
   (interactive)
   (require 'beads-spec)
   (beads-check-executable)
   (let* ((caller-dir default-directory)
          (project-dir (or (beads--project-root) default-directory))
-         (args (transient-args 'beads-list))
+         (args (transient-args 'beads-list-filters))
          (spec (beads--transient-args-to-spec args))
          (buffer (beads-list--get-or-create-buffer 'list)))
     (with-current-buffer buffer
@@ -2109,7 +2101,7 @@ With DIRECTORY non-nil, list the bead store at DIRECTORY and scope the
 buffer to it (`beads-store-directory', see `beads-show'); without it,
 a call from a store-scoped buffer inherits its store, else the store
 resolves from `default-directory'.  This is the entry point for
-consumers; the `beads-list' transient reads its arguments later, from
+consumers; the `beads-list-filters' transient reads its arguments later, from
 the buffer it was opened in."
   (require 'beads-spec)
   (beads-check-executable)
@@ -2135,13 +2127,13 @@ the buffer it was opened in."
 
 (defun beads-list-ready-suffix ()
   "List ready (unblocked) issues.
-This is a convenience suffix in the `beads-list' transient."
+This is a convenience suffix in the `beads-list-filters' transient."
   (interactive)
   (beads-ready))
 
 (defun beads-list-closed-suffix ()
   "List closed issues.
-This is a convenience suffix in the `beads-list' transient."
+This is a convenience suffix in the `beads-list-filters' transient."
   (interactive)
   (require 'beads-spec)
   (beads-check-executable)
@@ -2161,11 +2153,23 @@ This is a convenience suffix in the `beads-list' transient."
 
 (defun beads-list-blocked-suffix ()
   "List blocked issues.
-This is a convenience suffix in the `beads-list' transient."
+This is a convenience suffix in the `beads-list-filters' transient."
   (interactive)
   (beads-blocked))
 
 ;;; Bulk Operations
+
+(defun beads-list--bulk-confirmation (verb ids)
+  "Return a confirmation prompt for applying VERB to IDS.
+Lists the affected issue ids (capped at ten) so a large marked set
+is visible before a destructive bulk mutation runs."
+  (let* ((count (length ids))
+         (shown (seq-take ids 10))
+         (more (- count (length shown))))
+    (format "%s %d issue%s?\n  %s%s"
+            verb count (if (= count 1) "" "s")
+            (mapconcat #'identity shown ", ")
+            (if (> more 0) (format " (+%d more)" more) ""))))
 
 (defun beads-list-bulk-update-status ()
   "Update status for all marked issues."
@@ -2244,8 +2248,8 @@ This is a convenience suffix in the `beads-list' transient."
     (let ((reason (read-string
                    (format "Reason for closing %d issue(s): "
                           (length beads-list--marked-issues)))))
-      (when (y-or-n-p (format "Close %d issue(s)? "
-                             (length beads-list--marked-issues)))
+      (when (y-or-n-p (beads-list--bulk-confirmation
+                       "Close" beads-list--marked-issues))
         (let ((success-count 0)
               (fail-count 0))
           (dolist (id beads-list--marked-issues)
@@ -2275,8 +2279,8 @@ This is a convenience suffix in the `beads-list' transient."
     (let ((reason (read-string
                    (format "Reason for reopening %d issue(s): "
                           (length beads-list--marked-issues)))))
-      (when (y-or-n-p (format "Reopen %d issue(s)? "
-                             (length beads-list--marked-issues)))
+      (when (y-or-n-p (beads-list--bulk-confirmation
+                       "Reopen" beads-list--marked-issues))
         (let ((success-count 0)
               (fail-count 0))
           (dolist (id beads-list--marked-issues)
@@ -2405,7 +2409,6 @@ Uses an idle timer to debounce rapid navigation, similar to
 
     ;; Pattern 1 context-aware actions (mark-aware, prompt inline)
     (define-key map (kbd "d") #'beads-actions-close)       ; close (prompt for reason)
-    (define-key map (kbd "k") #'beads-actions-close)       ; close (alternative)
     (define-key map (kbd "o") #'beads-actions-reopen)      ; reopen
     (define-key map (kbd "C") #'beads-actions-claim)       ; claim
     (define-key map (kbd "s") #'beads-actions-set-status)  ; set status

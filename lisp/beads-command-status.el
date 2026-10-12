@@ -38,7 +38,6 @@
 
 ;;; Status Command
 
-;;;###autoload (autoload 'beads-status "beads-command-status" nil t)
 (beads-defcommand beads-command-status (beads-command-global-options)
   ((all-issues
     :long-option "all"
@@ -67,9 +66,13 @@
     :order 4
     :documentation "Skip blocked-count computation (faster on large rigs;
 not supported in proxied-server mode)"))
-  :documentation "Represents bd status command.
+  :transient nil
+  :documentation "Status snapshot (bd status) command.
 Shows a quick snapshot of the issue database state and statistics.
-When executed with :json t, returns status data as JSON.")
+This is an internal helper behind `beads-stats' and the dashboard
+stats strip, not a front-door entry point; it is not exposed as its
+own transient.  When executed with :json t, returns status data as
+JSON.")
 
 ;;; ============================================================
 ;;; Stats Interactive UI
@@ -380,7 +383,7 @@ interactive clickable numbers."
       (insert (format "%d\n" (oref activity issues-updated))))
 
     ;; Footer
-    (insert "\n For more details, use M-x beads-list to see issues.\n"))
+    (insert "\n For more details, use M-x beads-list-all to see issues.\n"))
 
   ;; Position point on first button (Total Issues)
   (goto-char (point-min))

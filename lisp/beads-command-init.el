@@ -371,17 +371,6 @@ Returns list of error messages, or nil if all valid."
            (beads--error "Failed to initialize: %s"
                          (error-message-string err))))))))
 
-(transient-define-suffix beads-init--preview ()
-  "Preview the bd init command without executing it."
-  :key "P"
-  :description "Preview command"
-  :transient t
-  (interactive)
-  (let* ((args (transient-args 'beads-init))
-         (cmd (beads-init--parse-transient-args args))
-         (cmd-line (beads-command-line cmd)))
-    (message "Command: %s" (string-join cmd-line " "))))
-
 (transient-define-suffix beads-init--reset ()
   "Reset all init parameters."
   :key "R"
@@ -422,7 +411,6 @@ the initialization."
     (beads-option-init-skip-hooks)]]
   ["Actions"
    (beads-init--execute)
-   (beads-init--preview)
    (beads-init--reset)])
 
 ;;; Bootstrap Command

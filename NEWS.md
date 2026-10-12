@@ -4,6 +4,41 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### magit/forge-parity UX cleanup (F2, F3, F5, F7, F8, F9, F10, F11)
+
+* **Key registry.** New `docs/key-registry.md` records the beads half of
+the shared cross-package key contract; `lisp/test/beads-key-registry-test.el`
+asserts the *effective* binding of every reserved key so a parent
+redefinition cannot silently re-point it (F1/F11).
+* **One close key.** `k` no longer closes; `d` is the close key in list
+and show buffers, and `x` is clear-filter in the list only (F8).
+* **`beads-list` entry point.** The filter transient is renamed
+`beads-list-filters`; the dispatch `l` now opens `beads-list-all`
+directly, so one key opens the list and `/`/`l` reach the filters (F3).
+* **Maintenance levels.** `beads-maintenance` gets `:level`-tagged groups
+(1 daily, 3 database/structure/data, 5 integrations, 7 setup) and its
+Integrations/Setup groups move to the `beads-integrations-menu` and
+`beads-setup-menu` sub-dispatchers reached with `n`/`I` (F5).
+* **Bulk safety.** Bulk close/reopen list the affected ids in their
+confirmation prompt (F10).
+* **Discoverability.** The dashboard footer now advertises `? dispatch`
+(F7).
+* **Docs truth.** README dispatch tables and `MAGIT_PATTERNS.md` buffer
+names corrected; `docs/ui-redesign.md` retired in favour of
+`AGENTS.md`, `docs/key-registry.md`, and
+`plans/beads-ui-redesign/design.md` (F2/F9).
+* **API:** the static "Preview command" suffixes are gone: the generated
+transients, `beads-command-preview`, and the per-command `--preview`
+suffixes (`beads-create--preview`, `beads-update--preview`,
+`beads-dep-{add,remove}--preview`, `beads-edit--preview`,
+`beads-init--preview`, `beads-label-{add,remove}--preview`,
+`beads-list--transient-preview`) are removed, and raw `bd` command lines
+are no longer echoed.  Interactive previews (`beads-delete-preview`,
+`beads-bond-preview`, `beads-cook-preview`, agent prompt previews,
+sling previews) are unchanged.  `beads-status` is now an internal
+helper (`:transient nil`) behind `beads-stats`/the dashboard; the class
+and `bd status --json` parsing remain.
+
 ### Async command failures no longer crash the error path (WI-LIVE-21)
 
 A failed asynchronous `bd` command hands its `ON-ERROR` callback a

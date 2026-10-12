@@ -138,25 +138,13 @@
 
 ;;; Transient Tests
 
-(ert-deftest beads-command-status-test-transient-defined ()
-  "Test that beads-status transient prefix is defined."
-  (should (fboundp 'beads-status)))
-
-(ert-deftest beads-command-status-test-transient-is-prefix ()
-  "Test that beads-status is a transient prefix."
-  (should (get 'beads-status 'transient--prefix)))
-
-(ert-deftest beads-command-status-test-execute-suffix-defined ()
-  "Test that execute suffix is defined."
-  (should (fboundp 'beads-status--execute)))
-
-(ert-deftest beads-command-status-test-preview-suffix-defined ()
-  "Test that preview suffix is defined."
-  (should (fboundp 'beads-status--preview)))
-
-(ert-deftest beads-command-status-test-reset-suffix-defined ()
-  "Test that reset suffix is defined."
-  (should (fboundp 'beads-status--reset)))
+(ert-deftest beads-command-status-test-no-user-facing-transient ()
+  "Test that bd status is an internal helper, not a transient prefix.
+The dashboard stats strip and `beads-stats' consume the command class
+directly; `beads-status' is deliberately not exposed as its own
+transient (F6)."
+  (should-not (fboundp 'beads-status))
+  (should-not (get 'beads-status 'transient--prefix)))
 
 (provide 'beads-command-status-test)
 ;;; beads-command-status-test.el ends here

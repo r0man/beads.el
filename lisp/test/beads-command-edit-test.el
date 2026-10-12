@@ -128,11 +128,6 @@
   :tags '(:unit)
   (should (fboundp 'beads-edit--execute)))
 
-(ert-deftest beads-command-edit-test-suffix-preview-defined ()
-  "Unit test: preview suffix is defined."
-  :tags '(:unit)
-  (should (fboundp 'beads-edit--preview)))
-
 (ert-deftest beads-command-edit-test-suffix-reset-defined ()
   "Unit test: reset suffix is defined."
   :tags '(:unit)

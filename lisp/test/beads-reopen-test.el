@@ -147,35 +147,6 @@ May signal user-error (validation) or invalid-slot-type (EIEIO)."
                (beads-reopen-test--mock-call-process 0 json-output)))
       (should-not (beads-reopen--execute)))))
 
-;;; Tests for Preview
-
-(ert-deftest beads-reopen-test-preview-valid ()
-  "Test preview command with valid parameters."
-  (let ((message-output nil))
-    (cl-letf (((symbol-function 'transient-args)
-               (lambda (_prefix) '("--id=bd-42")))
-              ((symbol-function 'message)
-               (lambda (fmt &rest args)
-                 (setq message-output (apply #'format fmt args)))))
-      (beads-reopen--preview)
-      (should (stringp message-output)))))
-
-(ert-deftest beads-reopen-test-preview-validation-failure ()
-  "Test preview handles invalid input gracefully.
-May signal error (EIEIO type check) or show validation message."
-  (let ((message-output nil))
-    (cl-letf (((symbol-function 'transient-args)
-               (lambda (_prefix) '("--id=")))
-              ((symbol-function 'message)
-               (lambda (fmt &rest args)
-                 (setq message-output (apply #'format fmt args)))))
-      (condition-case _err
-          (progn
-            (beads-reopen--preview)
-            (should (stringp message-output))
-            (should (string-match-p "Validation" message-output)))
-        (invalid-slot-type t)))))
-
 ;;; Tests for Transient Definition
 
 (ert-deftest beads-reopen-test-transient-defined ()
@@ -194,8 +165,7 @@ May signal error (EIEIO type check) or show validation message."
 (ert-deftest beads-reopen-test-suffix-commands-defined ()
   "Test that all suffix commands are defined."
   (should (fboundp 'beads-reopen--execute))
-  (should (fboundp 'beads-reopen--reset))
-  (should (fboundp 'beads-reopen--preview)))
+  (should (fboundp 'beads-reopen--reset)))
 
 ;;; Integration Tests
 

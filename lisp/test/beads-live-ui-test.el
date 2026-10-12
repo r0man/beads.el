@@ -186,7 +186,7 @@ Signals an error if the transient fails to open."
   (skip-unless (beads-live-test--interactive-p))
   (skip-unless (executable-find beads-executable))
   (beads-test-with-temp-repo (:init-beads t)
-    (should (beads-live-test--open-transient-and-quit 'beads-list))))
+    (should (beads-live-test--open-transient-and-quit 'beads-list-filters))))
 
 ;;; ============================================================
 ;;; Scenario 4: Show Issue and Action Menu
