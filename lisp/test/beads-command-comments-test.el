@@ -90,8 +90,7 @@
 (ert-deftest beads-comments-test-suffix-commands-defined ()
   "Test that all suffix commands are defined."
   (should (fboundp 'beads-comments--execute))
-  (should (fboundp 'beads-comments--reset))
-  (should (fboundp 'beads-comments--preview)))
+  (should (fboundp 'beads-comments--reset)))
 
 ;;; ============================================================
 ;;; Tests for beads-command-comments-add
@@ -199,8 +198,7 @@
 (ert-deftest beads-comments-add-test-suffix-commands-defined ()
   "Test that all suffix commands are defined."
   (should (fboundp 'beads-comments-add--execute))
-  (should (fboundp 'beads-comments-add--reset))
-  (should (fboundp 'beads-comments-add--preview)))
+  (should (fboundp 'beads-comments-add--reset)))
 
 ;;; ============================================================
 ;;; Tests for Parent Menu

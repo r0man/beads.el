@@ -213,11 +213,6 @@ ARGS should be a list of strings like (\"--prefix=myproj\" \"--db=foo\")."
   (should (commandp 'beads-init--execute))
   (should (get 'beads-init--execute 'transient--suffix)))
 
-(ert-deftest beads-init-test-suffix-preview-defined ()
-  "Test that preview suffix is defined."
-  (should (commandp 'beads-init--preview))
-  (should (get 'beads-init--preview 'transient--suffix)))
-
 (ert-deftest beads-init-test-suffix-reset-defined ()
   "Test that reset suffix is defined."
   (should (commandp 'beads-init--reset))
@@ -401,20 +396,6 @@ ARGS should be a list of strings like (\"--prefix=myproj\" \"--db=foo\")."
                (lambda (_fmt &rest _args) (setq error-called t))))
       (beads-init--execute)
       (should error-called))))
-
-(ert-deftest beads-init-test-preview-suffix-shows-command ()
-  "Test preview suffix displays command."
-  :tags '(:unit)
-  (let ((message-output nil))
-    (cl-letf (((symbol-function 'transient-args)
-               (lambda (_prefix) '("--prefix=proj" "--db=/tmp/x.db")))
-              ((symbol-function 'message)
-               (lambda (fmt &rest args)
-                 (setq message-output (apply #'format fmt args)))))
-      (beads-init--preview)
-      (should message-output)
-      (should (string-match-p "init" message-output))
-      (should (string-match-p "--prefix" message-output)))))
 
 (ert-deftest beads-init-test-reset-suffix-confirmed ()
   "Test reset suffix when user confirms."

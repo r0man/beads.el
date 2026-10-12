@@ -944,9 +944,10 @@ sectioned layout is exercised by the dedicated grouping tests."
     (should tabulated-list-format)))
 
 (ert-deftest beads-list-test-list-command-exists ()
-  "Integration test: Verify beads-list command exists."
+  "Integration test: Verify the beads-list entry points exist."
   :tags '(:integration)
-  (should (fboundp 'beads-list)))
+  (should (fboundp 'beads-list-all))
+  (should (fboundp 'beads-list-filters)))
 
 (ert-deftest beads-list-test-ready-command-exists ()
   "Integration test: Verify beads-ready command exists."
@@ -1185,19 +1186,6 @@ Multiple agents are joined by a faint single-space separator."
 
 ;;; Transient Menu Integration Tests
 
-(ert-deftest beads-list-test-transient-menu-displays ()
-  "Integration test: Verify beads-list transient is properly defined.
-Tests that the transient prefix and its suffixes are correctly set up."
-  :tags '(:integration :transient)
-  ;; Verify beads-list is a transient prefix
-  (should (get 'beads-list 'transient--prefix))
-  ;; Verify the execute suffix is defined and has correct key
-  (should (fboundp 'beads-list--transient-execute))
-  ;; Verify the preview suffix is defined
-  (should (fboundp 'beads-list--transient-preview))
-  ;; Verify the reset suffix is defined
-  (should (fboundp 'beads-list--transient-reset)))
-
 (ert-deftest beads-list-test-transient-menu-executes ()
   "Integration test: Verify beads-list execute suffix works correctly.
 Tests that executing with mocked transient-args creates a list buffer."
@@ -1235,26 +1223,6 @@ Tests that executing with mocked transient-args creates a list buffer."
       (should (> (length tabulated-list-entries) 0)))
     ;; Clean up
     (kill-buffer "*beads-list[testproj]*")))
-
-(ert-deftest beads-list-test-transient-menu-preview ()
-  "Integration test: Verify beads-list preview suffix displays command.
-Tests that the preview command shows the bd command that would be executed."
-  :tags '(:integration :transient)
-  (cl-letf (((symbol-function 'beads-check-executable)
-             (lambda () t)))
-    (let ((message-shown nil))
-      ;; Mock message to capture what preview outputs
-      (cl-letf (((symbol-function 'message)
-                 (lambda (fmt &rest args)
-                   (when (string-match-p "^Command:" fmt)
-                     (setq message-shown (apply #'format fmt args))))))
-        ;; Mock transient-args and call preview directly
-        (beads-test-with-transient-args 'beads-list '("--status=open")
-          (beads-list--transient-preview)))
-      ;; Verify message was shown with command
-      (should message-shown)
-      (should (string-match-p "bd" message-shown))
-      (should (string-match-p "list" message-shown)))))
 
 ;; Transient menu with filters test removed - requires complex transient state
 ;; mocking. Basic transient functionality is covered by other transient tests
@@ -2123,8 +2091,9 @@ surfaces in help-echo."
 ;;; Entry Point Tests
 
 (ert-deftest beads-list-test-main-entry-defined ()
-  "Test that main entry point is defined."
-  (should (fboundp 'beads-list)))
+  "Test that the list entry points are defined."
+  (should (fboundp 'beads-list-all))
+  (should (fboundp 'beads-list-filters)))
 
 (ert-deftest beads-list-test-refresh-defined ()
   "Test that refresh is defined."

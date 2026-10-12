@@ -347,25 +347,6 @@
     (should-error (beads-label-add--execute)
                   :type 'user-error)))
 
-(ert-deftest beads-label-add-test-preview-success ()
-  "Test label add preview with valid parameters."
-  (beads-test-with-transient-args 'beads-label-add
-      '("--issue-ids=bd-1" "--label=urgent")
-    (let ((result (beads-label-add--preview)))
-      (should (stringp result))
-      (should (string-match-p "label" result))
-      (should (string-match-p "add" result))
-      (should (string-match-p "bd-1" result))
-      (should (string-match-p "urgent" result)))))
-
-(ert-deftest beads-label-add-test-preview-validation-error ()
-  "Test label add preview with validation errors."
-  (beads-test-with-transient-args 'beads-label-add
-      '("--issue-ids=" "--label=")
-    (let ((result (beads-label-add--preview)))
-      (should (stringp result))
-      (should (string-match-p "Validation" result)))))
-
 ;; beads-label-remove-test-execute-success removed - integration test requiring
 ;; full bd setup which is not available in batch mode. Execute functionality
 ;; is covered by unit tests of individual components.
@@ -376,25 +357,6 @@
       '("--issue-ids=" "--label=")
     (should-error (beads-label-remove--execute)
                   :type 'user-error)))
-
-(ert-deftest beads-label-remove-test-preview-success ()
-  "Test label remove preview with valid parameters."
-  (beads-test-with-transient-args 'beads-label-remove
-      '("--issue-ids=bd-1,bd-2" "--label=backend")
-    (let ((result (beads-label-remove--preview)))
-      (should (stringp result))
-      (should (string-match-p "label" result))
-      (should (string-match-p "remove" result))
-      (should (string-match-p "bd-1" result))
-      (should (string-match-p "backend" result)))))
-
-(ert-deftest beads-label-remove-test-preview-validation-error ()
-  "Test label remove preview with validation errors."
-  (beads-test-with-transient-args 'beads-label-remove
-      '("--issue-ids=" "--label=")
-    (let ((result (beads-label-remove--preview)))
-      (should (stringp result))
-      (should (string-match-p "Validation" result)))))
 
 ;;; ============================================================
 ;;; Label List Tests
@@ -626,47 +588,6 @@
                (lambda (_fmt &rest _args) nil)))
       (beads-label-remove--reset)
       (should reset-called))))
-
-(ert-deftest beads-label-test-add-preview-valid ()
-  "Test label add preview with valid args."
-  :tags '(:unit)
-  (let ((message-output nil))
-    (cl-letf (((symbol-function 'transient-args)
-               (lambda (_prefix)
-                 '("--issue-ids=bd-1" "--label=bug")))
-              ((symbol-function 'message)
-               (lambda (fmt &rest args)
-                 (setq message-output (apply #'format fmt args)))))
-      (beads-label-add--preview)
-      (should message-output)
-      (should (string-match-p "label" message-output)))))
-
-(ert-deftest beads-label-test-add-preview-invalid ()
-  "Test label add preview with invalid args."
-  :tags '(:unit)
-  (let ((message-output nil))
-    (cl-letf (((symbol-function 'transient-args)
-               (lambda (_prefix) '()))
-              ((symbol-function 'message)
-               (lambda (fmt &rest args)
-                 (setq message-output (apply #'format fmt args)))))
-      (let ((result (beads-label-add--preview)))
-        (should (stringp result))
-        (should (string-match-p "Validation errors" result))))))
-
-(ert-deftest beads-label-test-remove-preview-valid ()
-  "Test label remove preview with valid args."
-  :tags '(:unit)
-  (let ((message-output nil))
-    (cl-letf (((symbol-function 'transient-args)
-               (lambda (_prefix)
-                 '("--issue-ids=bd-1" "--label=bug")))
-              ((symbol-function 'message)
-               (lambda (fmt &rest args)
-                 (setq message-output (apply #'format fmt args)))))
-      (beads-label-remove--preview)
-      (should message-output)
-      (should (string-match-p "label" message-output)))))
 
 ;;; Tests for label-add validation
 

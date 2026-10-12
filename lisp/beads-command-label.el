@@ -414,27 +414,6 @@ Returns list of arguments for bd label add command."
     (transient--redisplay)
     (message "All fields reset")))
 
-(transient-define-suffix beads-label-add--preview ()
-  "Preview the bd label add command that will be executed."
-  :key "P"
-  :description "Preview command"
-  :transient t
-  (interactive)
-  (let* ((args (transient-args 'beads-label-add))
-         (parsed (beads-label-add--parse-transient-args args))
-         (errors (beads-label-add--validate-all parsed)))
-    (if errors
-        (let ((err-msg (format "Validation errors: %s"
-                               (string-join errors "; "))))
-          (message "%s" err-msg)
-          err-msg)
-      (let* ((cmd-args (beads-label-add--build-command-args parsed))
-             (cmd (apply #'beads--build-command "label" "add" cmd-args))
-             (cmd-string (mapconcat #'shell-quote-argument cmd " "))
-             (preview-msg (format "Command: %s" cmd-string)))
-        (message "%s" preview-msg)
-        preview-msg))))
-
 ;;; Label Remove Workflow
 
 (defun beads-label-remove--parse-transient-args (args)
@@ -528,28 +507,6 @@ Returns list of arguments for bd label remove command."
     (transient-reset)
     (transient--redisplay)
     (message "All fields reset")))
-
-(transient-define-suffix beads-label-remove--preview ()
-  "Preview the bd label remove command that will be executed."
-  :key "P"
-  :description "Preview command"
-  :transient t
-  (interactive)
-  (let* ((args (transient-args 'beads-label-remove))
-         (parsed (beads-label-remove--parse-transient-args args))
-         (errors (beads-label-remove--validate-all parsed)))
-    (if errors
-        (let ((err-msg (format "Validation errors: %s"
-                               (string-join errors "; "))))
-          (message "%s" err-msg)
-          err-msg)
-      (let* ((cmd-args (beads-label-remove--build-command-args parsed))
-             (cmd (apply #'beads--build-command "label" "remove"
-                         cmd-args))
-             (cmd-string (mapconcat #'shell-quote-argument cmd " "))
-             (preview-msg (format "Command: %s" cmd-string)))
-        (message "%s" preview-msg)
-        preview-msg))))
 
 ;;; Label List Interactive Command
 
@@ -693,7 +650,6 @@ labels to issues using the bd label add command."
   beads-option-global-section
   ["Actions"
    (beads-label-add--execute)
-   (beads-label-add--preview)
    (beads-label-add--reset)])
 
 ;;;###autoload (autoload 'beads-label-remove "beads-command-label" nil t)
@@ -712,7 +668,6 @@ labels from issues using the bd label remove command."
   beads-option-global-section
   ["Actions"
    (beads-label-remove--execute)
-   (beads-label-remove--preview)
    (beads-label-remove--reset)])
 
 ;;; Parent Transient Menu

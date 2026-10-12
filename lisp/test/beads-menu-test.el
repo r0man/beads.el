@@ -59,8 +59,21 @@ carrying :key/:command, optionally nested inside group forms."
   (beads-menu-test--suffix-pairs (get menu 'transient--layout)))
 
 (defun beads-menu-test--layout-commands (menu)
-  "Return the command symbols registered on transient MENU."
+  "Return the command symbols registered directly on transient MENU."
   (mapcar #'cdr (beads-menu-test--layout-suffixes menu)))
+
+(defun beads-menu-test--layout-commands-recursive (menu)
+  "Like `beads-menu-test--layout-commands', but descend into sub-prefixes.
+Used for reachability, so a command moved into a maintenance
+sub-dispatcher still counts as reachable from `beads-maintenance'."
+  (let (result)
+    (dolist (pair (beads-menu-test--layout-suffixes menu))
+      (let ((cmd (cdr pair)))
+        (push cmd result)
+        (when (get cmd 'transient--prefix)
+          (dolist (sub (beads-menu-test--layout-commands-recursive cmd))
+            (push sub result)))))
+    (delete-dups (nreverse result))))
 
 ;;; Reachability (every absorbed ops/advanced command)
 
@@ -94,7 +107,8 @@ Every one must remain reachable from `beads-maintenance' (REQ-023).")
 
 (ert-deftest beads-menu-test-maintenance-reachability ()
   "Every absorbed command is registered on `beads-maintenance'."
-  (let ((commands (beads-menu-test--layout-commands 'beads-maintenance)))
+  (let ((commands (beads-menu-test--layout-commands-recursive
+                   'beads-maintenance)))
     (dolist (expected beads-menu-test--absorbed-commands)
       (should (memq expected commands)))))
 
@@ -113,7 +127,7 @@ Every one must remain reachable from `beads-maintenance' (REQ-023).")
 (ert-deftest beads-menu-test-dispatch-core-commands ()
   "The dispatch menu carries the core issue commands and maintenance."
   (let ((commands (beads-menu-test--layout-commands 'beads-dispatch)))
-    (dolist (expected '(beads-list beads-compose-create beads-search
+    (dolist (expected '(beads-list-all beads-compose-create beads-search
                         beads-show beads-update beads-close beads-ready
                         beads-blocked beads-dashboard beads-stats
                         beads-maintenance))
@@ -224,13 +238,16 @@ required by `beads' fails here (be-qhpf)."
          (autoloads (car coverage))
          (defined (cdr coverage))
          (commands (append (beads-menu-test--layout-commands 'beads-dispatch)
-                           (beads-menu-test--layout-commands 'beads-maintenance))))
+                           (beads-menu-test--layout-commands 'beads-maintenance)))
+         (missing nil))
     (dolist (command commands)
       ;; `ignore' and `transient-*' are menu sentinels, not commands to autoload.
       (unless (or (eq command 'ignore)
                   (string-prefix-p "transient-" (symbol-name command)))
-        (should (or (memq command autoloads)
-                    (memq command defined)))))))
+        (unless (or (memq command autoloads)
+                    (memq command defined))
+          (push command missing))))
+    (should-not (nreverse missing))))
 
 (ert-deftest beads-menu-test-missing-autoload-commands-are-fbound ()
   "The formerly-missing menu commands are fbound after (require 'beads)."

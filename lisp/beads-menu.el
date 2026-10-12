@@ -74,7 +74,7 @@ gascity's `[City]' group when that package is present."
    :class transient-row
    ("" "" ignore :if (lambda () nil))]
   [["Issues"
-    ("l" "List beads" beads-list)
+    ("l" "List beads" beads-list-all)
     ("c" "Create bead" beads-compose-create)
     ("/" "Search" beads-search)
     ("i" "Show..." beads-show)
@@ -119,21 +119,77 @@ gascity's `[City]' group when that package is present."
 
 ;;; Maintenance Menu
 
+;;;###autoload (autoload 'beads-integrations-menu "beads-menu" nil t)
+(beads-define-prefix beads-integrations-menu ()
+  "Integration commands for beads.el.
+
+Split out of `beads-maintenance' (F5) so the ~60-key maintenance wall
+keeps only the daily operations at its default level; reach this
+sub-dispatcher with `n' from maintenance."
+  ["Integrations"
+   ("n" "Jira" beads-jira)
+   ("N" "Linear" beads-linear)
+   ("y" "GitLab" beads-gitlab)
+   ("9" "GitHub" beads-github)
+   ("v" "Repo" beads-repo)
+   ("A" "ADO" beads-ado)
+   (">" "Federation" beads-federation)
+   ("*" "Mail delegate" beads-mail)]
+  ["Actions"
+   ("q" "Quit" transient-quit-one)])
+
+;;;###autoload (autoload 'beads-setup-menu "beads-menu" nil t)
+(beads-define-prefix beads-setup-menu ()
+  "Setup and migration commands for beads.el.
+
+Split out of `beads-maintenance' (F5) so the rare setup/migration
+commands sit one level away; reach this sub-dispatcher with `I' from
+maintenance."
+  ["Setup"
+   ("I" "Init project" beads-init)
+   ("x" "Init safety" beads-init-safety)
+   (";" "Setup integrations" beads-setup)
+   (":" "Info" beads-info)
+   ("'" "Version" beads-version)
+   ("L" "Bootstrap" beads-bootstrap)
+   ("Q" "Hooks..." beads-hooks)
+   ("W" "Quickstart" beads-quickstart)
+   ("X" "Where" beads-where)
+   ("0" "Context" beads-context)]
+  ["Memory"
+   ("|" "Memories" beads-memories)
+   ("5" "KV store" beads-kv)
+   ("~" "Prime" beads-prime)
+   ("{" "Recall memory" beads-recall)
+   ("}" "Remember" beads-remember)]
+  ["Admin"
+   ("@" "Audit" beads-audit)
+   ("6" "Admin" beads-admin)
+   ("7" "Worktrees..." beads-worktree-menu)]
+  ["Actions"
+   ("q" "Quit" transient-quit-one)])
+
 ;;;###autoload (autoload 'beads-maintenance "beads-menu" nil t)
 (beads-define-prefix beads-maintenance ()
   "Maintenance and infrastructure commands for beads.el.
 
 The single successor of the former `beads-ops-menu' and
 `beads-advanced-menu' (REQ-023), reached with `!' from the dispatch
-menu.  Every command the two menus held is reachable from here."
-  ["Issue Lifecycle"
+menu.  Every command the two menus held is reachable from here.
+
+Transient levels control which groups are visible; cycle them with
+`transient-set-level' (`C-x l' by default).  Level 1 holds the daily
+operations, level 3 the database/structure/data groups, level 5 the
+integrations sub-dispatcher, and level 7 setup/migration."
+  :level 1
+  [:level 1 "Issue Lifecycle"
    ("f" "Defer" beads-defer)
    ("F" "Undefer" beads-undefer)
    ("D" "Delete" beads-delete)
    ("p" "Promote wisp" beads-promote)
    ("R" "Rename" beads-rename)
    ("u" "Unclaim" beads-unclaim)]
-  ["Views & Reports"
+  [:level 1 "Views & Reports"
    ("c" "Count" beads-count)
    ("t" "Stats" beads-stats)
    ("s" "Stale" beads-stale)
@@ -142,20 +198,20 @@ menu.  Every command the two menus held is reachable from here."
    ("O" "Find duplicates" beads-find-duplicates)
    ("o" "Orphans" beads-orphans)
    ("$" "Wisps" beads-wisp-list)]
-  ["Issue Details"
+  [:level 1 "Issue Details"
    ("a" "Children" beads-children)
    ("=" "Comments" beads-comments-menu)
    ("[" "Todo" beads-todo)
    ("e" "Events" beads-events)
    ("/" "Query" beads-query)]
-  ["Events (live)"
+  [:level 1 "Events (live)"
    ("," "Recent changes" beads-events-timeline)
    ("." "City timeline" beads-events-timeline-city)
    ("#" "Toggle live" beads-live-toggle)]
-  ["Events (time travel)"
+  [:level 1 "Events (time travel)"
    ("-" "Issue history" beads-events-history)
    ("^" "Rewind..." beads-events-rewind)]
-  ["Workflow"
+  [:level 1 "Workflow"
    ("g" "Gate" beads-gate)
    ("w" "Swarm" beads-swarm)
    ("K" "Cook" beads-cook)
@@ -165,7 +221,7 @@ menu.  Every command the two menus held is reachable from here."
    ("C" "Conflicts" beads-conflicts)
    ("r" "Reclaim" beads-reclaim)
    ("B" "Heartbeat" beads-heartbeat)]
-  ["Database"
+  [:level 3 "Database"
    ("b" "Backup" beads-backup)
    ("E" "Export JSONL" beads-export)
    ("P" "Prune closed" beads-prune)
@@ -179,7 +235,7 @@ menu.  Every command the two menus held is reachable from here."
    ("U" "Upgrade" beads-upgrade)
    ("!" "Preflight" beads-preflight)
    ("8" "Purge" beads-purge)]
-  ["Structure"
+  [:level 3 "Structure"
    ("1" "Mark duplicate" beads-duplicate)
    ("2" "Find duplicates" beads-duplicates)
    ("3" "Supersede" beads-supersede)
@@ -187,7 +243,7 @@ menu.  Every command the two menus held is reachable from here."
    ("J" "SQL query" beads-sql)
    ("k" "Rename prefix" beads-rename-prefix)
    ("_" "Forget memory" beads-forget)]
-  ["Data & Sync"
+  [:level 3 "Data & Sync"
    ("V" "VC" beads-vc)
    ("Y" "Dolt sync" beads-sync)
    ("S" "Schema" beads-schema)
@@ -196,34 +252,10 @@ menu.  Every command the two menus held is reachable from here."
    ("`" "Diff" beads-diff)
    ("%" "History" beads-history)
    ("&" "Provenance" beads-provenance)]
-  ["Integrations"
-   ("n" "Jira" beads-jira)
-   ("N" "Linear" beads-linear)
-   ("y" "GitLab" beads-gitlab)
-   ("9" "GitHub" beads-github)
-   ("v" "Repo" beads-repo)
-   ("A" "ADO" beads-ado)
-   (">" "Federation" beads-federation)
-   ("*" "Mail delegate" beads-mail)]
-  ["Setup"
-   ("I" "Init project" beads-init)
-   ("x" "Init safety" beads-init-safety)
-   (";" "Setup integrations" beads-setup)
-   (":" "Info" beads-info)
-   ("'" "Version" beads-version)
-   ("L" "Bootstrap" beads-bootstrap)
-   ("Q" "Hooks..." beads-hooks)
-   ("W" "Quickstart" beads-quickstart)
-   ("X" "Where" beads-where)
-   ("0" "Context" beads-context)
-   ("|" "Memories" beads-memories)
-   ("5" "KV store" beads-kv)
-   ("~" "Prime" beads-prime)
-   ("{" "Recall memory" beads-recall)
-   ("}" "Remember" beads-remember)
-   ("@" "Audit" beads-audit)
-   ("6" "Admin" beads-admin)
-   ("7" "Worktrees..." beads-worktree-menu)]
+  [:level 5 "Integrations"
+   ("n" "Integrations..." beads-integrations-menu)]
+  [:level 7 "Setup"
+   ("I" "Setup & migration..." beads-setup-menu)]
   ["Actions"
    ("q" "Quit" transient-quit-one)])
 

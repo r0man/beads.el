@@ -496,23 +496,6 @@ Returns error message string if invalid, nil if valid."
          (message "Failed to add dependency: %s"
                   (error-message-string err)))))))
 
-(transient-define-suffix beads-dep-add--preview ()
-  "Preview add dependency command."
-  :key "P"
-  :description "Preview command"
-  :transient t
-  (interactive)
-  (let* ((args (transient-args 'beads-dep-add--menu))
-         (parsed (beads-dep-add--parse-transient-args args))
-         (issue-id (plist-get parsed :issue-id))
-         (depends-on-id (plist-get parsed :depends-on-id))
-         (type (plist-get parsed :type))
-         (error-msg (beads-dep-add--validate issue-id depends-on-id type)))
-    (if error-msg
-        (message "Invalid: %s" error-msg)
-      (message "bd dep add %s %s --type %s"
-               issue-id depends-on-id type))))
-
 (transient-define-suffix beads-dep-add--reset ()
   "Reset add dependency fields."
   :key "R"
@@ -536,7 +519,6 @@ Returns error message string if invalid, nil if valid."
    (beads-option-dep-add-type)]
   ["Actions"
    (beads-dep-add--execute)
-   (beads-dep-add--preview)
    (beads-dep-add--reset)
    ("q" "Quit" transient-quit-one)])
 
@@ -600,21 +582,6 @@ Returns error message string if invalid, nil if valid."
          (message "Failed to remove dependency: %s"
                   (error-message-string err)))))))
 
-(transient-define-suffix beads-dep-remove--preview ()
-  "Preview remove dependency command."
-  :key "P"
-  :description "Preview command"
-  :transient t
-  (interactive)
-  (let* ((args (transient-args 'beads-dep-remove--menu))
-         (parsed (beads-dep-remove--parse-transient-args args))
-         (issue-id (plist-get parsed :issue-id))
-         (depends-on-id (plist-get parsed :depends-on-id))
-         (error-msg (beads-dep-remove--validate issue-id depends-on-id)))
-    (if error-msg
-        (message "Invalid: %s" error-msg)
-      (message "bd dep remove %s %s" issue-id depends-on-id))))
-
 (transient-define-suffix beads-dep-remove--reset ()
   "Reset remove dependency fields."
   :key "R"
@@ -637,7 +604,6 @@ Returns error message string if invalid, nil if valid."
    (beads-option-dep-remove-depends-on-id)]
   ["Actions"
    (beads-dep-remove--execute)
-   (beads-dep-remove--preview)
    (beads-dep-remove--reset)
    ("q" "Quit" transient-quit-one)])
 

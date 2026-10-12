@@ -360,13 +360,19 @@ never hang waiting for a response that never arrives."
 ;;; beads-command-preview Tests
 ;;; ============================================================
 
-(ert-deftest beads-command-coverage-test-preview ()
-  "Test beads-command-preview returns command string."
-  (let ((cmd (beads-command-close :issue-ids '("bd-42") :reason "Fixed")))
-    (let ((preview (beads-command-preview cmd)))
-      (should (stringp preview))
-      (should (string-match-p "bd" preview))
-      (should (string-match-p "close" preview)))))
+(ert-deftest beads-command-coverage-test-preview-no-echo ()
+  "`beads-command-preview' returns the command line without echoing it.
+The generated \"Preview\" suffix is gone; the generic survives as an
+extension hook (gascity.el specializes it) but must not `message' the
+raw `bd' command line."
+  (let ((cmd (beads-command-close :issue-ids '("bd-42") :reason "Fixed"))
+        (messages nil))
+    (cl-letf (((symbol-function 'message)
+               (lambda (&rest args) (push args messages))))
+      (let ((preview (beads-command-preview cmd)))
+        (should (stringp preview))
+        (should (string-match-p "close" preview))
+        (should-not messages)))))
 
 ;;; ============================================================
 ;;; beads-command-line for beads-command Tests
@@ -474,14 +480,6 @@ never hang waiting for a response that never arrives."
 ;;; beads-command-preview Tests (more coverage)
 ;;; ============================================================
 
-(ert-deftest beads-command-coverage-test-preview-list ()
-  "Test beads-command-preview for list command."
-  (let ((cmd (beads-command-list :json t)))
-    (let ((preview (beads-command-preview cmd)))
-      (should (stringp preview))
-      (should (string-match-p "bd" preview))
-      (should (string-match-p "list" preview)))))
-
 ;;; ============================================================
 ;;; beads-command-line global options Tests
 ;;; ============================================================
@@ -510,13 +508,6 @@ never hang waiting for a response that never arrives."
       (let ((cmd (beads-command-list :json nil)))
         (beads-command-execute-interactive cmd)
         (should ran)))))
-
-(ert-deftest beads-command-coverage-test-preview-formatted ()
-  "Test command preview returns formatted string."
-  (let ((cmd (beads-command-list :json t)))
-    (let ((preview (beads-command-preview cmd)))
-      (should (stringp preview))
-      (should (string-match-p "list" preview)))))
 
 ;;; ============================================================
 ;;; Create Command Parse Tests

@@ -22,7 +22,7 @@
 ;; Usage:
 ;;
 ;;   M-x beads RET        ; Open the status buffer (press ? for the menu)
-;;   M-x beads-list RET   ; List all issues
+;;   M-x beads-list-all RET ; List all issues
 ;;   M-x beads-ready RET  ; Show ready work
 ;;
 ;; See README.md for full documentation.
@@ -331,7 +331,9 @@ which shows daemon status and database statistics."
 
 ;; beads-command-list
 ;;;###autoload
-(autoload 'beads-list "beads-command-list" nil t)
+(autoload 'beads-list-all "beads-command-list" nil t)
+;;;###autoload
+(autoload 'beads-list-filters "beads-command-list" nil t)
 ;;;###autoload
 (autoload 'beads-list-advanced "beads-command-list" nil t)
 ;;;###autoload
@@ -344,6 +346,10 @@ which shows daemon status and database statistics."
 (autoload 'beads-dispatch "beads-menu" nil t)
 ;;;###autoload
 (autoload 'beads-maintenance "beads-menu" nil t)
+;;;###autoload
+(autoload 'beads-integrations-menu "beads-menu" nil t)
+;;;###autoload
+(autoload 'beads-setup-menu "beads-menu" nil t)
 
 ;; beads-compose
 ;;;###autoload

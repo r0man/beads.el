@@ -129,22 +129,6 @@
       (should reset-called)
       (should redisplay-called))))
 
-(ert-deftest beads-cov6-edit-preview-suffix-validation-error ()
-  "Test edit preview suffix shows validation error."
-  (cl-letf (((symbol-function 'transient-args)
-             (lambda (_) '("--title"))))
-    (let ((result (beads-edit--preview)))
-      (should (string-match-p "Validation" result)))))
-
-(ert-deftest beads-cov6-edit-preview-suffix-success ()
-  "Test edit preview suffix shows command string."
-  (cl-letf (((symbol-function 'transient-args)
-             (lambda (_) '("--id=bd-1" "--title")))
-            ((symbol-function 'beads-command-line)
-             (lambda (_cmd) '("bd" "edit" "bd-1" "--title"))))
-    (let ((result (beads-edit--preview)))
-      (should (string-match-p "Command:" result)))))
-
 ;;; ============================================================
 ;;; beads-command-delete.el - Validate command
 ;;; ============================================================

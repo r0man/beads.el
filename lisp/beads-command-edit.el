@@ -150,26 +150,6 @@ Returns list of error messages, or nil if all valid."
     (transient--redisplay)
     (message "All fields reset")))
 
-(transient-define-suffix beads-edit--preview ()
-  "Preview the bd edit command that will be executed."
-  :key "P"
-  :description "Preview command"
-  :transient t
-  (interactive)
-  (let* ((args (transient-args 'beads-edit--menu))
-         (cmd (beads-edit--parse-transient-args args))
-         (errors (beads-edit--validate-all cmd)))
-    (if errors
-        (let ((err-msg (format "Validation errors: %s"
-                               (string-join errors "; "))))
-          (message "%s" err-msg)
-          err-msg)
-      (let* ((cmd-list (beads-command-line cmd))
-             (cmd-string (mapconcat #'shell-quote-argument cmd-list " "))
-             (preview-msg (format "Command: %s" cmd-string)))
-        (message "%s" preview-msg)
-        preview-msg))))
-
 ;;; Transient Infixes
 
 (transient-define-infix beads-edit--infix-issue-id ()
@@ -195,7 +175,6 @@ Returns list of error messages, or nil if all valid."
   beads-option-global-section
   ["Actions"
    (beads-edit--execute)
-   (beads-edit--preview)
    (beads-edit--reset)
    ("q" "Quit" transient-quit-one)])
 

@@ -231,7 +231,7 @@ A live journal chip (from `beads-live-header-string') is appended when
 (defun beads-dashboard--footer-vnode ()
   "Return the dashboard footer vnode (key hints)."
   (vui-text
-   "KEYS: TAB/S-TAB next/prev · SPC fold · N/P section · M-0..M-4 depth · +/-/* rows · g refresh · c claim · b blocker · a agent · RET visit · q quit"
+   "KEYS: TAB/S-TAB next/prev · SPC fold · N/P section · M-0..M-4 depth · +/-/* rows · g refresh · c claim · b blocker · a agent · RET visit · ? dispatch · q quit"
    :face 'shadow))
 
 (defun beads-dashboard--no-project-vnode ()

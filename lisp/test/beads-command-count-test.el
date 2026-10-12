@@ -143,9 +143,9 @@
   "Test that execute suffix is defined."
   (should (fboundp 'beads-count--execute)))
 
-(ert-deftest beads-command-count-test-preview-suffix-defined ()
-  "Test that preview suffix is defined."
-  (should (fboundp 'beads-count--preview)))
+(ert-deftest beads-command-count-test-preview-suffix-removed ()
+  "Test that the static command-line preview suffix is not generated."
+  (should-not (fboundp 'beads-count--preview)))
 
 (ert-deftest beads-command-count-test-reset-suffix-defined ()
   "Test that reset suffix is defined."

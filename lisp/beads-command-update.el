@@ -646,38 +646,6 @@ covers all fields including claim, add-label, etc."
     (transient--redisplay)
     (message "All changes reset")))
 
-(transient-define-suffix beads-update--preview ()
-  "Preview the bd update command that will be executed."
-  :key "P"
-  :description "Preview command"
-  :transient t
-  (interactive)
-  (let* ((args (transient-args 'beads-update--menu))
-         (cmd (beads-update--parse-transient-args args))
-         (errors (beads-update--validate-all cmd)))
-    (if errors
-        (let ((err-msg (format "Validation errors: %s"
-                               (string-join errors "; "))))
-          (message "%s" err-msg)
-          err-msg)
-      (condition-case err
-          (let* ((cmd-line (beads-command-line cmd))
-                 (cmd-string (mapconcat #'shell-quote-argument cmd-line " "))
-                 (changes (beads-update--get-changed-fields cmd))
-                 (preview-msg (format "Command: %s\nChanges: %s"
-                                      cmd-string
-                                      (mapconcat (lambda (c)
-                                                   (format "%s=%s"
-                                                           (car c)
-                                                           (cdr c)))
-                                                 changes ", "))))
-            (message "%s" preview-msg)
-            preview-msg)
-        (error
-         (let ((err-msg (format "Error: %s" (error-message-string err))))
-           (message "%s" err-msg)
-           err-msg))))))
-
 ;;; Transient Menu - Main Menu
 
 (beads-define-prefix beads-update--menu ()
@@ -698,7 +666,6 @@ covers all fields including claim, add-label, etc."
   beads-option-global-section
   ["Actions"
    (beads-update--execute)
-   (beads-update--preview)
    (beads-update--reset)
    ("q" "Quit" transient-quit-one)])
 

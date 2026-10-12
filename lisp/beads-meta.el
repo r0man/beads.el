@@ -94,7 +94,6 @@
 ;; These are used in the generated suffix code
 (declare-function beads-command-validate "beads-command")
 (declare-function beads-command-execute-interactive "beads-command")
-(declare-function beads-command-preview "beads-command")
 
 ;;; ============================================================
 ;;; Public macro-expansion helpers
@@ -1445,7 +1444,7 @@ Returns a plist with :name, :docstring, :groups, and group symbols."
 PREFIX is a string like \"beads-create\".
 DOCSTRING is an optional documentation string.
 ACTIONS is an optional list of (KEY DESCRIPTION FUNCTION) for
-the Actions group.  Defaults to standard execute/preview/reset.
+the Actions group.  Defaults to standard execute/reset.
 GLOBAL-SECTION is an optional symbol for a global options section
 to include (e.g., beads-option-global-section).
 
@@ -1458,7 +1457,6 @@ Example:
   (beads-meta-define-prefix beads-command-create \"beads-create\"
     \"Create a new issue in Beads.\"
     ((\"x\" \"Create issue\" beads-create--execute)
-     (\"P\" \"Preview command\" beads-create--preview)
      (\"R\" \"Reset all fields\" beads-create--reset))
     beads-option-global-section)"
   (let* ((class-val (eval class))
@@ -1467,8 +1465,6 @@ Example:
          (prefix-sym (intern prefix-val))
          (actions-val (or (eval actions)
                           `(("x" "Execute" ,(intern (format "%s--execute"
-                                                           prefix-val)))
-                            ("P" "Preview" ,(intern (format "%s--preview"
                                                            prefix-val)))
                             ("R" "Reset" ,(intern (format "%s--reset"
                                                           prefix-val))))))
@@ -1495,25 +1491,22 @@ Returns a symbol like `beads-create--parse-transient-args'."
   (intern (format "%s--parse-transient-args" prefix)))
 
 (defmacro beads-meta-define-standard-suffixes (class prefix)
-  "Define standard execute/preview/reset suffixes for CLASS.
+  "Define standard execute/reset suffixes for CLASS.
 PREFIX is a string like \"beads-create\".
 
-Generates three transient suffixes:
+Generates two transient suffixes:
 - PREFIX--execute: Validates and calls `beads-command-execute-interactive'
-- PREFIX--preview: Validates and calls `beads-command-preview'
 - PREFIX--reset: Calls `transient-reset'
 
-The execute and preview suffixes call exactly three generic methods
-from beads-command.el, which together form beads.el's supported, stable
+The execute suffix calls exactly two generic methods from
+beads-command.el, which together form beads.el's supported, stable
 command-bridge extension contract: `beads-command-validate' (must
-return nil for the suffix to proceed), then either
-`beads-command-execute-interactive' or `beads-command-preview'.
-Override these per command class for custom behavior.  See the manual
-node \"Extending beads.el\"."
+return nil for the suffix to proceed) then
+`beads-command-execute-interactive'.  Override these per command class
+for custom behavior.  See the manual node \"Extending beads.el\"."
   (let* ((prefix-val (eval prefix))
          (prefix-sym (intern prefix-val))
          (execute-sym (intern (format "%s--execute" prefix-val)))
-         (preview-sym (intern (format "%s--preview" prefix-val)))
          (reset-sym (intern (format "%s--reset" prefix-val)))
          (parse-fn-sym (beads-meta-generate-parse-function-name prefix-val)))
     `(progn
@@ -1535,20 +1528,6 @@ node \"Extending beads.el\"."
                  (beads-command-execute-interactive cmd)
                (error
                 (message "Failed: %s" (error-message-string err)))))))
-
-       ;; Preview suffix
-       (transient-define-suffix ,preview-sym ()
-         "Preview the command that will be executed."
-         :key "P"
-         :description "Preview"
-         :transient t
-         (interactive)
-         (let* ((args (transient-args ',prefix-sym))
-                (cmd (,parse-fn-sym args))
-                (error-msg (beads-command-validate cmd)))
-           (if error-msg
-               (message "Validation errors: %s" error-msg)
-             (beads-command-preview cmd))))
 
        ;; Reset suffix
        (transient-define-suffix ,reset-sym ()
@@ -1626,17 +1605,15 @@ to include (e.g., beads-option-global-section).
 This macro generates everything needed for a transient menu:
 1. All infixes from class slot metadata
 2. All groups organized by :transient-group
-3. Standard suffixes (execute, preview, reset) using generic methods
+3. Standard suffixes (execute, reset) using generic methods
 4. The prefix combining all groups plus actions
 5. An `autoload' form for the prefix command
 
-The generated suffixes call the three generic methods that form
+The generated suffixes call the two generic methods that form
 beads.el's supported, stable command-bridge extension contract (see
 the manual node \"Extending beads.el\"):
 - Execute calls `beads-command-validate', then
   `beads-command-execute-interactive' (override per class)
-- Preview calls `beads-command-validate', then
-  `beads-command-preview' (override per class)
 - Reset calls `transient-reset'
 
 The macro automatically generates an `autoload' form for the
@@ -1663,14 +1640,13 @@ with a single macro call."
         (let* ((group-specs (beads-meta-generate-group-specs
                              class-val prefix-val))
                (execute-sym (intern (format "%s--execute" prefix-val)))
-               (preview-sym (intern (format "%s--preview" prefix-val)))
                (reset-sym (intern (format "%s--reset" prefix-val))))
           `(progn
              ;; Define infixes from slot metadata
              (beads-meta-define-infixes ,class ,prefix)
              ;; Define groups
              (beads-meta-define-groups ,class ,prefix)
-             ;; Define standard suffixes (execute, preview, reset)
+             ;; Define standard suffixes (execute, reset)
              (beads-meta-define-standard-suffixes ,class ,prefix)
              ;; Define prefix
              (beads-define-prefix ,prefix-sym ()
@@ -1680,7 +1656,6 @@ with a single macro call."
                ,@(when global-section (list global-section))
                ["Actions"
                 (,execute-sym)
-                (,preview-sym)
                 (,reset-sym)])))
       ;; Minimal expansion: class not available (autoload generation)
       ;; Emit only the autoload stub so the autoload generator can

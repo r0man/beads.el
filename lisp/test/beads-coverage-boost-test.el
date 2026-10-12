@@ -306,32 +306,6 @@
              (lambda (_cmd) '("Issue ID is required"))))
     (should-error (beads-edit--execute) :type 'user-error)))
 
-(ert-deftest beads-coverage-boost-edit-preview-suffix ()
-  "Test beads-edit--preview shows command preview."
-  (cl-letf (((symbol-function 'transient-args)
-             (lambda (_prefix) '("--id=test-1" "--title")))
-            ((symbol-function 'beads-edit--parse-transient-args)
-             (lambda (_args) (beads-command-edit :issue-id "test-1")))
-            ((symbol-function 'beads-edit--validate-all)
-             (lambda (_cmd) nil))
-            ((symbol-function 'beads-command-line)
-             (lambda (_cmd) '("bd" "edit" "--id=test-1" "--title"))))
-    (let ((result (beads-edit--preview)))
-      (should (stringp result))
-      (should (string-match-p "Command:" result)))))
-
-(ert-deftest beads-coverage-boost-edit-preview-validation-error ()
-  "Test beads-edit--preview shows validation error."
-  (cl-letf (((symbol-function 'transient-args)
-             (lambda (_prefix) '()))
-            ((symbol-function 'beads-edit--parse-transient-args)
-             (lambda (_args) (beads-command-edit)))
-            ((symbol-function 'beads-edit--validate-all)
-             (lambda (_cmd) '("Issue ID is required"))))
-    (let ((result (beads-edit--preview)))
-      (should (stringp result))
-      (should (string-match-p "Validation errors" result)))))
-
 (ert-deftest beads-coverage-boost-edit-reset-suffix ()
   "Test beads-edit--reset resets transient state."
   (let ((reset-called nil))

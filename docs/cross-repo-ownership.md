@@ -69,7 +69,7 @@ drift silently.
 
 The generic seams 1–4 are the ones the gascity.el dedup bead consumes;
 the rest are the stable porcelain and terminal seams the package already
-exposes (`docs/ui-redesign.md` §4).
+exposes (`plans/beads-ui-redesign/design.md` §4).
 
 ## gascity.el-rig hand-off
 
@@ -102,4 +102,4 @@ remains.
 
 - `plans/beads-standalone-formulas/requirements.md` — REQ-SF-100.
 - `plans/beads-standalone-formulas/decomposition.md` — WI-SF-19.
-- `docs/ui-redesign.md` §4/§6 — the foundation seam list.
+- `plans/beads-ui-redesign/design.md` §4/§6 — the foundation seam list.

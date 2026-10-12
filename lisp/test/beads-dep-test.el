@@ -731,62 +731,6 @@ workspace no longer holds, so its cycle is partial.")
 
 ;;; Tests for Preview Commands
 
-(ert-deftest beads-dep-test-add-preview-valid ()
-  "Test add preview with valid args."
-  (let ((output nil))
-    (cl-letf (((symbol-function 'transient-args)
-               (lambda (_) '("--issue-id=bd-1"
-                            "--depends-on=bd-2"
-                            "--type=blocks")))
-              ((symbol-function 'message)
-               (lambda (fmt &rest args)
-                 (setq output (apply #'format fmt args)))))
-      (beads-dep-add--preview)
-      (should output)
-      (should (string-match-p "bd dep add" output))
-      (should (string-match-p "bd-1" output))
-      (should (string-match-p "bd-2" output))
-      (should (string-match-p "blocks" output)))))
-
-(ert-deftest beads-dep-test-add-preview-invalid ()
-  "Test add preview with invalid args."
-  (let ((output nil))
-    (cl-letf (((symbol-function 'transient-args)
-               (lambda (_) nil))
-              ((symbol-function 'message)
-               (lambda (fmt &rest args)
-                 (setq output (apply #'format fmt args)))))
-      (beads-dep-add--preview)
-      (should output)
-      (should (string-match-p "Invalid" output)))))
-
-(ert-deftest beads-dep-test-remove-preview-valid ()
-  "Test remove preview with valid args."
-  (let ((output nil))
-    (cl-letf (((symbol-function 'transient-args)
-               (lambda (_) '("--issue-id=bd-1"
-                            "--depends-on=bd-2")))
-              ((symbol-function 'message)
-               (lambda (fmt &rest args)
-                 (setq output (apply #'format fmt args)))))
-      (beads-dep-remove--preview)
-      (should output)
-      (should (string-match-p "bd dep remove" output))
-      (should (string-match-p "bd-1" output))
-      (should (string-match-p "bd-2" output)))))
-
-(ert-deftest beads-dep-test-remove-preview-invalid ()
-  "Test remove preview with invalid args."
-  (let ((output nil))
-    (cl-letf (((symbol-function 'transient-args)
-               (lambda (_) nil))
-              ((symbol-function 'message)
-               (lambda (fmt &rest args)
-                 (setq output (apply #'format fmt args)))))
-      (beads-dep-remove--preview)
-      (should output)
-      (should (string-match-p "Invalid" output)))))
-
 ;;; Tests for Tree Issue Rendering
 
 (ert-deftest beads-dep-test-tree-render-issue-basic ()

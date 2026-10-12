@@ -33,7 +33,8 @@ either through an auto-generated transient or a curated one.
 - Beads CLI: https://github.com/steveyegge/beads
 - Magit (interaction model): https://magit.vc
 - Forge (sections and references): https://magit.vc/manual/forge
-- Design record for the board and menus: =docs/ui-redesign.md=
+- Design record for the board and menus: =plans/beads-ui-redesign/design.md=
+- Enforced key contract: =docs/key-registry.md=
 
 * Table of contents
 
