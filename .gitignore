@@ -102,3 +102,9 @@ bde-epic/
 !.beads/formulas/user-manual-screenshots.formula.toml
 !.beads/formulas/user-manual-screenshots.toml
 .pi/extensions/gc-hooks.js
+
+# Gas City local/tool state (untracked; not project content)
+.agents/
+.beads.gate.lock
+plans/.gc-plans
+plans/github/
