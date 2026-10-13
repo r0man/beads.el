@@ -22,6 +22,18 @@
 
 (require 'bytecomp)
 
+;; Load the dependencies' autoloads before compiling.  A local Guix
+;; profile activates site-lisp packages at startup, but a plain CI Emacs
+;; does not, and without this `sesman-browser' (autoloaded from
+;; sesman-browser.el) is an unknown function -- fatal under
+;; `byte-compile-error-on-warn'.  Only the packages the build depends on
+;; are loaded, so unrelated site packages cannot leak in.
+(dolist (package '("transient" "sesman" "vui" "marginalia"))
+  (dolist (dir (delete-dups (copy-sequence load-path)))
+    (let ((autoloads (expand-file-name (concat package "-autoloads.el") dir)))
+      (when (file-readable-p autoloads)
+        (load autoloads t t)))))
+
 (setq byte-compile-error-on-warn t)
 (setq byte-compile-warnings '(not interactive-only))
 

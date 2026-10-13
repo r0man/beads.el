@@ -102,23 +102,33 @@ the shared support module as well as a test file."
       (unless (beads-check--loaded-p file)
         (load file nil t)))))
 
+(defun beads-check-run-tests (selector)
+  "Prepare the suite and run it with SELECTOR.
+Drop stale byte-code (F2), install the JUnit-path advice (F3) and the
+nil-returning `message' wrapper, load every test file once, then call
+`ert-run-tests-batch-and-exit'.  Shared by `make check' and the
+coverage runner (scripts/coverage)."
+  (beads-check--drop-stale-byte-code)
+  (advice-add 'ert-write-junit-test-report
+              :around #'beads-check--fix-junit-report-path)
+  (advice-add 'message :around #'beads-check--silence-message)
+  (beads-check--load-tests)
+  (ert-run-tests-batch-and-exit selector))
+
 (defun beads-check--run ()
   "Entry point: drop byte-code, load tests, and run the ERT batch."
   (let* ((tools (beads-check--parse-tools (getenv "BEADS_CHECK_TOOLS")))
          (missing (mapcar #'car (seq-filter (lambda (cell) (not (cdr cell))) tools)))
          (full (null missing)))
-    (beads-check--drop-stale-byte-code)
-    (advice-add 'ert-write-junit-test-report
-                :around #'beads-check--fix-junit-report-path)
-    (advice-add 'message :around #'beads-check--silence-message)
-    (beads-check--load-tests)
     (if full
         (message "beads-check: bd/dolt/graphviz present; running the full suite")
       (message "beads-check: missing %s; running only :unit tests"
                (string-join missing ", ")))
-    (ert-run-tests-batch-and-exit
-     (if full t '(not (tag :integration))))))
+    (beads-check-run-tests (if full t '(not (tag :integration))))))
 
-(beads-check--run)
+;; scripts/coverage loads this file for its helpers and runs the suite
+;; itself under undercover; BEADS_CHECK_NO_RUN suppresses the auto-run.
+(unless (getenv "BEADS_CHECK_NO_RUN")
+  (beads-check--run))
 
 ;;; beads-check.el ends here

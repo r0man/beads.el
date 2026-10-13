@@ -33,6 +33,7 @@ AUTOLOADS_HELPER = "$(abs_top_srcdir)/build-aux/beads-autoloads.el"
 CHECK_HELPER = "$(abs_top_srcdir)/build-aux/beads-check.el"
 LINT_HELPER = "$(abs_top_srcdir)/build-aux/beads-lint.el"
 LINT_SCRIPT = "$(abs_top_srcdir)/scripts/lint"
+COVERAGE_SCRIPT = "$(abs_top_srcdir)/scripts/coverage"
 
 ## `make check' invokes Emacs with -Q so the suite sees only the checkout
 ## and the resolved dependencies; `$(DEP_LOAD_PATH)' and the ambient
@@ -73,10 +74,21 @@ EXTRA_DIST = \
   build-aux/beads-autoloads.el \
   build-aux/beads-check.el \
   build-aux/beads-lint.el \
+  build-aux/beads-coverage.el \
   m4/.gitkeep \
   guix.scm \
+  doc/images \
+  doc/agents.texi \
+  doc/formulas.texi \
+  doc/getting-started.texi \
+  doc/issue-workflow.texi \
+  doc/maintenance.texi \
+  doc/orchestration.texi \
+  doc/views.texi \
   scripts/dispatch-docs \
   scripts/lint \
+  scripts/coverage \
+  scripts/ci-deps \
   share \
   docs \
   $(BEADS_LISP_SOURCES) \
@@ -120,6 +132,22 @@ clean-local:
 	rm -rf "$(builddir)/doc/beads.html"
 	rm -f "$(builddir)/doc/beads.pdf"
 
+## `make html' builds doc/beads.html, but `makeinfo --html' emits
+## `<img src="images/...">' without copying the PNG binaries, so the
+## published tree would have broken images.  Stage the screenshots into
+## the HTML output to keep the Pages site self-contained (REQ-012).
+## doc/images is a symlink to docs/manual/images, hence `cp -L'.
+HTML_IMAGES = $(builddir)/doc/beads.html/images
+
+html: html-images
+
+html-images: html-am
+	@src="$(srcdir)/doc/images"; \
+	if [ ! -e "$$src" ]; then src="$(srcdir)/docs/manual/images"; fi; \
+	$(MKDIR_P) "$(builddir)/doc/beads.html"; \
+	rm -rf "$(HTML_IMAGES)"; \
+	cp -RL "$$src" "$(HTML_IMAGES)"
+
 ## `make check' (REQ-006, REQ-008): the whole ERT suite in one Emacs
 ## invocation.  build-aux/beads-check.el drops stale project byte-code
 ## first (F2, be-47jo) and writes coverage/junit.xml from
@@ -134,4 +162,13 @@ lint:
 	EMACS="$(EMACS)" TRANSIENT_DIR="$(TRANSIENT_DIR)" VUI_DIR="$(VUI_DIR)" \
 	  PACKAGE_LINT_DIR="@with_package_lint@" $(LINT_SCRIPT)
 
-.PHONY: check-local lint
+## `make coverage': the no-Eldev undercover run used by the Coverage
+## workflow.  undercover is resolved from the ambient EMACSLOADPATH (the
+## Guix `emacs-undercover' input or the CI install); the report lands at
+## $COVERAGE_REPORT (default coverage/codecov.json) and the ERT JUnit
+## report at $EMACS_TEST_JUNIT_REPORT (default coverage/junit.xml).
+coverage:
+	EMACS="$(EMACS)" TRANSIENT_DIR="$(TRANSIENT_DIR)" VUI_DIR="$(VUI_DIR)" \
+	  $(COVERAGE_SCRIPT)
+
+.PHONY: check-local lint coverage html-images

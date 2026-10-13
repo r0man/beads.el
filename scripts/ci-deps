@@ -1,0 +1,51 @@
+#!/bin/sh
+# Install the ELPA dependencies the autotools build needs and print an
+# EMACSLOADPATH value for them.
+#
+#   scripts/ci-deps [transient vui package-lint undercover ...]
+#
+# The workflows call this before `./configure && make`, because the build
+# resolves `transient'/`vui' (and `make lint' resolves `package-lint',
+# while coverage resolves `undercover') from the load path.  Eldev used to
+# provide these from MELPA; this script reproduces that without Eldev.
+#
+# Package names are the package.el symbols (hyphenated).  The packages are
+# installed into a throwaway `package-user-dir' under $CI_DEPS_DIR (or a
+# fresh mktemp directory) and every installed package directory is joined
+# into one colon-separated load path, which the caller appends to
+# $GITHUB_ENV as EMACSLOADPATH.
+#
+# Usage from a workflow:
+#
+#   echo "EMACSLOADPATH=$(scripts/ci-deps transient vui)" >> "$GITHUB_ENV"
+
+set -eu
+
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+emacs_bin=${EMACS:-emacs}
+deps_dir=${CI_DEPS_DIR:-$(mktemp -d)}
+user_dir="$deps_dir/elpa"
+
+packages=""
+for pkg in "$@"; do
+  packages="$packages '$pkg'"
+done
+
+mkdir -p "$user_dir"
+
+# Emacs' package.el chatter goes to stderr so stdout stays exactly the
+# load path the caller captures.
+"$emacs_bin" --batch -Q --eval "(progn
+  (require 'package)
+  (setq package-user-dir \"$user_dir\")
+  (setq package-archives '((\"gnu\"    . \"https://elpa.gnu.org/packages/\")
+                           (\"nongnu\" . \"https://elpa.nongnu.org/nongnu/\")
+                           (\"melpa\"  . \"https://melpa.org/packages/\")))
+  (package-initialize)
+  (package-refresh-contents)
+  (dolist (pkg (list $packages))
+    (package-install pkg)))" >&2
+
+# Every package lands in its own versioned directory; join them all so a
+# plain `emacs --batch' (no package-initialize) sees the dependencies.
+find "$user_dir" -maxdepth 1 -mindepth 1 -type d | paste -sd: -

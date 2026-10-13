@@ -7,6 +7,13 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# Autotools conversion (REQ-007): the workflow bootstraps the GNU build
+# system (`./autogen.sh`, `./configure`, `make`, `make check`) instead of
+# installing and running Eldev.  The byte-compile is the
+# warnings-as-errors gate (REQ-008) and `make check` runs the whole ERT
+# suite (REQ-006).  `transient`/`vui` are installed into a throwaway
+# package directory and handed to the build as EMACSLOADPATH (REQ-009).
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -33,16 +40,10 @@ jobs:
         with:
           version: ${{ matrix.emacs_version }}
 
-      - name: Cache Eldev dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.emacs.d/eldev
-          key: ${{ runner.os }}-eldev-test-v4-${{ matrix.emacs_version }}-${{ hashFiles('Eldev') }}
-          restore-keys: |
-            ${{ runner.os }}-eldev-test-v4-${{ matrix.emacs_version }}-
-
-      - name: Install Eldev
-        run: curl --fail --silent --show-error --location https://raw.github.com/doublep/eldev/master/webinstall/github-eldev | sh
+      # `make` builds the Info manual (info_TEXINFOS), so makeinfo is a
+      # hard build dependency.
+      - name: Install Texinfo
+        run: sudo apt-get update && sudo apt-get install -y texinfo
 
       # bd v1.3.1 from gastownhall/beads (the repo moved from steveyegge/beads,
       # whose release URLs are dead). Bump by changing the version in the URL.
@@ -63,15 +64,16 @@ jobs:
       - name: Install Graphviz
         run: sudo apt-get update && sudo apt-get install -y graphviz
 
-      # Install the dependencies (and the project package) in a session of
-      # their own.  On Emacs 29/30, whose built-in transient predates
-      # `transient-define-group', the session that first installs the
-      # project package compiles it against the built-in transient even
-      # though transient 0.13 was just installed; a later session starts
-      # with the installed transient activated.  This step's compile errors
-      # are expected there and harmless; the test run below must be clean.
-      - name: Install dependencies
-        run: eldev -p prepare test
+      - name: Install Elisp dependencies
+        run: |
+          echo "EMACSLOADPATH=$(scripts/ci-deps transient vui sesman marginalia)" >> "$GITHUB_ENV"
 
-      - name: Run tests
-        run: eldev -p -dtT test
+      # Bootstrap, configure (which discovers bd/dolt/graphviz and thus
+      # selects the full suite), byte-compile with warnings as errors, and
+      # run the whole ERT suite.
+      - name: Bootstrap, build and test
+        run: |
+          ./autogen.sh
+          ./configure
+          make
+          make check

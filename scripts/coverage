@@ -1,0 +1,45 @@
+#!/bin/sh
+# coverage --- Run the beads.el ERT suite under undercover without Eldev.
+#
+#   scripts/coverage
+#
+# `make coverage' and the Coverage workflow call this.  It drives a plain
+# Emacs with `lisp/' and `lisp/test/' on the load path, loads
+# build-aux/beads-coverage.el (which instruments `lisp/*.el' with
+# undercover and runs the `:unit' subset), and writes
+# `coverage/codecov.json' plus the JUnit report.  This is the no-Eldev
+# form of the old
+#
+#   eldev -s -dtT test -U coverage/codecov.json '(not (tag :integration))'
+#
+# Dependencies: transient/vui from the ambient EMACSLOADPATH (the Guix
+# path) or TRANSIENT_DIR/VUI_DIR; undercover (and its dash/shut-up
+# dependencies) from the ambient EMACSLOADPATH.  `BEADS_CHECK_NO_RUN=1'
+# loads build-aux/beads-check.el for its helpers without running the
+# suite; beads-coverage.el forces undercover on and runs the tests.
+
+set -eu
+
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+cd "$root"
+
+emacs_bin=${EMACS:-emacs}
+
+load_path_args=""
+for dir in "${TRANSIENT_DIR:-}" "${VUI_DIR:-}"; do
+  if [ -n "$dir" ]; then
+    load_path_args="$load_path_args -L $dir"
+  fi
+done
+
+mkdir -p coverage
+
+# shellcheck disable=SC2086
+exec env \
+  BEADS_CHECK_NO_RUN=1 \
+  CI="${CI:-true}" \
+  COVERAGE_REPORT="${COVERAGE_REPORT:-$root/coverage/codecov.json}" \
+  EMACS_TEST_JUNIT_REPORT="${EMACS_TEST_JUNIT_REPORT:-$root/coverage/junit.xml}" \
+  "$emacs_bin" --batch -Q -L "$root/lisp" -L "$root/lisp/test" \
+  $load_path_args \
+  -l "$root/build-aux/beads-coverage.el"

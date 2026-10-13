@@ -1,0 +1,69 @@
+name: Pages
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+# GitHub Pages publish of the built HTML manual (REQ-012).  Publishing
+# happens only on a push to `main`; the build job fails on a broken
+# `make html` instead of uploading stale output.  The trigger, permissions,
+# concurrency, action versions and build-then-deploy split match the
+# parallel gascity.el migration (REQ-015).
+#
+# Pages must be configured with "GitHub Actions" as the source.
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Emacs 31.1
+        uses: purcell/setup-emacs@master
+        with:
+          version: '31.1'
+
+      # `make html` drives makeinfo and configure checks for it.
+      - name: Install Texinfo
+        run: sudo apt-get update && sudo apt-get install -y texinfo
+
+      - name: Install Elisp dependencies
+        run: |
+          echo "EMACSLOADPATH=$(scripts/ci-deps transient vui)" >> "$GITHUB_ENV"
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Build HTML manual
+        run: |
+          ./autogen.sh
+          ./configure
+          make html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: doc/beads.html
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

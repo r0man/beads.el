@@ -7,6 +7,12 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# The generated-doc drift gate runs without Eldev (REQ-008): configure
+# resolves `transient`/`vui` from the installed EMACSLOADPATH, and
+# scripts/dispatch-docs drives plain Emacs.  It fails when the checked-in
+# dispatch reference, README table, or manual table disagree with the
+# transient menu code.
+
 jobs:
   dispatch-docs:
     runs-on: ubuntu-latest
@@ -20,24 +26,12 @@ jobs:
         with:
           version: '31.1'
 
-      - name: Cache Eldev dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.emacs.d/eldev
-          key: ${{ runner.os }}-eldev-docs-v1-${{ hashFiles('Eldev') }}
-          restore-keys: |
-            ${{ runner.os }}-eldev-docs-v1-
+      - name: Install Elisp dependencies
+        run: |
+          echo "EMACSLOADPATH=$(scripts/ci-deps transient vui)" >> "$GITHUB_ENV"
 
-      - name: Install Eldev
-        run: curl --fail --silent --show-error --location https://raw.github.com/doublep/eldev/master/webinstall/github-eldev | sh
-
-      - name: Install dependencies
-        run: eldev -p prepare test
-
-      # The dispatch reference, the README dispatch table, and the manual
-      # maintenance table are generated from the transient menu code.  This
-      # step fails when the checked-in docs and the code disagree (plan F2,
-      # large item 12).  The same check also runs as a :unit test in the
-      # Test workflow; this job makes the failure name obvious.
       - name: Check generated dispatch docs
-        run: ./scripts/dispatch-docs --check
+        run: |
+          ./autogen.sh
+          ./configure
+          ./scripts/dispatch-docs --check
