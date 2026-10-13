@@ -1,0 +1,39 @@
+#!/bin/sh
+# Generate or verify the beads.el dispatch reference documentation.
+#
+#   scripts/dispatch-docs --check   verify the snapshot and marked regions
+#                                   against the transient menus (CI, default)
+#   scripts/dispatch-docs --write   regenerate the snapshot and regions
+#
+# The source of truth is the transient menu code.  This script loads the
+# project, renders the menus, and compares the result with the checked-in
+# `docs/dispatch-reference.md' snapshot and the generated blocks inside
+# `README.md' and `docs/manual/orchestration.org'.  It never renders a
+# menu buffer and never touches the database.
+#
+# Eldev is used when available so the project's dependencies are on the
+# load path; otherwise a plain Emacs with `lisp/' on `load-path' is used.
+
+set -eu
+
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+cd "$root"
+
+mode=${1:---check}
+case "$mode" in
+  --check) form='(beads-dispatch-doc-check)' ;;
+  --write) form='(beads-dispatch-doc-write)' ;;
+  *)
+    echo "usage: $0 [--check|--write]" >&2
+    exit 2
+    ;;
+esac
+
+eval_form="(progn (require 'beads-dispatch-doc) $form"
+eval_form="$eval_form (princ \"dispatch docs ok\\n\"))"
+
+if command -v eldev >/dev/null 2>&1; then
+  exec eldev -p emacs -- --batch -L lisp --eval "$eval_form"
+else
+  exec emacs -Q --batch -L lisp --eval "$eval_form"
+fi
