@@ -1,0 +1,174 @@
+@node Dashboards and Views
+@chapter Dashboards and Views
+@anchor{views}
+@cindex dashboards
+@cindex views
+
+This chapter covers the read-only surfaces of beads.el: the project board
+(the dashboard), the tabulated issue lists, the issue detail view, and the
+eldoc previews that show issue data in any buffer.  Together they are the
+day-to-day way to watch a store; the write commands live in
+@ref{Issue Workflow}.
+
+@menu
+* The Board::
+* List and Show Views::
+* Eldoc Previews::
+@end menu
+
+@node The Board
+@section The Board
+@cindex project board
+@cindex dashboard
+@cindex vui
+
+@deffn Command beads
+Open the project board: the single front door of beads.el and the same
+command as @code{beads-dashboard-status}.  Run @kbd{M-x beads}, or press
+@kbd{D} from the dispatch menu (@pxref{Transients}).
+@end deffn
+
+The board is a @code{vui} buffer.  Each section is a component that loads
+its own data asynchronously inside a @code{vui-error-boundary}, so one slow
+or failing @command{bd} query never blocks the rest of the board.  The
+@code{bd status} snapshot itself is rendered as the clickable
+@strong{Stats} section (@pxref{Listing Issues} for the list views the
+board links to).
+
+If you are unsure which Beads store a buffer acts on, the header names it,
+and buffer-local store scoping keeps every command pointed at the same
+store (@pxref{Store Scoping}).
+
+@anchor{fig:board-dark}
+@image{images/dashboard-dark,,,The project board (@code{beads-dashboard}) with ready, in-progress, and blocked sections.,png}
+@image{images/dashboard-dark-thumb,,,The project board thumbnail.,png}
+@anchor{fig:board-light}
+@image{images/dashboard-light,,,The project board under the light theme.,png}
+@image{images/dashboard-light-thumb,,,The light theme project board thumbnail.,png}
+
+@menu
+* Board Sections and Folding::
+* Ready and Blocked Lists::
+@end menu
+
+@node Board Sections and Folding
+@subsection Board Sections and Folding
+@cindex folding a board section
+@kindex SPC
+
+Each section heading is a thing carrying a toggle (@pxref{One Movement
+Scheme}).  @kbd{SPC} on a heading folds or unfolds that section; @kbd{+}
+and @kbd{-} expand and collapse, and @kbd{*} toggles everything.  Section
+state is remembered per store, so reopening the board restores your
+layout.
+
+@node Ready and Blocked Lists
+@subsection Ready and Blocked Lists
+@cindex ready issues
+@cindex blocked issues
+
+The @emph{ready} list is the work frontier: issues that are open and have
+no unmet dependencies.  The @emph{blocked} list is its complement: issues
+waiting on dependencies or on a declared blocked status.  Open them from
+the dispatch menu with @kbd{r} and @kbd{b}, or from the board header.
+
+@anchor{fig:ready-dark}
+@image{images/ready-dark,,,The ready-work list.,png}
+@image{images/ready-dark-thumb,,,The ready-work list thumbnail.,png}
+@anchor{fig:blocked-dark}
+@image{images/blocked-dark,,,The blocked-issues list.,png}
+@image{images/blocked-dark-thumb,,,The blocked-issues list thumbnail.,png}
+
+@node List and Show Views
+@section List and Show Views
+@cindex issue list
+@cindex issue detail
+
+@deffn Command beads-list-mode
+Major mode for a tabulated list of issues.  It renders homogeneous rows
+(id, status, priority, type, and title) with clickable headers and a sort
+key, and every row is a thing (@pxref{One Movement Scheme}).
+@end deffn
+
+@deffn Command beads-show-mode
+Major mode for the detail view of one issue.  It renders the issue as a
+set of collapsible sections (description, dependencies, comments, history,
+and so on).
+@end deffn
+
+The two views share the movement and pagination commands below, so the same
+keys work in both.
+
+@menu
+* View Movement::
+* Pagination::
+@end menu
+
+@node View Movement
+@subsection View Movement
+@cindex thing motion
+
+@deffn Command beads-thing-forward
+Move to the next thing, wrapping at the end and echoing @samp{Wrapped}.
+Bound to @kbd{TAB}.
+@end deffn
+
+@deffn Command beads-thing-backward
+Move to the previous thing, wrapping at the beginning.  Bound to
+@kbd{S-TAB}.
+@end deffn
+
+@deffn Command beads-thing-toggle
+Run the thing's own toggle (fold, preview) and then the buffer-local
+@code{beads-thing-toggle-functions}.  Bound to @kbd{SPC}.
+@end deffn
+
+In a tabulated list every row is a thing.  In section buffers the thing is
+a run of text carrying the @code{beads-thing} property.  @kbd{n} and
+@kbd{p} move to the next and previous line without wrapping.
+
+@node Pagination
+@subsection Pagination
+@cindex pagination
+
+@deffn Command beads-pager-mode
+Minor mode that sizes a page to the window (with a floor of five rows) and
+adds navigation for large result sets.
+@end deffn
+
+@table @kbd
+@item ]
+Move to the next page.
+@item [
+Move to the previous page.
+@item G
+Jump to a page.
+@item g
+Refresh the current view.
+@end table
+
+The pagination core is reusable and buffer-agnostic; it is documented
+alongside the other extension points.
+
+@node Eldoc Previews
+@section Eldoc Previews
+@cindex eldoc
+@cindex issue previews
+
+@deffn Command beads-eldoc-mode
+Toggle hover previews of issue references in the current buffer.
+@end deffn
+
+@vindex beads-issue-id-regexp
+@vindex beads-issue-id-prefixes
+Hover over an issue reference anywhere in Emacs --- a comment, a commit
+message, an Org file --- and eldoc previews the issue asynchronously.  The
+command is @code{beads-eldoc-mode}; enable it in the buffers where you
+want previews.  Issue ids are matched with the shared
+@code{beads-issue-id-regexp} and restricted by
+@code{beads-issue-id-prefixes}.
+
+Preview data is cached per store, including negative results, so a
+reference to an unknown id does not re-query on every keystroke.  Remote
+stores are supported; previews use the same asynchronous path as the board
+and never block.

@@ -59,13 +59,15 @@ command drives @command{bd --json} and renders the structured result.
 
 The manual is organized by task.  New users should read
 @ref{Getting Started}, then @ref{Issue Workflow}.  The remaining task
-areas (dashboards and views, formulas and epics, agents and sling,
-orchestration and the terminal, and maintenance and extending) are added
-to this manual alongside the code they document.
+areas (orchestration and the terminal, and maintenance and extending) are
+added to this manual alongside the code they document.
 
 @menu
 * Getting Started::             Install, first issue, and the concepts.
 * Issue Workflow::              Create, list, view, edit, close, and label.
+* Dashboards and Views::        The board, lists, show, and eldoc.
+* Formulas Molecules and Epics:: Formulas, molecules, and epics.
+* Agents and Sling::            Agents, backends, sessions, sling, swarm.
 * Key Index::                   Keystrokes.
 * Command and Variable Index::  Commands, functions and user options.
 @end menu
@@ -73,6 +75,9 @@ to this manual alongside the code they document.
 
 @include getting-started.texi
 @include issue-workflow.texi
+@include views.texi
+@include formulas.texi
+@include agents.texi
 
 @c ====================================================================
 @node Key Index

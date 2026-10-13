@@ -1,0 +1,146 @@
+@node Agents and Sling
+@chapter Agents and Sling
+@anchor{agents}
+@cindex agents
+@cindex sling
+@cindex sessions
+
+beads.el can launch an AI agent on an issue from inside Emacs.  A
+@emph{session} is the combination of an agent @emph{type} (what the agent
+is asked to do) and a @emph{backend} (the program and terminal that run
+it), optionally isolated in a git worktree.  Sessions are managed with
+@uref{https://github.com/emacsattic/sesman, sesman}.
+
+@menu
+* Agent Commands::
+* Agent Types::
+* Agent Backends::
+* Sessions and Worktrees::
+* Sling and Swarm::
+@end menu
+
+@node Agent Commands
+@section Agent Commands
+@cindex agent commands
+
+Agent commands are bound under the @kbd{a} prefix in list and show
+buffers, and the full menu is on @kbd{a} in the dispatch menu
+(@pxref{Transients}).
+
+@table @kbd
+@item a t
+Start a task agent.
+@item a r
+Start a review agent.
+@item a p
+Start a plan agent.
+@item a q
+Start a QA agent.
+@item a c
+Start a custom agent.
+@item a x
+Stop the agent at point.
+@item a j
+Jump to the agent buffer.
+@item a a
+Start the generic agent at point.
+@end table
+
+@anchor{fig:agents-dark}
+@image{images/agents-dark,,,The agent session list (@code{beads-agent-list}).,png}
+@image{images/agents-dark-thumb,,,The agent session list thumbnail.,png}
+@anchor{fig:agent-menu-dark}
+@image{images/agent-menu-dark,,,The agent menu (@code{beads-agent}).,png}
+@image{images/agent-menu-dark-thumb,,,The agent menu thumbnail.,png}
+
+@node Agent Types
+@section Agent Types
+@cindex agent types
+@cindex prompts
+
+An @emph{agent type} fixes the role and the prompt protocol.  The built-in
+types are Task, Review, Plan, QA, and Custom.  Each type has two prompts:
+
+@itemize
+@item
+a role-only @emph{system} prompt
+(@code{beads-agent-type-system-prompt}), and
+@item
+an issue-envelope @emph{user} prompt
+(@code{beads-agent-type-build-user-prompt}).
+@end itemize
+
+@deftypefn {Emacs Lisp Function} {} beads-agent-type-system-prompt (type)
+Return the role-only system prompt for an agent TYPE.
+@end deftypefn
+
+@deftypefn {Emacs Lisp Function} {} beads-agent-type-build-user-prompt (type issue)
+Return the issue-envelope user prompt for TYPE and ISSUE.
+@end deftypefn
+
+Settings are kept in @code{beads-agent-type.el}.  Custom types register in
+the same way and appear in the menu.
+
+@node Agent Backends
+@section Agent Backends
+@cindex agent backends
+@cindex backend registry
+
+A @emph{backend} knows how to start one program in one terminal.  Backends
+register in a registry (@code{beads-agent-backend.el}); the shipped set
+includes:
+
+@itemize
+@item
+@code{claude-code}, @code{claude-code-ide}, @code{claudemacs},
+@code{eca}, and @code{agent-shell};
+@item
+@code{mock}, for tests; and
+@item
+@code{terminal}, an opt-in collision-free backend that spawns a CLI
+directly into a terminal.
+@end itemize
+
+@deftypefn {Emacs Lisp Function} {} beads-agent-backend-start (backend issue system-prompt user-prompt)
+Start BACKEND for ISSUE with the given SYSTEM-PROMPT and USER-PROMPT.
+@end deftypefn
+
+Backends are selected by name.
+@vindex beads-agent-curated-backends
+@code{beads-agent-curated-backends} limits the menu to a preferred subset
+and leaves the rest selectable but out of the way.
+
+@node Sessions and Worktrees
+@section Sessions and Worktrees
+@cindex worktree isolation
+
+A session is registered with sesman as soon as it starts, so it can be
+revisited after a restart.  When git worktree isolation is enabled, the
+agent runs in its own worktree with its own branch, so parallel agents do
+not fight over the working tree.  The worktree helpers live in
+@code{beads-git.el} and are shared with the terminal and swarm modules.
+
+@node Sling and Swarm
+@section Sling and Swarm
+@anchor{sling}
+@cindex sling
+@cindex swarm
+
+@emph{Sling} dispatches a bead to an agent or another target.
+@emph{Swarm} runs many agents over the children of an epic in waves.
+
+@table @kbd
+@item S
+From the dispatch menu, open the swarm fleet list
+(@code{beads-swarm-list-view}).
+@item w
+From the maintenance menu, open the swarm sub-dispatch.
+@end table
+
+@anchor{fig:swarm-dark}
+@image{images/swarm-dark,,,The swarm fleet list, showing wave progress.,png}
+@image{images/swarm-dark-thumb,,,The swarm fleet list thumbnail.,png}
+
+The sling preview shows the prompt and target before the agent starts, so
+you can adjust them before committing.  Sling and swarm share the terminal
+subsystem with the other agent flows.
