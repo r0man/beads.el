@@ -17,6 +17,11 @@
 ;; depends on whether an unrelated file happened to load the prefix
 ;; before this one was compiled, which would make the gate
 ;; order-dependent.  Every other warning category stays fatal.
+;;
+;; When BEADS_COMPILE_OUT_DIR names a directory (an out-of-tree/VPATH
+;; build), the generated `*.elc' are written there instead of beside the
+;; sources, so the source tree stays clean (RF-1).  In-tree the variable
+;; is unset and the historical beside-the-source layout is kept.
 
 ;;; Code:
 
@@ -37,10 +42,21 @@
 (setq byte-compile-error-on-warn t)
 (setq byte-compile-warnings '(not interactive-only))
 
-(let ((files (copy-sequence command-line-args-left))
+(let ((out-dir (getenv "BEADS_COMPILE_OUT_DIR"))
+      (files (copy-sequence command-line-args-left))
       (failed nil))
   (when (null files)
     (error "beads-compile: no source files given"))
+  (when out-dir
+    (setq out-dir (file-name-as-directory (expand-file-name out-dir)))
+    (make-directory out-dir t)
+    (setq byte-compile-dest-file-function
+          (lambda (file)
+            (expand-file-name
+             (concat (file-name-nondirectory
+                      (file-name-sans-extension file))
+                     ".elc")
+             out-dir))))
   (dolist (file files)
     (unless (byte-compile-file file)
       (setq failed t)))
