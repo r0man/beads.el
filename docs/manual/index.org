@@ -62,8 +62,7 @@ trying to do.
 
 - Emacs 29.1 or newer.
 - The {{{cmd(bd)}}} executable on {{{var(PATH)}}}.
-- The MELPA libraries =transient= (0.10.1+), =sesman= (0.3.2+), and =vui=
-  (1.0.0+).
+- The MELPA libraries =transient= (0.10.1+) and =vui= (1.0.0+).
 - {{{cmd(dolt)}}} and {{{cmd(graphviz)}}} for the full feature set and test
   suite.
 

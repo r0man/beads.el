@@ -32,7 +32,7 @@
 ;;   n/p   - Navigate next/previous
 ;;   w     - Copy session ID
 ;;   W     - Copy issue ID
-;;   C-c C-s - Sesman commands
+;;   C-c C-s - Session commands
 
 ;;; Code:
 
@@ -43,7 +43,7 @@
 (require 'beads-agent-backend)
 (require 'beads-agent-display)
 (require 'beads-pager)
-(require 'beads-sesman)
+(require 'beads-agent-session)
 
 ;;; Forward Declarations
 
@@ -410,8 +410,8 @@ Stops the current session and starts a new one for the same issue."
     (define-key map (kbd "q") #'beads-agent-list-quit)
     (define-key map (kbd "w") #'beads-agent-list-copy-session-id)
     (define-key map (kbd "W") #'beads-agent-list-copy-issue-id)
-    ;; Sesman session management
-    (define-key map (kbd "C-c C-s") beads-sesman-map)
+    ;; Agent session management (CIDER/ESS convention)
+    (define-key map (kbd "C-c C-s") beads-agent-session-map)
     ;; TAB/S-TAB move by session, SPC toggles, ? dispatches, C-c b is
     ;; reserved for extensions (design.md §3.3).
     (beads-mode--install-navigation-keys map)

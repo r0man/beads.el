@@ -189,8 +189,8 @@
 ;; Sessions are mocked via `cl-letf' on the accessor functions
 ;; (`beads-agent-session-type-name', `beads-agent-session-instance-number')
 ;; so the tests don't need to load `beads-agent-backend.el' (and pull
-;; sesman) — `beads-agent-display.el' declares both accessors via
-;; `declare-function' for the byte-compiler.
+;; the session store) — `beads-agent-display.el' declares both accessors
+;; via `declare-function' for the byte-compiler.
 ;;
 ;; The Task agent type registered in `beads-agent-types.el' has letter
 ;; "T" and icon "🦅"; tests assume that registration is in effect.

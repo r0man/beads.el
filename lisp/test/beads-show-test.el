@@ -3211,7 +3211,7 @@ This is the CRITICAL behavioral test for directory-as-identity."
 (ert-deftest beads-show-test-register-with-session ()
   "Test that registering adds buffer to session."
   (let ((test-buffer (generate-new-buffer "*beads-show-test*"))
-        (beads-sesman--worktree-sessions nil))
+        (beads-worktree-session--sessions nil))
     (unwind-protect
         (cl-letf (((symbol-function 'beads-git-find-project-root)
                    (lambda () "/tmp/test-project"))
@@ -3224,18 +3224,18 @@ This is the CRITICAL behavioral test for directory-as-identity."
             (setq beads-show--project-dir "/tmp/test-project")
             (beads-show--register-with-session))
           ;; Session should exist
-          (should (= 1 (length beads-sesman--worktree-sessions)))
+          (should (= 1 (length beads-worktree-session--sessions)))
           ;; Buffer should be in session
-          (let ((session (car beads-sesman--worktree-sessions)))
+          (let ((session (car beads-worktree-session--sessions)))
             (should (memq test-buffer (oref session buffers)))))
       (kill-buffer test-buffer)
-      (setq beads-sesman--worktree-sessions nil))))
+      (setq beads-worktree-session--sessions nil))))
 
 (ert-deftest beads-show-test-unregister-from-session ()
   "Test that unregistering removes buffer from session.
 Empty sessions are automatically cleaned up."
   (let ((test-buffer (generate-new-buffer "*beads-show-test*"))
-        (beads-sesman--worktree-sessions nil))
+        (beads-worktree-session--sessions nil))
     (unwind-protect
         (cl-letf (((symbol-function 'beads-git-find-project-root)
                    (lambda () "/tmp/test-project"))
@@ -3248,25 +3248,25 @@ Empty sessions are automatically cleaned up."
             (setq beads-show--project-dir "/tmp/test-project")
             (beads-show--register-with-session)
             ;; Buffer should be in session
-            (let ((session (car beads-sesman--worktree-sessions)))
+            (let ((session (car beads-worktree-session--sessions)))
               (should (memq test-buffer (oref session buffers))))
             ;; Now unregister
             (beads-show--unregister-from-session))
           ;; Session should be cleaned up (empty sessions are removed)
           ;; Either no sessions left, or buffer not in any remaining session
-          (if (null beads-sesman--worktree-sessions)
+          (if (null beads-worktree-session--sessions)
               (should t)  ; Session was cleaned up - good!
             ;; If session still exists, buffer should not be in it
-            (let ((session (car beads-sesman--worktree-sessions)))
+            (let ((session (car beads-worktree-session--sessions)))
               (should-not (memq test-buffer (oref session buffers))))))
       (kill-buffer test-buffer)
-      (setq beads-sesman--worktree-sessions nil))))
+      (setq beads-worktree-session--sessions nil))))
 
 (ert-deftest beads-show-test-multiple-buffers-same-session ()
   "Test that multiple show buffers can be in the same session."
   (let ((buffer1 (generate-new-buffer "*beads-show-test-1*"))
         (buffer2 (generate-new-buffer "*beads-show-test-2*"))
-        (beads-sesman--worktree-sessions nil))
+        (beads-worktree-session--sessions nil))
     (unwind-protect
         (cl-letf (((symbol-function 'beads-git-find-project-root)
                    (lambda () "/tmp/test-project"))
@@ -3285,19 +3285,19 @@ Empty sessions are automatically cleaned up."
             (setq beads-show--project-dir "/tmp/test-project")
             (beads-show--register-with-session))
           ;; Should still have only one session
-          (should (= 1 (length beads-sesman--worktree-sessions)))
+          (should (= 1 (length beads-worktree-session--sessions)))
           ;; Session should contain both buffers
-          (let ((session (car beads-sesman--worktree-sessions)))
+          (let ((session (car beads-worktree-session--sessions)))
             (should (memq buffer1 (oref session buffers)))
             (should (memq buffer2 (oref session buffers)))))
       (kill-buffer buffer1)
       (kill-buffer buffer2)
-      (setq beads-sesman--worktree-sessions nil))))
+      (setq beads-worktree-session--sessions nil))))
 
 (ert-deftest beads-show-test-kill-buffer-removes-from-session ()
   "Test that killing a buffer removes it from the session via hook."
   (let ((test-buffer (generate-new-buffer "*beads-show-test*"))
-        (beads-sesman--worktree-sessions nil))
+        (beads-worktree-session--sessions nil))
     (unwind-protect
         (cl-letf (((symbol-function 'beads-git-find-project-root)
                    (lambda () "/tmp/test-project"))
@@ -3310,23 +3310,23 @@ Empty sessions are automatically cleaned up."
             (setq beads-show--project-dir "/tmp/test-project")
             (beads-show--register-with-session))
           ;; Buffer should be in session
-          (let ((session (car beads-sesman--worktree-sessions)))
+          (let ((session (car beads-worktree-session--sessions)))
             (should (memq test-buffer (oref session buffers))))
           ;; Kill buffer - hook should remove it
           (kill-buffer test-buffer)
           ;; Session should be cleaned up (empty session removed)
           ;; Since there are no other buffers or agents, session should be gone
-          (should (null beads-sesman--worktree-sessions)))
+          (should (null beads-worktree-session--sessions)))
       ;; Cleanup in case test failed
       (when (buffer-live-p test-buffer)
         (kill-buffer test-buffer))
-      (setq beads-sesman--worktree-sessions nil))))
+      (setq beads-worktree-session--sessions nil))))
 
 (ert-deftest beads-show-test-kill-one-buffer-keeps-others-in-session ()
   "Test that killing one buffer does not affect others in same session."
   (let ((buffer1 (generate-new-buffer "*beads-show-test-1*"))
         (buffer2 (generate-new-buffer "*beads-show-test-2*"))
-        (beads-sesman--worktree-sessions nil))
+        (beads-worktree-session--sessions nil))
     (unwind-protect
         (cl-letf (((symbol-function 'beads-git-find-project-root)
                    (lambda () "/tmp/test-project"))
@@ -3343,20 +3343,20 @@ Empty sessions are automatically cleaned up."
           ;; Kill first buffer
           (kill-buffer buffer1)
           ;; Session should still exist with buffer2
-          (should (= 1 (length beads-sesman--worktree-sessions)))
-          (let ((session (car beads-sesman--worktree-sessions)))
+          (should (= 1 (length beads-worktree-session--sessions)))
+          (let ((session (car beads-worktree-session--sessions)))
             (should (memq buffer2 (oref session buffers)))
             (should-not (memq buffer1 (oref session buffers)))))
       (when (buffer-live-p buffer1)
         (kill-buffer buffer1))
       (when (buffer-live-p buffer2)
         (kill-buffer buffer2))
-      (setq beads-sesman--worktree-sessions nil))))
+      (setq beads-worktree-session--sessions nil))))
 
 (ert-deftest beads-show-test-register-no-duplicate ()
   "Test that registering same buffer twice does not duplicate in session."
   (let ((test-buffer (generate-new-buffer "*beads-show-test*"))
-        (beads-sesman--worktree-sessions nil))
+        (beads-worktree-session--sessions nil))
     (unwind-protect
         (cl-letf (((symbol-function 'beads-git-find-project-root)
                    (lambda () "/tmp/test-project"))
@@ -3371,10 +3371,10 @@ Empty sessions are automatically cleaned up."
             (beads-show--register-with-session)
             (beads-show--register-with-session))
           ;; Buffer should appear only once
-          (let ((session (car beads-sesman--worktree-sessions)))
+          (let ((session (car beads-worktree-session--sessions)))
             (should (= 1 (length (oref session buffers))))))
       (kill-buffer test-buffer)
-      (setq beads-sesman--worktree-sessions nil))))
+      (setq beads-worktree-session--sessions nil))))
 
 ;;; Additional Coverage Tests
 

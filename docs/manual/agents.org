@@ -14,7 +14,8 @@ Back to [[file:index.org][the manual index]].
 beads.el can launch an AI agent on an issue from inside Emacs.  A *session*
 is the combination of an agent *type* (what the agent is asked to do) and a
 *backend* (the program and terminal that run it), optionally isolated in a git
-worktree.  Sessions are managed with [[https://github.com/emacsattic/sesman][sesman]].
+worktree.  Sessions are tracked in an in-house registry, so no external
+session-manager package is required.
 
 * Agent commands
 
@@ -69,11 +70,11 @@ and leaves the rest selectable but out of the way.
 
 * Sessions and worktrees
 
-A session is registered with sesman as soon as it starts, so it can be
-revisited after a restart.  When git worktree isolation is enabled, the agent
-runs in its own worktree with its own branch, so parallel agents do not fight
-over the working tree.  The worktree helpers live in =beads-git.el= and are
-shared with the terminal and swarm modules.
+A session is registered in the in-house registry as soon as it starts, so it
+can be revisited after a restart.  When git worktree isolation is enabled,
+the agent runs in its own worktree with its own branch, so parallel agents do
+not fight over the working tree.  The worktree helpers live in =beads-git.el=
+and are shared with the terminal and swarm modules.
 
 * Sling and swarm
 

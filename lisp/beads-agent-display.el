@@ -145,8 +145,8 @@ returns the single-letter abbreviation from TYPE's `letter' slot."
 
 ;; Session accessors live in beads-agent-backend.el; callers load that
 ;; module before this helper runs.  Declared here to keep
-;; `beads-agent-display.el' load-cheap and avoid pulling sesman into
-;; the dependency graph of pure display tests.
+;; `beads-agent-display.el' load-cheap and avoid pulling the session
+;; store into the dependency graph of pure display tests.
 (declare-function beads-agent-session-type-name
                   "beads-agent-backend" (session))
 (declare-function beads-agent-session-instance-number

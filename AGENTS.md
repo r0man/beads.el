@@ -38,7 +38,7 @@ eldev -p -dtT lint
 
 `eldev` global flags (`-p`, `-s`, `-dtT`) go *before* the `test` subcommand; `-p` after `test` fails with "Unknown option". There is no `--coverage` option; use `-s` plus `-U FILE`.
 
-External requirements for the full suite: `bd` (CI pins v1.0.5), `dolt`, `graphviz`, plus the Emacs packages `transient`, `sesman`, `vui`. Under Guix use `guix shell -D -f guix.scm`. `scripts/show-menu` launches `emacs -Q` with `lisp/` on the load-path and opens the main menu; `scripts/emacs-minimal` does the same inside a pure `guix shell` with the config in `share/emacs.d`.
+External requirements for the full suite: `bd` (CI pins v1.0.5), `dolt`, `graphviz`, plus the Emacs packages `transient` and `vui`. Under Guix use `guix shell -D -f guix.scm`. `scripts/show-menu` launches `emacs -Q` with `lisp/` on the load-path and opens the main menu; `scripts/emacs-minimal` does the same inside a pure `guix shell` with the config in `share/emacs.d`.
 
 CI runs tests on Emacs 29.4, 30.2, and snapshot; 29.4 is `continue-on-error` because of a known EIEIO byte-compilation bug with cross-file `cl-defmethod` dispatch, so a 29.4-only failure is not necessarily yours.
 
@@ -107,7 +107,7 @@ Modules:
 - **`beads-thing.el`**: the one movement scheme of every view: the `beads-thing` text property marks things; `beads-thing-forward`/`-backward` (TAB/S-TAB, wrap) and `beads-thing-toggle` (SPC); `beads-thing-define-keys` installs the keys. Tabulated rows are things without stamping.
 - **`beads-dashboard.el`** / **`beads-dashboard-sections.el`**: vui-based project pulse buffer; each section loads asynchronously inside a `vui-error-boundary`. It is the single front door: `M-x beads` and `beads-dashboard-status` open the board, and the `bd status` snapshot is its clickable **Stats** section (`beads-command-status.el` is the command class; the legacy standalone `beads-stats` buffer is retired and `beads-stats` now forwards to `beads-dashboard-status`).
 - **`beads-eldoc.el`**: Hover-to-preview issue references anywhere, async with per-store caching and negative caching. Issue ids are matched by the shared `beads-issue-id-regexp` (base-36 hash part) restricted by `beads-issue-id-prefixes`.
-- **`beads-agent.el`** + backends: AI agent integration with sesman session management and git worktree isolation. A session = agent type (`beads-agent-type.el`: Task/Review/Plan/QA/Custom) + backend (`beads-agent-backend.el` registry: claude-code, claude-code-ide, claudemacs, eca, agent-shell, mock, terminal). The prompt protocol is split into a role-only **system** prompt (`beads-agent-type-system-prompt`) and an issue-envelope **user** prompt (`beads-agent-type-build-user-prompt`); `beads-agent-backend-start` is 4-arity `(backend issue system-prompt user-prompt)`.
+- **`beads-agent.el`** + backends: AI agent integration with in-house session management and git worktree isolation. A session = agent type (`beads-agent-type.el`: Task/Review/Plan/QA/Custom) + backend (`beads-agent-backend.el` registry: claude-code, claude-code-ide, claudemacs, eca, agent-shell, mock, terminal). The prompt protocol is split into a role-only **system** prompt (`beads-agent-type-system-prompt`) and an issue-envelope **user** prompt (`beads-agent-type-build-user-prompt`); `beads-agent-backend-start` is 4-arity `(backend issue system-prompt user-prompt)`.
 - **`beads-terminal.el`** / **`beads-agent-backend-terminal.el`**: EIEIO terminal subsystem (vterm/ghostel/eat/ansi-term/term + auto + registry) and the opt-in collision-free `beads-agent-backend-claude` (spawns the CLI directly into a terminal). The `efrit` backend was removed.
 
 ### Key Files
@@ -128,7 +128,8 @@ Modules:
 | `beads-completion.el` | Completion tables (issue IDs, statuses, etc.) |
 | `beads-reader.el` | Reader functions for transient infixes |
 | `beads-git.el` | project.el root discovery, branch/worktree helpers, async git |
-| `beads-sesman.el` | sesman integration for agent sessions |
+| `beads-agent-session.el` | Session commands, context lookup and `beads-agent-session-map` |
+| `beads-worktree-session.el` | Per-directory worktree buffer grouping for show/list views |
 | `beads-audit.el` | CLI-parity audit (see below) |
 
 `MAGIT_PATTERNS.md` documents the Magit/Forge conventions the transients and sections follow. `NEWS.md` lists user-visible and API-breaking changes newest first under "Unreleased"; add an entry when you make one. The README's Architecture section is older than the code; prefer this file and the module commentaries.
@@ -141,7 +142,7 @@ Modules:
 - Transient menus are auto-generated from slot metadata where possible; use `:transient :manual` only when custom layout is needed.
 - Define menus with `beads-define-prefix` / `beads-define-group` (`beads-prefix.el`), never bare `transient-define-prefix` / `transient-define-group`: the wrappers make every suffix run in the directory the menu was opened for, which is what keeps menus opened via `project-switch-project` working.  A custom prefix `:class` must derive from `beads-prefix`.
 - Every EIEIO class and every slot carries a `:documentation` string.
-- Dependencies: Emacs 29.1+, transient 0.10.1+, sesman 0.3.2+, vui 1.0.0+ (from MELPA). Declared in `lisp/beads.el` `Package-Requires` and mirrored in `Eldev` and `guix.scm`; keep all three in sync.
+- Dependencies: Emacs 29.1+, transient 0.10.1+, vui 1.0.0+ (from MELPA). Declared in `lisp/beads.el` `Package-Requires` and mirrored in `Eldev` and `guix.scm`; keep all three in sync.
 - Autoloads: `;;;###autoload` works directly on `beads-defcommand` and `beads-meta-define-transient` forms (the `Eldev` file preloads `beads-meta.el` for the autoload generator).
 
 ### Top-level group commands (`bd <group> <subcommand>`)

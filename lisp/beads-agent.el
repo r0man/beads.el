@@ -21,29 +21,27 @@
 ;;
 ;; See `beads-agent-backend.el' for the backend protocol definition.
 ;;
-;; Session Management (via Sesman):
+;; Session Management:
 ;;
-;; Sessions are managed using sesman (Session Manager), which provides:
-;; - Context-aware session selection based on buffer/directory/project
+;; Sessions are tracked in an in-house registry (see
+;; `beads-agent-backend.el'):
+;; - Context lookup by buffer or working directory
 ;; - Standard keybindings for session management (C-c C-s prefix)
-;; - Interactive session browser (M-x beads-sesman-browser)
-;; - Automatic session linking to worktree and project directories
+;; - `beads-agent-list' as the session browser
 ;;
 ;; Session Naming Convention:
-;;   Sessions are named "<issue-id>@<directory>", e.g.:
-;;   - beads.el-42@~/projects/beads.el/        (main repo)
-;;   - beads.el-42@~/projects/beads.el-42/     (worktree)
+;;   Sessions are named "<project-name>#<N>", e.g.:
+;;   - beads.el#1                     (main repo)
+;;   - beads.el#2                     (second agent in the same dir)
 ;;
 ;; Context Linking:
-;;   Each session is linked to two context types:
-;;   1. Agent buffer - the terminal where the AI agent runs
-;;   2. Working directory - where the agent operates (worktree or project root)
+;;   Each session is associated with the agent buffer and the working
+;;   directory (worktree if present, otherwise project root).  This lets
+;;   `beads-agent-session-stop'/`-restart' locate the session from the
+;;   agent buffer or from files in its working directory.
 ;;
-;;   This enables sesman to automatically select the correct session
-;;   when you're in the agent buffer or editing files in the agent's
-;;   working directory.  Different directories have separate sessions.
-;;
-;; See `beads-sesman.el' for the sesman integration implementation.
+;; See `beads-agent-session.el' for the session commands and keymap,
+;; and `beads-worktree-session.el' for per-directory buffer grouping.
 ;;
 ;; Git Worktree Support:
 ;;
@@ -74,12 +72,11 @@
 ;;   ;; Open agent menu
 ;;   M-x beads-agent RET
 ;;
-;;   ;; Sesman session management (bind beads-sesman-map to a prefix)
+;;   ;; Session management (bind beads-agent-session-map to a prefix)
 ;;   C-c C-s s - Start new session
-;;   C-c C-s q - Quit current session
+;;   C-c C-s q - Stop current session
 ;;   C-c C-s r - Restart current session
-;;   C-c C-s b - Open session browser
-;;   C-c C-s l - Link session to current context
+;;   C-c C-s b - Open the agent list
 
 ;;; Code:
 
@@ -103,12 +100,11 @@
 
 ;; Forward declarations
 (declare-function beads-list--current-issue-id "beads-command-list")
-(declare-function beads-sesman--link-session-buffer "beads-sesman")
 (declare-function beads-sling-dispatch "beads-sling" (target bead prompt))
 (declare-function beads-sling-worktree-target "beads-sling"
                   (name path &optional branch))
 (defvar beads-show--issue-id)
-(defvar beads-sesman--buffer-session-id)
+(defvar beads-agent--buffer-session-id)
 
 ;;; Error Handling Helpers
 
@@ -604,9 +600,9 @@ does nothing to avoid renaming an already-renamed buffer."
           (setq-local default-directory working-dir))
         ;; Store in session
         (beads-agent-session-set-buffer session buffer)
-        ;; Link buffer to sesman session (deferred from session creation)
-        ;; This sets sesman-system and kill-buffer-hook in the buffer
-        (beads-sesman--link-session-buffer session buffer)))))
+        ;; Link buffer to its session (deferred from session creation)
+        ;; This installs the kill-buffer-hook in the buffer.
+        (beads-agent--setup-session-buffer session buffer)))))
 
 (defun beads-agent--start-backend-async (issue-id backend project-dir worktree-dir
                                                   prompt issue agent-type
@@ -689,7 +685,7 @@ If SESSION-ID is nil, prompts for selection from active sessions."
       (when-let* ((buffer (beads-agent-backend-get-buffer backend session)))
         (when (buffer-live-p buffer)
           (with-current-buffer buffer
-            (setq-local beads-sesman--buffer-session-id nil))))
+            (setq-local beads-agent--buffer-session-id nil))))
       (beads-agent-backend-stop backend session))
     (beads-agent--destroy-session session-id)
     (message "Stopped session %s" session-id)))
@@ -711,7 +707,7 @@ This function returns immediately without blocking."
               (when-let* ((buffer (beads-agent-backend-get-buffer backend session)))
                 (when (buffer-live-p buffer)
                   (with-current-buffer buffer
-                    (setq-local beads-sesman--buffer-session-id nil))))
+                    (setq-local beads-agent--buffer-session-id nil))))
               (beads-agent-backend-stop-async
                backend session
                (lambda ()

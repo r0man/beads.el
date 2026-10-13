@@ -4,6 +4,32 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Session management without the sesman dependency
+
+* **The external `sesman` package is no longer a dependency.** Agent
+sessions are tracked in an in-house registry (`beads-agent--sessions` in
+`beads-agent-backend.el`): `beads-agent--register-session`,
+`beads-agent--unregister-session`, `beads-agent--clear-sessions`, and the
+`beads-agent--all-sessions` accessor.  All six session query functions now
+iterate that registry.  `sesman`, `beads-sesman-system`, and every
+`sesman-*` generic are gone; `Package-Requires`, `Eldev`, and `guix.scm`
+no longer list `sesman`.
+* **Module split.** The old `beads-sesman.el` is replaced by
+`beads-agent-session.el` (session commands, context lookup, and
+`beads-agent-session-map`) and `beads-worktree-session.el` (per-directory
+buffer grouping, moved off the `beads-sesman--` prefix).
+* **User-facing commands renamed.** `beads-sesman-start/-quit/-restart`
+become `beads-agent-session-start/-stop/-restart`, and `beads-sesman-map`
+becomes `beads-agent-session-map` (still bound to `C-c C-s` in list, show,
+and agent-list buffers).  `beads-sesman-browser` is deleted;
+`beads-agent-list` is the session browser.  The `s`/`q`/`r`/`b` keys are
+retained; the `l` link command is gone.  Killing an agent buffer still
+stops its session.
+* **Worktree grouping** (`beads-worktree-session-ensure`,
+`beads-worktree-session-for-buffer`, ...) keeps its directory-as-identity
+semantics; only the names changed (`beads-sesman--worktree-sessions` ->
+`beads-worktree-session--sessions`).
+
 ### Single front door: the dashboard Stats section
 
 * **`bd status` is a dashboard section, not a separate command.**

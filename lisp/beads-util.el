@@ -350,7 +350,7 @@ normalized the git result itself; that work now lives here).
 
 This is the package-wide resolver: prefer it over calling
 `beads-git-find-project-root' directly, except where an operation
-genuinely requires git (worktrees, branches, sesman sessions).
+genuinely requires git (worktrees, branches, worktree sessions).
 
 On a remote `default-directory' no VC detection runs: the markers of
 `beads-project-root-markers' and \".git\" are looked up with a
