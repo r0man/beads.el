@@ -1,0 +1,455 @@
+@node Getting Started
+@chapter Getting Started
+@cindex getting started
+@cindex introduction
+
+@code{beads.el} is a Magit-like Emacs interface for the
+@uref{https://github.com/steveyegge/beads, Beads} issue tracker.  It
+provides a keyboard-driven, transient-based UI for managing issues,
+dependencies, molecules, formulas, agents, and workflows without leaving
+Emacs.
+
+@code{beads.el} is a porcelain over the @command{bd} command-line tool:
+the UI never parses human-readable output, it always drives
+@command{bd --json} and renders the structured result.  Every
+@command{bd} command is reachable from Emacs, either through an
+auto-generated transient or a curated one.
+
+This chapter installs the package, creates a first issue, explains the
+interaction patterns every view shares, and defines the vocabulary the
+rest of the manual assumes.  @xref{Issue Workflow}, for the commands that
+create, list, view, edit, close, and label issues.
+
+@menu
+* Installation::            Requirements and how to install.
+* Your First Issue::        Open the board and create an issue.
+* Interface Concepts::      Modes, transients, actions, movement, stores.
+* Concepts::                Stores, issues, dependencies, molecules, formulas.
+* Related Resources::       Where to read more.
+@end menu
+
+@node Installation
+@section Installation
+@cindex installation
+
+@menu
+* Requirements::
+* Installing from MELPA::
+* Installing from Source::
+* Initial Setup::
+@end menu
+
+@node Requirements
+@subsection Requirements
+@cindex requirements
+
+@itemize @bullet
+@item
+Emacs 29.1 or newer.
+@item
+The @command{bd} executable on @var{PATH}.
+@item
+The MELPA libraries @code{transient} (0.10.1+) and @code{vui} (1.0.0+).
+@item
+@command{dolt} and @command{graphviz} for the full feature set and the
+complete test suite.
+@end itemize
+
+@node Installing from MELPA
+@subsection Installing from MELPA
+@cindex MELPA
+
+The package is published on MELPA:
+
+@lisp
+(use-package beads
+  :ensure t)
+@end lisp
+
+@node Installing from Source
+@subsection Installing from Source
+@cindex installing from source
+
+Clone the repository and add its @file{lisp/} directory to your load
+path:
+
+@lisp
+(add-to-list 'load-path "/path/to/beads.el/lisp")
+(require 'beads)
+@end lisp
+
+@node Initial Setup
+@subsection Initial Setup
+@cindex initial setup
+@cindex @command{bd} init
+
+Initialize a Beads store in a project directory:
+
+@example
+cd /path/to/project
+bd init
+@end example
+
+Then open the board in Emacs with @kbd{M-x beads}.  @code{beads.el}
+finds the store from the buffer's @code{default-directory}; act on a
+different project with the @code{:directory} argument
+(@pxref{Store Scoping}).
+
+@node Your First Issue
+@section Your First Issue
+@cindex first issue
+
+@deffn Command beads
+Open the Beads board for the current project.  This is the primary entry
+point of @code{beads.el}; it opens the full board (@code{beads-dashboard}).
+Press @kbd{?} inside the buffer for the @code{beads-dispatch} menu.
+@end deffn
+
+@enumerate
+@item
+Open the board: @kbd{M-x beads}.
+@item
+Press @kbd{?} for the dispatch menu, then @kbd{c} to create an issue.
+@item
+Type the title on the first line, then the description below it.
+@item
+Press @kbd{C-c C-c} to submit.  The new issue appears in refreshed lists.
+@end enumerate
+
+From the board, press @kbd{?} again and use:
+
+@table @kbd
+@item l
+List all issues.
+@item r
+List ready (unblocked) work.
+@item b
+List blocked work.
+@item D
+Open the full project dashboard.
+@end table
+
+@node Interface Concepts
+@section Interface Concepts
+@cindex interface concepts
+@cindex interaction patterns
+
+@code{beads.el} uses three interaction patterns, modeled on Magit and
+Forge.  Understanding them tells you where a command lives and what a key
+will do.
+
+@menu
+* Modes and Buffers::
+* Transients::              The dispatch and maintenance menus.
+* Context-Aware Actions::
+* Compose Buffers::
+* Marks and Bulk Operations::
+* One Movement Scheme::
+* Store Scoping::
+@end menu
+
+@node Modes and Buffers
+@subsection Modes and Buffers
+@cindex modes
+@cindex buffers
+
+The interface is built from a small set of modes.  The porcelain board
+uses @code{vui} for heterogeneous, collapsible sections, and
+@code{tabulated-list-mode} for homogeneous tables.
+
+@deffn {Major Mode} beads-dashboard-mode
+The full project board, opened by @kbd{M-x beads}.  Each section loads
+asynchronously and folds independently.
+@end deffn
+
+@deffn {Major Mode} beads-list-mode
+A @code{tabulated-list-mode} derivative for browsing issues.  It supports
+sorting, filtering, marking, and bulk operations.
+@end deffn
+
+@deffn {Major Mode} beads-show-mode
+A read-only section view for one issue, with section navigation,
+reference following, and inline editing.
+@end deffn
+
+Buffer names carry the project so several stores can be open at once,
+and are qualified by branch or remote when needed (see
+@file{beads-buffer.el}):
+
+@itemize @bullet
+@item
+@code{*beads-dashboard[PROJECT]*}
+@item
+@code{*beads-list[PROJECT]*}, @code{*beads-ready[PROJECT]*},
+@code{*beads-blocked[PROJECT]*}
+@item
+@code{*beads-show[PROJECT]/ISSUE-ID*}
+@item
+@code{*beads-agent[PROJECT]/TYPE#N*}
+@end itemize
+
+@node Transients
+@subsection Transients: Dispatch and Maintenance
+@cindex transients
+@cindex dispatch menu
+@cindex maintenance menu
+
+@code{beads.el} keeps Magit's status/dispatch split:
+
+@enumerate
+@item
+@strong{Board} (@kbd{M-x beads}) --- the front door is the board, not a
+transient.  @kbd{M-x beads} runs @code{beads-dashboard}.
+@item
+@strong{Dispatch menu} (@kbd{?}) --- @code{beads-dispatch} is the command
+menu, opened with @kbd{?} from any beads buffer (or @kbd{M-x
+beads-dispatch}).  It groups the common flows into @strong{Issues},
+@strong{Workflow}, @strong{Views}, and @strong{Manage}, and builds a
+context group from the view at point.
+@item
+@strong{Maintenance menu} (@kbd{!}) --- @code{beads-maintenance} is the
+single admin and infrastructure menu.  It is the successor of the former
+@code{beads-ops-menu} and @code{beads-advanced-menu}, which no longer
+exist.
+@end enumerate
+
+@deffn Command beads-dashboard
+Open the full project board.  The board resolves the Beads store from
+@code{default-directory}, unless @code{:directory} is given (see
+@ref{Store Scoping}).
+@end deffn
+
+@anchor{fig:dashboard-dark}
+@image{images/dashboard-dark,,,The project board.,png}
+@image{images/dashboard-dark-thumb,,,The project board thumbnail.,png}
+
+@deffn Command beads-dispatch
+Open the dispatch menu: the common issue and workflow commands grouped
+into @strong{Issues}, @strong{Workflow}, @strong{Views}, and
+@strong{Manage}, plus a context group built from the view at point.
+@end deffn
+
+@deffn Command beads-maintenance
+Open the maintenance menu: admin and infrastructure commands such as
+Dolt and repository maintenance, terminal backends, configuration, and
+the audit.
+@end deffn
+
+The menus are ordinary transient prefixes defined with
+@code{beads-define-prefix}.  Every suffix runs in the directory the menu
+was opened for, so a menu opened from another project acts on that
+project's store.  The bulk of the per-command menus is generated from
+command-class slot metadata; see @ref{Issue Workflow}.
+
+@node Context-Aware Actions
+@subsection Context-Aware Actions
+@cindex context actions
+
+@emph{Pattern 1} commands are single-key actions bound directly in mode
+maps.  They detect the issue at point (falling back to
+@code{completing-read}) and act immediately.
+
+Examples in @code{beads-list-mode} and @code{beads-show-mode}:
+
+@table @kbd
+@item C
+Claim the issue at point.
+@item d
+Close the issue at point (prompts for a reason).
+@item o
+Reopen a closed issue.
+@item s
+Set status.
+@item #
+Set priority.
+@item E
+Edit the description.
+@item N
+Add a comment.
+@end table
+
+@node Compose Buffers
+@subsection Compose Buffers
+@cindex compose buffers
+
+@emph{Pattern 3} commands open a compose buffer for content creation or
+editing.  The buffer uses @code{gfm-mode} (or @code{text-mode} as a
+fallback) and follows the @code{with-editor} convention: the first line
+is the title, everything after the first blank line is the Markdown
+description.
+
+@table @kbd
+@item C-c C-c
+Submit (create the issue, save the edit, post the comment).
+@item C-c C-k
+Cancel and restore the previous window configuration.
+@item C-c C-a
+Open the metadata sidebar (type, priority, labels, parent).
+@end table
+
+@node Marks and Bulk Operations
+@subsection Marks and Bulk Operations
+@cindex marks
+@cindex bulk operations
+
+In @code{beads-list-mode} you can mark several issues and act on them as
+a batch:
+
+@table @kbd
+@item m
+Mark the issue at point.
+@item u
+Unmark the issue at point.
+@item U
+Unmark all issues.
+@item * !
+Mark all issues.
+@end table
+
+When marks are active, context-aware actions such as @kbd{d} and @kbd{o}
+operate on every marked issue.  Bulk-specific operations live under the
+@kbd{B} prefix: @kbd{B s} status, @kbd{B p} priority, @kbd{B c} close,
+@kbd{B o} reopen.
+
+@node One Movement Scheme
+@subsection One Movement Scheme
+@cindex movement
+@cindex thing
+
+Every view moves with one primitive, @code{beads-thing}: @kbd{TAB} and
+@kbd{S-TAB} move between things and wrap, and @kbd{SPC} toggles the thing
+at point (folding a section, previewing an issue, and so on).  In
+tabulated lists each row is a thing without visible stamping.  See
+@ref{Issue Workflow}, for how movement applies to lists and show
+buffers.  The movement commands are @code{beads-thing-forward}
+(@kbd{TAB}), @code{beads-thing-backward} (@kbd{S-TAB}), and
+@code{beads-thing-toggle} (@kbd{SPC}).
+
+@fnindex beads-thing-forward
+@fnindex beads-thing-backward
+@fnindex beads-thing-toggle
+
+@node Store Scoping
+@subsection Store Scoping
+@anchor{store-scoping}
+@cindex store scoping
+@cindex store directory
+
+The high-level entry points @code{beads-show}, @code{beads-ready},
+@code{beads-blocked}, @code{beads-list-issues} and @code{beads-dashboard}
+accept an optional @code{:directory} keyword.  When non-nil, the
+operation is scoped to the Beads store at that directory instead of the
+one resolved from @code{default-directory}.  This matters when a shared
+Dolt server could otherwise route the working directory to another
+project's database.
+
+@lisp
+(beads-show "bd-42" :directory "/path/to/project")
+(beads-dashboard :directory "/path/to/project")
+@end lisp
+
+@defvr {Buffer-Local Variable} beads-store-directory
+The Beads store a buffer acts on.  The directory passed to a high-level
+entry point becomes the buffer's store: every @command{bd} command run
+from that buffer whose @code{directory} slot is unset gets
+@command{--directory}, so refreshes and actions keep acting on that
+store, and buffers opened from it inherit it.
+@end defvr
+
+@node Concepts
+@section Concepts
+@cindex concepts
+
+This section defines the terms the rest of the manual uses.  Each term
+names a first-class object in the Beads data model; the commands that
+create and manipulate them are documented in @ref{Issue Workflow}.
+
+@menu
+* Stores::
+* Issues::
+* Dependency Model::
+* Molecules and Formulas::
+@end menu
+
+@node Stores
+@subsection Stores
+@cindex store
+
+A @dfn{store} is the on-disk Beads database for one project.  It lives
+under a @file{.beads/} directory at the project root; @command{bd init}
+creates it.  The default engine is embedded Dolt, which keeps each
+project's data under @file{.beads/embeddeddolt/} with filesystem-level
+isolation, so two checkouts never share a database by accident.  A store
+can also be served by a shared Dolt server; @code{beads.el} then scopes
+every command with @command{--directory} so a shared server routes to the
+intended project (see @ref{Store Scoping}).
+
+@node Issues
+@subsection Issues
+@cindex issue
+@cindex issue id
+
+An @dfn{issue} is the unit of work: a ticket with a stable id, a title, a
+Markdown description, a status, a priority, a type, an assignee, labels,
+dependencies, and a comment thread.  Issue ids are short base-36 hashes
+with a project prefix, for example @code{bd-42}; @code{beads.el} matches
+them anywhere for eldoc previews.
+
+@table @asis
+@item Status
+One of @code{open}, @code{in_progress}, @code{blocked}, @code{closed},
+and the other states @command{bd} understands.
+@item Priority
+@code{0} (Critical) through @code{4} (Backlog).
+@item Type
+@code{bug}, @code{feature}, @code{task}, @code{epic}, @code{chore}, and
+friends.
+@item Labels
+Free-form tags shared across issues.
+@end table
+
+@node Dependency Model
+@subsection Dependency Model
+@cindex dependency
+@cindex blocks
+@cindex relates to
+
+A @dfn{dependency} is a directed edge between two issues that records
+how one constrains the other.  The common kinds are @code{blocks} (the
+source cannot proceed until the target is done), @code{relates_to} (a
+soft, bidirectional association), and parent/child links that make an
+issue a child of an epic.  Dependencies drive the ready and blocked
+views: an issue is @dfn{ready} when nothing blocks it and @dfn{blocked}
+when at least one dependency does.
+
+@node Molecules and Formulas
+@subsection Molecules and Formulas
+@cindex formula
+@cindex molecule
+@cindex epic
+
+A @dfn{formula} is a reusable, parameterized template (authored as TOML)
+that expands into a connected graph of issues.  Pouring a formula
+instantiates it into a @dfn{molecule}: the concrete graph of issues,
+dependencies, and labels created in a store.  Molecules make multi-step
+work such as release checklists or a whole feature plan repeatable.  An
+@dfn{epic} is an issue that parents other issues; epics compose with
+molecules and are surfaced by the epic-health views.
+
+@node Related Resources
+@section Related Resources
+@cindex related resources
+
+@itemize @bullet
+@item
+Beads CLI: @uref{https://github.com/steveyegge/beads}
+@item
+Magit (interaction model): @uref{https://magit.vc}
+@item
+Forge (sections and references): @uref{https://magit.vc/manual/forge}
+@item
+Design record for the board and menus:
+@file{plans/beads-ui-redesign/design.md}
+@item
+Enforced key contract: @file{docs/key-registry.md}
+@end itemize
