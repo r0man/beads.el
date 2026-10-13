@@ -117,6 +117,8 @@ plans/github/
 /Makefile
 /config.status
 /config.log
+/confdefs.h
+/conftest.mk
 /config.h
 /stamp-h1
 /beads-autoloads.el
