@@ -1339,5 +1339,18 @@ The primary entry point of beads.el: opens the full board
   (interactive)
   (funcall #'beads-dashboard))
 
+;;;###autoload
+(defun beads-dashboard-status (&optional directory)
+  "Open the beads board with point on its Stats section.
+
+`bd status' is rendered as the board's Stats section, so this is the
+single front door for the project snapshot; the standalone
+`beads-stats' buffer is retired.  DIRECTORY scopes the board exactly
+like `beads-dashboard'."
+  (interactive)
+  (beads-dashboard :directory directory)
+  (when (eq major-mode 'beads-dashboard-mode)
+    (beads-dashboard--goto-section-header 'stats)))
+
 (provide 'beads-dashboard)
 ;;; beads-dashboard.el ends here

@@ -516,34 +516,67 @@ DB-PATH scopes the command to a bead store (see
   (beads-dashboard--make-loader
    (beads-command-status :json t) '(stats) db-path))
 
+(defun beads-dashboard--stats-button (label count filter-type face)
+  "Return a clickable stats button.
+LABEL is the visible text, COUNT the number it reports, FILTER-TYPE
+the `beads-stats--open-filtered-list' selector to run on click, and
+FACE its face."
+  (vui-button label
+    :face face
+    :on-click (lambda () (beads-stats--open-filtered-list filter-type count))))
+
 (defun beads-dashboard-render-stats (data)
-  "Render the stats strip from DATA, the parsed `bd stats' JSON.
-DATA is an alist with a `summary' subobject; we surface the most
-informative counters as a single horizontal line of buttons.
-Deferred is only shown when non-zero — most projects do not defer
+  "Render the status section from DATA, the parsed `bd status' JSON.
+DATA is an alist with a `summary' subobject and an optional
+`recent_activity' subobject.  The counters are clickable and open the
+matching filtered issue list, so this section — not a separate
+command — is the single front door for the project snapshot.
+Deferred is only shown when non-zero: most projects do not defer
 work, and a permanent `Deferred 0' would just clutter the strip."
   (let* ((summary (cond
                    ((listp data) (alist-get 'summary data))
                    (t nil)))
+         (activity (and (listp data) (alist-get 'recent_activity data)))
          (open     (or (alist-get 'open_issues summary) 0))
          (ready    (or (alist-get 'ready_issues summary) 0))
          (inprog   (or (alist-get 'in_progress_issues summary) 0))
          (blocked  (or (alist-get 'blocked_issues summary) 0))
          (deferred (or (alist-get 'deferred_issues summary) 0))
          (closed   (or (alist-get 'closed_issues summary) 0)))
-    (apply
-     #'vui-hstack
-     :spacing 2
-     (delq
-      nil
-      (list
-       (vui-text (format "Open %d" open) :face 'font-lock-keyword-face)
-       (vui-text (format "Ready %d" ready) :face 'success)
-       (vui-text (format "In-progress %d" inprog) :face 'font-lock-function-name-face)
-       (vui-text (format "Blocked %d" blocked) :face 'warning)
-       (when (> deferred 0)
-         (vui-text (format "Deferred %d" deferred) :face 'font-lock-comment-face))
-       (vui-text (format "Closed %d" closed) :face 'shadow))))))
+    (vui-vstack
+     :spacing 0
+     (apply
+      #'vui-hstack
+      :spacing 2
+      (delq
+       nil
+       (list
+        (beads-dashboard--stats-button
+         (format "Open %d" open) open 'open 'font-lock-keyword-face)
+        (beads-dashboard--stats-button
+         (format "Ready %d" ready) ready 'ready 'success)
+        (beads-dashboard--stats-button
+         (format "In-progress %d" inprog) inprog 'in-progress
+         'font-lock-function-name-face)
+        (beads-dashboard--stats-button
+         (format "Blocked %d" blocked) blocked 'blocked 'warning)
+        (when (> deferred 0)
+          (beads-dashboard--stats-button
+           (format "Deferred %d" deferred) deferred 'deferred
+           'font-lock-comment-face))
+        (beads-dashboard--stats-button
+         (format "Closed %d" closed) closed 'closed 'shadow))))
+     (when activity
+       (vui-text
+        (format (concat "Last %sh: %d commits · %d changes · "
+                        "%d created · %d closed · %d reopened")
+                (or (alist-get 'hours_tracked activity) 24)
+                (or (alist-get 'commit_count activity) 0)
+                (or (alist-get 'total_changes activity) 0)
+                (or (alist-get 'issues_created activity) 0)
+                (or (alist-get 'issues_closed activity) 0)
+                (or (alist-get 'issues_reopened activity) 0))
+        :face 'shadow)))))
 
 ;;; Attention: Stale and Orphans
 
