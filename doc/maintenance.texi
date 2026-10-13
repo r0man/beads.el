@@ -1,0 +1,628 @@
+@node Maintenance and Extending
+@chapter Maintenance and Extending
+@anchor{maintenance}
+@cindex maintenance
+@cindex extending
+@cindex customizing
+
+This chapter is for people who configure, build, or extend beads.el.  It
+documents the user options and faces, the command-layer plumbing, the
+supported extension points, the autotools build, and the lint and
+documentation-drift gates, and closes with a short FAQ.
+
+@menu
+* Customizing::
+* Plumbing::
+* Extending beads.el::
+* Building and Installing with Autotools::
+* Linting and Documentation Drift::
+* Contributing::
+* Troubleshooting::
+* FAQ::
+@end menu
+
+@node Customizing
+@section Customizing
+@cindex customizing
+@cindex user options
+@cindex faces
+
+@menu
+* User Options::
+* Faces::
+@end menu
+
+@node User Options
+@subsection User Options
+@cindex user options
+
+@defvr {User Option} beads-executable
+Path to the @command{bd} executable.  Defaults to @code{"bd"}, found on
+@env{PATH}.
+@end defvr
+
+@defvr {User Option} beads-actor
+The actor name recorded in the audit trail.  Defaults to the git
+@code{user.name} or @env{USER}.
+@end defvr
+
+@defvr {User Option} beads-remote-search-path
+Directories probed for programs on a remote host when
+@code{tramp-remote-path} misses (Guix, Nix, @file{~/.local/bin}, and
+@file{~/bin} by default).  Also prepended to the @env{PATH} of remote
+commands.
+@end defvr
+
+@defvr {User Option} beads-remote-transport
+@code{ssh} (the default): asynchronous @command{bd} on an ssh-family
+store runs as a local @command{ssh -T} pipe.  @code{tramp}: use TRAMP's
+@code{make-process}.
+@end defvr
+
+@defvr {User Option} beads-remote-ssh-options
+The ssh options (ControlMaster, ControlPersist) of the pipe processes.
+@end defvr
+
+@defvr {User Option} beads-remote-ssh-control-path
+The ControlPath of those pipe processes.
+@end defvr
+
+@defvr {User Option} beads-show-async
+When show buffers fetch asynchronously: @code{remote} (the default),
+@code{t}, or @code{nil}.
+@end defvr
+
+@defvr {User Option} beads-show-async-timeout
+The number of seconds an asynchronous show fetch may take before it is
+abandoned.
+@end defvr
+
+@defvr {User Option} beads-dashboard-section-limit
+The number of rows shown per dashboard section; @code{nil} disables the
+cap.
+@end defvr
+
+@defvr {User Option} beads-command-async-max-concurrent
+The global concurrency cap for asynchronous commands, or @code{auto} to
+size it to the machine.
+@end defvr
+
+@defvr {User Option} beads-issue-id-prefixes
+Extra issue-id prefixes matched by the shared issue-id regular
+expression.  @code{nil} uses the defaults.
+@end defvr
+
+@defvr {User Option} beads-issue-id-regexp
+The regular expression that matches an issue id anywhere in a buffer.
+@end defvr
+
+Use @kbd{M-x customize-group @key{RET} beads} for the full option
+browser.  The per-project configuration that is not a user option is in
+@ref{Configuration}.
+
+@node Faces
+@subsection Faces
+@cindex faces
+
+Beads.el defines faces for issue status, priority, type, and other UI
+elements.  Customize the @code{beads} and @code{beads-epic-status} face
+groups to adjust colors.  The status and priority faces are applied by
+the list and board renderers; they inherit from the corresponding
+@code{font-lock} and @code{mode-line} faces so a theme overrides them
+consistently.
+
+@node Plumbing
+@section Plumbing
+@cindex plumbing
+
+This section is for contributors.  It describes how the command layer is
+built and where to change it.
+
+@menu
+* EIEIO Command Classes::
+* Execution Contract::
+* The Command Bridge Protocol::
+@end menu
+
+@node EIEIO Command Classes
+@subsection EIEIO Command Classes
+@cindex EIEIO command classes
+@cindex beads-defcommand
+
+Every @command{bd} subcommand is represented as an EIEIO class defined
+with the @code{beads-defcommand} macro.  A single class definition
+generates:
+
+@enumerate
+@item
+an EIEIO class with typed slots,
+@item
+CLI argument serialization (@code{beads-command-line}),
+@item
+an auto-generated transient menu derived from slot metadata, and
+@item
+a result type declaration that drives JSON parsing into
+@code{beads-types.el} objects.
+@end enumerate
+
+@defmac beads-defcommand name superclass slots &rest options
+Define a command class @var{name} with @var{slots}, deriving the CLI
+serialization, transient menu, and result type from the slot metadata.
+@end defmac
+
+The class hierarchy is @code{beads-command} (abstract) →
+@code{beads-command-global-options} (adds @code{--actor}, @code{--db},
+@code{--json}) → concrete commands.
+
+Macro keywords include @code{:cli-command} (override the subcommand
+string), @code{:result} (for example @code{beads-issue} or
+@code{(list-of beads-issue)}), @code{:json nil} for commands without
+JSON (doctor, init), and @code{:transient} (@code{t} to auto-generate,
+@code{nil} for none, @code{:manual} when a hand-written prefix follows in
+the same file).  The transient name is the class name with
+@code{-command-} stripped, so @code{beads-command-close} becomes
+@code{beads-close}.
+
+Slot metadata drives both the CLI and the UI: a single slot definition
+carries CLI properties (@code{:long-option}, @code{:short-option},
+@code{:option-type}, @code{:positional}), transient properties
+(@code{:class}, @code{:reader}, @code{:choices}, @code{:group},
+@code{:level}), and validation (@code{:required}, @code{:validator}).
+
+@node Execution Contract
+@subsection Execution Contract
+@cindex execution contract
+
+Command objects are never mutated; execution clones them.  Three generics
+dispatch on the command.
+
+@deftypefn {Emacs Lisp Function} {} beads-command-execute (command)
+Synchronously run COMMAND.  Forces @code{--json}, runs @command{bd},
+parses through @code{beads-from-json}, and returns typed domain objects
+(or a raw string when @code{:json nil}).  Unit tests mock this.
+@end deftypefn
+
+@deftypefn {Emacs Lisp Function} {} beads-command-execute-interactive (command)
+The entry point for transient suffixes.  The default runs COMMAND in a
+@code{compilation-mode} buffer; commands override it to show or refresh a
+buffer.
+@end deftypefn
+
+@deftypefn {Emacs Lisp Function} {} beads-command-execute-async (command &key on-success on-error queue cache-key)
+Run COMMAND without blocking, calling ON-SUCCESS or ON-ERROR.  A non-nil
+QUEUE applies the global concurrency cap and CACHE-KEY coalesces
+identical concurrent requests.  The board, eldoc, and list loaders use
+this path.
+@end deftypefn
+
+Errors signal @code{beads-validation-error}, @code{beads-command-error},
+or @code{beads-json-parse-error}; the hierarchy lives in
+@code{beads-error.el}.
+
+@node The Command Bridge Protocol
+@subsection The Command Bridge Protocol
+@cindex command bridge protocol
+@cindex extension contract
+
+@code{beads-defcommand} and @code{beads-meta-define-transient} generate
+menus whose execute and preview suffixes call exactly three generic
+functions.  These are the supported extension contract for a consumer
+package that defines its own command base class:
+
+@deftypefn {Emacs Lisp Function} {} beads-command-validate (command)
+Return an error string (or a list of them) when COMMAND is invalid, or
+nil when it is valid.
+@end deftypefn
+
+@deftypefn {Emacs Lisp Function} {} beads-command-execute-interactive (command)
+Run COMMAND and present the result.
+@end deftypefn
+
+@deftypefn {Emacs Lisp Function} {} beads-command-preview (command)
+Return the command line that would run, without running it.
+@end deftypefn
+
+@lisp
+(defclass my-command (beads-command-global-options) ()
+  :abstract t
+  :documentation "Base class for my-tool commands.")
+
+(cl-defmethod beads-command-validate ((cmd my-command)) ...)
+(cl-defmethod beads-command-execute-interactive ((cmd my-command)) ...)
+(cl-defmethod beads-command-preview ((cmd my-command)) ...)
+@end lisp
+
+@node Extending beads.el
+@section Extending beads.el
+@anchor{extending}
+@cindex extending
+@cindex library reuse
+
+beads.el is meant to be reused as a library.  The entry points below are
+supported and their signatures are kept stable; prefer them over the
+private (@code{beads--}) symbols, which may change without notice.
+
+@menu
+* Macro-Expansion Helpers::
+* Section Buffers and Mode Inheritance::
+* Thing Motion::
+* Reusable Pagination::
+@end menu
+
+@node Macro-Expansion Helpers
+@subsection Macro-Expansion Helpers
+@cindex macro-expansion helpers
+
+The pure helpers @code{beads-defcommand} uses at macro-expansion time are
+public.
+
+@deftypefn {Emacs Lisp Function} {} beads-meta-extract-option (keyword options)
+Pull KEYWORD's value out of a @code{defclass} OPTIONS plist.
+@end deftypefn
+
+@deftypefn {Emacs Lisp Function} {} beads-meta-derive-transient-name (class-name)
+Derive a transient name from CLASS-NAME.
+@end deftypefn
+
+@deftypefn {Emacs Lisp Function} {} beads-meta-first-sentence (string)
+Return the first sentence of STRING, for a transient short documentation
+string.
+@end deftypefn
+
+@deftypefn {Emacs Lisp Function} {} beads-meta-current-feature-name ()
+Return the feature name of the file being processed, for autoload forms.
+@end deftypefn
+
+@node Section Buffers and Mode Inheritance
+@subsection Section Buffers and Mode Inheritance
+@cindex section buffers
+@cindex mode inheritance
+
+Derive a major mode from @code{beads-section-mode} and parent its keymap.
+
+@lisp
+(defvar-keymap my-section-mode-map
+  :parent beads-section-mode-map
+  "RET" #'my-visit-thing-at-point)
+
+(define-derived-mode my-section-mode beads-section-mode "My"
+  "Major mode for my-tool section buffers."
+  :interactive nil)
+@end lisp
+
+@node Thing Motion
+@subsection Thing Motion
+@cindex thing motion
+@cindex beads-thing
+
+A @dfn{thing} is a run of text carrying the @code{beads-thing} text
+property; in a @code{tabulated-list-mode} buffer every row is one.  The
+value is a toggle function, a plist @code{( :kind KIND :toggle FN )}, or
+any other non-nil value.
+
+@lisp
+(beads-thing-define-keys my-section-mode-map) ; TAB, S-TAB, SPC, DEL/S-SPC
+
+(beads-thing-propertize "Agents  3 running"
+                        (list :kind 'section :toggle #'my-fold))
+(add-hook 'beads-thing-toggle-functions #'my-toggle-drawer nil t)
+@end lisp
+
+@deftypefn {Emacs Lisp Function} {} beads-thing-forward (&optional count)
+Move to the next thing, wrapping at the end.  Bound to @kbd{TAB}.
+@end deftypefn
+
+@deftypefn {Emacs Lisp Function} {} beads-thing-backward (&optional count)
+Move to the previous thing, wrapping at the beginning.  Bound to
+@kbd{S-TAB}.
+@end deftypefn
+
+@deftypefn {Emacs Lisp Function} {} beads-thing-toggle ()
+Call the thing's own toggle, then the buffer-local
+@code{beads-thing-toggle-functions}, then push the button at point for
+kinds @code{section} and @code{fold}.  Bound to @kbd{SPC}.
+@end deftypefn
+
+@defvr {Variable} beads-thing-toggle-functions
+Buffer-local hook run by @code{beads-thing-toggle} after the thing's own
+toggle.
+@end defvr
+
+@node Reusable Pagination
+@subsection Reusable Pagination
+@cindex pagination
+@cindex beads-pager
+
+@code{beads-pager} exposes a pure, buffer-agnostic pagination core.
+
+@deftypefn {Emacs Lisp Function} {} beads-pager-window-page-size (&optional window)
+Return the number of rows that fit WINDOW, with a floor of five.
+@end deftypefn
+
+@deftypefn {Emacs Lisp Function} {} beads-pager-page-count (total page-size)
+Return the number of pages for TOTAL rows.
+@end deftypefn
+
+@deftypefn {Emacs Lisp Function} {} beads-pager-page-bounds (page page-size total)
+Return the @code{(START . END)} indices of PAGE, clamped to TOTAL.
+@end deftypefn
+
+@deftypefn {Emacs Lisp Function} {} beads-pager-slice (entries page page-size)
+Return the sublist of ENTRIES for PAGE.
+@end deftypefn
+
+These read no buffer-local state; @code{beads-pager-mode} is built on the
+same core.
+
+@node Building and Installing with Autotools
+@section Building and Installing with Autotools
+@anchor{building}
+@cindex autotools
+@cindex building
+@cindex installing
+
+beads.el is a GNU-standard Autotools project.  The build has no C
+components, so it uses Automake's @code{foreign} strictness and does not
+call @code{AC_PROG_CC}; it byte-compiles Elisp and builds the Texinfo
+manual.
+
+@menu
+* Prerequisites::
+* Bootstrapping and Configuring::
+* Building Testing and Installing::
+* Building the Manual::
+* Guix Development Environment::
+@end menu
+
+@node Prerequisites
+@subsection Prerequisites
+@cindex build prerequisites
+
+Building from a checkout needs Emacs 29.1 or newer, Autoconf, Automake,
+and @command{makeinfo} (from Texinfo) for the manual.  The runtime Elisp
+dependencies @code{transient} and @code{vui} must be resolvable, either
+from the ambient @env{EMACSLOADPATH} or with @option{--with-} flags.
+@command{bd}, @command{dolt}, and @command{graphviz} are optional: they
+are detected for the @code{:integration} test suite and can be disabled
+with @option{--with-bd=no} and friends.
+
+@node Bootstrapping and Configuring
+@subsection Bootstrapping and Configuring
+@cindex autogen
+@cindex configure
+
+From a fresh checkout, generate the configure script and run it.
+
+@example
+./autogen.sh
+./configure
+@end example
+
+@command{configure} locates Emacs (failing with a clear message when it
+is missing) and the optional CLI tools.  Useful options:
+
+@table @option
+@item --with-emacs=PATH
+Use a specific Emacs executable instead of searching @env{PATH}.
+@item --with-transient=DIR
+@itemx --with-vui=DIR
+Add DIR to the load path for the runtime dependency.
+@item --with-bd=PATH
+@itemx --with-dolt=PATH
+@itemx --with-graphviz=PATH
+Name an optional CLI tool, or pass @code{no} to disable it.
+@item --with-lispdir=DIR
+Install Elisp into DIR instead of the default site-lisp directory.
+@end table
+
+If @option{--with-transient}/@option{--with-vui} are omitted, the
+ambient @env{EMACSLOADPATH} is used unchanged; that is the Guix path.
+
+@node Building Testing and Installing
+@subsection Building, Testing, and Installing
+@cindex make targets
+
+@table @code
+@item make
+Byte-compile every @file{lisp/*.el} with warnings as errors, then
+generate @file{lisp/beads-autoloads.el}.  A byte-compile warning fails
+the build.
+@item make check
+Run the ERT test suite.  The @command{bd}/@command{dolt}/@command{graphviz}
+conditionals decide how much of the @code{:integration} suite runs;
+@code{EMACS_TEST_JUNIT_REPORT} selects the JUnit output.
+@item make lint
+Run byte-compile warnings-as-errors plus the package-lint checks through
+@file{scripts/lint}, with no Eldev dependency.
+@item make install
+Install @file{*.el}, @file{*.elc}, the generated autoloads, and
+@file{beads.info} into @code{lispdir} and @code{infodir}, and run
+@command{install-info} so @kbd{C-h i} finds the manual.
+@item make dist
+Build the distribution tarball, including the Texinfo sources, the
+manual images, @file{lisp/}, @file{docs/*.md}, and @file{guix.scm}.
+@item make clean
+Remove the byte-compiled files, the generated autoloads, and the built
+manual.
+@end table
+
+A clean extraction of the @command{make dist} tarball must build and pass
+@command{make check} with @command{./configure && make}.
+
+@node Building the Manual
+@subsection Building the Manual
+@cindex building the manual
+@cindex makeinfo
+
+@table @code
+@item make info
+Build @file{doc/beads.info} from @file{doc/beads.texi}.
+@item make html
+Build the self-contained HTML manual under @file{doc/}.
+@item make pdf
+Build the PDF manual with @command{texi2pdf}.
+@end table
+
+@file{doc/beads.texi} is the only manual source; it @code{@@include}s one
+Texinfo chapter file per task area (@pxref{The Dispatch and Maintenance
+Menus} for where those chapters are).  @command{makeinfo} must report no
+missing-node or undefined-reference warnings.
+
+@node Guix Development Environment
+@subsection Guix Development Environment
+@cindex Guix
+
+The repository ships a @file{guix.scm} describing the Autotools build.
+Use it for a development shell with Emacs, the Elisp dependencies, and
+the optional CLI tools on @env{PATH}:
+
+@example
+guix shell -D -f guix.scm
+@end example
+
+@code{guix build -f guix.scm} builds the package through the Autotools
+flow.  The Guix package provides the Elisp dependencies through
+@env{EMACSLOADPATH}, so no @option{--with-} flags are needed.
+
+@node Linting and Documentation Drift
+@section Linting and Documentation Drift
+@anchor{linting}
+@cindex linting
+@cindex documentation drift
+@cindex dispatch-docs
+
+Quality gates and generated documentation are checked without Eldev.
+
+@table @asis
+@item Byte-compile and package lint
+@code{make lint} runs byte-compile warnings-as-errors and the
+@file{scripts/lint} wrapper, which invokes @code{package-lint} and the
+byte-compiler under plain Emacs.
+@item Dispatch and key reference
+@code{scripts/dispatch-docs --check} fails when the hand-written
+transient menus disagree with the generated Markdown in
+@file{docs/dispatch-reference.md} and the README dispatch table.
+Regenerate them with @code{scripts/dispatch-docs --write} after changing
+a menu (@pxref{Command and Key Reference}).
+@item Key registry
+@file{lisp/test/beads-key-registry-test.el} asserts the effective
+binding of every contract key in @file{docs/key-registry.md}, so a parent
+keymap cannot silently re-point a key.
+@end table
+
+Run the same commands CI runs:
+
+@example
+./configure && make && make check && make lint
+scripts/dispatch-docs --check
+@end example
+
+@node Contributing
+@section Contributing
+@anchor{contributing}
+@cindex contributing
+
+Contributions follow the conventions in @file{AGENTS.md}.  The
+essentials:
+
+@itemize @bullet
+@item
+@strong{Public API} uses the @code{beads-} prefix; @strong{internal} code
+uses @code{beads--} and may change without notice.
+@item
+Every @command{bd} subcommand gets its own
+@file{beads-command-<name>.el} file and a @code{beads-defcommand} class
+(@pxref{EIEIO Command Classes}).
+@item
+Every EIEIO class and every slot carries a @code{:documentation} string.
+@item
+Menus are defined with @code{beads-define-prefix} /
+@code{beads-define-group}, never bare @code{transient-define-prefix}, so
+every suffix runs in the directory the menu was opened for.
+@item
+Tests live in @file{lisp/test/} as @file{<module>-test.el}, and every
+@code{ert-deftest} carries a @code{:unit}, @code{:integration}, or
+@code{:live} tag.
+@end itemize
+
+Add a user-visible or API-breaking change to the @file{NEWS.md}
+@strong{Unreleased} section, and regenerate any generated documentation
+(@pxref{Linting and Documentation Drift}) before opening a pull request.
+Run @command{make}, @command{make check}, and @command{make lint} first.
+
+@node Troubleshooting
+@section Troubleshooting
+@anchor{troubleshooting}
+@cindex troubleshooting
+
+@table @asis
+@item @command{bd} not found
+Set @code{beads-executable} to the absolute path of the program, or put
+it on @env{PATH}.
+@item Version skew between beads.el and @command{bd}
+Run @kbd{M-x beads-version} and include the output in a bug report.  The
+command surface must match the @command{bd} version.
+@item Remote commands fail to authenticate
+The ssh pipe runs in BatchMode, so interactive password prompts cannot
+appear.  Use a key or a running ssh agent.
+@item A remote view hangs
+The first contact with a host resolves the project root synchronously;
+raise @code{beads-remote-sync-timeout} for a slow host, or open the view
+with an explicit @code{:directory} (@pxref{Store Scoping}).
+@item Byte-compile or lint failures
+Warnings are errors; treat them as real and fix the offending source
+rather than disabling the gate.
+@item Documentation drift
+Run @command{scripts/dispatch-docs --write} after changing a menu, then
+rebuild the manual (@pxref{Linting and Documentation Drift}).
+@end table
+
+@node FAQ
+@section FAQ
+@cindex FAQ
+
+@menu
+* Why does beads.el require the bd CLI?::
+* How do I use beads.el with remote projects?::
+* How do I add a command that is not covered yet?::
+* Where do I report a bug?::
+@end menu
+
+@node Why does beads.el require the bd CLI?
+@subsection Why does beads.el require the bd CLI?
+@cindex bd CLI requirement
+
+beads.el is a frontend.  All data operations go through @command{bd},
+which manages the Dolt database, so the Emacs UI and command-line
+workflows always agree.
+
+@node How do I use beads.el with remote projects?
+@subsection How do I use beads.el with remote projects?
+@cindex remote projects
+
+Open beads.el from a TRAMP directory and it acts on that host's store.
+Synchronous commands use @code{process-file}.  Asynchronous reads on a
+single-hop ssh-family method run as local @command{ssh -T} processes that
+@command{cd} to the store, so they never block Emacs and never share
+TRAMP's pty-backed master.  ssh runs in BatchMode, so key or agent
+authentication is required.  Opening, rendering, and folding a view
+perform no file access over TRAMP (@pxref{Terminal Backends}).
+
+@node How do I add a command that is not covered yet?
+@subsection How do I add a command that is not covered yet?
+@cindex adding a command
+
+Define a @code{beads-defcommand} class in a new
+@file{beads-command-<name>.el} file and declare its result type; the CLI
+serialization, transient menu, and JSON parsing are derived from the slot
+metadata (@pxref{EIEIO Command Classes}).  When the command belongs to a
+top-level @command{bd} group, add a leaf class and bind it from the
+group's parent transient rather than defining a class for the router.
+
+@node Where do I report a bug?
+@subsection Where do I report a bug?
+@cindex bug reports
+
+Use the tracker for the @command{bd} CLI for data problems and the
+beads.el tracker for UI problems.  Include @kbd{M-x beads-version} output
+for version skew.

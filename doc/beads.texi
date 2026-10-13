@@ -59,8 +59,8 @@ command drives @command{bd --json} and renders the structured result.
 
 The manual is organized by task.  New users should read
 @ref{Getting Started}, then @ref{Issue Workflow}.  The remaining task
-areas (orchestration and the terminal, and maintenance and extending) are
-added to this manual alongside the code they document.
+areas --- orchestration and the terminal, and maintenance and extending
+--- complete the reference and the indexes.
 
 @menu
 * Getting Started::             Install, first issue, and the concepts.
@@ -68,6 +68,8 @@ added to this manual alongside the code they document.
 * Dashboards and Views::        The board, lists, show, and eldoc.
 * Formulas Molecules and Epics:: Formulas, molecules, and epics.
 * Agents and Sling::            Agents, backends, sessions, sling, swarm.
+* Orchestration and Terminal::  Menus, terminal, Dolt, remotes, audit.
+* Maintenance and Extending::   Options, building, plumbing, contributing.
 * Key Index::                   Keystrokes.
 * Command and Variable Index::  Commands, functions and user options.
 @end menu
@@ -78,6 +80,8 @@ added to this manual alongside the code they document.
 @include views.texi
 @include formulas.texi
 @include agents.texi
+@include orchestration.texi
+@include maintenance.texi
 
 @c ====================================================================
 @node Key Index
