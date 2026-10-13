@@ -227,7 +227,8 @@ The contract fixes exactly these values:
   have the form `demo-<role>`. It is a deterministic, isolated temporary
   project, never the repository or a live store.
 - **Layout**: `screenshots/` holds the pipeline and `images/` holds the
-  committed images, both relative to the manual directory.
+  committed images.  beads.el keeps both under `docs/manual/` even though
+  its manual source moved to `doc/`; gascity.el keeps them under `doc/`.
 - **Naming**: `<view>-<theme>.png` for the full image and
   `<view>-<theme>-thumb.png` for the thumbnail, where `theme` is `dark` or
   `light`.
@@ -238,7 +239,7 @@ Concrete alignment with the sibling build:
 
 | Contract term | beads.el | gascity.el (mirrors this contract) |
 | --- | --- | --- |
-| Manual directory | `docs/manual/` | `doc/` |
+| Manual directory | `doc/` | `doc/` |
 | Pipeline directory | `docs/manual/screenshots/` | `doc/screenshots/` |
 | Committed images | `docs/manual/images/` | `doc/images/` |
 | Capture engine | `screenshots/screenshot.el` | `screenshots/screenshot.el` (the same file, copied verbatim) |
