@@ -9,6 +9,14 @@ A comprehensive Emacs interface for [Beads](https://github.com/steveyegge/beads)
 providing a keyboard-driven, transient-based UI for managing issues without
 leaving your editor.
 
+## Documentation
+
+The user manual is authored in Texinfo at `doc/beads.texi`. Read it as an Info
+manual (`C-h i d m beads.el`) or online at
+<https://r0man.github.io/beads.el/>; build it from source with `make info` or
+`make html`. The `docs/*.md` files are internal engineering notes, not the user
+manual.
+
 ## Features
 
 - 🪟 **Full board**: `M-x beads` opens a Magit-like, sectioned full board
