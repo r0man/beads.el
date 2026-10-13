@@ -10,7 +10,7 @@
 ;; Beads-specific wiring for `beads-transient-doc'.  It names the
 ;; hand-written prefixes that form the documented dispatch contract,
 ;; renders the checked-in reference snapshot, and verifies the generated
-;; blocks embedded in README.md and the Org manual.
+;; blocks embedded in README.md and the Texinfo manual.
 ;;
 ;; The heavy lifting (walking the transient layout, rendering Markdown and
 ;; Org) lives in `beads-transient-doc', which is package-agnostic.  A
@@ -50,16 +50,24 @@ into the generated dispatch reference.")
   "<!-- END GENERATED: dispatch menu -->"
   "Marker that closes the generated README dispatch block.")
 
-(defconst beads-dispatch-doc-manual-file "docs/manual/orchestration.org"
-  "Project-relative path of the manual page carrying the maintenance table.")
+(defconst beads-dispatch-doc-manual-file "doc/orchestration.texi"
+  "Project-relative path of the Texinfo page carrying the dispatch tables.")
+
+(defconst beads-dispatch-doc-dispatch-begin
+  "@c BEGIN GENERATED: dispatch menu"
+  "Marker that opens the generated dispatch table in the Texinfo manual.")
+
+(defconst beads-dispatch-doc-dispatch-end
+  "@c END GENERATED: dispatch menu"
+  "Marker that closes the generated dispatch table in the Texinfo manual.")
 
 (defconst beads-dispatch-doc-manual-begin
-  "# BEGIN GENERATED: maintenance menu"
-  "Marker that opens the generated manual maintenance block.")
+  "@c BEGIN GENERATED: maintenance menu"
+  "Marker that opens the generated maintenance table in the Texinfo manual.")
 
 (defconst beads-dispatch-doc-manual-end
-  "# END GENERATED: maintenance menu"
-  "Marker that closes the generated manual maintenance block.")
+  "@c END GENERATED: maintenance menu"
+  "Marker that closes the generated maintenance table in the Texinfo manual.")
 
 (defun beads-dispatch-doc--abs (root file)
   "Return FILE resolved against project ROOT."
@@ -79,13 +87,23 @@ surround the HTML comment markers."
             'beads-dispatch "Dispatch menu (`?`)"))
           "\n"))
 
+(defun beads-dispatch-doc-manual-dispatch-region ()
+  "Return the exact text for the generated manual dispatch region.
+The region wraps the dispatch menu table in the blank lines that
+surround the Texinfo comment markers."
+  (concat "\n"
+          (string-trim-right
+           (beads-transient-doc-menu-texinfo
+            'beads-dispatch "Command and Key Reference"))
+          "\n"))
+
 (defun beads-dispatch-doc-manual-region ()
   "Return the exact text for the generated manual maintenance region.
 The region wraps the maintenance menu table in the blank lines that
-surround the Org comment markers."
+surround the Texinfo comment markers."
   (concat "\n"
           (string-trim-right
-           (beads-transient-doc-menu-org
+           (beads-transient-doc-menu-texinfo
             'beads-maintenance "Maintenance reference"))
           "\n"))
 
@@ -103,6 +121,11 @@ when everything is current."
      beads-dispatch-doc-readme-begin
      beads-dispatch-doc-readme-end
      (beads-dispatch-doc-readme-region))
+    (beads-transient-doc-region-check
+     (beads-dispatch-doc--abs root beads-dispatch-doc-manual-file)
+     beads-dispatch-doc-dispatch-begin
+     beads-dispatch-doc-dispatch-end
+     (beads-dispatch-doc-manual-dispatch-region))
     (beads-transient-doc-region-check
      (beads-dispatch-doc--abs root beads-dispatch-doc-manual-file)
      beads-dispatch-doc-manual-begin
@@ -124,6 +147,11 @@ Returns t."
      beads-dispatch-doc-readme-begin
      beads-dispatch-doc-readme-end
      (beads-dispatch-doc-readme-region))
+    (beads-transient-doc-region-write
+     (beads-dispatch-doc--abs root beads-dispatch-doc-manual-file)
+     beads-dispatch-doc-dispatch-begin
+     beads-dispatch-doc-dispatch-end
+     (beads-dispatch-doc-manual-dispatch-region))
     (beads-transient-doc-region-write
      (beads-dispatch-doc--abs root beads-dispatch-doc-manual-file)
      beads-dispatch-doc-manual-begin

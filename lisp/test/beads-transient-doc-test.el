@@ -7,9 +7,9 @@
 ;; ERT tests for `beads-transient-doc' (the generic transient-layout
 ;; introspection and rendering) and `beads-dispatch-doc' (the beads
 ;; wiring).  The central test asserts that the checked-in dispatch
-;; reference, the README dispatch table, and the manual maintenance table
-;; all agree with the transient menu code, so a documented key can never
-;; silently drift (plan F2, large item 12).
+;; reference, the README dispatch table, and the Texinfo manual dispatch
+;; and maintenance tables all agree with the transient menu code, so a
+;; documented key can never silently drift (plan F2, large item 12).
 
 ;;; Code:
 
@@ -59,6 +59,20 @@
     (should (string-match-p
              "| Alpha | 1 | =a= | =ignore= | First |" org))))
 
+(ert-deftest beads-transient-doc-test-menu-texinfo ()
+  "The Texinfo renderer emits a @multitable with group and key columns."
+  :tags '(:unit)
+  (let ((texi (beads-transient-doc-menu-texinfo
+               'beads-transient-doc-test--menu "Synthetic")))
+    (should (string-match-p "^@multitable" texi))
+    (should (string-match-p
+             "@item Alpha @tab @kbd{a} @tab @code{ignore} @tab First"
+             texi))
+    (should (string-match-p
+             "@item Beta @tab @kbd{c} @tab @code{ignore} @tab Third"
+             texi))
+    (should (string-match-p "@end multitable" texi))))
+
 (ert-deftest beads-transient-doc-test-missing-prefix-errors ()
   "Introspecting a non-prefix signals a clear error."
   :tags '(:unit)
@@ -82,6 +96,16 @@
         (push (match-string-no-properties 1) result))
       (nreverse result))))
 
+(defun beads-transient-doc-test--texinfo-keys (region)
+  "Return the @kbd keys of the Texinfo multitable in REGION."
+  (with-temp-buffer
+    (insert region)
+    (goto-char (point-min))
+    (let (result)
+      (while (re-search-forward "@kbd{\\([^}]+\\)}" nil t)
+        (push (match-string-no-properties 1) result))
+      (nreverse result))))
+
 (ert-deftest beads-transient-doc-test-readme-lists-dispatch-keys ()
   "The README dispatch table documents every keyed dispatch suffix.
 This parses the generated region independently of the generator, so a
@@ -95,6 +119,36 @@ key added to the menu without regenerating the docs fails twice."
          (doc-keys (and region (beads-transient-doc-test--table-keys region)))
          (menu-keys (mapcar (lambda (e) (plist-get e :key))
                             (beads-transient-doc-suffixes 'beads-dispatch))))
+    (should region)
+    (should (equal doc-keys menu-keys))))
+
+(ert-deftest beads-transient-doc-test-manual-lists-dispatch-keys ()
+  "The Texinfo manual dispatch table documents every dispatch suffix."
+  :tags '(:unit)
+  (let* ((root (beads-transient-doc-project-root))
+         (region (beads-transient-doc-region-read
+                  (expand-file-name beads-dispatch-doc-manual-file root)
+                  beads-dispatch-doc-dispatch-begin
+                  beads-dispatch-doc-dispatch-end))
+         (doc-keys (and region
+                         (beads-transient-doc-test--texinfo-keys region)))
+         (menu-keys (mapcar (lambda (e) (plist-get e :key))
+                            (beads-transient-doc-suffixes 'beads-dispatch))))
+    (should region)
+    (should (equal doc-keys menu-keys))))
+
+(ert-deftest beads-transient-doc-test-manual-lists-maintenance-keys ()
+  "The Texinfo manual maintenance table documents every suffix."
+  :tags '(:unit)
+  (let* ((root (beads-transient-doc-project-root))
+         (region (beads-transient-doc-region-read
+                  (expand-file-name beads-dispatch-doc-manual-file root)
+                  beads-dispatch-doc-manual-begin
+                  beads-dispatch-doc-manual-end))
+         (doc-keys (and region
+                         (beads-transient-doc-test--texinfo-keys region)))
+         (menu-keys (mapcar (lambda (e) (plist-get e :key))
+                            (beads-transient-doc-suffixes 'beads-maintenance))))
     (should region)
     (should (equal doc-keys menu-keys))))
 

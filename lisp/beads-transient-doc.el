@@ -27,11 +27,14 @@
 ;;
 ;; - `beads-transient-doc-suffixes': flatten one prefix to entries.
 ;; - `beads-transient-doc-markdown': render menus as a Markdown document.
-;; - `beads-transient-doc-menu-markdown': render one menu as a block.
+;; - `beads-transient-doc-menu-markdown': render one menu as a Markdown block.
+;; - `beads-transient-doc-menu-org': render one menu as an Org block.
+;; - `beads-transient-doc-menu-texinfo': render one menu as a Texinfo block.
 ;; - `beads-transient-doc-file-check': verify a generated file.
 ;; - `beads-transient-doc-file-write': write a generated file.
 ;; - `beads-transient-doc-region-read' / `-region-write': the same for a
-;;   marked region of a larger hand-written file (README, the Org manual).
+;;   marked region of a larger hand-written file (README, the Texinfo
+;;   manual).
 
 ;;; Code:
 
@@ -200,6 +203,31 @@ in menu order.  Returns a string ending in a newline."
           (beads-transient-doc--org-table
            (beads-transient-doc-suffixes prefix))
           "\n"))
+
+(defun beads-transient-doc--texinfo-table (entries)
+  "Render ENTRIES as a Texinfo @multitable string.
+The table has columns Group, Key, Command, and Description; the caller
+places it under a hand-written section heading."
+  (concat "@multitable @columnfractions 0.18 0.10 0.30 0.42\n"
+          "@headitem Group @tab Key @tab Command @tab Description\n"
+          (mapconcat
+           (lambda (entry)
+             (format "@item %s @tab @kbd{%s} @tab @code{%s} @tab %s"
+                     (or (plist-get entry :group) "")
+                     (plist-get entry :key)
+                     (plist-get entry :command)
+                     (or (plist-get entry :description) "")))
+           entries "\n")
+          "\n@end multitable\n"))
+
+(defun beads-transient-doc-menu-texinfo (prefix _title)
+  "Render transient PREFIX as a Texinfo block under TITLE.
+The block is a @multitable of every suffix, in menu order.  TITLE is
+accepted for symmetry with the Markdown and Org renderers; the caller
+places the table under its own hand-written @section, so no heading is
+emitted.  Returns a string ending in a newline."
+  (beads-transient-doc--texinfo-table
+   (beads-transient-doc-suffixes prefix)))
 
 ;;; Generated files and marked regions
 
