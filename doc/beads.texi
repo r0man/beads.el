@@ -1,0 +1,62 @@
+\input texinfo  @c -*-texinfo-*-
+@c %**start of header
+@setfilename beads.info
+@settitle beads.el Manual
+@documentencoding UTF-8
+@c %**end of header
+
+@copying
+Copyright @copyright{} 2026 Roman Scherer
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, no Front-Cover Texts, and no Back-Cover Texts.  A
+copy of the license is included in the section entitled ``GNU Free
+Documentation License''.
+@end copying
+
+@dircategory Emacs
+@direntry
+* beads.el: (beads).    Magit-like Emacs interface for the Beads issue tracker.
+@end direntry
+
+@node Top
+@top beads.el
+
+@insertcopying
+
+This is the manual for @code{beads.el}, a Magit-like Emacs interface
+for the @uref{https://github.com/steveyegge/beads, Beads} issue
+tracker.  It is built by the project's autotools front door and
+installed as GNU Info.
+
+@menu
+* Introduction::                What beads.el is and what it needs.
+* Building and installing::     The autotools build and install targets.
+@end menu
+
+@node Introduction
+@chapter Introduction
+
+@code{beads.el} exposes the @command{bd} command-line issue tracker from
+inside Emacs through transient menus, tabulated issue lists, and a
+VUI-based dashboard.  Every user-visible command is derived from the
+@command{bd} subcommand inventory.
+
+@node Building and installing
+@chapter Building and installing
+
+The project builds with the standard GNU toolchain:
+
+@example
+./autogen.sh && ./configure && make && make install
+@end example
+
+@noindent
+@code{make} byte-compiles the package with warnings treated as errors and
+generates @file{beads-autoloads.el}.  @code{make install} installs the
+Elisp files and the Info manual.  @xref{Top,,, dir, Directory of
+installed manuals}, for how to browse it.
+
+@bye

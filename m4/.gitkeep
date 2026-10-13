@@ -1,0 +1,3 @@
+# This directory holds Autoconf macro files and is registered with
+# AC_CONFIG_MACRO_DIRS([m4]) in configure.ac.  It is kept in the source
+# tree even while empty so `autoreconf -fi` and `aclocal -I m4` work.
