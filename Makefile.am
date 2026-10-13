@@ -9,8 +9,12 @@
 ##   make install    install *.el, *.elc, beads-autoloads.el and the Info manual
 ##   make dist       build the distribution tarball
 ##
-## `make check' and `make lint' are added by the W2 work item; this file
-## provides the skeleton they extend.
+## `make check' and `make lint' are the W2 quality gates (REQ-006,
+## REQ-008).  check runs the whole ERT suite in one plain-Emacs batch and
+## runs the full (including `:integration') suite only when configure
+## found bd, dolt and graphviz; --with-<tool>=no forces the `:unit'
+## subset.  lint runs package-lint plus the byte-compile
+## warnings-as-errors gate.  Both have no Eldev dependency.
 
 ACLOCAL_AMFLAGS = -I m4
 
@@ -26,6 +30,33 @@ DEP_LOAD_PATH = $(if $(TRANSIENT_DIR),-L "$(TRANSIENT_DIR)") \
 EMACS_BATCH = $(EMACS) --batch -L "$(abs_top_srcdir)/lisp" $(DEP_LOAD_PATH)
 COMPILE_HELPER = "$(abs_top_srcdir)/build-aux/beads-compile.el"
 AUTOLOADS_HELPER = "$(abs_top_srcdir)/build-aux/beads-autoloads.el"
+CHECK_HELPER = "$(abs_top_srcdir)/build-aux/beads-check.el"
+LINT_HELPER = "$(abs_top_srcdir)/build-aux/beads-lint.el"
+LINT_SCRIPT = "$(abs_top_srcdir)/scripts/lint"
+
+## `make check' invokes Emacs with -Q so the suite sees only the checkout
+## and the resolved dependencies; `$(DEP_LOAD_PATH)' and the ambient
+## EMACSLOADPATH still put transient/vui on the load path.
+EMACS_BATCH_Q = $(EMACS) --batch -Q -L "$(abs_top_srcdir)/lisp" $(DEP_LOAD_PATH)
+
+## configure's bd/dolt/graphviz conditionals, forwarded to the ERT runner
+## so it can pick the full or `:unit'-only selector (and name what is
+## missing).  `--with-bd=no' turns HAVE_BD off and thus forces :unit.
+if HAVE_BD
+check_have_bd = yes
+else
+check_have_bd = no
+endif
+if HAVE_DOLT
+check_have_dolt = yes
+else
+check_have_dolt = no
+endif
+if HAVE_GRAPHVIZ
+check_have_graphviz = yes
+else
+check_have_graphviz = no
+endif
 
 BEADS_LISP_SOURCES = $(filter-out $(srcdir)/lisp/beads-autoloads.el, \
                               $(wildcard $(srcdir)/lisp/*.el))
@@ -40,9 +71,12 @@ EXTRA_DIST = \
   autogen.sh \
   build-aux/beads-compile.el \
   build-aux/beads-autoloads.el \
+  build-aux/beads-check.el \
+  build-aux/beads-lint.el \
   m4/.gitkeep \
   guix.scm \
   scripts/dispatch-docs \
+  scripts/lint \
   share \
   docs \
   $(BEADS_LISP_SOURCES) \
@@ -85,3 +119,19 @@ clean-local:
 	rm -f $(BEADS_LISP_COMPILED) $(AUTOLOADS_FILE)
 	rm -rf "$(builddir)/doc/beads.html"
 	rm -f "$(builddir)/doc/beads.pdf"
+
+## `make check' (REQ-006, REQ-008): the whole ERT suite in one Emacs
+## invocation.  build-aux/beads-check.el drops stale project byte-code
+## first (F2, be-47jo) and writes coverage/junit.xml from
+## EMACS_TEST_JUNIT_REPORT (F3).
+check-local:
+	@BEADS_CHECK_TOOLS="bd=$(check_have_bd) dolt=$(check_have_dolt) graphviz=$(check_have_graphviz)" \
+	  $(EMACS_BATCH_Q) -L "$(abs_top_srcdir)/lisp/test" -l $(CHECK_HELPER)
+
+## `make lint' (REQ-008): package-lint plus byte-compile
+## warnings-as-errors, via scripts/lint (no Eldev).
+lint:
+	EMACS="$(EMACS)" TRANSIENT_DIR="$(TRANSIENT_DIR)" VUI_DIR="$(VUI_DIR)" \
+	  PACKAGE_LINT_DIR="@with_package_lint@" $(LINT_SCRIPT)
+
+.PHONY: check-local lint

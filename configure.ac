@@ -56,6 +56,16 @@ AC_ARG_WITH([vui],
 AC_SUBST([with_transient])
 AC_SUBST([with_vui])
 
+dnl Development lint dependency.  `make lint' runs package-lint; resolve
+dnl it from --with-package-lint=DIR or the ambient EMACSLOADPATH (the Guix
+dnl `emacs-package-lint' input).  scripts/lint fails clearly when it is
+dnl missing.
+AC_ARG_WITH([package-lint],
+  [AS_HELP_STRING([--with-package-lint=DIR],
+                  [directory holding package-lint.el (default: EMACSLOADPATH)])],
+  [], [with_package_lint=])
+AC_SUBST([with_package_lint])
+
 dnl Optional manual tooling.
 AC_PATH_PROG([MAKEINFO], [makeinfo], [makeinfo])
 AC_PATH_PROG([TEXI2PDF], [texi2pdf], [texi2pdf])

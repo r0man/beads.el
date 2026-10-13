@@ -1,0 +1,47 @@
+#!/bin/sh
+# Lint beads.el without Eldev: byte-compile warnings-as-errors + package-lint.
+#
+#   scripts/lint
+#
+# Run from `make lint' (REQ-008).  The two gates are:
+#
+#   1. build-aux/beads-compile.el byte-compiles every lisp/*.el with
+#      `byte-compile-error-on-warn' (the historical --warnings-as-errors
+#      gate).
+#   2. build-aux/beads-lint.el runs package-lint on lisp/beads.el.
+#
+# package-lint is resolved from --with-package-lint=DIR / PACKAGE_LINT_DIR,
+# or from the ambient EMACSLOADPATH (the Guix `emacs-package-lint' input),
+# or from MELPA in the user's package directory.  `make lint' passes the
+# configure value as PACKAGE_LINT_DIR.
+#
+# transient/vui are resolved the same way as the build: `--with-*' becomes
+# TRANSIENT_DIR/VUI_DIR, otherwise the ambient EMACSLOADPATH is used.
+
+set -eu
+
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+cd "$root"
+
+emacs_bin=${EMACS:-emacs}
+
+load_path_args=""
+for dir in "${TRANSIENT_DIR:-}" "${VUI_DIR:-}" "${PACKAGE_LINT_DIR:-}"; do
+  if [ -n "$dir" ]; then
+    load_path_args="$load_path_args -L $dir"
+  fi
+done
+
+# 1. Byte-compile every source file with warnings as errors.  This uses
+# the same plain-batch flags as the `make' byte-compile target (no -Q) so
+# it sees the dependency autoloads site-start activates; compile-time
+# `sesman-browser' is resolved that way until be-4fa65 removes sesman.
+# shellcheck disable=SC2086
+"$emacs_bin" --batch -L "$root/lisp" $load_path_args \
+  -l "$root/build-aux/beads-compile.el" "$root"/lisp/*.el
+
+# 2. package-lint the package's main file.
+# shellcheck disable=SC2086
+BEADS_LINT_FILE="$root/lisp/beads.el" \
+  "$emacs_bin" --batch -Q -L "$root/lisp" $load_path_args \
+  -l "$root/build-aux/beads-lint.el"
