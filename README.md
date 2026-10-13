@@ -168,38 +168,76 @@ sectioned board for the current store.  From the board:
   beads buffer.  `M-x beads-dispatch` opens it directly.
 - `!` opens **`beads-maintenance`**, the admin/infrastructure menu.
 
-The dispatch menu (`?`) groups the common flows:
+The dispatch menu (`?`) groups the common flows.  The table below is
+generated from the menu definition by `scripts/dispatch-docs`; run
+`scripts/dispatch-docs --write` after changing a menu, and `--check`
+(what CI runs) fails when the code and this table disagree.  The full
+generated reference, including the maintenance, integrations, and setup
+dispatchers, lives in [`docs/dispatch-reference.md`](docs/dispatch-reference.md).
 
-**Issues:**
-- `l` - List all issues (`beads-list-all`)
-- `c` - Create new issue (`beads-compose-create`)
-- `/` - Search (`beads-search`)
-- `i` - Show specific issue (`beads-show`)
-- `u` - Update issue (`beads-update`)
-- `x` - Close issue (`beads-close`)
-- `o` - Reopen issue (`beads-reopen`)
-- `e` - Edit field (`beads-edit`)
+<!-- BEGIN GENERATED: dispatch menu -->
+#### Dispatch menu (`?`)
 
-**Workflow:**
-- `r` - Ready work (`beads-ready`)
-- `b` - Blocked work (`beads-blocked`)
-- `d` - Dependencies (`beads-dep`)
-- `#` - Priority (`beads-actions-set-priority`)
-- `C` - Claim (`beads-actions-claim`)
-- `s` - Set status (`beads-actions-set-status`)
-- `m` - Molecules, `G` - Gates, `w` - Wisps, `S` - Swarms, `T` - Types
+##### Issues
 
-**Views:**
-- `a` - Agents, `F` - Formulas, `v` - Graph, `D` - Dashboard,
-  `H` - History, `R` - Recent changes, `Y` - Orphans, `t` - Stats,
-  `X` - Context
+| Key | Command | Description |
+| --- | --- | --- |
+| `l` | `beads-list-all` | List beads |
+| `c` | `beads-compose-create` | Create bead |
+| `/` | `beads-search` | Search |
+| `i` | `beads-show` | Show... |
+| `u` | `beads-update` | Update bead |
+| `x` | `beads-close` | Close bead |
+| `o` | `beads-reopen` | Reopen bead |
+| `e` | `beads-edit` | Edit field |
 
-**Manage:**
-- `L` - Labels, `k` - Dolt, `.` - Config, `W` - Worktrees
+##### Workflow
 
-**Maintenance** (also `!`):
-- `!` - Maintenance (`beads-maintenance`)
-- `g` - Refresh cache (`beads-refresh-menu`)
+| Key | Command | Description |
+| --- | --- | --- |
+| `r` | `beads-ready` | Ready work |
+| `b` | `beads-blocked` | Blocked work |
+| `d` | `beads-dep` | Dependencies |
+| `#` | `beads-actions-set-priority` | Priority |
+| `C` | `beads-actions-claim` | Claim |
+| `s` | `beads-actions-set-status` | Set status |
+| `m` | `beads-mol` | Molecules |
+| `G` | `beads-gate` | Gates |
+| `w` | `beads-wisp-list` | Wisps |
+| `S` | `beads-swarm-list-view` | Swarms |
+| `T` | `beads-types` | Types |
+
+##### Views
+
+| Key | Command | Description |
+| --- | --- | --- |
+| `a` | `beads-agent` | Agents... |
+| `F` | `beads-formula-menu` | Formulas... |
+| `v` | `beads-graph-all` | Graph |
+| `D` | `beads-dashboard` | Dashboard |
+| `H` | `beads-history` | History |
+| `R` | `beads-events-timeline` | Recent changes |
+| `Y` | `beads-orphans` | Orphans |
+| `t` | `beads-stats` | Stats |
+| `X` | `beads-context` | Context |
+
+##### Manage
+
+| Key | Command | Description |
+| --- | --- | --- |
+| `L` | `beads-label-menu` | Labels... |
+| `k` | `beads-dolt` | Dolt... |
+| `.` | `beads-config` | Config |
+| `W` | `beads-worktree-menu` | Worktrees... |
+
+##### Maintenance
+
+| Key | Command | Description |
+| --- | --- | --- |
+| `!` | `beads-maintenance` | Maintenance... |
+| `g` | `beads-refresh-menu` | Refresh cache |
+| `q` | `transient-quit-one` | Quit |
+<!-- END GENERATED: dispatch menu -->
 
 The full, test-enforced key contract lives in `docs/key-registry.md`.
 

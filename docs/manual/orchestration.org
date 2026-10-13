@@ -55,6 +55,82 @@ The maintenance menu is organized by intent:
   quickstart, where, context, memories, KV store, prime, recall, remember,
   audit, admin, worktrees.
 
+The table below is generated from the menu definition by
+=scripts/dispatch-docs=; do not edit it by hand.  The complete generated
+reference, including the dispatch, integrations, and setup menus, is in
+[[file:../dispatch-reference.md][=docs/dispatch-reference.md=]].
+
+# BEGIN GENERATED: maintenance menu
+** Maintenance reference
+
+| Group | Level | Key | Command | Description |
+|-------+-------+-----+---------+-------------|
+| Issue Lifecycle | 1 | =f= | =beads-defer= | Defer |
+| Issue Lifecycle | 1 | =F= | =beads-undefer= | Undefer |
+| Issue Lifecycle | 1 | =D= | =beads-delete= | Delete |
+| Issue Lifecycle | 1 | =p= | =beads-promote= | Promote wisp |
+| Issue Lifecycle | 1 | =R= | =beads-rename= | Rename |
+| Issue Lifecycle | 1 | =u= | =beads-unclaim= | Unclaim |
+| Views & Reports | 1 | =c= | =beads-count= | Count |
+| Views & Reports | 1 | =t= | =beads-stats= | Stats |
+| Views & Reports | 1 | =s= | =beads-stale= | Stale |
+| Views & Reports | 1 | =T= | =beads-types= | Types |
+| Views & Reports | 1 | =l= | =beads-lint= | Lint |
+| Views & Reports | 1 | =O= | =beads-find-duplicates= | Find duplicates |
+| Views & Reports | 1 | =o= | =beads-orphans= | Orphans |
+| Views & Reports | 1 | =$= | =beads-wisp-list= | Wisps |
+| Issue Details | 1 | =a= | =beads-children= | Children |
+| Issue Details | 1 | === | =beads-comments-menu= | Comments |
+| Issue Details | 1 | =[= | =beads-todo= | Todo |
+| Issue Details | 1 | =e= | =beads-events= | Events |
+| Issue Details | 1 | =/= | =beads-query= | Query |
+| Events (live) | 1 | =,= | =beads-events-timeline= | Recent changes |
+| Events (live) | 1 | =.= | =beads-events-timeline-city= | City timeline |
+| Events (live) | 1 | =#= | =beads-live-toggle= | Toggle live |
+| Events (time travel) | 1 | =-= | =beads-events-history= | Issue history |
+| Events (time travel) | 1 | =^= | =beads-events-rewind= | Rewind... |
+| Workflow | 1 | =g= | =beads-gate= | Gate |
+| Workflow | 1 | =w= | =beads-swarm= | Swarm |
+| Workflow | 1 | =K= | =beads-cook= | Cook |
+| Workflow | 1 | =H= | =beads-ship= | Ship |
+| Workflow | 1 | =z= | =beads-set-state= | Set state |
+| Workflow | 1 | =Z= | =beads-state-menu= | State menu |
+| Workflow | 1 | =C= | =beads-conflicts= | Conflicts |
+| Workflow | 1 | =r= | =beads-reclaim= | Reclaim |
+| Workflow | 1 | =B= | =beads-heartbeat= | Heartbeat |
+| Database | 3 | =b= | =beads-backup= | Backup |
+| Database | 3 | =E= | =beads-export= | Export JSONL |
+| Database | 3 | =P= | =beads-prune= | Prune closed |
+| Database | 3 | =G= | =beads-gc= | GC |
+| Database | 3 | =d= | =beads-batch= | Batch ops |
+| Database | 3 | =h= | =beads-compact= | Compact |
+| Database | 3 | =i= | =beads-flatten= | Flatten |
+| Database | 3 | =j= | =beads-ping= | Ping |
+| Database | 3 | =+= | =beads-doctor= | Doctor |
+| Database | 3 | =M= | =beads-migrate-menu= | Migrate... |
+| Database | 3 | =U= | =beads-upgrade= | Upgrade |
+| Database | 3 | =!= | =beads-preflight= | Preflight |
+| Database | 3 | =8= | =beads-purge= | Purge |
+| Structure | 3 | =1= | =beads-duplicate= | Mark duplicate |
+| Structure | 3 | =2= | =beads-duplicates= | Find duplicates |
+| Structure | 3 | =3= | =beads-supersede= | Supersede |
+| Structure | 3 | =4= | =beads-restore= | Restore |
+| Structure | 3 | =J= | =beads-sql= | SQL query |
+| Structure | 3 | =k= | =beads-rename-prefix= | Rename prefix |
+| Structure | 3 | =_= | =beads-forget= | Forget memory |
+| Data & Sync | 3 | =V= | =beads-vc= | VC |
+| Data & Sync | 3 | =Y= | =beads-sync= | Dolt sync |
+| Data & Sync | 3 | =S= | =beads-schema= | Schema |
+| Data & Sync | 3 | =m= | =beads-migrate-personal= | Migrate personal |
+| Data & Sync | 3 | =<= | =beads-branch= | Branch |
+| Data & Sync | 3 | =`= | =beads-diff= | Diff |
+| Data & Sync | 3 | =%= | =beads-history= | History |
+| Data & Sync | 3 | =&= | =beads-provenance= | Provenance |
+| Integrations | 5 | =n= | =beads-integrations-menu= | Integrations... |
+| Setup | 7 | =I= | =beads-setup-menu= | Setup & migration... |
+| Actions | 1 | =q= | =transient-quit-one= | Quit |
+# END GENERATED: maintenance menu
+
 * Terminal backends
 
 #+FINDEX: beads-terminal
