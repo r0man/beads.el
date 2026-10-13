@@ -4,6 +4,19 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Single front door: the dashboard Stats section
+
+* **`bd status` is a dashboard section, not a separate command.**
+`beads-dashboard` is the one front door (`M-x beads`).  Its **Stats**
+section renders the `bd status` snapshot with clickable counters that open
+the matching filtered lists, plus a one-line recent-activity summary.  The
+standalone `beads-stats` buffer is retired: `M-x beads-stats` now forwards
+to `beads-dashboard-status`, which opens the board focused on Stats.  `t`
+in the dispatch and maintenance menus opens `beads-dashboard-status`.
+The `beads-command-status` class and `bd status --json` parsing are
+unchanged; `beads-stats-buffer` remains as internal plumbing (plan F6,
+large item 11).
+
 ### Generated dispatch reference
 
 * **Dispatch docs can no longer drift.** `scripts/dispatch-docs --check`

@@ -244,6 +244,60 @@ section without the user having to press `g'."
          (rendered (format "%S" vnode)))
     (should-not (string-match-p "Deferred" rendered))))
 
+(ert-deftest beads-dashboard-test-stats-buttons-clickable ()
+  "Stats counters are clickable buttons that open filtered lists.
+The dashboard's Stats section is the single front door for the
+`bd status' snapshot, so its counters must behave like the retired
+standalone stats buffer."
+  :tags '(:unit)
+  (let* ((button (beads-dashboard--stats-button "Open 5" 5 'open 'warning))
+         (captured nil))
+    (should (vui-vnode-button-p button))
+    (should (equal (vui-vnode-button-label button) "Open 5"))
+    (cl-letf (((symbol-function 'beads-stats--open-filtered-list)
+               (lambda (type count) (setq captured (cons type count)))))
+      (funcall (vui-vnode-button-on-click button))
+      (should (equal captured '(open . 5))))))
+
+(ert-deftest beads-dashboard-test-stats-renders-buttons-and-activity ()
+  "The Stats section renders clickable counters and recent activity."
+  :tags '(:unit)
+  (let* ((summary (list (cons 'open_issues 5) (cons 'ready_issues 5)
+                        (cons 'in_progress_issues 0) (cons 'blocked_issues 0)
+                        (cons 'deferred_issues 0) (cons 'closed_issues 1)))
+         (activity (list (cons 'hours_tracked 24) (cons 'commit_count 4)
+                         (cons 'total_changes 65) (cons 'issues_created 11)
+                         (cons 'issues_closed 3) (cons 'issues_reopened 1)))
+         (data (list (cons 'summary summary) (cons 'recent_activity activity)))
+         (rendered (format "%S" (beads-dashboard-render-stats data))))
+    (should (string-match-p "vui-vnode-button" rendered))
+    (should (string-match-p "Open 5" rendered))
+    (should (string-match-p "Last 24h: 4 commits" rendered))))
+
+(ert-deftest beads-dashboard-test-status-command-focuses-stats ()
+  "`beads-dashboard-status' opens the board on the Stats section."
+  :tags '(:unit)
+  (with-temp-buffer
+    (insert "▾ "
+            (propertize "Stats" 'beads-dashboard-section-key 'stats)
+            "\n  body\n")
+    (beads-dashboard-mode)
+    (cl-letf (((symbol-function 'beads-dashboard)
+               (lambda (&rest _) (pop-to-buffer (current-buffer)))))
+      (beads-dashboard-status)
+      (should (eq major-mode 'beads-dashboard-mode))
+      (should (looking-at "Stats")))))
+
+(ert-deftest beads-dashboard-test-stats-forwards-to-dashboard ()
+  "The legacy `beads-stats' command forwards to the dashboard."
+  :tags '(:unit)
+  (should (fboundp 'beads-dashboard-status))
+  (let ((called nil))
+    (cl-letf (((symbol-function 'beads-dashboard-status)
+               (lambda () (setq called t))))
+      (beads-stats)
+      (should called))))
+
 ;;; Mode-line
 
 (ert-deftest beads-dashboard-test-mode-line-shows-auto-refresh ()

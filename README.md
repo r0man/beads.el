@@ -431,36 +431,37 @@ Submenu for managing issue dependencies:
 - `t` - Show dependency tree (visual display)
 - `l` - List dependencies for an issue
 
-### Statistics (`beads-stats`)
+### Statistics (dashboard Stats section)
 
-Display project statistics in an **interactive** buffer:
+Statistics are the **Stats** section of the `beads-dashboard` board —
+the single front door.  There is no separate stats buffer: `M-x
+beads-dashboard-status` (or `t` from the dispatch menu) opens the board
+focused on that section, and the legacy `M-x beads-stats` name forwards
+there.  The section shows:
 
 - Total issues
 - Issue counts by status (Open, In Progress, Blocked, Closed)
 - Ready to work issues
-- Average lead time
+- Deferred issues (shown only when non-zero)
+- Recent activity (commits, changes, issues created/closed/reopened)
 
 **Interactive Features:**
 
-All statistic numbers are **clickable**! Click on any number to instantly view those issues in a filtered list:
+The counters are **clickable** and open the matching filtered list:
 
-- Click **Total Issues** → View all issues
-- Click **Open** → View open issues only
-- Click **In Progress** → View in-progress issues only
-- Click **Blocked** → View blocked issues
-- Click **Closed** → View closed issues
-- Click **Ready** → View ready-to-work issues
-
-**Keyboard Shortcuts:**
-- `g` - Refresh statistics
-- `q` - Quit statistics buffer
+- **Open** → View open issues only
+- **Ready** → View ready-to-work issues
+- **In Progress** → View in-progress issues only
+- **Blocked** → View blocked issues
+- **Deferred** → View deferred issues (only shown when non-zero)
+- **Closed** → View closed issues
 
 **Example Workflow:**
-1. Run `M-x beads-stats` (or `S` from the beads main menu)
+1. Run `M-x beads` (or `M-x beads-dashboard-status` for the Stats section)
 2. See at-a-glance view of project health
-3. Click on "Open: 30" to see all open issues
-4. Work on issues, then return to stats with `M-x beads-stats`
-5. Click on "Ready: 15" to find next issue to work on
+3. Click on "Open 30" to see all open issues
+4. Work on issues, then return with `g` to refresh the board
+5. Click on "Ready 15" to find the next issue to work on
 
 ### Import/Export
 
@@ -549,7 +550,7 @@ Full example with customization and keybindings:
 | `beads-close`  | `d`         | List/show  | Close issue at point  |
 | `beads-dep`    | `d`         | Dispatch   | Dependency submenu    |
 | `beads-reopen` | `o`         | Dispatch   | Reopen issue          |
-| `beads-stats`  | `t`         | Dispatch   | Show statistics       |
+| `beads-stats`  | `t`         | Dispatch   | Stats section of the board |
 | `beads-maintenance` | `!`    | Dispatch   | Maintenance submenu   |
 
 Within list/show buffers:
@@ -569,7 +570,7 @@ Within list/show buffers:
 | Add dependency          | `bd dep add ...`           | `M-x beads-dep` then `a`|
 | Show dependency tree    | `bd dep tree bd-1`         | `M-x beads-dep` then `t`|
 | Close issue             | `bd close bd-42 -r ...`    | `M-x beads-close`       |
-| View statistics         | `bd stats`                 | `M-x beads-stats`       |
+| View statistics         | `bd stats`                 | `M-x beads-dashboard-status` |
 
 **Advantages of beads.el:**
 - No need to remember CLI syntax

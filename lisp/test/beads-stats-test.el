@@ -279,7 +279,7 @@ FILTER is an optional filter string."
     (let ((json-output (json-encode beads-stats-test--sample-stats)))
       (cl-letf (((symbol-function 'call-process)
                  (beads-stats-test--mock-call-process 0 json-output)))
-        (beads-stats)
+        (beads-stats-buffer)
         (should (get-buffer (beads-stats-test--get-stats-buffer)))
         (beads-stats-test--find-and-kill-stats-buffers)))))
 
@@ -289,7 +289,7 @@ FILTER is an optional filter string."
     (let ((json-output (json-encode beads-stats-test--sample-stats)))
       (cl-letf (((symbol-function 'call-process)
                  (beads-stats-test--mock-call-process 0 json-output)))
-        (beads-stats)
+        (beads-stats-buffer)
         (with-current-buffer (beads-stats-test--get-stats-buffer)
           (should (eq major-mode 'beads-stats-mode)))
         (beads-stats-test--find-and-kill-stats-buffers)))))
@@ -300,7 +300,7 @@ FILTER is an optional filter string."
     (let ((json-output (json-encode beads-stats-test--sample-stats)))
       (cl-letf (((symbol-function 'call-process)
                  (beads-stats-test--mock-call-process 0 json-output)))
-        (beads-stats)
+        (beads-stats-buffer)
         (with-current-buffer (beads-stats-test--get-stats-buffer)
           (let ((content (buffer-string)))
             (should (string-match-p "Total Issues:" content))
@@ -313,7 +313,7 @@ FILTER is an optional filter string."
     (let ((json-output (json-encode beads-stats-test--sample-stats)))
       (cl-letf (((symbol-function 'call-process)
                  (beads-stats-test--mock-call-process 1 "Error: failed")))
-        (beads-stats)
+        (beads-stats-buffer)
         (should (get-buffer (beads-stats-test--get-stats-buffer)))
         (with-current-buffer (beads-stats-test--get-stats-buffer)
           (let ((content (buffer-string)))
@@ -328,7 +328,7 @@ FILTER is an optional filter string."
     (let ((json-output (json-encode beads-stats-test--sample-stats)))
       (cl-letf (((symbol-function 'call-process)
                  (beads-stats-test--mock-call-process 0 json-output)))
-        (beads-stats)
+        (beads-stats-buffer)
         (with-current-buffer (beads-stats-test--get-stats-buffer)
           ;; Modify buffer to test refresh
           (let ((inhibit-read-only t))
@@ -358,7 +358,7 @@ FILTER is an optional filter string."
       (cl-letf (((symbol-function 'call-process)
                  (beads-stats-test--mock-call-process 0 json-output)))
         ;; Open stats
-        (beads-stats)
+        (beads-stats-buffer)
         (should (get-buffer (beads-stats-test--get-stats-buffer)))
 
         ;; Verify mode
@@ -1059,7 +1059,7 @@ Runs beads-stats, clicks a button, verifies correct list appears."
     (let ((id1 (beads-test-create-issue "Issue One" "task" 1))
           (id2 (beads-test-create-issue "Issue Two" "bug" 2)))
       ;; Run beads-stats to create the stats buffer
-      (beads-stats)
+      (beads-stats-buffer)
       (let ((stats-buf (get-buffer (beads-stats-test--get-stats-buffer))))
         (should stats-buf)
         (with-current-buffer stats-buf

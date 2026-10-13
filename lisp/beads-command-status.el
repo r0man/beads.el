@@ -35,6 +35,7 @@
 
 ;; Forward declarations
 (declare-function beads-pager--mode-line-fragment "beads-pager")
+(declare-function beads-dashboard-status "beads-dashboard" (&optional directory))
 
 ;;; Status Command
 
@@ -404,11 +405,15 @@ interactive clickable numbers."
 
 ;;; Interactive Commands
 
-;;;###autoload
-(defun beads-stats ()
-  "Display Beads issue statistics in an interactive buffer.
+(defun beads-stats-buffer ()
+  "Populate and display the standalone statistics buffer.
 
-Shows statistics including:
+The user-facing front door is `beads-dashboard-status', which renders
+the same `bd status' data as the dashboard's Stats section.  This
+function is internal plumbing for callers that need the buffer text;
+it is not a command.
+
+The buffer shows statistics including:
 
 SUMMARY SECTION:
 - Total issues
@@ -440,13 +445,21 @@ KEYBOARD SHORTCUTS:
 
 The statistics buffer is read-only and updates can be triggered
 with \\[beads-stats-refresh]."
-  (interactive)
   (beads-check-executable)
   (let ((buffer (get-buffer-create (beads-buffer-name-utility "stats"))))
     (with-current-buffer buffer
       (beads-stats-mode)
       (beads-stats--fetch-and-display))
     (pop-to-buffer buffer)))
+
+(defun beads-stats ()
+  "Open the dashboard, focused on its Stats section.
+
+Compatibility entry point: the `bd status' snapshot is a section of
+`beads-dashboard' (the single front door), not a separate buffer.
+New code and the Stats menu entry use `beads-dashboard-status'."
+  (interactive)
+  (beads-dashboard-status))
 
 (defun beads-stats-refresh ()
   "Refresh the statistics display."
