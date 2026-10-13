@@ -197,6 +197,20 @@ the exact constant to edit. The `:integration` gate tests skip when
 Historical audit snapshots live in `.cli-audit/<timestamp>/` and the
 design notes in `.designs/command-parity/`.
 
+### Dispatch-reference drift gate
+
+The hand-written transient menus are the documented dispatch contract.
+`beads-transient-doc.el` (package-agnostic) reads the parsed transient
+layouts and renders Markdown/Org; `beads-dispatch-doc.el` names the
+documented prefixes and wires them into `docs/dispatch-reference.md`, the
+README dispatch table, and the manual's maintenance table.
+`scripts/dispatch-docs --check` fails when any of those disagree with the
+code, and `--write` regenerates them; the Docs drift workflow and the
+`:unit` tests in `lisp/test/beads-transient-doc-test.el` run the check in
+CI.  Change a menu, then run `scripts/dispatch-docs --write`.  Downstream
+packages (gascity.el) can `require` `beads-transient-doc` and pass their
+own `(PREFIX . TITLE)` list to render their menus with the same engine.
+
 ## User manual and screenshots
 
 The user manual lives under `docs/manual/` (one Org file per task area plus

@@ -17,6 +17,18 @@ The `beads-command-status` class and `bd status --json` parsing are
 unchanged; `beads-stats-buffer` remains as internal plumbing (plan F6,
 large item 11).
 
+### Generated dispatch reference
+
+* **Dispatch docs can no longer drift.** `scripts/dispatch-docs --check`
+walks the hand-written transient prefixes, renders the dispatch contract,
+and fails when `docs/dispatch-reference.md`, the README dispatch table, or
+the manual maintenance table disagree with the code (plan F2, large item
+12).  `scripts/dispatch-docs --write` regenerates them.  The new
+`beads-transient-doc` module is package-agnostic, so downstream packages
+such as gascity.el can render their own menus with the same mechanism;
+`beads-dispatch-doc` is the beads.el wiring and
+`lisp/test/beads-transient-doc-test.el` guards it.
+
 ### magit/forge-parity UX cleanup (F2, F3, F5, F7, F8, F9, F10, F11)
 
 * **Key registry.** New `docs/key-registry.md` records the beads half of
