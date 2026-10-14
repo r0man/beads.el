@@ -25,7 +25,7 @@
 (require 'ert)
 (require 'beads)
 (require 'beads-agent)
-(require 'beads-sesman)
+(require 'beads-agent-session)
 (require 'beads-command-worktree)
 (require 'beads-command-epic)
 (require 'beads-command-formula)

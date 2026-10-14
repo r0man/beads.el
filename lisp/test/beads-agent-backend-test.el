@@ -709,18 +709,16 @@ this arm of the pcase records it."
 
 (ert-deftest beads-agent-backend-test-generate-session-id ()
   "Test beads-agent--generate-session-id creates correct format."
-  ;; Mock sesman-sessions to return empty list
-  (cl-letf (((symbol-function 'sesman-sessions)
-             (lambda (_) nil)))
-    (should (equal (beads-agent--generate-session-id "bd-42") "bd-42#1"))))
+  ;; Empty session registry
+  (beads-agent--clear-sessions)
+  (should (equal (beads-agent--generate-session-id "bd-42") "bd-42#1")))
 
 (ert-deftest beads-agent-backend-test-generate-project-session-id ()
   "Test beads-agent--generate-project-session-id creates correct format."
-  ;; Mock sesman-sessions to return empty list
-  (cl-letf (((symbol-function 'sesman-sessions)
-             (lambda (_) nil)))
-    (should (equal (beads-agent--generate-project-session-id "/home/user/beads.el")
-                   "beads.el#1"))))
+  ;; Empty session registry
+  (beads-agent--clear-sessions)
+  (should (equal (beads-agent--generate-project-session-id "/home/user/beads.el")
+                 "beads.el#1")))
 
 ;;; ========================================
 ;;; Pop to Buffer Test

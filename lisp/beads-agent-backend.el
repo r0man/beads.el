@@ -14,18 +14,18 @@
 ;; - Session class for tracking active sessions (beads-agent-session)
 ;; - Protocol (generic methods) that backends must implement
 ;; - Backend registry for registration and lookup
-;; - Session query functions (storage delegated to sesman)
+;; - Session store and query functions
 ;;
 ;; Session Storage Architecture:
 ;;
-;; Sessions are stored in sesman (Session Manager) rather than local
-;; hash tables.  This provides context-aware session selection and
-;; standard Emacs session management UI.  The flow is:
+;; Sessions are stored in an in-house registry (`beads-agent--sessions')
+;; rather than in an external session manager.  The flow is:
 ;;
-;; 1. `beads-agent--create-session' creates session object and runs hook
-;; 2. Hook handler in beads-sesman.el registers session with sesman
-;; 3. Query functions iterate `(sesman-sessions beads-sesman-system)' to find sessions
-;; 4. `beads-agent--destroy-session' runs hook to unregister from sesman
+;; 1. `beads-agent--create-session' creates the session object, registers it
+;; 2. `beads-agent-state-change-hook' runs, refreshing UI and grouping the
+;;    session under its worktree session (beads-worktree-session.el)
+;; 3. Query functions iterate `beads-agent--all-sessions' to find sessions
+;; 4. `beads-agent--destroy-session' unregisters the session
 ;;
 ;; Backend implementations should require this module and implement
 ;; the protocol methods.  They should NOT require beads-agent.el to
@@ -37,11 +37,7 @@
 
 (require 'eieio)
 (require 'cl-lib)
-(require 'sesman)
 (require 'beads-buffer)
-
-;; Forward declaration - defined in beads-sesman.el (required at end of file)
-(defvar beads-sesman-system)
 
 ;;; EIEIO Classes
 
@@ -151,10 +147,8 @@ This slot is kept for backward compatibility.")
     :initform nil
     :documentation "Backend-specific session object/handle.
 This is the return value from `beads-agent-backend-start'.
-In sesman sessions, this becomes the second element of the tuple:
-  (session-name BACKEND-SESSION beads-agent-session)
-Backends use this to track their internal session state.
-The value is opaque to beads-sesman and passed through unchanged.
+It is stored on the `beads-agent-session' object and passed to the
+backend on stop/query.  The value is opaque to the session store.
 
 This slot MAY BE NIL in the following cases:
 - During async session startup before the backend connects
@@ -376,7 +370,7 @@ PROMPT is a string to send to the agent.")
 (cl-defgeneric beads-agent-backend-session-name (backend session)
   "Return display name for SESSION on BACKEND.
 SESSION is a beads-agent-session object.
-The returned name is used as the sesman session identifier.
+The returned name is used as the session display identifier.
 
 Default implementation returns \"<session-id>@<working-dir>\" format,
 where session-id is in `issue-id#N' format for numbered sessions.
@@ -392,7 +386,7 @@ Backends may override this to use custom naming schemes."
 (cl-defgeneric beads-agent-backend-get-buffer (backend session)
   "Return the buffer for SESSION on BACKEND, or nil if not available.
 SESSION is a beads-agent-session object.
-Used by sesman to link the session buffer for context-aware selection.
+Used by session lookup to associate a buffer with its session.
 
 Default implementation returns the buffer stored in the session's
 `buffer' slot.  This is set automatically when the session is created
@@ -546,9 +540,75 @@ have created their buffer immediately after being spawned."
 
 ;;; Session Management Functions
 ;;
-;; Sessions are stored in sesman (via beads-sesman.el hook handler).
-;; The hook `beads-agent-state-change-hook' triggers registration/unregistration.
-;; Query functions iterate sesman sessions to find beads-agent-session objects.
+;; Sessions are stored in the in-house registry `beads-agent--sessions'.
+;; `beads-agent--create-session'/`beads-agent--create-project-session'
+;; register a session; `beads-agent--destroy-session' unregisters it.
+;; Query functions iterate `beads-agent--all-sessions' to find
+;; beads-agent-session objects.
+
+(defvar beads-agent--sessions nil
+  "List of active beads-agent-session objects, newest first.
+This is the single source of truth for session lookup; the retired
+external session registry used to hold these instead.")
+
+(defun beads-agent--register-session (session)
+  "Register SESSION in the in-house session registry.
+Returns SESSION."
+  (setq beads-agent--sessions
+        (cons session (delq session beads-agent--sessions)))
+  session)
+
+(defun beads-agent--unregister-session (session)
+  "Remove SESSION from the in-house session registry.
+Returns non-nil if SESSION was present."
+  (let ((present (memq session beads-agent--sessions)))
+    (setq beads-agent--sessions (delq session beads-agent--sessions))
+    present))
+
+(defun beads-agent--clear-sessions ()
+  "Clear all sessions from the registry.
+Primarily used for testing."
+  (setq beads-agent--sessions nil))
+
+(defun beads-agent--all-sessions ()
+  "Return all active sessions as a list of beads-agent-session objects.
+Newest sessions come first."
+  beads-agent--sessions)
+
+;;; Agent Buffer Cleanup
+;;
+;; Agent buffers are linked to their session so that killing the buffer
+;; stops the session (instead of leaving a stale registry entry).
+
+(defvar-local beads-agent--buffer-session-id nil
+  "Session ID for the agent session associated with this buffer.
+Set when an agent buffer is linked to its session.  Used by
+`beads-agent--buffer-kill-handler' to clean up the session when the
+buffer is killed manually.")
+
+(defun beads-agent--buffer-kill-handler ()
+  "Stop the session associated with the buffer being killed.
+This ensures views reflect actual session state rather than showing
+stale agent indicators when an agent buffer is killed manually."
+  (when beads-agent--buffer-session-id
+    ;; Use `beads-agent-stop' to properly clean up the session.  It is
+    ;; defined in beads-agent.el, which requires this module, so guard
+    ;; with `fboundp' instead of requiring it here.
+    (condition-case nil
+        (when (fboundp 'beads-agent-stop)
+          (beads-agent-stop beads-agent--buffer-session-id))
+      ;; Ignore errors during cleanup - the buffer is already being killed
+      (error nil))))
+
+(defun beads-agent--setup-session-buffer (session buffer)
+  "Link BUFFER to SESSION for cleanup and context lookup.
+Sets `beads-agent--buffer-session-id' in BUFFER and installs
+`beads-agent--buffer-kill-handler' so killing the buffer stops the
+session.  This replaces the old external session-buffer linking path."
+  (when (and buffer (buffer-live-p buffer))
+    (with-current-buffer buffer
+      (setq-local beads-agent--buffer-session-id (oref session id))
+      (add-hook 'kill-buffer-hook #'beads-agent--buffer-kill-handler nil t))))
 
 (defun beads-agent--session-number-from-id (session-id)
   "Extract session number from SESSION-ID in `issue-id#N' format.
@@ -595,8 +655,9 @@ Returns the created beads-agent-session object.
 
 DEPRECATED: Use `beads-agent--create-project-session' for new code.
 
-Note: Session storage is handled by `beads-agent-state-change-hook'.
-The hook handler in beads-sesman.el registers the session with sesman."
+The session is registered with `beads-agent--register-session' and the
+state change hook then refreshes UI and groups it under its worktree
+session."
   (let* ((session-id (beads-agent--generate-session-id issue-id))
          (normalized-dir (expand-file-name project-dir))
          (project-name (beads-agent--derive-project-name normalized-dir))
@@ -613,7 +674,8 @@ The hook handler in beads-sesman.el registers the session with sesman."
                    :worktree-dir worktree-dir
                    :started-at (format-time-string "%Y-%m-%dT%H:%M:%S%z")
                    :backend-session backend-session)))
-    ;; Run state change hook - this triggers sesman registration
+    (beads-agent--register-session session)
+    ;; Run state change hook - refreshes UI and groups the session
     (beads-agent--run-state-change-hook 'started session)
     session))
 
@@ -631,8 +693,9 @@ The session is keyed by PROJECT-DIR, not issue.  Multiple issues can be
 worked on within a single session.  INITIAL-ISSUE (if provided) becomes
 the current focus and is added to touched-issues.
 
-Note: Session storage is handled by `beads-agent-state-change-hook'.
-The hook handler in beads-sesman.el registers the session with sesman."
+The session is registered with `beads-agent--register-session' and the
+state change hook then refreshes UI and groups it under its worktree
+session."
   (let* ((normalized-dir (expand-file-name project-dir))
          (project-name (beads-agent--derive-project-name normalized-dir))
          (instance-num (beads-agent--next-project-instance-number normalized-dir))
@@ -650,41 +713,33 @@ The hook handler in beads-sesman.el registers the session with sesman."
                    :agent-type-name agent-type-name
                    :started-at (format-time-string "%Y-%m-%dT%H:%M:%S%z")
                    :backend-session backend-session)))
-    ;; Run state change hook - this triggers sesman registration
+    (beads-agent--register-session session)
+    ;; Run state change hook - refreshes UI and groups the session
     (beads-agent--run-state-change-hook 'started session)
     session))
 
 (defun beads-agent--destroy-session (session-id)
   "Remove session SESSION-ID from tracking.
-Looks up the session from sesman and runs the state change hook,
-which triggers unregistration from sesman."
+Looks up the session in the in-house registry, unregisters it, then runs
+the state change hook so UI and worktree grouping are updated."
   (when-let* ((session (beads-agent--get-session session-id)))
-    ;; Run state change hook - this triggers sesman unregistration
+    (beads-agent--unregister-session session)
     (beads-agent--run-state-change-hook 'stopped session)))
 
 (defun beads-agent--get-session (session-id)
-  "Get session by SESSION-ID, or nil if not found.
-Searches all sesman sessions for a beads-agent-session with matching ID."
-  (cl-loop for sesman-session in (sesman-sessions beads-sesman-system)
-           for beads-session = (nth 2 sesman-session)
-           when (and beads-session
-                     (equal (oref beads-session id) session-id))
-           return beads-session))
+  "Get session by SESSION-ID, or nil if not found."
+  (cl-find session-id (beads-agent--all-sessions)
+           :key (lambda (session) (oref session id)) :test #'equal))
 
 (defun beads-agent--get-sessions-for-issue (issue-id)
   "Get all sessions for ISSUE-ID as a list of session objects."
-  (cl-loop for sesman-session in (sesman-sessions beads-sesman-system)
-           for beads-session = (nth 2 sesman-session)
-           when (and beads-session
-                     (equal (oref beads-session issue-id) issue-id))
-           collect beads-session))
+  (cl-remove-if-not (lambda (session)
+                      (equal (oref session issue-id) issue-id))
+                    (beads-agent--all-sessions)))
 
 (defun beads-agent--get-all-sessions ()
   "Get all active sessions as a list of beads-agent-session objects."
-  (cl-loop for sesman-session in (sesman-sessions beads-sesman-system)
-           for beads-session = (nth 2 sesman-session)
-           when beads-session
-           collect beads-session))
+  (beads-agent--all-sessions))
 
 
 (defun beads-agent--session-active-p (session)
@@ -708,13 +763,12 @@ Returns the basename of the directory (e.g., \"beads.el\" from
   "Get all sessions for PROJECT-DIR as a list of session objects.
 PROJECT-DIR is normalized for comparison."
   (let ((normalized-dir (file-truename (expand-file-name project-dir))))
-    (cl-loop for sesman-session in (sesman-sessions beads-sesman-system)
-             for beads-session = (nth 2 sesman-session)
-             when (and beads-session
-                       (equal (file-truename
-                               (expand-file-name (oref beads-session project-dir)))
-                              normalized-dir))
-             collect beads-session)))
+    (cl-remove-if-not
+     (lambda (session)
+       (equal (file-truename
+               (expand-file-name (oref session project-dir)))
+              normalized-dir))
+     (beads-agent--all-sessions))))
 
 (defun beads-agent--next-project-instance-number (project-dir)
   "Find the next available instance number for PROJECT-DIR.
@@ -731,20 +785,16 @@ Instance numbers never reuse - gaps in numbering are ignored."
 (defun beads-agent--get-sessions-touching-issue (issue-id)
   "Get sessions that have touched ISSUE-ID.
 Returns sessions where ISSUE-ID is in `touched-issues'."
-  (cl-loop for sesman-session in (sesman-sessions beads-sesman-system)
-           for beads-session = (nth 2 sesman-session)
-           when (and beads-session
-                     (member issue-id (oref beads-session touched-issues)))
-           collect beads-session))
+  (cl-remove-if-not (lambda (session)
+                      (member issue-id (oref session touched-issues)))
+                    (beads-agent--all-sessions)))
 
 (defun beads-agent--get-sessions-focused-on-issue (issue-id)
   "Get sessions currently focused on ISSUE-ID.
 Returns sessions where `current-issue' equals ISSUE-ID."
-  (cl-loop for sesman-session in (sesman-sessions beads-sesman-system)
-           for beads-session = (nth 2 sesman-session)
-           when (and beads-session
-                     (equal (oref beads-session current-issue) issue-id))
-           collect beads-session))
+  (cl-remove-if-not (lambda (session)
+                      (equal (oref session current-issue) issue-id))
+                    (beads-agent--all-sessions)))
 
 ;;; Buffer Naming
 ;;
@@ -1001,12 +1051,5 @@ Returns a list of buffer objects."
            collect buf))
 
 (provide 'beads-agent-backend)
-
-;;; Load Sesman Integration
-;;
-;; Session storage is delegated to sesman via beads-sesman.el.
-;; This require ensures the hook handler is registered.
-;; Must come after `provide' to avoid circular dependency.
-(require 'beads-sesman)
 
 ;;; beads-agent-backend.el ends here

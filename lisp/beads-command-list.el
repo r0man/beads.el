@@ -46,7 +46,7 @@
 (require 'beads-meta)
 (require 'beads-option)
 (require 'beads-pager)
-(require 'beads-sesman)
+(require 'beads-agent-session)
 (require 'beads-types)
 (require 'transient)
 (require 'beads-prefix)
@@ -2431,8 +2431,8 @@ Uses an idle timer to debounce rapid navigation, similar to
     (define-key map (kbd "[") #'beads-pager-prev-page)
     (define-key map (kbd "G") #'beads-pager-goto-page)
 
-    ;; Sesman session management (CIDER/ESS convention)
-    (define-key map (kbd "C-c C-s") beads-sesman-map)
+    ;; Agent session management (CIDER/ESS convention)
+    (define-key map (kbd "C-c C-s") beads-agent-session-map)
 
     ;; TAB/S-TAB move by row, SPC toggles the detail window, ? dispatches,
     ;; C-c b is reserved for extensions (dashboard-v3 §5.4, design.md §3.3);
@@ -2551,7 +2551,7 @@ a call from a store-scoped buffer inherits its store."
 ;; Declare the variable so we can add to it even if beads-agent-backend isn't
 ;; loaded yet.  When beads-agent-backend loads, it will use our hook.
 (defvar beads-agent-state-change-hook)
-;; Append to end of hook list so this runs AFTER sesman registers the session
+;; Append to end of hook list so this runs AFTER the worktree-session grouping
 (add-hook 'beads-agent-state-change-hook #'beads-list--on-agent-state-change t)
 
 ;; Register for debounced live invalidation batches.  beads-live.el defines the

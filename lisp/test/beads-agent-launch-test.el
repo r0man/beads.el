@@ -249,8 +249,8 @@
                    :agent-type-name "Task" :instance-number 1
                    :started-at "2026-01-01T00:00:00Z"))
          (fn (lambda (action sess) (push (cons action sess) seen))))
-    ;; Isolate the hook list: the real `beads-sesman' handler registers
-    ;; the session with sesman, which would leak across test files.
+    ;; Isolate the hook list: the real worktree-session handler groups
+    ;; the session, which would leak across test files.
     (let ((beads-agent-state-change-hook (list fn)))
       (beads-agent--run-state-change-hook 'started session)
       (should (equal (car seen) (cons 'started session))))))

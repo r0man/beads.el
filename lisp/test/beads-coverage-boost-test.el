@@ -12,7 +12,7 @@
 ;; - beads-command-delete.el: preview/execute functions
 ;; - beads-meta.el: inference, format, generate, define-prefix
 ;; - beads-command-edit.el: execute/preview/reset suffixes
-;; - beads-sesman.el: user-facing commands
+;; - beads-agent-session.el: user-facing commands
 
 ;;; Code:
 
@@ -28,7 +28,8 @@
 (require 'beads-command-epic)
 (require 'beads-command-graph)
 (require 'beads-meta)
-(require 'beads-sesman)
+(require 'beads-agent-session)
+(require 'beads-worktree-session)
 (require 'beads-types)
 
 ;;; ============================================================
@@ -706,59 +707,61 @@ EIEIO enforces (list-of string) at construction time."
   (should-error (beads-command-list :label '(123))))
 
 ;;; ============================================================
-;;; beads-sesman.el: user-facing commands
+;;; beads-agent-session.el: user-facing commands
 ;;; ============================================================
 
-(ert-deftest beads-coverage-boost-sesman-start-is-interactive ()
-  "Test beads-sesman-start is an interactive command."
-  (should (commandp 'beads-sesman-start)))
+(ert-deftest beads-coverage-boost-agent-session-start-is-interactive ()
+  "Test beads-agent-session-start is an interactive command."
+  (should (commandp 'beads-agent-session-start)))
 
-(ert-deftest beads-coverage-boost-sesman-quit-is-interactive ()
-  "Test beads-sesman-quit is an interactive command."
-  (should (commandp 'beads-sesman-quit)))
+(ert-deftest beads-coverage-boost-agent-session-stop-is-interactive ()
+  "Test beads-agent-session-stop is an interactive command."
+  (should (commandp 'beads-agent-session-stop)))
 
-(ert-deftest beads-coverage-boost-sesman-restart-is-interactive ()
-  "Test beads-sesman-restart is an interactive command."
-  (should (commandp 'beads-sesman-restart)))
+(ert-deftest beads-coverage-boost-agent-session-restart-is-interactive ()
+  "Test beads-agent-session-restart is an interactive command."
+  (should (commandp 'beads-agent-session-restart)))
 
-(ert-deftest beads-coverage-boost-sesman-browser-is-interactive ()
-  "Test beads-sesman-browser is an interactive command."
-  (should (commandp 'beads-sesman-browser)))
+(ert-deftest beads-coverage-boost-agent-session-stop-no-session ()
+  "Test beads-agent-session-stop errors when no current session."
+  (beads-agent--clear-sessions)
+  (cl-letf (((symbol-function 'beads-agent--session-for-context)
+             (lambda (&optional _directory) nil)))
+    (should-error (beads-agent-session-stop) :type 'user-error)))
 
-(ert-deftest beads-coverage-boost-sesman-link-is-interactive ()
-  "Test beads-sesman-link is an interactive command."
-  (should (commandp 'beads-sesman-link)))
+(ert-deftest beads-coverage-boost-agent-session-restart-no-session ()
+  "Test beads-agent-session-restart errors when no current session."
+  (beads-agent--clear-sessions)
+  (cl-letf (((symbol-function 'beads-agent--session-for-context)
+             (lambda (&optional _directory) nil)))
+    (should-error (beads-agent-session-restart) :type 'user-error)))
 
-(ert-deftest beads-coverage-boost-sesman-quit-no-session ()
-  "Test beads-sesman-quit errors when no current session."
-  (cl-letf (((symbol-function 'sesman-current-session)
-             (lambda (_system) nil)))
-    (should-error (beads-sesman-quit) :type 'user-error)))
+(ert-deftest beads-coverage-boost-agent-session-map-defined ()
+  "Test beads-agent-session-map keymap is defined."
+  (should (keymapp beads-agent-session-map))
+  (should (lookup-key beads-agent-session-map "s"))
+  (should (lookup-key beads-agent-session-map "q"))
+  (should (lookup-key beads-agent-session-map "r"))
+  (should (lookup-key beads-agent-session-map "b")))
 
-(ert-deftest beads-coverage-boost-sesman-restart-no-session ()
-  "Test beads-sesman-restart errors when no current session."
-  (cl-letf (((symbol-function 'sesman-current-session)
-             (lambda (_system) nil)))
-    (should-error (beads-sesman-restart) :type 'user-error)))
+(ert-deftest beads-coverage-boost-agent-session-map-bindings ()
+  "Test beads-agent-session-map has the expected bindings."
+  (should (eq (lookup-key beads-agent-session-map "s")
+              #'beads-agent-session-start))
+  (should (eq (lookup-key beads-agent-session-map "q")
+              #'beads-agent-session-stop))
+  (should (eq (lookup-key beads-agent-session-map "r")
+              #'beads-agent-session-restart))
+  (should (eq (lookup-key beads-agent-session-map "b")
+              #'beads-agent-list)))
 
-(ert-deftest beads-coverage-boost-sesman-map-defined ()
-  "Test beads-sesman-map keymap is defined."
-  (should (keymapp beads-sesman-map))
-  (should (lookup-key beads-sesman-map "s"))
-  (should (lookup-key beads-sesman-map "q"))
-  (should (lookup-key beads-sesman-map "r"))
-  (should (lookup-key beads-sesman-map "b"))
-  (should (lookup-key beads-sesman-map "l")))
-
-(ert-deftest beads-coverage-boost-sesman-format-touched-issues ()
-  "Test formatting of touched issues list."
-  ;; Non-empty list
-  (should (equal (beads-sesman--format-touched-issues '("a" "b" "c"))
-                 "a, b, c"))
-  ;; Nil list
-  (should (null (beads-sesman--format-touched-issues nil)))
-  ;; Empty list
-  (should (null (beads-sesman--format-touched-issues '()))))
+(ert-deftest beads-coverage-boost-worktree-session-empty-p ()
+  "Test `beads-worktree-session-empty-p'."
+  (let ((session (beads-worktree-session
+                  :id "/tmp/x" :project-dir "/tmp/x" :proj-name "x")))
+    (should (beads-worktree-session-empty-p session))
+    (beads-worktree-session-add-buffer session (current-buffer))
+    (should-not (beads-worktree-session-empty-p session))))
 
 ;;; ============================================================
 ;;; beads-command.el: terminal backend functions

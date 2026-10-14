@@ -18,18 +18,17 @@
 
 (require 'ert)
 (require 'beads-agent)
-(require 'beads-sesman)
 (require 'beads-agent-mock)
 
-;;; Mock Sesman Storage for Testing
+;;; Test Session Store
 ;;
-;; Since sessions are now stored in sesman, we need to mock sesman
-;; functions to keep tests isolated.  The mock storage simulates
-;; sesman's session registry.
+;; Sessions live in the in-house registry (`beads-agent--sessions').  The
+;; helpers below keep the registry isolated between tests and give the
+;; legacy `cl-letf' wrappers a harmless shim to bind.
 
-(defvar beads-agent-test--sesman-sessions nil
-  "Mock sesman session storage for tests.
-List of sesman session lists: ((name handle beads-session) ...).")
+(defvar beads-agent-test--session-list nil
+  "Observation list of agent sessions for tests.
+Maintained by `beads-agent-test--mock-state-change-handler'.")
 
 ;;; Test-Only Mock Backend
 ;;
@@ -103,31 +102,26 @@ The teardown previously nilled `beads-agent--backends', which
 destroyed the load-time registrations (e.g. the `claude'
 terminal backend) for every test file that ran afterwards.")
 
-(defun beads-agent-test--mock-sesman-sessions (_system)
-  "Mock implementation of `sesman-sessions' for tests."
-  beads-agent-test--sesman-sessions)
+(defun beads-agent-test--sessions-shim (_system)
+  "Compatibility shim returning the test session observation list."
+  beads-agent-test--session-list)
 
 (defun beads-agent-test--mock-state-change-handler (action session)
-  "Mock state change handler that updates mock sesman storage.
+  "Observe agent state changes for tests.
 ACTION is `started', `stopped', or `failed'.
 SESSION is the beads-agent-session object."
   (pcase action
     ('started
-     ;; Add to mock sesman storage
-     (let* ((name (beads-sesman--session-name session))
-            (sesman-session (list name (oref session backend-session) session)))
-       (push sesman-session beads-agent-test--sesman-sessions)))
+     (push session beads-agent-test--session-list))
     ('stopped
-     ;; Remove from mock sesman storage
-     (setq beads-agent-test--sesman-sessions
-           (cl-remove-if (lambda (s)
-                           (eq (nth 2 s) session))
-                         beads-agent-test--sesman-sessions)))))
+     (setq beads-agent-test--session-list
+           (delq session beads-agent-test--session-list)))))
 
 (defun beads-agent-test--setup ()
   "Setup test fixtures."
-  ;; Clear mock sesman storage
-  (setq beads-agent-test--sesman-sessions nil)
+  ;; Clear the session registry and the observation list
+  (beads-agent--clear-sessions)
+  (setq beads-agent-test--session-list nil)
   ;; Save and clear backends (restored in teardown so the load-time
   ;; registrations survive for subsequent test files)
   (setq beads-agent-test--saved-backends beads-agent--backends)
@@ -142,8 +136,9 @@ SESSION is the beads-agent-session object."
 
 (defun beads-agent-test--teardown ()
   "Teardown test fixtures."
-  ;; Clear mock sesman storage
-  (setq beads-agent-test--sesman-sessions nil)
+  ;; Clear the session registry and the observation list
+  (beads-agent--clear-sessions)
+  (setq beads-agent-test--session-list nil)
   ;; Restore the global backend registry (do NOT leave it nil — that
   ;; would strip the load-time `claude' registration for later files)
   (setq beads-agent--backends beads-agent-test--saved-backends)
@@ -227,8 +222,8 @@ SESSION is the beads-agent-session object."
   "Test next session number when no sessions exist."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         ;; No sessions exist
         (should (= (beads-agent--next-session-number "bd-123") 1)))
     (beads-agent-test--teardown)))
@@ -237,8 +232,8 @@ SESSION is the beads-agent-session object."
   "Test next session number with existing sessions."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         ;; Create some sessions
         (beads-agent--create-session "bd-123" "mock" "/tmp" 'h1)
         (beads-agent--create-session "bd-123" "mock" "/tmp" 'h2)
@@ -250,8 +245,8 @@ SESSION is the beads-agent-session object."
   "Test that session numbers are independent per issue."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         ;; Create sessions for different issues
         (beads-agent--create-session "bd-123" "mock" "/tmp" 'h1)
         (beads-agent--create-session "bd-123" "mock" "/tmp" 'h2)
@@ -266,8 +261,8 @@ SESSION is the beads-agent-session object."
   "Test that gaps in numbering don't affect next number."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         ;; Create sessions
         (let ((s1 (beads-agent--create-session "bd-123" "mock" "/tmp" 'h1))
               (s2 (beads-agent--create-session "bd-123" "mock" "/tmp" 'h2)))
@@ -281,8 +276,8 @@ SESSION is the beads-agent-session object."
   "Test session ID generation with numbered format."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         ;; First session for an issue should be #1
         (let ((id1 (beads-agent--generate-session-id "bd-123")))
           (should (equal id1 "bd-123#1")))
@@ -299,8 +294,8 @@ SESSION is the beads-agent-session object."
   "Test session creation."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((session (beads-agent--create-session
                         "bd-123" "mock" "/tmp/project" 'handle)))
           (should (beads-agent-session-p session))
@@ -308,8 +303,8 @@ SESSION is the beads-agent-session object."
           (should (equal (oref session backend-name) "mock"))
           (should (equal (oref session project-dir) "/tmp/project"))
           (should (equal (oref session backend-session) 'handle))
-          ;; Should be registered in mock sesman storage
-          (should (= (length beads-agent-test--sesman-sessions) 1))
+          ;; Should be registered in the session registry
+          (should (= (length beads-agent-test--session-list) 1))
           ;; Should be retrievable via get-session
           (should (beads-agent--get-session (oref session id)))))
     (beads-agent-test--teardown)))
@@ -318,8 +313,8 @@ SESSION is the beads-agent-session object."
   "Test session destruction."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let* ((session (beads-agent--create-session
                          "bd-123" "mock" "/tmp/project" 'handle))
                (session-id (oref session id)))
@@ -336,8 +331,8 @@ SESSION is the beads-agent-session object."
   "Test getting session by ID."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let* ((session (beads-agent--create-session
                          "bd-123" "mock" "/tmp/project" 'handle))
                (session-id (oref session id)))
@@ -349,8 +344,8 @@ SESSION is the beads-agent-session object."
   "Test getting sessions for an issue."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (beads-agent--create-session "bd-123" "mock" "/tmp/project" 'h1)
         (beads-agent--create-session "bd-123" "mock" "/tmp/project" 'h2)
         (beads-agent--create-session "bd-456" "mock" "/tmp/project" 'h3)
@@ -365,8 +360,8 @@ SESSION is the beads-agent-session object."
   "Test getting all sessions."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (beads-agent--create-session "bd-1" "mock" "/tmp" 'h1)
         (beads-agent--create-session "bd-2" "mock" "/tmp" 'h2)
         (beads-agent--create-session "bd-3" "mock" "/tmp" 'h3)
@@ -410,8 +405,8 @@ SESSION is the beads-agent-session object."
   "Test that outcome is cleared when a new session starts."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (clrhash beads-agent--issue-outcomes)
         ;; Set a previous outcome
         (puthash "bd-123" 'finished beads-agent--issue-outcomes)
@@ -428,8 +423,8 @@ Stopped agents should not show indicators - only active or failed agents
 should have indicators displayed."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (clrhash beads-agent--issue-outcomes)
         ;; Create and then destroy a session with agent type
         (let* ((session (beads-agent--create-session
@@ -501,8 +496,8 @@ should have indicators displayed."
   "Test header format with no sessions."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((header (beads-agent--format-header)))
           (should (stringp header))
           (should (string-match-p "0 session" header))
@@ -513,8 +508,8 @@ should have indicators displayed."
   "Test header format with sessions."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (beads-agent--create-session "bd-1" "mock" "/tmp" 'h1)
         (beads-agent--create-session "bd-2" "mock" "/tmp" 'h2)
         (let ((header (beads-agent--format-header)))
@@ -563,8 +558,8 @@ should have indicators displayed."
   "Test session worktree accessors."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((session (beads-agent--create-session
                         "bd-123" "mock" "/main/repo" 'handle "/worktree/bd-123")))
           ;; Test worktree-dir accessor
@@ -579,8 +574,8 @@ should have indicators displayed."
   "Test session without worktree."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((session (beads-agent--create-session
                         "bd-456" "mock" "/main/repo" 'handle)))
           ;; No worktree
@@ -596,8 +591,8 @@ should have indicators displayed."
   "Test project-dir accessor returns the directory identity."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((session (beads-agent--create-session
                         "bd-123" "mock" "/home/user/projects/myrepo" 'handle)))
           (should (equal (beads-agent-session-project-dir session)
@@ -685,8 +680,8 @@ should have indicators displayed."
   "Test directory-bound project session creation."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((session (beads-agent--create-project-session
                         "/home/user/myproject" "mock" 'handle "bd-001" "Task")))
           ;; Session ID uses project name, not issue
@@ -705,8 +700,8 @@ should have indicators displayed."
   "Test project session creation without initial issue."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((session (beads-agent--create-project-session
                         "/home/user/myproject" "mock" 'handle)))
           ;; Session ID uses project name
@@ -721,8 +716,8 @@ should have indicators displayed."
   "Test project session ID generation."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         ;; First session for project
         (let ((id (beads-agent--generate-project-session-id "/home/user/beads.el")))
           (should (equal id "beads.el#1"))))
@@ -901,14 +896,14 @@ The function returns legacy keys (:project-name, :type-name, etc.)."
   "Test that focus-issue command updates session correctly."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         ;; Create a project session
         (let ((session (beads-agent--create-project-session
                         "/home/user/myproject" "mock" 'handle)))
           ;; Add to mock storage
           (push (list (oref session id) 'handle session)
-                beads-agent-test--sesman-sessions)
+                beads-agent-test--session-list)
           ;; Focus on an issue
           (cl-letf (((symbol-function 'beads-git-find-project-root)
                      (lambda () "/home/user/myproject")))
@@ -923,14 +918,14 @@ The function returns legacy keys (:project-name, :type-name, etc.)."
   "Test that clear-focus command clears current-issue."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         ;; Create a project session with initial issue
         (let ((session (beads-agent--create-project-session
                         "/home/user/myproject" "mock" 'handle "bd-001")))
           ;; Add to mock storage
           (push (list (oref session id) 'handle session)
-                beads-agent-test--sesman-sessions)
+                beads-agent-test--session-list)
           ;; Clear focus
           (cl-letf (((symbol-function 'beads-git-find-project-root)
                      (lambda () "/home/user/myproject")))
@@ -945,8 +940,8 @@ The function returns legacy keys (:project-name, :type-name, etc.)."
   "Test that show-touched command reports touched issues."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         ;; Create a project session with touched issues
         (let ((session (beads-agent--create-project-session
                         "/home/user/myproject" "mock" 'handle "bd-001")))
@@ -955,7 +950,7 @@ The function returns legacy keys (:project-name, :type-name, etc.)."
           (beads-agent-session-add-touched-issue session "bd-003")
           ;; Add to mock storage
           (push (list (oref session id) 'handle session)
-                beads-agent-test--sesman-sessions)
+                beads-agent-test--session-list)
           ;; Show touched - verify it doesn't error
           (cl-letf (((symbol-function 'beads-git-find-project-root)
                      (lambda () "/home/user/myproject")))
@@ -976,8 +971,8 @@ The function returns legacy keys (:project-name, :type-name, etc.)."
   "Session identity is project directory, not issue."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((session (beads-agent--create-project-session
                         "/home/user/beads.el" "mock" 'handle "bd-42")))
           ;; Session ID is project-name#N
@@ -990,14 +985,14 @@ The function returns legacy keys (:project-name, :type-name, etc.)."
   "Multiple starts in same project increment instance number."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         ;; Start first session
         (let ((session1 (beads-agent--create-project-session
                          "/home/user/beads.el" "mock" 'handle "bd-42")))
           ;; Add to mock storage so second session sees it
           (push (list (oref session1 id) 'handle session1)
-                beads-agent-test--sesman-sessions)
+                beads-agent-test--session-list)
           ;; Start second session in same project
           (let ((session2 (beads-agent--create-project-session
                            "/home/user/beads.el" "mock" 'handle "bd-43")))
@@ -1013,8 +1008,8 @@ The function returns legacy keys (:project-name, :type-name, etc.)."
   "Agent tracks all issues it has focused on."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         ;; Start with focus on bd-42
         (let ((session (beads-agent--create-project-session
                         "/home/user/beads.el" "mock" 'handle "bd-42")))
@@ -1038,13 +1033,13 @@ The function returns legacy keys (:project-name, :type-name, etc.)."
   "Different projects have independent sessions."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         ;; Session in project A
         (let ((session-a (beads-agent--create-project-session
                           "/home/user/project-a" "mock" 'handle "bd-1")))
           (push (list (oref session-a id) 'handle session-a)
-                beads-agent-test--sesman-sessions)
+                beads-agent-test--session-list)
           ;; Session in project B
           (let ((session-b (beads-agent--create-project-session
                             "/home/user/project-b" "mock" 'handle "bd-2")))
@@ -1060,8 +1055,8 @@ The function returns legacy keys (:project-name, :type-name, etc.)."
   "Buffer names use project name, agent type, and include issue context."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         ;; Test with explicit agent type and issue
         (let ((session (beads-agent--create-project-session
                         "/home/user/beads.el" "mock" 'handle "bd-42" "Task")))
@@ -1085,8 +1080,8 @@ The function returns legacy keys (:project-name, :type-name, etc.)."
   "Buffer names include issue title when available."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         ;; Test with issue title set
         (let ((session (beads-agent--create-session
                         "bd-42" "mock" "/home/user/project" 'handle
@@ -1117,8 +1112,8 @@ The function returns legacy keys (:project-name, :type-name, etc.)."
   "Buffer names use worktree directory name when worktree-dir is set."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         ;; Create session with worktree-dir set
         (let ((session (beads-agent-session
                         :id "beads.el#1"
@@ -1200,8 +1195,8 @@ The function returns legacy keys (:project-name, :type-name, etc.)."
   "Test starting agents on multiple issues."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((issues '("bd-001" "bd-002" "bd-003")))
           ;; Start agents on all three issues
           (dolist (issue-id issues)
@@ -1223,8 +1218,8 @@ When an agent session already exists for an issue, the system should
 detect it rather than blindly starting a new session."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((issue-id "bd-123"))
           ;; Create initial session
           (let ((session (beads-agent--create-session
@@ -1246,8 +1241,8 @@ detect it rather than blindly starting a new session."
   "Test stopping all agent sessions."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((issues '("bd-001" "bd-002" "bd-003")))
           ;; Start agents on all three issues
           (dolist (issue-id issues)
@@ -1273,8 +1268,8 @@ detect it rather than blindly starting a new session."
   "Test that agents can be restarted after being stopped."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((issues '("bd-001" "bd-002" "bd-003")))
           ;; Phase 1: Start agents
           (dolist (issue-id issues)
@@ -1317,8 +1312,8 @@ This test exercises the complete agent lifecycle workflow:
 6. Restart and verify again."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((issues '("test-001" "test-002" "test-003"))
               (session-ids nil))
 
@@ -1385,8 +1380,8 @@ When invoked on an issue:
 - If session exists: should detect it (real code would jump instead)"
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((issue-id "bd-test-123"))
           ;; Initially no session exists
           (should (null (beads-agent--get-sessions-for-issue issue-id)))
@@ -1410,8 +1405,8 @@ When invoked on an issue:
 While normally not desired, the system should handle this gracefully."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((issue-id "bd-multi-session"))
           ;; Create two sessions for the same issue
           (let ((s1 (beads-agent--create-session
@@ -1439,8 +1434,8 @@ While normally not desired, the system should handle this gracefully."
   "Test async stop via mock backend."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((session (beads-agent--create-session
                         "bd-async" "mock" "/tmp" 'handle))
               (callback-called nil))
@@ -1458,8 +1453,8 @@ While normally not desired, the system should handle this gracefully."
   "Test beads-agent-stop-async for single session."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let* ((session (beads-agent--create-session
                          "bd-single" "mock" "/tmp" 'handle))
                (session-id (oref session id))
@@ -1482,8 +1477,8 @@ While normally not desired, the system should handle this gracefully."
   "Test beads-agent-stop-async with nonexistent session."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((callback-called nil))
           ;; Stop nonexistent session
           (beads-agent-stop-async
@@ -1497,8 +1492,8 @@ While normally not desired, the system should handle this gracefully."
   "Test beads-agent-stop-all-async stops multiple sessions."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((issues '("bd-a" "bd-b" "bd-c"))
               (callback-called nil))
           ;; Create sessions
@@ -1522,8 +1517,8 @@ While normally not desired, the system should handle this gracefully."
   "Test beads-agent-stop-all-async with no sessions."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((callback-called nil))
           ;; No sessions
           (should (= (length (beads-agent--get-all-sessions)) 0))
@@ -1538,8 +1533,8 @@ While normally not desired, the system should handle this gracefully."
   "Test full lifecycle with async stop."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((issues '("test-a" "test-b" "test-c"))
               (phase1-done nil)
               (phase2-done nil))
@@ -1785,8 +1780,8 @@ behavior is to always prompt unless a default is configured."
   "Test session display name format."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((session (beads-agent--create-session
                         "bd-123" "mock" "/tmp" 'handle)))
           (let ((display-name (beads-agent--session-display-name session)))
@@ -1800,8 +1795,8 @@ behavior is to always prompt unless a default is configured."
   "Test per-issue menu header format."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         ;; Set up the context
         (setq beads-agent-issue--current-issue-id "bd-test")
         ;; Create some sessions for the issue
@@ -1818,8 +1813,8 @@ behavior is to always prompt unless a default is configured."
   "Test that per-issue sessions are returned sorted by number."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (setq beads-agent-issue--current-issue-id "bd-sorted")
         ;; Create sessions (they get sequential numbers)
         (beads-agent--create-session "bd-sorted" "mock" "/tmp" 'h1)
@@ -1839,8 +1834,8 @@ behavior is to always prompt unless a default is configured."
   "Test setup-agents returns placeholder when no agents."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (setq beads-agent-issue--current-issue-id "bd-empty")
         ;; No sessions for this issue
         (let ((suffixes (beads-agent-issue--setup-agents)))
@@ -1854,8 +1849,8 @@ behavior is to always prompt unless a default is configured."
   "Test setup-agents returns jump suffixes for each agent."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (setq beads-agent-issue--current-issue-id "bd-agents")
         ;; Create 2 sessions
         (beads-agent--create-session "bd-agents" "mock" "/tmp" 'h1)
@@ -1871,8 +1866,8 @@ behavior is to always prompt unless a default is configured."
   "Test that jump suffix is created with correct key and description."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((session (beads-agent--create-session
                         "bd-jump" "mock" "/tmp" 'handle)))
           (let ((suffix (beads-agent-issue--make-jump-suffix session 1)))
@@ -1887,8 +1882,8 @@ behavior is to always prompt unless a default is configured."
   "Jump suffix description is prefixed with the role icon under GUI."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let* ((session (beads-agent--create-session
                          "bd-jump" "mock" "/tmp" 'handle
                          nil "Task"))
@@ -1908,8 +1903,8 @@ behavior is to always prompt unless a default is configured."
   "Jump suffix description uses the type letter when icons are disabled."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let* ((session (beads-agent--create-session
                          "bd-jump" "mock" "/tmp" 'handle
                          nil "Task"))
@@ -1990,8 +1985,8 @@ behavior is to always prompt unless a default is configured."
 When worktrees are disabled, calls beads-agent-start directly."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions)
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim)
                 ((symbol-function 'beads-agent--detect-issue-id)
                  (lambda () "bd-direct"))
                 ;; Disable worktree path for this test
@@ -2015,8 +2010,8 @@ When worktrees are disabled, calls beads-agent-start directly."
   "Test that start-at-point shows management menu when sessions exist."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions)
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim)
                 ((symbol-function 'beads-agent--detect-issue-id)
                  (lambda () "bd-menu"))
                 ((symbol-function 'beads-agent-start)
@@ -2039,8 +2034,8 @@ When worktrees are disabled, calls beads-agent-start directly."
   (beads-agent-test--setup)
   (unwind-protect
       (let ((start-called nil))
-        (cl-letf (((symbol-function 'sesman-sessions)
-                   #'beads-agent-test--mock-sesman-sessions)
+        (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                   #'beads-agent-test--sessions-shim)
                   ((symbol-function 'beads-agent--detect-issue-id)
                    (lambda () nil))
                   ;; Need to mock as interactive command for call-interactively
@@ -2061,8 +2056,8 @@ When worktrees are disabled, uses beads-agent-start directly."
   (unwind-protect
       (let ((menu-called 0)
             (start-called 0))
-        (cl-letf (((symbol-function 'sesman-sessions)
-                   #'beads-agent-test--mock-sesman-sessions)
+        (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                   #'beads-agent-test--sessions-shim)
                   ((symbol-function 'beads-agent--detect-issue-id)
                    (lambda () "bd-transition"))
                   ;; Disable worktree path for this test
@@ -2103,8 +2098,8 @@ When worktrees are disabled, uses beads-agent-start directly."
       (let ((detected-issue "bd-current")
             (start-called nil)
             (menu-called nil))
-        (cl-letf (((symbol-function 'sesman-sessions)
-                   #'beads-agent-test--mock-sesman-sessions)
+        (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                   #'beads-agent-test--sessions-shim)
                   ((symbol-function 'beads-agent--detect-issue-id)
                    (lambda () detected-issue))
                   ;; Disable worktree path for this test
@@ -2203,8 +2198,8 @@ Settings changes should allow continued configuration."
   "Test that session has agent-type-name slot."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((session (beads-agent--create-session
                         "bd-123" "mock" "/tmp" 'handle nil "Task")))
           (should (equal (oref session agent-type-name) "Task"))))
@@ -2214,8 +2209,8 @@ Settings changes should allow continued configuration."
   "Test beads-agent-session-type-name accessor function."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((session (beads-agent--create-session
                         "bd-456" "mock" "/tmp" 'handle nil "Review")))
           (should (equal (beads-agent-session-type-name session) "Review"))))
@@ -2225,8 +2220,8 @@ Settings changes should allow continued configuration."
   "Test that agent-type-name is nil when not provided."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         ;; Create session without type name (backwards compatibility)
         (let ((session (beads-agent--create-session
                         "bd-789" "mock" "/tmp" 'handle)))
@@ -2237,8 +2232,8 @@ Settings changes should allow continued configuration."
   "Test session creation with both worktree and agent type name."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((session (beads-agent--create-session
                         "bd-101" "mock" "/main/repo" 'handle
                         "/worktrees/bd-101" "QA")))
@@ -2386,8 +2381,8 @@ Settings changes should allow continued configuration."
   "Test generating buffer name from session object."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((session (beads-agent--create-session
                         "bd-42" "mock" "/tmp" 'handle nil "Task")))
           ;; Bracket format: *beads-agent[PROJECT]/TYPE#N*
@@ -2400,8 +2395,8 @@ Settings changes should allow continued configuration."
   "Test buffer name generation when session has no agent type."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((session (beads-agent--create-session
                         "bd-99" "mock" "/tmp" 'handle)))
           ;; Should use "Agent" as default type
@@ -2414,8 +2409,8 @@ Settings changes should allow continued configuration."
   "Test extracting instance number from session."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         ;; Create first session - should be #1
         (let ((session1 (beads-agent--create-session
                          "bd-50" "mock" "/tmp" 'handle1 nil "Task")))
@@ -2485,8 +2480,8 @@ Settings changes should allow continued configuration."
   "Test that session has buffer slot."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((session (beads-agent--create-session
                         "bd-buf" "mock" "/tmp" 'handle)))
           ;; Initially nil
@@ -2504,8 +2499,8 @@ Settings changes should allow continued configuration."
   "Test that buffer accessor returns nil when not set."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((session (beads-agent--create-session
                         "bd-nobuf" "mock" "/tmp" 'handle)))
           (should (null (beads-agent-session-buffer session)))))
@@ -2540,8 +2535,8 @@ Settings changes should allow continued configuration."
   (beads-agent-mock-reset)
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let* ((mock-backend (beads-agent-mock-get-instance))
                (issue (beads-issue :id "bd-getbuf" :title "Test"))
                ;; backend-start now returns (backend-session . buffer)
@@ -2574,8 +2569,8 @@ Settings changes should allow continued configuration."
   (beads-agent-mock-reset)
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let* ((mock-backend (beads-agent-mock-get-instance))
                (issue (beads-issue :id "bd-stopbuf" :title "Test"))
                ;; backend-start now returns (backend-session . buffer)
@@ -2622,8 +2617,8 @@ Buffer names use project name, type, and include issue context."
   (beads-agent-mock-reset)
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (beads-agent--reset-typed-instance-counters)
         (let* ((mock-backend (beads-agent-mock-get-instance))
                (issue (beads-issue :id "bd-rename" :title "Test"))
@@ -2654,8 +2649,8 @@ Buffer names use project name, type, and include issue context."
   (beads-agent-mock-reset)
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (beads-agent--reset-typed-instance-counters)
         (let ((mock-backend (beads-agent-mock-get-instance))
               sessions)
@@ -2690,8 +2685,8 @@ Each type maintains its own instance counter per project."
   (beads-agent-mock-reset)
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (beads-agent--reset-typed-instance-counters)
         (let ((mock-backend (beads-agent-mock-get-instance))
               (types '("Task" "Plan" "Review"))
@@ -2731,8 +2726,8 @@ Each type maintains its own instance counter per project."
   "Test that session labels are formatted as Type#N (backend)."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((session (beads-agent--create-session
                         "bd-123" "mock" "/tmp" 'handle nil "Task")))
           ;; Mock completing-read to capture choices
@@ -2753,8 +2748,8 @@ Each type maintains its own instance counter per project."
   "Test that select-session-completing-read returns the selected session."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let* ((session1 (beads-agent--create-session
                           "bd-123" "mock" "/tmp" 'h1 nil "Task"))
                (session2 (beads-agent--create-session
@@ -2773,8 +2768,8 @@ Each type maintains its own instance counter per project."
   "Test that sessions without type-name use Agent as label."
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions))
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim))
         (let ((session (beads-agent--create-session
                         "bd-123" "mock" "/tmp" 'handle nil nil)))
           (let ((captured-choices nil))
@@ -2795,8 +2790,8 @@ Each type maintains its own instance counter per project."
   (beads-agent-mock-reset)
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions)
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim)
                 ((symbol-function 'beads-agent--detect-issue-id)
                  (lambda () "bd-123")))
         ;; Create one session
@@ -2821,8 +2816,8 @@ Each type maintains its own instance counter per project."
   (beads-agent-mock-reset)
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions)
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim)
                 ((symbol-function 'beads-agent--detect-issue-id)
                  (lambda () "bd-123")))
         ;; Create multiple sessions
@@ -2857,8 +2852,8 @@ Each type maintains its own instance counter per project."
   (beads-agent-mock-reset)
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions)
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim)
                 ((symbol-function 'beads-agent--detect-issue-id)
                  (lambda () "bd-123")))
         ;; Create one Task session
@@ -2882,8 +2877,8 @@ Each type maintains its own instance counter per project."
   (beads-agent-mock-reset)
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions)
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim)
                 ((symbol-function 'beads-agent--detect-issue-id)
                  (lambda () "bd-123")))
         ;; Create multiple Task sessions
@@ -2918,8 +2913,8 @@ When worktrees are disabled, uses beads-agent-start directly."
   (beads-agent-mock-reset)
   (beads-agent-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'sesman-sessions)
-                 #'beads-agent-test--mock-sesman-sessions)
+      (cl-letf (((symbol-function 'beads-agent-test--unused-sessions-mock)
+                 #'beads-agent-test--sessions-shim)
                 ((symbol-function 'beads-agent--detect-issue-id)
                  (lambda () "bd-123"))
                 ;; Disable worktree path for this test

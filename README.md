@@ -33,7 +33,6 @@ leaving your editor.
 - **Emacs**: 29.1 or newer
 - **Dependencies** (from MELPA):
   - `transient` 0.10.1 or newer
-  - `sesman` 0.3.2 or newer
   - `vui` 1.0.0 or newer
 - **External**: the `bd` executable in `PATH` (`dolt` and `graphviz` for the
   full test suite)
@@ -584,39 +583,38 @@ Within list/show buffers:
 ## AI Agent Integration
 
 beads.el includes integration with AI coding agents, allowing you to start
-agents that work on issues directly from Emacs. The agent system uses
-[sesman](https://github.com/vspinu/sesman) for session management, providing
-context-aware session selection.
+agents that work on issues directly from Emacs. Sessions are tracked in an
+in-house registry, so no external session-manager package is required.
 
 ### Quick Start
 
 1. **Start an agent** on an issue from `beads-list` or `beads-show`: press `A`
 2. **Jump to agent buffer**: `M-x beads-agent-jump`
 3. **Stop an agent**: `M-x beads-agent-stop`
-4. **Browse sessions**: `M-x beads-sesman-browser`
+4. **Browse sessions**: `M-x beads-agent-list`
 
 ### Session Concepts
 
 Each agent session is associated with:
-- **Issue ID**: The beads issue being worked on
+- **Working Directory**: The session identity - either the main project or a
+  git worktree
+- **Agent Type**: The role the agent plays (`Task`, `Review`, `Plan`, ...)
 - **Backend**: The AI agent implementation (e.g., `claude-code-ide`)
-- **Working Directory**: Either the main project or a git worktree
+- **Current Issue**: The issue the agent is focused on (can change mid-session)
 
-**Session Naming**: Sessions are named `<issue-id>@<directory>`, e.g.,
-`beads.el-42@~/projects/beads.el/`.
+**Session Naming**: Sessions are named `<project-name>#<N>` for the working
+project directory, e.g. `beads.el#1`, `beads.el#2`. Different worktrees are
+different directories and therefore different sessions.
 
 ### Context-Aware Sessions
 
-Sessions are linked to three context types:
+A session is associated with two contexts:
 1. **Agent buffer**: The terminal buffer where the AI agent runs
-2. **Worktree directory** (primary): When using git worktrees, the session is
-   linked to the worktree directory
-3. **Main project** (fallback): Also linked to the main repository for context
-   from anywhere in the project
+2. **Working directory**: The directory where the agent operates (worktree if
+   present, otherwise the project root)
 
-This triple linking means sesman automatically selects the right session whether
-you're in the agent buffer, editing files in the worktree, or working anywhere
-in the project.
+The session commands locate the right session whether you invoke them from the
+agent buffer or from a file in the agent's working directory.
 
 ### Git Worktree Support
 
@@ -630,25 +628,24 @@ gets its own git worktree:
 
 This provides isolation between concurrent agent sessions.
 
-### Sesman Keybindings
+### Session Keybindings
 
-The `beads-sesman-map` provides these commands (bind to a prefix like `C-c C-s`):
+The `beads-agent-session-map` provides these commands (bind to a prefix like
+`C-c C-s`):
 
-| Key | Command                | Description              |
-|-----|------------------------|--------------------------|
-| `s` | `beads-sesman-start`   | Start new session        |
-| `q` | `beads-sesman-quit`    | Quit current session     |
-| `r` | `beads-sesman-restart` | Restart current session  |
-| `b` | `beads-sesman-browser` | Open session browser     |
-| `l` | `beads-sesman-link`    | Link session to context  |
+| Key | Command                     | Description             |
+|-----|-----------------------------|-------------------------|
+| `s` | `beads-agent-session-start` | Start new session       |
+| `q` | `beads-agent-session-stop`  | Stop current session    |
+| `r` | `beads-agent-session-restart` | Restart current session |
+| `b` | `beads-agent-list`          | Open the session list   |
 
 **Example configuration:**
 
 ```elisp
 (use-package beads
   :load-path "~/path/to/beads.el/lisp"
-  :bind-keymap ("C-c C-s" . beads-sesman-map))
-;; Sesman integration is automatically enabled when beads-sesman is loaded
+  :bind-keymap ("C-c C-s" . beads-agent-session-map))
 ```
 
 ### Agent Menu
@@ -666,28 +663,19 @@ The agent transient menu (`M-x beads-agent`) provides:
 - `l` - List active sessions
 - `c` - Cleanup stale sessions
 
-### Using the Session Browser
+### Using the Session List
 
-`M-x beads-sesman-browser` opens an interactive buffer showing all sessions:
+`M-x beads-agent-list` opens a tabulated buffer showing all sessions with
+their role, backend, status, duration, and worktree:
 
 ```
-beads.el-42@~/projects/beads.el-42
-  Issue: beads.el-42
-  Backend: claude-code-ide
-  Started: 2025-12-14T10:30:00+0100
-  Worktree: ~/projects/beads.el-42
-
-beads.el-43@~/projects/beads.el-43
-  Issue: beads.el-43
-  Backend: claude-code-ide
-  Started: 2025-12-14T11:00:00+0100
-  Worktree: ~/projects/beads.el-43
+Issue        Role    Backend           Status   Duration  Worktree
+beads.el-42  Task#1  claude-code-ide   running  5m        ~/projects/beads.el-42
+beads.el-43  Plan#1  claude-code-ide   running  12m       ~/projects/beads.el-43
 ```
 
-From the browser, you can:
-- Select a session to make it current
-- Quit sessions
-- Link sessions to buffers/directories
+From the list, you can jump to a session, stop one or all sessions, restart a
+session, open Dired on its worktree, and copy session/issue ids.
 
 ### Configuration
 
@@ -705,7 +693,7 @@ From the browser, you can:
 (setq beads-agent-worktree-parent "~/worktrees/")
 
 ;; Configure restart delay (seconds)
-(setq beads-sesman-restart-delay 0.5)
+(setq beads-agent-session-restart-delay 0.5)
 ```
 
 ### Supported Backends

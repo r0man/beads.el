@@ -4,7 +4,7 @@
 
 ;; Author: Beads Contributors
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "29.1") (transient "0.10.1") (sesman "0.3.2") (vui "1.0.0"))
+;; Package-Requires: ((emacs "29.1") (transient "0.10.1") (vui "1.0.0"))
 ;; Keywords: tools, project, issues
 ;; URL: https://github.com/josephburnett/beads
 

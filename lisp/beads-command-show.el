@@ -47,7 +47,8 @@
 (require 'beads-completion)
 (require 'beads-meta)
 (require 'beads-option)
-(require 'beads-sesman)
+(require 'beads-worktree-session)
+(require 'beads-agent-session)
 (require 'beads-types)
 (require 'button)
 (require 'cl-lib)
@@ -834,15 +835,15 @@ the state the newer record applied to."
 (defun beads-show--register-with-session ()
   "Register current buffer with worktree session.
 Should be called after the buffer is fully initialized."
-  (when-let* ((session (beads-sesman--ensure-worktree-session)))
+  (when-let* ((session (beads-worktree-session-ensure)))
     (beads-worktree-session-add-buffer session (current-buffer))))
 
 (defun beads-show--unregister-from-session ()
   "Remove current buffer from worktree session.
 Called from `kill-buffer-hook' to clean up session state."
-  (when-let* ((session (beads-sesman--buffer-worktree-session (current-buffer))))
+  (when-let* ((session (beads-worktree-session-for-buffer (current-buffer))))
     (beads-worktree-session-remove-buffer session (current-buffer))
-    (beads-sesman--maybe-cleanup-worktree-session session)))
+    (beads-worktree-session-cleanup session)))
 
 ;;; Mode Definition
 
@@ -903,8 +904,8 @@ Called from `kill-buffer-hook' to clean up session state."
     ;; AI Agent commands (a prefix)
     (define-key map (kbd "a") beads-agent-prefix-map)
 
-    ;; Sesman session management (CIDER/ESS convention)
-    (define-key map (kbd "C-c C-s") beads-sesman-map)
+    ;; Agent session management (CIDER/ESS convention)
+    (define-key map (kbd "C-c C-s") beads-agent-session-map)
 
     ;; Quick actions transient: `?' is installed by
     ;; `beads-mode--install-navigation-keys' and `beads-dispatch'
