@@ -37,6 +37,25 @@ so `?` opens `beads-dispatch` there too.  A new
 and asserts the effective `?` binding, complementing the reserved-key
 table in `lisp/test/beads-key-registry-test.el`.
 
+### Large-store parse performance
+
+* **JSON-to-object coercion is memoized per class.**  `beads-from-json'
+no longer re-introspects every slot of a class for every parsed object;
+`beads-meta--class-slot-meta` derives each class's slot metadata (JSON
+key, initarg, EIEIO type) once and caches it, invalidating the entry
+when the class is (re)defined.  On a 1200-issue store the string-to-object
+parse drops from ~1.3 s to ~0.16 s (about 8x) and a full
+`bd list --json` round trip from ~1.7 s to ~0.45 s, with no API or
+output change.  Slot accessors (`beads-meta-command-slots`,
+`beads-meta-slot-type`, `beads-meta-slot-initarg`,
+`beads-meta--slot-json-key`, `beads-meta-slot-property`) keep their exact
+results.
+* **A runnable large-store benchmark ships in `benchmarks/`.**
+`benchmarks/large-store.sh` seeds a throwaway N-issue store and times
+the hot paths (JSON parse/coercion, issue-list population, dashboard
+renderers) with a `bd`-read count per operation.  See
+`benchmarks/README.md`.
+
 ### Dashboard header names the owning city
 
 * **The dashboard header can name the owning city.** `beads-dashboard'

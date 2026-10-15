@@ -108,6 +108,7 @@ EXTRA_DIST = \
   scripts/lint \
   scripts/coverage \
   scripts/ci-deps \
+  benchmarks \
   share \
   docs \
   $(BEADS_LISP_FILES) \
