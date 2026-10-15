@@ -58,4 +58,11 @@ mkdir -p "$user_dir"
 # Every package lands in its own versioned directory; join them all so a
 # plain `emacs --batch' (no package-initialize) sees the dependencies.
 # `archives/' holds the downloaded archive metadata, not loadable code.
-find "$user_dir" -maxdepth 1 -mindepth 1 -type d ! -name archives | paste -sd: -
+#
+# A trailing empty element is essential: setting EMACSLOADPATH replaces
+# Emacs' built-in `load-path' rather than extending it, and the empty
+# element re-adds the standard directories (`cl-lib', `simple', ...)
+# after the dependencies.  Without it every batch Emacs fails with
+# "Could not find simple.el".
+load_path=$(find "$user_dir" -maxdepth 1 -mindepth 1 -type d ! -name archives | paste -sd: -)
+printf '%s:\n' "$load_path"
