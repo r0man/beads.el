@@ -64,22 +64,23 @@ EOF
 
 # Source files per view, for `--scope changed`.  A view is selected when
 # any of its sources changed relative to BEADS_SHOT_BASE.  The manual
-# pages land in WI-1/WI-3; the product modules already exist.
+# source of truth is the hand-authored Texinfo chapters under `doc/'; the
+# product modules carry the rendered macros.
 declare -A VIEW_SOURCES=(
-  [dashboard]="docs/manual/views.org lisp/beads-dashboard.el lisp/beads-dashboard-sections.el lisp/beads-section.el"
-  [list]="docs/manual/issue-workflow.org lisp/beads-command-list.el lisp/beads-spec.el lisp/beads-pager.el"
-  [ready]="docs/manual/issue-workflow.org lisp/beads-command-list.el lisp/beads-spec.el"
-  [blocked]="docs/manual/issue-workflow.org lisp/beads-command-list.el lisp/beads-spec.el"
-  [show]="docs/manual/issue-workflow.org lisp/beads-command-show.el lisp/beads-section.el"
-  [epic]="docs/manual/formulas.org lisp/beads-command-show.el lisp/beads-command-epic.el"
-  [compose]="docs/manual/issue-workflow.org lisp/beads-compose.el"
-  [molecule]="docs/manual/formulas.org lisp/beads-molecule.el lisp/beads-command-mol.el"
-  [swarm]="docs/manual/formulas.org lisp/beads-swarm.el"
-  [agents]="docs/manual/agents.org lisp/beads-agent.el lisp/beads-agent-list.el"
-  [dispatch]="docs/manual/index.org lisp/beads-menu.el"
-  [maintenance]="docs/manual/orchestration.org lisp/beads-menu.el"
-  [agent-menu]="docs/manual/agents.org lisp/beads-agent.el"
-  [formula]="docs/manual/formulas.org lisp/beads-command-formula.el"
+  [dashboard]="doc/getting-started.texi doc/views.texi lisp/beads-dashboard.el lisp/beads-dashboard-sections.el lisp/beads-section.el"
+  [list]="doc/issue-workflow.texi lisp/beads-command-list.el lisp/beads-spec.el lisp/beads-pager.el"
+  [ready]="doc/views.texi lisp/beads-command-list.el lisp/beads-spec.el"
+  [blocked]="doc/views.texi lisp/beads-command-list.el lisp/beads-spec.el"
+  [show]="doc/issue-workflow.texi lisp/beads-command-show.el lisp/beads-section.el"
+  [epic]="doc/formulas.texi lisp/beads-command-show.el lisp/beads-command-epic.el"
+  [compose]="doc/issue-workflow.texi lisp/beads-compose.el"
+  [molecule]="doc/formulas.texi lisp/beads-molecule.el lisp/beads-command-mol.el"
+  [swarm]="doc/agents.texi lisp/beads-swarm.el"
+  [agents]="doc/agents.texi lisp/beads-agent.el lisp/beads-agent-list.el"
+  [dispatch]="doc/orchestration.texi lisp/beads-menu.el"
+  [maintenance]="doc/orchestration.texi lisp/beads-menu.el"
+  [agent-menu]="doc/agents.texi lisp/beads-agent.el"
+  [formula]="doc/formulas.texi lisp/beads-command-formula.el"
 )
 
 log() { printf '\033[1;36m[capture]\033[0m %s\n' "$*" >&2; }

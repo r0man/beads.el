@@ -1,0 +1,68 @@
+#!/bin/sh
+# Install the ELPA dependencies the autotools build needs and print an
+# EMACSLOADPATH value for them.
+#
+#   scripts/ci-deps [transient vui package-lint undercover ...]
+#
+# The workflows call this before `./configure && make`, because the build
+# resolves `transient'/`vui' (and `make lint' resolves `package-lint',
+# while coverage resolves `undercover') from the load path.  Eldev used to
+# provide these from MELPA; this script reproduces that without Eldev.
+#
+# Package names are the package.el symbols (hyphenated).  The packages are
+# installed into a throwaway `package-user-dir' under $CI_DEPS_DIR (or a
+# fresh mktemp directory) and every installed package directory is joined
+# into one colon-separated load path, which the caller appends to
+# $GITHUB_ENV as EMACSLOADPATH.
+#
+# Usage from a workflow:
+#
+#   echo "EMACSLOADPATH=$(scripts/ci-deps transient vui)" >> "$GITHUB_ENV"
+
+set -eu
+
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+emacs_bin=${EMACS:-emacs}
+deps_dir=${CI_DEPS_DIR:-$(mktemp -d)}
+user_dir="$deps_dir/elpa"
+
+## Build a Lisp list of quoted symbols, e.g. `'transient 'vui'.  The
+## quote is a prefix, not a pair, so each element is `'NAME' not
+## `'NAME'' -- a trailing quote would make the form unreadable.
+packages=""
+for pkg in "$@"; do
+  packages="$packages '$pkg"
+done
+
+mkdir -p "$user_dir"
+
+# Emacs' package.el chatter goes to stderr so stdout stays exactly the
+# load path the caller captures.  Each request is installed from its
+# archive `package-desc' rather than by symbol: some dependencies, notably
+# transient, are built into recent Emacsen, and `package-install' called
+# with the symbol alone treats that built-in as already installed and
+# leaves the older bundled copy on the load path.  Passing the desc
+# installs the archive version on every matrix Emacs.
+"$emacs_bin" --batch -Q --eval "(progn
+  (require 'package)
+  (setq package-user-dir \"$user_dir\")
+  (setq package-archives '((\"gnu\"    . \"https://elpa.gnu.org/packages/\")
+                           (\"nongnu\" . \"https://elpa.nongnu.org/nongnu/\")
+                           (\"melpa\"  . \"https://melpa.org/packages/\")))
+  (package-initialize)
+  (package-refresh-contents)
+  (dolist (pkg (list $packages))
+    (let ((desc (cadr (assq pkg package-archive-contents))))
+      (package-install (or desc pkg) 'dont-select))))" >&2
+
+# Every package lands in its own versioned directory; join them all so a
+# plain `emacs --batch' (no package-initialize) sees the dependencies.
+# `archives/' holds the downloaded archive metadata, not loadable code.
+#
+# A trailing empty element is essential: setting EMACSLOADPATH replaces
+# Emacs' built-in `load-path' rather than extending it, and the empty
+# element re-adds the standard directories (`cl-lib', `simple', ...)
+# after the dependencies.  Without it every batch Emacs fails with
+# "Could not find simple.el".
+load_path=$(find "$user_dir" -maxdepth 1 -mindepth 1 -type d ! -name archives | paste -sd: -)
+printf '%s:\n' "$load_path"

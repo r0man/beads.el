@@ -1,0 +1,97 @@
+\input texinfo  @c -*-texinfo-*-
+@c %**start of header
+@setfilename beads.info
+@settitle Beads.el User Manual
+@documentencoding UTF-8
+@c %**end of header
+
+@set VERSION 0.1.0
+
+@c Merge the variable index into the function index so a single ``Command
+@c and Variable Index'' covers commands, functions and user options (the
+@c Guix-manual convention); keep the key index separate.
+@syncodeindex vr fn
+
+@copying
+This manual documents beads.el version @value{VERSION}, a Magit-like Emacs
+interface for the @uref{https://github.com/steveyegge/beads, Beads} issue
+tracker.
+
+Copyright @copyright{} 2026 Beads Contributors
+
+@quotation
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, no Front-Cover Texts, and no Back-Cover Texts.  A
+copy of the license is available from the Free Software Foundation.
+@end quotation
+@end copying
+
+@dircategory Emacs
+@direntry
+* beads.el: (beads).    Magit-like Emacs interface for the Beads issue tracker.
+@end direntry
+
+@titlepage
+@title Beads.el User Manual
+@subtitle For version @value{VERSION}
+@author Beads Contributors
+@page
+@vskip 0pt plus 1filll
+@insertcopying
+@end titlepage
+
+@contents
+
+@ifnottex
+@node Top
+@top Beads.el
+
+@insertcopying
+
+@code{beads.el} is a Magit-like, keyboard-driven Emacs interface for the
+Beads (@command{bd}) issue tracker.  It provides transient menus,
+tabulated issue lists, and a VUI-based project board for managing issues,
+dependencies, molecules, formulas, agents, and workflows without leaving
+Emacs.  It is a porcelain over the @command{bd} command-line tool: every
+command drives @command{bd --json} and renders the structured result.
+
+The manual is organized by task.  New users should read
+@ref{Getting Started}, then @ref{Issue Workflow}.  The remaining task
+areas --- orchestration and the terminal, and maintenance and extending
+--- complete the reference and the indexes.
+
+@menu
+* Getting Started::             Install, first issue, and the concepts.
+* Issue Workflow::              Create, list, view, edit, close, and label.
+* Dashboards and Views::        The board, lists, show, and eldoc.
+* Formulas Molecules and Epics:: Formulas, molecules, and epics.
+* Agents and Sling::            Agents, backends, sessions, sling, swarm.
+* Orchestration and Terminal::  Menus, terminal, Dolt, remotes, audit.
+* Maintenance and Extending::   Options, building, plumbing, contributing.
+* Key Index::                   Keystrokes.
+* Command and Variable Index::  Commands, functions and user options.
+@end menu
+@end ifnottex
+
+@include getting-started.texi
+@include issue-workflow.texi
+@include views.texi
+@include formulas.texi
+@include agents.texi
+@include orchestration.texi
+@include maintenance.texi
+
+@c ====================================================================
+@node Key Index
+@unnumbered Key Index
+
+@printindex ky
+
+@node Command and Variable Index
+@unnumbered Command and Variable Index
+
+@printindex fn
+
+@bye

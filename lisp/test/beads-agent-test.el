@@ -529,7 +529,11 @@ should have indicators displayed."
 (ert-deftest beads-agent-test-should-use-worktree-p-true ()
   "Test should-use-worktree-p when setting is t."
   (let ((beads-agent-use-worktrees t))
-    (should (eq (beads-agent--should-use-worktree-p "bd-123") t))))
+    ;; The delegate requires a project root; mock it so the test does not
+    ;; depend on the ERT process running inside a git checkout.
+    (cl-letf (((symbol-function 'beads-git-find-project-root)
+               (lambda () "/tmp/beads-test-project")))
+      (should (eq (beads-agent--should-use-worktree-p "bd-123") t)))))
 
 (ert-deftest beads-agent-test-should-use-worktree-p-nil ()
   "Test should-use-worktree-p when setting is nil."
@@ -539,7 +543,9 @@ should have indicators displayed."
 (ert-deftest beads-agent-test-should-use-worktree-p-ask-yes ()
   "Test should-use-worktree-p when setting is ask and user says yes."
   (let ((beads-agent-use-worktrees 'ask))
-    (cl-letf (((symbol-function 'yes-or-no-p) (lambda (_) t)))
+    (cl-letf (((symbol-function 'yes-or-no-p) (lambda (_) t))
+              ((symbol-function 'beads-git-find-project-root)
+               (lambda () "/tmp/beads-test-project")))
       (should (eq (beads-agent--should-use-worktree-p "bd-123") t)))))
 
 (ert-deftest beads-agent-test-should-use-worktree-p-ask-no ()
@@ -4078,9 +4084,12 @@ letter (the latent bug `bde-npte' fixes elsewhere)."
   "Test mode line context returns proper structure."
   (beads-agent-test--setup)
   (unwind-protect
+      ;; `beads-agent--mode-line-context' sources the name from
+      ;; `beads-git-get-project-name', not `beads--get-project-name', so
+      ;; mock the symbol the function actually calls.
       (cl-letf (((symbol-function 'beads-agent--mode-line-cached-git-info)
                  (lambda () (cons "main" nil)))
-                ((symbol-function 'beads--get-project-name)
+                ((symbol-function 'beads-git-get-project-name)
                  (lambda () "test-proj")))
         (let ((ctx (beads-agent--mode-line-context)))
           (should (listp ctx))

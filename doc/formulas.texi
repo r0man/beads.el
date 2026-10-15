@@ -1,0 +1,184 @@
+@node Formulas Molecules and Epics
+@chapter Formulas, Molecules, and Epics
+@anchor{formulas}
+@cindex formulas
+@cindex molecules
+@cindex epics
+
+Formulas are YAML or TOML definitions that describe repeatable workflows.
+They are @emph{cooked} into proto beads that can then be @emph{poured} (made
+persistent) or @emph{wisped} (made ephemeral).  Running instances are
+called molecules, and an epic is the larger grouping they roll up to.  This
+chapter covers all three and the commands that manage them; the underlying
+concepts are introduced in @ref{Molecules and Formulas}.
+
+@menu
+* Formulas::
+* Molecules::
+* Epics::
+* Cook Pour and Burn::
+@end menu
+
+@node Formulas
+@section Formulas
+@anchor{formulas-section}
+@cindex formula browser
+
+@deffn Command beads-formula-menu
+Open the formula menu.  Press @kbd{F} from the dispatch menu
+(@pxref{Transients}).
+@end deffn
+
+@table @kbd
+@item l
+List available formulas.  Filter by type (@code{workflow}, @code{expansion},
+or @code{aspect}) in the browser, or pass a prefix argument to
+@code{beads-formula-browse}.
+@item s
+Show a formula's details: phase, version, @code{extends}, aspects,
+expansion formulas, composition bond points, and each step's type,
+dependencies, gate, and waits-for, plus every variable's type, enum,
+pattern, default, and required flag.
+@item c
+Convert a formula from JSON to TOML.
+@end table
+
+@vindex beads-formula-scope
+The formula browser marks a formula whose name shadows a same-name formula
+lower on the @command{bd} search path with a @samp{⧉shad} badge; its
+help-echo names the shadowed path.  @code{beads-formula-scope} switches the
+scope filter between @code{project}, @code{user}, and @code{all}.
+
+@anchor{fig:formula-dark}
+@image{images/formula-dark,,,The formula menu (@code{beads-formula-menu}).,png}
+@image{images/formula-dark-thumb,,,The formula menu thumbnail.,png}
+
+@node Molecules
+@section Molecules
+@anchor{molecules-section}
+@cindex molecules
+@cindex proto
+
+A @emph{proto} is a template epic; a @emph{molecule} is a running instance
+made from it.  Press @kbd{m} from the dispatch menu for the molecule menu.
+
+@deffn Command beads-mol
+Open the molecule menu: instantiate, combine, inspect, clean up, and
+health-check molecules.
+@end deffn
+
+@anchor{fig:molecule-dark}
+@image{images/molecule-dark,,,The molecule view of the fixture epic, showing poured steps.,png}
+@image{images/molecule-dark-thumb,,,The molecule view thumbnail.,png}
+
+@menu
+* Instantiate::
+* Combine::
+* Molecule Lifecycle::
+* Cleanup::
+* Find and Health::
+@end menu
+
+@node Instantiate
+@subsection Instantiate
+@cindex pouring a molecule
+@cindex wisping a molecule
+
+@table @kbd
+@item p
+Pour --- create a persistent molecule from a proto.
+@item w
+Wisp --- create an ephemeral molecule.
+@end table
+
+@node Combine
+@subsection Combine
+@cindex bonding molecules
+@cindex distilling a molecule
+
+@table @kbd
+@item b
+Bond --- merge molecules together.
+@item d
+Distill --- extract a proto from existing issues.
+@end table
+
+@node Molecule Lifecycle
+@subsection Molecule Lifecycle
+@cindex molecule progress
+
+@table @kbd
+@item s
+Show molecule details.
+@item c
+Show the current active molecule.
+@item P
+Show molecule progress.
+@end table
+
+@node Cleanup
+@subsection Cleanup
+@cindex squashing a molecule
+@cindex burning a molecule
+
+@table @kbd
+@item S
+Squash --- collapse molecule history.
+@item B
+Burn --- destroy a molecule.
+@end table
+
+@node Find and Health
+@subsection Find and Health
+@cindex stale molecules
+@cindex molecule seed
+
+@table @kbd
+@item r
+Ready --- find molecules ready for work.
+@item t
+Stale --- find stale molecules.
+@item e
+Seed --- verify molecule seed data integrity.
+@item l
+Last activity --- show when each molecule was last touched.
+@end table
+
+@node Epics
+@section Epics
+@anchor{epics-section}
+@cindex epic status
+
+@deffn Command beads-epic-menu
+Open the epic menu.  Press @kbd{E} from the dispatch menu
+(@pxref{Transients}).
+@end deffn
+
+@table @kbd
+@item s
+Status overview --- an interactive buffer listing every epic with progress
+bars, child counts, and closure eligibility.  @kbd{SPC} expands or collapses
+children; @kbd{RET} opens an epic (@pxref{Viewing Issues}).
+@item c
+Close eligible --- close every epic whose children are all complete.  Pass
+@code{--dry-run} to preview first.
+@end table
+
+@anchor{fig:epic-dark}
+@image{images/epic-dark,,,An epic detail view with its children.,png}
+@image{images/epic-dark-thumb,,,The epic detail view thumbnail.,png}
+@anchor{fig:epic-light}
+@image{images/epic-light,,,The epic detail view under the light theme.,png}
+@image{images/epic-light-thumb,,,The light theme epic detail view thumbnail.,png}
+
+@node Cook Pour and Burn
+@section Cook, Pour, and Burn from One Place
+@cindex maintenance menu
+@cindex cook
+@cindex swarm
+
+The maintenance menu (@kbd{!}) also carries the workflow verbs: @kbd{K}
+cook, @kbd{w} swarm, @kbd{g} gate, @kbd{H} ship, and the state helpers
+@kbd{z} and @kbd{Z}.  The swarm and gate flows are described in
+@ref{Agents and Sling}, and the menu itself is documented with the other
+admin commands.

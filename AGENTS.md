@@ -10,37 +10,53 @@ beads.el is an Emacs package providing a Magit-like transient-based UI for the [
 
 ## Build & Test Commands
 
+beads.el builds with the standard GNU autotools flow (Eldev was removed):
+
 ```bash
-# Run all tests (CI form: packaged mode, verbose, trace)
-eldev test
-eldev -p -dtT test
+# Bootstrap and build (byte-compile with warnings as errors + autoloads)
+./autogen.sh
+./configure
+make
 
-# Run a single test file (-f matches against lisp/test/*.el)
-eldev test -f beads-list-test.el
-eldev test test/beads-list-test.el      # dwim: path is treated as a file pattern
+# Run the whole ERT suite once.  `configure` discovers bd/dolt/graphviz;
+# when any is missing `make check` runs only the `:unit' tests and names
+# the missing tools.  Pass --with-bd=no (and siblings) to force it.
+make check
 
-# Run tests matching a name pattern (positional ERT selector; NOT `-p`)
-eldev test beads-command-close
+# Byte-compile warnings-as-errors + package-lint
+make lint
 
-# Select by tag (ERT selector sexp)
-eldev test '(tag :unit)'
-eldev test '(not (tag :integration))'
-eldev test -f beads-list-test.el '(tag :unit)'
-
-# Coverage: source mode (-s) is required, undercover cannot instrument .elc.
-# CI skips :integration tests here because they add no Elisp coverage.
-eldev -s -dtT test -U coverage/codecov.json '(not (tag :integration))'
-
-# Byte-compile / lint
-eldev compile
-eldev -p -dtT lint
+# Coverage (undercover, codecov format, `:unit' subset)
+make coverage
 ```
 
-`eldev` global flags (`-p`, `-s`, `-dtT`) go *before* the `test` subcommand; `-p` after `test` fails with "Unknown option". There is no `--coverage` option; use `-s` plus `-U FILE`.
+`transient` and `vui` resolve from `--with-transient=DIR`/`--with-vui=DIR`
+or the ambient `EMACSLOADPATH`; `package-lint` and `undercover` are resolved
+the same way (`PACKAGE_LINT_DIR`/`EMACSLOADPATH`). Under Guix,
+`guix shell -D -f guix.scm` provides all of them.
 
-External requirements for the full suite: `bd` (CI pins v1.0.5), `dolt`, `graphviz`, plus the Emacs packages `transient` and `vui`. Under Guix use `guix shell -D -f guix.scm`. `scripts/show-menu` launches `emacs -Q` with `lisp/` on the load-path and opens the main menu; `scripts/emacs-minimal` does the same inside a pure `guix shell` with the config in `share/emacs.d`.
+Running a subset of tests directly (plain Emacs, no build system):
 
-CI runs tests on Emacs 29.4, 30.2, and snapshot; 29.4 is `continue-on-error` because of a known EIEIO byte-compilation bug with cross-file `cl-defmethod` dispatch, so a 29.4-only failure is not necessarily yours.
+```bash
+# One test file
+emacs --batch -Q -L lisp -L lisp/test -l lisp/test/beads-list-test.el \
+  -f ert-run-tests-batch-and-exit
+
+# By tag or name (an ERT selector sexp)
+emacs --batch -Q -L lisp -L lisp/test \
+  --eval '(progn (load "lisp/test/beads-list-test.el") (ert-run-tests-batch-and-exit (quote (tag :unit))))'
+```
+
+External requirements for the full suite: `bd` (CI pins v1.3.1), `dolt`,
+`graphviz`, plus the Emacs packages `transient` and `vui`. Under Guix
+use `guix shell -D -f guix.scm`. `scripts/show-menu` launches `emacs -Q` with
+`lisp/` on the load-path and opens the main menu; `scripts/emacs-minimal`
+does the same inside a pure `guix shell` with the config in `share/emacs.d`.
+
+CI runs tests on Emacs 29.4, 30.2, 31.1, and snapshot; 29.4 is
+`continue-on-error` because of a known EIEIO byte-compilation bug with
+cross-file `cl-defmethod` dispatch, so a 29.4-only failure is not
+necessarily yours.
 
 ### Tests
 
@@ -48,7 +64,7 @@ Tests live in `lisp/test/` and are named `<module>-test.el`. Every `ert-deftest`
 
 - `:unit` — mocks `beads-command-execute`; no `bd` needed. Most tests.
 - `:integration` — runs the real `bd` against a temp repo. Often combined with `:slow`, `:transient`, `:error-recovery`, `:edge-case`.
-- `:live` — drives a running `emacs --daemon` via `emacsclient` (see the header of `lisp/test/beads-live-ui-test.el` and `docs/live-ui-test-design.md`). Not run by `eldev test` in CI.
+- `:live` — drives a running `emacs --daemon` via `emacsclient` (see the header of `lisp/test/beads-live-ui-test.el` and `docs/live-ui-test-design.md`). Not run by `make check` in CI.
 
 Infrastructure lives in `beads-test.el` (`beads-test-with-project`, `beads-test-with-shared-project`, `beads-test-with-transient-args`, `beads-test-with-mocked-interaction`, `beads-test-with-temp-config`, buffer/cache tracking) and `beads-integration-test.el` (`beads-test-with-temp-repo`, `beads-test-with-temp-repo-and-issues`). Integration tests should use these macros rather than calling `bd init` themselves.
 
@@ -142,8 +158,8 @@ Modules:
 - Transient menus are auto-generated from slot metadata where possible; use `:transient :manual` only when custom layout is needed.
 - Define menus with `beads-define-prefix` / `beads-define-group` (`beads-prefix.el`), never bare `transient-define-prefix` / `transient-define-group`: the wrappers make every suffix run in the directory the menu was opened for, which is what keeps menus opened via `project-switch-project` working.  A custom prefix `:class` must derive from `beads-prefix`.
 - Every EIEIO class and every slot carries a `:documentation` string.
-- Dependencies: Emacs 29.1+, transient 0.10.1+, vui 1.0.0+ (from MELPA). Declared in `lisp/beads.el` `Package-Requires` and mirrored in `Eldev` and `guix.scm`; keep all three in sync.
-- Autoloads: `;;;###autoload` works directly on `beads-defcommand` and `beads-meta-define-transient` forms (the `Eldev` file preloads `beads-meta.el` for the autoload generator).
+- Dependencies: Emacs 29.1+, transient 0.10.1+, vui 1.0.0+ (from MELPA). Declared in `lisp/beads.el` `Package-Requires` and mirrored in `guix.scm`; keep both in sync.
+- Autoloads: `;;;###autoload` works directly on `beads-defcommand` and `beads-meta-define-transient` forms (`build-aux/beads-autoloads.el` preloads `beads-meta.el` for the autoload generator).
 
 ### Top-level group commands (`bd <group> <subcommand>`)
 

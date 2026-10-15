@@ -1,0 +1,379 @@
+@node Orchestration and Terminal
+@chapter Orchestration and Terminal
+@anchor{orchestration}
+@cindex orchestration
+@cindex terminal
+
+This chapter covers the command surface itself: the two menus that reach
+every command, the terminal subsystem that runs agents and interactive
+CLIs, the Dolt and repository commands, configuration, and the audit and
+provenance views.  The day-to-day issue commands are in @ref{Issue
+Workflow}, the views in @ref{Dashboards and Views}, and the build and
+extension guide in @ref{Maintenance and Extending}.
+
+@menu
+* The Dispatch and Maintenance Menus::
+* Command and Key Reference::
+* Terminal Backends::
+* Dolt and Repositories::
+* Configuration::
+* Audit and Provenance::
+@end menu
+
+@node The Dispatch and Maintenance Menus
+@section The Dispatch and Maintenance Menus
+@anchor{dispatch-menu}
+@cindex dispatch menu
+@cindex maintenance menu
+
+The whole CLI surface is reachable from two menus.
+
+@deffn Command beads-dispatch
+Open the dispatch menu on @kbd{?}: the high- and mid-frequency commands,
+grouped into @strong{Issues}, @strong{Workflow}, @strong{Views}, and
+@strong{Manage}.  The menu is opened from any beads buffer with @kbd{?};
+a context group is built from the view at point.
+@end deffn
+
+@deffn Command beads-maintenance
+Open the maintenance menu on @kbd{!}: the low-frequency, admin, and
+infrastructure commands.  It replaces the former @code{beads-ops-menu}
+and @code{beads-advanced-menu}, which no longer exist.
+@end deffn
+
+@defvr {User Option} beads-menu-providers
+List of functions that append extra groups to the dispatch menu.
+Downstream packages (for example gascity.el) register their own group here
+so it appears under the dispatch menu without editing beads.el.
+@end defvr
+
+@anchor{fig:dispatch-dark}
+@image{images/dispatch-dark,,,The dispatch menu (@code{beads-dispatch}).,png}
+@image{images/dispatch-dark-thumb,,,The dispatch menu thumbnail.,png}
+@anchor{fig:maintenance-dark}
+@image{images/maintenance-dark,,,The maintenance menu (@code{beads-maintenance}).,png}
+@image{images/maintenance-dark-thumb,,,The maintenance menu thumbnail.,png}
+
+@menu
+* Maintenance Groups::
+@end menu
+
+@node Maintenance Groups
+@subsection Maintenance Groups
+@cindex maintenance groups
+
+The maintenance menu is organized by intent.  Transient levels control
+which groups are visible; cycle them with @code{transient-set-level}
+(@kbd{C-x l} by default).  Level 1 holds the daily operations, level 3
+the database, structure, and data groups, level 5 the integrations
+sub-dispatcher, and level 7 the setup and migration sub-dispatcher.
+
+@itemize @bullet
+@item
+@strong{Issue Lifecycle} --- defer, undefer, delete, promote wisp,
+rename, unclaim.
+@item
+@strong{Views & Reports} --- count, stats, stale, types, lint,
+duplicates, orphans, wisps.
+@item
+@strong{Issue Details} --- children, comments, todo, events, query.
+@item
+@strong{Events} --- the live timeline and its city twin, and the time
+travel commands issue history and rewind.
+@item
+@strong{Workflow} --- gate, swarm, cook, ship, set-state, the state
+menu, conflicts, reclaim, heartbeat.
+@item
+@strong{Database} --- backup, export JSONL, prune, GC, batch ops,
+compact, flatten, ping, doctor, migrate, upgrade, preflight, purge.
+@item
+@strong{Structure} --- mark duplicate, find duplicates, supersede,
+restore, SQL query, rename prefix, forget memory.
+@item
+@strong{Data & Sync} --- version control, Dolt sync, schema, migrate
+personal, branch, diff, history, provenance.
+@item
+@strong{Integrations} --- Jira, Linear, GitLab, GitHub, repo, ADO,
+federation, mail.
+@item
+@strong{Setup & migration} --- init, init safety, integrations, info,
+version, bootstrap, hooks, quickstart, where, context, memories, KV
+store, prime, recall, remember, audit, admin, worktrees.
+@end itemize
+
+The workflow verbs are described with molecules and agents
+(@pxref{Cook Pour and Burn}); the integrations and setup sub-dispatchers
+are listed in @ref{Command and Key Reference}.
+
+@node Command and Key Reference
+@section Command and Key Reference
+@cindex key reference
+@cindex command reference
+
+The tables below are generated from the transient definitions by
+@file{scripts/dispatch-docs}; do not edit them by hand.  The complete
+generated reference, including the integrations and setup
+sub-dispatchers, is kept in @file{docs/dispatch-reference.md}.  Change a
+menu, then run @command{scripts/dispatch-docs --write} to regenerate it
+(@pxref{Linting and Documentation Drift}).
+
+@c BEGIN GENERATED: dispatch menu
+@multitable @columnfractions 0.18 0.10 0.30 0.42
+@headitem Group @tab Key @tab Command @tab Description
+@item Issues @tab @kbd{l} @tab @code{beads-list-all} @tab List beads
+@item Issues @tab @kbd{c} @tab @code{beads-compose-create} @tab Create bead
+@item Issues @tab @kbd{/} @tab @code{beads-search} @tab Search
+@item Issues @tab @kbd{i} @tab @code{beads-show} @tab Show...
+@item Issues @tab @kbd{u} @tab @code{beads-update} @tab Update bead
+@item Issues @tab @kbd{x} @tab @code{beads-close} @tab Close bead
+@item Issues @tab @kbd{o} @tab @code{beads-reopen} @tab Reopen bead
+@item Issues @tab @kbd{e} @tab @code{beads-edit} @tab Edit field
+@item Workflow @tab @kbd{r} @tab @code{beads-ready} @tab Ready work
+@item Workflow @tab @kbd{b} @tab @code{beads-blocked} @tab Blocked work
+@item Workflow @tab @kbd{d} @tab @code{beads-dep} @tab Dependencies
+@item Workflow @tab @kbd{#} @tab @code{beads-actions-set-priority} @tab Priority
+@item Workflow @tab @kbd{C} @tab @code{beads-actions-claim} @tab Claim
+@item Workflow @tab @kbd{s} @tab @code{beads-actions-set-status} @tab Set status
+@item Workflow @tab @kbd{m} @tab @code{beads-mol} @tab Molecules
+@item Workflow @tab @kbd{G} @tab @code{beads-gate} @tab Gates
+@item Workflow @tab @kbd{w} @tab @code{beads-wisp-list} @tab Wisps
+@item Workflow @tab @kbd{S} @tab @code{beads-swarm-list-view} @tab Swarms
+@item Workflow @tab @kbd{T} @tab @code{beads-types} @tab Types
+@item Views @tab @kbd{a} @tab @code{beads-agent} @tab Agents...
+@item Views @tab @kbd{F} @tab @code{beads-formula-menu} @tab Formulas...
+@item Views @tab @kbd{v} @tab @code{beads-graph-all} @tab Graph
+@item Views @tab @kbd{D} @tab @code{beads-dashboard} @tab Dashboard
+@item Views @tab @kbd{H} @tab @code{beads-history} @tab History
+@item Views @tab @kbd{R} @tab @code{beads-events-timeline} @tab Recent changes
+@item Views @tab @kbd{Y} @tab @code{beads-orphans} @tab Orphans
+@item Views @tab @kbd{t} @tab @code{beads-stats} @tab Stats
+@item Views @tab @kbd{X} @tab @code{beads-context} @tab Context
+@item Manage @tab @kbd{L} @tab @code{beads-label-menu} @tab Labels...
+@item Manage @tab @kbd{k} @tab @code{beads-dolt} @tab Dolt...
+@item Manage @tab @kbd{.} @tab @code{beads-config} @tab Config
+@item Manage @tab @kbd{W} @tab @code{beads-worktree-menu} @tab Worktrees...
+@item Maintenance @tab @kbd{!} @tab @code{beads-maintenance} @tab Maintenance...
+@item Maintenance @tab @kbd{g} @tab @code{beads-refresh-menu} @tab Refresh cache
+@item Maintenance @tab @kbd{q} @tab @code{transient-quit-one} @tab Quit
+@end multitable
+@c END GENERATED: dispatch menu
+
+@c BEGIN GENERATED: maintenance menu
+@multitable @columnfractions 0.18 0.10 0.30 0.42
+@headitem Group @tab Key @tab Command @tab Description
+@item Issue Lifecycle @tab @kbd{f} @tab @code{beads-defer} @tab Defer
+@item Issue Lifecycle @tab @kbd{F} @tab @code{beads-undefer} @tab Undefer
+@item Issue Lifecycle @tab @kbd{D} @tab @code{beads-delete} @tab Delete
+@item Issue Lifecycle @tab @kbd{p} @tab @code{beads-promote} @tab Promote wisp
+@item Issue Lifecycle @tab @kbd{R} @tab @code{beads-rename} @tab Rename
+@item Issue Lifecycle @tab @kbd{u} @tab @code{beads-unclaim} @tab Unclaim
+@item Views & Reports @tab @kbd{c} @tab @code{beads-count} @tab Count
+@item Views & Reports @tab @kbd{t} @tab @code{beads-stats} @tab Stats
+@item Views & Reports @tab @kbd{s} @tab @code{beads-stale} @tab Stale
+@item Views & Reports @tab @kbd{T} @tab @code{beads-types} @tab Types
+@item Views & Reports @tab @kbd{l} @tab @code{beads-lint} @tab Lint
+@item Views & Reports @tab @kbd{O} @tab @code{beads-find-duplicates} @tab Find duplicates
+@item Views & Reports @tab @kbd{o} @tab @code{beads-orphans} @tab Orphans
+@item Views & Reports @tab @kbd{$} @tab @code{beads-wisp-list} @tab Wisps
+@item Issue Details @tab @kbd{a} @tab @code{beads-children} @tab Children
+@item Issue Details @tab @kbd{=} @tab @code{beads-comments-menu} @tab Comments
+@item Issue Details @tab @kbd{[} @tab @code{beads-todo} @tab Todo
+@item Issue Details @tab @kbd{e} @tab @code{beads-events} @tab Events
+@item Issue Details @tab @kbd{/} @tab @code{beads-query} @tab Query
+@item Events (live) @tab @kbd{,} @tab @code{beads-events-timeline} @tab Recent changes
+@item Events (live) @tab @kbd{.} @tab @code{beads-events-timeline-city} @tab City timeline
+@item Events (live) @tab @kbd{#} @tab @code{beads-live-toggle} @tab Toggle live
+@item Events (time travel) @tab @kbd{-} @tab @code{beads-events-history} @tab Issue history
+@item Events (time travel) @tab @kbd{^} @tab @code{beads-events-rewind} @tab Rewind...
+@item Workflow @tab @kbd{g} @tab @code{beads-gate} @tab Gate
+@item Workflow @tab @kbd{w} @tab @code{beads-swarm} @tab Swarm
+@item Workflow @tab @kbd{K} @tab @code{beads-cook} @tab Cook
+@item Workflow @tab @kbd{H} @tab @code{beads-ship} @tab Ship
+@item Workflow @tab @kbd{z} @tab @code{beads-set-state} @tab Set state
+@item Workflow @tab @kbd{Z} @tab @code{beads-state-menu} @tab State menu
+@item Workflow @tab @kbd{C} @tab @code{beads-conflicts} @tab Conflicts
+@item Workflow @tab @kbd{r} @tab @code{beads-reclaim} @tab Reclaim
+@item Workflow @tab @kbd{B} @tab @code{beads-heartbeat} @tab Heartbeat
+@item Database @tab @kbd{b} @tab @code{beads-backup} @tab Backup
+@item Database @tab @kbd{E} @tab @code{beads-export} @tab Export JSONL
+@item Database @tab @kbd{P} @tab @code{beads-prune} @tab Prune closed
+@item Database @tab @kbd{G} @tab @code{beads-gc} @tab GC
+@item Database @tab @kbd{d} @tab @code{beads-batch} @tab Batch ops
+@item Database @tab @kbd{h} @tab @code{beads-compact} @tab Compact
+@item Database @tab @kbd{i} @tab @code{beads-flatten} @tab Flatten
+@item Database @tab @kbd{j} @tab @code{beads-ping} @tab Ping
+@item Database @tab @kbd{+} @tab @code{beads-doctor} @tab Doctor
+@item Database @tab @kbd{M} @tab @code{beads-migrate-menu} @tab Migrate...
+@item Database @tab @kbd{U} @tab @code{beads-upgrade} @tab Upgrade
+@item Database @tab @kbd{!} @tab @code{beads-preflight} @tab Preflight
+@item Database @tab @kbd{8} @tab @code{beads-purge} @tab Purge
+@item Structure @tab @kbd{1} @tab @code{beads-duplicate} @tab Mark duplicate
+@item Structure @tab @kbd{2} @tab @code{beads-duplicates} @tab Find duplicates
+@item Structure @tab @kbd{3} @tab @code{beads-supersede} @tab Supersede
+@item Structure @tab @kbd{4} @tab @code{beads-restore} @tab Restore
+@item Structure @tab @kbd{J} @tab @code{beads-sql} @tab SQL query
+@item Structure @tab @kbd{k} @tab @code{beads-rename-prefix} @tab Rename prefix
+@item Structure @tab @kbd{_} @tab @code{beads-forget} @tab Forget memory
+@item Data & Sync @tab @kbd{V} @tab @code{beads-vc} @tab VC
+@item Data & Sync @tab @kbd{Y} @tab @code{beads-sync} @tab Dolt sync
+@item Data & Sync @tab @kbd{S} @tab @code{beads-schema} @tab Schema
+@item Data & Sync @tab @kbd{m} @tab @code{beads-migrate-personal} @tab Migrate personal
+@item Data & Sync @tab @kbd{<} @tab @code{beads-branch} @tab Branch
+@item Data & Sync @tab @kbd{`} @tab @code{beads-diff} @tab Diff
+@item Data & Sync @tab @kbd{%} @tab @code{beads-history} @tab History
+@item Data & Sync @tab @kbd{&} @tab @code{beads-provenance} @tab Provenance
+@item Integrations @tab @kbd{n} @tab @code{beads-integrations-menu} @tab Integrations...
+@item Setup @tab @kbd{I} @tab @code{beads-setup-menu} @tab Setup & migration...
+@item Actions @tab @kbd{q} @tab @code{transient-quit-one} @tab Quit
+@end multitable
+@c END GENERATED: maintenance menu
+
+@node Terminal Backends
+@section Terminal Backends
+@cindex terminal backends
+@cindex vterm
+@cindex ghostel
+@cindex eat
+
+Agents and interactive CLIs run in a terminal managed by the EIEIO
+terminal subsystem (@code{beads-terminal.el}).  Backends are objects of
+type @code{beads-terminal}; each knows how to spawn one program in one
+terminal.  They register with @code{beads-terminal-register} and are
+selected in ascending priority order by @code{beads-terminal-auto}.  The
+built-in backends are @code{vterm}, @code{ghostel}, @code{eat},
+@code{ansi-term}, and @code{term}, plus @code{auto}, which never spawns
+itself but picks the first available concrete terminal.
+
+@deftypefn {Emacs Lisp Function} {} beads-terminal-register (terminal)
+Register TERMINAL in the process-wide registry, replacing any backend with
+the same name.
+@end deftypefn
+
+@deftypefn {Emacs Lisp Function} {} beads-terminal-get (name)
+Return the registered terminal named NAME, or nil.
+@end deftypefn
+
+@deftypefn {Emacs Lisp Function} {} beads-terminal-list ()
+Return the list of registered terminal backends.
+@end deftypefn
+
+@deftypefn {Emacs Lisp Function} {} beads-terminal-run (argv buffer-name &optional dir)
+Display the terminal buffer named BUFFER-NAME in DIR, spawning ARGV
+through the selected backend if the buffer is not live.
+@end deftypefn
+
+@deftypefn {Emacs Lisp Function} {} beads-terminal-attach (session &optional socket dir store)
+Attach to the tmux SESSION, optionally on SOCKET and in DIR, for STORE.
+@end deftypefn
+
+@defvr {User Option} beads-terminal-backend
+The preferred terminal backend, or nil to auto-detect.  When nil, the
+backends are tried in order: @code{vterm}, @code{ghostel},
+@code{eat}, @code{ansi-term}, @code{term}.
+@end defvr
+
+Remote (TRAMP) stores are supported.  On a single-hop ssh-family store,
+asynchronous commands run as a local @command{ssh -T} pipe rather than a
+TRAMP @code{make-process}, which avoids deadlocking the shared ssh
+master.  @code{beads-remote-transport} chooses the transport and
+@code{beads-remote-search-path} extends the host's @env{PATH}
+(@pxref{User Options}).
+
+@node Dolt and Repositories
+@section Dolt and Repositories
+@cindex Dolt
+@cindex repository
+
+Beads uses Dolt, a version-controlled SQL database, as its backend.
+Press @kbd{k} from the dispatch menu for the Dolt menu.
+
+@deffn Command beads-dolt
+Open the Dolt database menu: configure the backend, manage the SQL server,
+sync with Dolt remotes, and clean up orphaned databases.
+@end deffn
+
+@table @asis
+@item @strong{Configuration}
+@kbd{s} show the current Dolt configuration; @kbd{S} set a configuration
+value; @kbd{t} test the connection.
+@item @strong{Data}
+@kbd{c} commit pending changes to Dolt history; @kbd{p} push commits to
+the Dolt remote; @kbd{P} pull commits from the Dolt remote.
+@item @strong{Server}
+@kbd{1} start the Dolt SQL server; @kbd{0} stop the server; @kbd{i} show
+the server status.
+@item @strong{Remotes}
+@kbd{r} open the remote sub-menu: add (@kbd{a}), list (@kbd{l}), remove
+(@kbd{r}), and reset remote data (@kbd{R}).
+@item @strong{Maintenance}
+@kbd{C} clean up orphaned databases; @kbd{K} kill orphan Dolt server
+processes not tracked by the current repository's PID file.
+@end table
+
+Repository-level commands (init, branch, worktree, and the Git
+integrations) live under @strong{Manage} (@kbd{W} for worktrees) and the
+@strong{Setup & migration} group of the maintenance menu
+(@pxref{Command and Key Reference}).
+
+@node Configuration
+@section Configuration
+@cindex configuration
+@cindex user options
+
+@deffn Command beads-config
+Open the configuration menu: read and write the per-project Beads
+configuration.  Press @kbd{.} from the dispatch menu.
+@end deffn
+
+Project configuration is stored per project under @file{.beads/}; common
+namespaces include @code{jira.*}, @code{linear.*}, @code{github.*}, and
+@code{status.*}.
+
+@table @kbd
+@item g
+Get a value.
+@item s
+Set a value.
+@item S
+Set many values at once.
+@item l
+List all values.
+@item u
+Unset a value.
+@item w
+Show the effective configuration.
+@item a
+Apply (reconcile) the configuration.
+@item d
+Detect configuration drift.
+@item v
+Validate the configuration.
+@end table
+
+The user options that are not per-project configuration (the executable
+path, the actor, the remote transport, and the view limits) are in
+@ref{User Options}.
+
+@node Audit and Provenance
+@section Audit and Provenance
+@cindex audit
+@cindex provenance
+@cindex history
+
+@deffn Command beads-audit
+Open the audit menu (@kbd{@@} in the setup sub-dispatcher): record
+(@kbd{r}) and label (@kbd{l}) entries in the
+@file{.beads/interactions.jsonl} audit log.
+@end deffn
+
+@deffn Command beads-history
+Show an issue's history from the @command{bd} journal.  Bound to
+@kbd{%} in the maintenance menu.
+@end deffn
+
+@deffn Command beads-provenance
+Show where a bead came from.  Bound to @kbd{&} in the maintenance menu.
+@end deffn
+
+Audit records who changed what and when; provenance records where a bead
+came from.  Both are read-only views over the @command{bd} journal.

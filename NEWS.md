@@ -30,6 +30,31 @@ stops its session.
 semantics; only the names changed (`beads-sesman--worktree-sessions` ->
 `beads-worktree-session--sessions`).
 
+### GNU-standard toolchain, Texinfo manual, and GitHub Pages
+
+* **Eldev is gone; the build is autotools.** beads.el now builds with the
+standard GNU build system: `./autogen.sh && ./configure && make && make check
+&& make install`, plus `make lint`, `make coverage`, `make info`, `make html`,
+`make pdf`, and `make dist`. `configure` discovers Emacs and the optional
+`bd`/`dolt`/`graphviz` CLI toolchain (running the `:integration` tests only
+when all three are present, and `--with-bd=no` and its siblings force the
+`:unit` subset). The byte-compile warnings-as-errors and lint gates, the
+stale-bytecode guard, and the JUnit report path are preserved without Eldev.
+
+* **The user manual is Texinfo.** `doc/beads.texi` and its `@include`d chapter
+files are the single manual source (previously seven Org pages rendered by a
+bespoke `docs/manual/Makefile`). It installs as an Info manual (`C-h i`) and
+is published as HTML on GitHub Pages by `.github/workflows/pages.yml` on every
+push to `main`. The generated dispatch tables are gated against the code by
+`scripts/dispatch-docs --check`, now driving plain Emacs.
+
+* **The README is a concise standard README** with the long dispatch and key
+tables moved into the manual. `guix.scm` packages the project through
+`gnu-build-system` with an explicit `EMACSLOADPATH` phase and no `emacs-eldev`.
+
+* **`scripts/ci-deps`** installs the ELPA build dependencies for CI. No
+workflow installs or invokes Eldev.
+
 ### Single front door: the dashboard Stats section
 
 * **`bd status` is a dashboard section, not a separate command.**

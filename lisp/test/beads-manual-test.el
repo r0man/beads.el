@@ -36,8 +36,8 @@
   "Repository root, derived from this test file's location.")
 
 (defconst beads-manual-test--manual-dir
-  (expand-file-name "docs/manual" beads-manual-test--root)
-  "The generated user manual directory.")
+  (expand-file-name "doc" beads-manual-test--root)
+  "The hand-authored Texinfo manual source directory.")
 
 (defconst beads-manual-test--images-dir
   (expand-file-name "images" beads-manual-test--manual-dir)
@@ -138,19 +138,22 @@ agent-shell value cannot reroute bd to a live store."
                     (split-string output "[\n\r]+" t))))))
 
 (defun beads-manual-test--manual-pages ()
-  "Return (FILE . CONTENTS) for every Org page under the manual directory."
+  "Return (FILE . CONTENTS) for every Texinfo chapter in the manual dir."
   (mapcar (lambda (file) (cons file (beads-manual-test--slurp file)))
-          (directory-files beads-manual-test--manual-dir t "\\.org\\'")))
+          (directory-files beads-manual-test--manual-dir t "\\.texi\\'")))
 
 (defun beads-manual-test--image-references ()
-  "Return every distinct `images/...png' path referenced by a manual page."
+  "Return every distinct `images/...png' path an `@image' form references.
+Searches the Texinfo chapters under `beads-manual-test--manual-dir' and
+reads the image file name from each `@image{FILE,...}' argument."
   (let (refs)
     (dolist (page (beads-manual-test--manual-pages))
       (with-temp-buffer
         (insert (cdr page))
         (goto-char (point-min))
-        (while (re-search-forward "images/\\([A-Za-z0-9._-]+\\.png\\)" nil t)
-          (push (match-string 0) refs))))
+        (while (re-search-forward
+                "@image{\\(images/[A-Za-z0-9._-]+\\)\\(?:,[^}]*\\)?}" nil t)
+          (push (concat (match-string 1) ".png") refs))))
     (delete-dups (nreverse refs))))
 
 (defun beads-manual-test--write-fake-engine (file body)
@@ -236,7 +239,7 @@ bd must not stamp a run-generated hash onto any imported issue."
 (ert-deftest beads-manual-scope-changed-maps-views ()
   "Scope `changed' selects the views whose manual source changed."
   :tags '(:unit)
-  (let* ((source (expand-file-name "views.org" beads-manual-test--manual-dir))
+  (let* ((source (expand-file-name "views.texi" beads-manual-test--manual-dir))
          (original (beads-manual-test--slurp source)))
     (unwind-protect
         (progn
@@ -266,15 +269,23 @@ bd must not stamp a run-generated hash onto any imported issue."
                               shots)))))
 
 (ert-deftest beads-manual-manifest-views-have-pages ()
-  "Every manifest view is embedded as an image by a manual page."
+  "Every manifest view is embedded as an `@image' by a Texinfo chapter.
+This is the REQ-004 image-coverage gate: dropping a view's `@image'
+from the Texinfo sources must fail it."
   :tags '(:unit)
   (let ((pages (beads-manual-test--manual-pages)))
     (dolist (view (beads-manual-test--views "all"))
-      (let ((needle (format "images/%s-\\(?:dark\\|light\\)\\.png"
+      (let ((needle (format "@image{images/%s-\\(?:dark\\|light\\)"
                             (regexp-quote view))))
         (should (seq-some
                  (lambda (page) (string-match-p needle (cdr page)))
                  pages))))))
+
+(ert-deftest beads-manual-texinfo-has-no-org-image-links ()
+  "The Texinfo chapters keep no Org `[[file:images/...]]' references."
+  :tags '(:unit)
+  (dolist (page (beads-manual-test--manual-pages))
+    (should-not (string-match-p "\\[\\[file:images/" (cdr page)))))
 
 (ert-deftest beads-manual-image-references-exist ()
   "Every `images/*.png' referenced by the manual exists on disk."

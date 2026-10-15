@@ -602,13 +602,19 @@ filesystem (which may itself be a beads project) cannot leak in."
   "Test beads-git-should-use-worktree-p treats other truthy values."
   :tags '(:unit)
   (let ((beads-agent-use-worktrees 'some-other-symbol))
-    (should (beads-git-should-use-worktree-p "beads-1"))))
+    ;; Mock the project root so the test is independent of whether the ERT
+    ;; run happens inside a git checkout (an out-of-tree `make check' is not).
+    (cl-letf (((symbol-function 'beads-git-find-project-root)
+               (lambda () "/tmp/beads-test-project")))
+      (should (beads-git-should-use-worktree-p "beads-1")))))
 
 (ert-deftest beads-git-test-should-use-worktree-string-value ()
   "Test beads-git-should-use-worktree-p treats string as truthy."
   :tags '(:unit)
   (let ((beads-agent-use-worktrees "yes"))
-    (should (beads-git-should-use-worktree-p "beads-1"))))
+    (cl-letf (((symbol-function 'beads-git-find-project-root)
+               (lambda () "/tmp/beads-test-project")))
+      (should (beads-git-should-use-worktree-p "beads-1")))))
 
 ;;; Integration Tests
 

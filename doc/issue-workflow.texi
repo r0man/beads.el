@@ -1,0 +1,321 @@
+@node Issue Workflow
+@chapter Issue Workflow
+@anchor{issue-workflow}
+@cindex issue workflow
+
+This chapter covers the day-to-day commands: create, list, view, edit,
+close and reopen, claim, set status and priority, manage dependencies and
+labels, and apply bulk actions.  The entry points are the dispatch menu
+(@kbd{?}) and the context-aware actions bound in @code{beads-list-mode}
+and @code{beads-show-mode} (@pxref{Interface Concepts}).
+
+@menu
+* Creating Issues::
+* Listing Issues::
+* Viewing Issues::
+* Editing Issues::
+* Closing and Reopening::
+* Claiming Status and Priority::
+* Dependencies::
+* Labels::
+* Bulk Actions::
+@end menu
+
+@node Creating Issues
+@section Creating Issues
+@cindex creating issues
+
+@deffn Command beads-compose-create
+Create an issue in a compose buffer named @code{*beads-create[PROJECT]*}.
+Press @kbd{c} from the dispatch menu, or run @kbd{M-x
+beads-compose-create}.  The first line is the title (an optional
+@code{# } prefix is stripped); everything after the first blank line is
+the Markdown description.
+@end deffn
+
+@example
+# Fix login redirect loop
+
+When users log in with SSO they get stuck in a redirect loop
+between /auth/callback and /login.
+
+## Steps to reproduce
+1. Click "Sign in with SSO"
+2. Complete the SSO flow
+3. Observe the redirect loop
+@end example
+
+@menu
+* Setting Metadata::
+* Submitting and Canceling::
+@end menu
+
+@node Setting Metadata
+@subsection Setting Metadata
+@cindex issue metadata
+@kindex C-c C-a
+
+Press @kbd{C-c C-a} for the metadata sidebar:
+
+@table @kbd
+@item t
+Type (bug, feature, task, epic, chore, @dots{}).
+@item p
+Priority (0--4).
+@item a
+Assignee.
+@item l
+Labels (comma-separated).
+@item P
+Parent issue.
+@end table
+
+Press @kbd{q} to dismiss it and return to editing.
+
+@node Submitting and Canceling
+@subsection Submitting and Canceling
+@cindex submitting an issue
+@kindex C-c C-c
+@kindex C-c C-k
+
+@kbd{C-c C-c} submits; the title is required and the description is
+optional.  On success the buffer is killed and open lists are refreshed.
+@kbd{C-c C-k} cancels; you are asked to confirm if there are unsaved
+changes.
+
+@anchor{fig:compose-dark}
+@image{images/compose-dark,,,The compose buffer for a new issue.,png}
+@image{images/compose-dark-thumb,,,The compose buffer thumbnail.,png}
+
+@node Listing Issues
+@section Listing Issues
+@cindex listing issues
+
+@deffn Command beads-list-issues
+List issues in a @code{beads-list-mode} buffer.  From the dispatch menu
+press @kbd{l}.  The list menu uses switch-based infixes: toggle filters,
+then press a suffix to execute.
+@end deffn
+
+@table @asis
+@item @strong{Filters}
+@kbd{-s} status, @kbd{-t} type, @kbd{-p} priority, @kbd{-a} assignee,
+@kbd{-l} label.
+@item @strong{Options}
+@kbd{-o} sort order, @kbd{-n} limit.
+@end table
+
+Press @kbd{l} again inside the menu to list all issues.  The suffix
+converts the filter state into a @code{beads-issue-spec} and refreshes
+the list buffer.
+
+@table @kbd
+@item r
+List ready (unblocked) issues.
+@item b
+List blocked issues.
+@item /
+In a list buffer, open the spec-based filter menu to refine the current
+view.
+@end table
+
+@deffn Command beads-list-advanced
+The advanced list transient exposes the remaining @command{bd list}
+flags.
+@end deffn
+
+@deffn Command beads-ready
+List ready (unblocked) issues for the current store.
+@end deffn
+
+@deffn Command beads-blocked
+List blocked issues for the current store.
+@end deffn
+
+@menu
+* Sorting Pagination and Movement::
+@end menu
+
+@node Sorting Pagination and Movement
+@subsection Sorting, Pagination, and Movement
+@cindex sorting
+@cindex pagination
+
+@table @kbd
+@item S
+Sort by the column under point.
+@item ]
+Move to the next page.
+@item [
+Move to the previous page.
+@item G
+Jump to a page.
+@end table
+
+@vindex beads-list-default-limit
+The number of rows shown by default is the user option
+@code{beads-list-default-limit}.
+
+@kbd{TAB} and @kbd{S-TAB} move between rows and wrap; @kbd{SPC} previews
+the issue at point in another window (@pxref{One Movement Scheme}).
+
+@anchor{fig:list-dark}
+@image{images/list-dark,,,The issue list as a sortable filterable table.,png}
+@image{images/list-dark-thumb,,,The issue list thumbnail.,png}
+@anchor{fig:list-light}
+@image{images/list-light,,,The issue list under the light theme.,png}
+@image{images/list-light-thumb,,,The light theme issue list thumbnail.,png}
+
+@node Viewing Issues
+@section Viewing Issues
+@cindex viewing issues
+
+@deftypefn {Emacs Lisp Function} {} beads-show (issue-id &key directory)
+Open ISSUE-ID in a @code{beads-show-mode} buffer.  Press @kbd{RET} on a
+list row, or run @kbd{M-x beads-show}.  The buffer renders every field as
+collapsible sections with clickable issue references.  DIRECTORY scopes
+the view to another store (@pxref{Store Scoping}).
+@end deftypefn
+
+@table @kbd
+@item n
+Next section.
+@item p
+Previous section.
+@item TAB
+Next heading or reference (wraps).
+@item S-TAB
+Previous heading or reference (wraps).
+@item SPC
+Fold or unfold the section at point.
+@item RET
+Follow the reference at point.
+@item o
+Follow the reference at point in another window.
+@item g
+Refresh.
+@item q
+Quit.
+@end table
+
+@anchor{fig:show-dark}
+@image{images/show-dark,,,The issue detail view with dependencies and comments.,png}
+@image{images/show-dark-thumb,,,The issue detail view thumbnail.,png}
+@anchor{fig:show-light}
+@image{images/show-light,,,The issue detail view under the light theme.,png}
+@image{images/show-light-thumb,,,The light theme issue detail view thumbnail.,png}
+
+@node Editing Issues
+@section Editing Issues
+@cindex editing issues
+
+@table @kbd
+@item E
+Edit the description in a compose buffer.
+@item N
+Add a comment in a compose buffer.
+@item e
+Edit a field inline (a single-line title, or a temporary buffer for
+longer fields).
+@end table
+
+From a show buffer, @kbd{?} opens a persistent actions transient that
+stays open after each action, so you can run several without reopening
+it.
+
+@node Closing and Reopening
+@section Closing and Reopening
+@cindex closing issues
+@cindex reopening issues
+
+@deffn Command beads-actions-close
+@kindex d
+Close the issue at point.  @command{bd} requires a reason, so you are
+prompted for one.  When marks are active it closes every marked issue
+with the same reason.
+@end deffn
+
+@deffn Command beads-actions-reopen
+@kindex o
+Reopen a closed issue, prompting for an optional reason.  In
+@code{beads-show-mode} reopen lives in the actions transient because
+@kbd{o} follows references in another window.
+@end deffn
+
+@node Claiming Status and Priority
+@section Claiming, Status, and Priority
+@cindex claiming
+@cindex status
+@cindex priority
+
+@table @kbd
+@item C
+Claim the issue at point.  This runs immediately; the current actor is
+assigned.
+@item s
+Set status (@code{open}, @code{in_progress}, @code{blocked}, @dots{}).
+@item #
+Set priority, from @code{0 - Critical} through @code{4 - Backlog}.
+@end table
+
+All three honour marks in list mode.
+
+@node Dependencies
+@section Dependencies
+@cindex dependencies
+
+@deffn Command beads-dep
+Open the dependency menu: add, remove, list, and inspect the dependency
+graph for an issue.
+@end deffn
+
+Press @kbd{d} from the dispatch menu for the dependency menu.
+
+@table @kbd
+@item a
+Add a dependency (source depends on target, plus type).
+@item r
+Remove a dependency.
+@item l
+List dependencies for an issue.
+@item t
+Show the full dependency tree, walking transitively.
+@item c
+Check the project for dependency cycles.
+@item R
+Create a bidirectional @code{relates_to} link.
+@item U
+Remove a @code{relates_to} link.
+@end table
+
+@node Labels
+@section Labels
+@cindex labels
+
+@deffn Command beads-label
+Open the label menu: add, remove, propagate, and list labels.
+@end deffn
+
+Press @kbd{L} from the dispatch menu for the label menu.
+
+@table @kbd
+@item a
+Add a label to one or more issues.
+@item r
+Remove a label from one or more issues.
+@item p
+Propagate a label to all children of an issue.
+@item l
+List labels for a specific issue.
+@item L
+List all labels in the store.
+@end table
+
+@node Bulk Actions
+@section Bulk Actions
+@cindex bulk actions
+
+Mark issues in a list buffer (@kbd{m}), then use a context action such as
+@kbd{d}, @kbd{o}, @kbd{s}, or @kbd{#} to apply it to every marked issue.
+The @kbd{B} prefix adds dedicated bulk commands (@kbd{B s}, @kbd{B p},
+@kbd{B c}, @kbd{B o}).

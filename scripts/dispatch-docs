@@ -8,11 +8,12 @@
 # The source of truth is the transient menu code.  This script loads the
 # project, renders the menus, and compares the result with the checked-in
 # `docs/dispatch-reference.md' snapshot and the generated blocks inside
-# `README.md' and `docs/manual/orchestration.org'.  It never renders a
-# menu buffer and never touches the database.
+# `README.md' and the manual.  It never renders a menu buffer and never
+# touches the database.
 #
-# Eldev is used when available so the project's dependencies are on the
-# load path; otherwise a plain Emacs with `lisp/' on `load-path' is used.
+# This drives a plain Emacs with `lisp/' on `load-path' (no Eldev); the
+# `transient'/`vui' dependencies come from the ambient EMACSLOADPATH (the
+# Guix path) or from --with-transient/--with-vui via TRANSIENT_DIR/VUI_DIR.
 
 set -eu
 
@@ -32,8 +33,14 @@ esac
 eval_form="(progn (require 'beads-dispatch-doc) $form"
 eval_form="$eval_form (princ \"dispatch docs ok\\n\"))"
 
-if command -v eldev >/dev/null 2>&1; then
-  exec eldev -p emacs -- --batch -L lisp --eval "$eval_form"
-else
-  exec emacs -Q --batch -L lisp --eval "$eval_form"
-fi
+emacs_bin=${EMACS:-emacs}
+
+load_path_args=""
+for dir in "${TRANSIENT_DIR:-}" "${VUI_DIR:-}"; do
+  if [ -n "$dir" ]; then
+    load_path_args="$load_path_args -L $dir"
+  fi
+done
+
+# shellcheck disable=SC2086
+exec "$emacs_bin" -Q --batch -L lisp $load_path_args --eval "$eval_form"
