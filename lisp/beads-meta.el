@@ -381,6 +381,62 @@ receives a scalar came from malformed producer output)."
                (beads-from-json type value)
              value))))))
 
+(defvar beads-meta--slot-meta-cache (make-hash-table :test #'eq)
+  "Per-class slot-metadata cache used by the introspection helpers.
+Keyed by class name symbol; each value is a cons (CLASS-OBJ . METAS)
+where CLASS-OBJ is the class object the entry was computed from and
+METAS is an ordered list of slot plists, one per slot in definition
+order:
+
+  (:name NAME :initarg INITARG :json-key JSON-KEY :type TYPE :props PROPS)
+
+The entry is dropped by the `eieio-defclass-internal' advice when the
+class is (re)defined, so a reloaded/redefined class never serves stale
+metadata.  (EIEIO reuses the class object across `defclass', so the
+identity check below is only a belt-and-braces guard, not the
+invalidation mechanism.)  EIEIO class definitions are otherwise
+immutable once evaluated, which makes the memo safe to share across
+calls and buffers.  This memo turns `beads-from-json' from O(slots^2)
+per object into O(slots): on a 1000-issue store the 63-slot
+`beads-issue' class previously spent most of the parse time
+re-deriving each slot's JSON key and initarg.")
+
+(defun beads-meta--class-slot-meta (class)
+  "Return the memoized ordered slot-metadata list for CLASS.
+Each element is a plist (:name :initarg :json-key :type :props); the
+order matches entity class slot definition order.  Returns nil when
+CLASS is not an EIEIO class.  See `beads-meta--slot-meta-cache'."
+  (let* ((class-obj (cl--find-class class))
+         (cached (gethash class beads-meta--slot-meta-cache)))
+    (if (and cached (eq (car cached) class-obj))
+        (cdr cached)
+      (let ((metas
+             (when class-obj
+               (let ((slots-vec (eieio--class-slots class-obj))
+                     (initargs (eieio--class-initarg-tuples class-obj)))
+                 (cl-loop
+                  for slot-desc across slots-vec
+                  collect
+                  (let* ((props (cl--slot-descriptor-props slot-desc))
+                         (name (cl--slot-descriptor-name slot-desc))
+                         (json-key (or (alist-get :json-key props)
+                                       (intern (replace-regexp-in-string
+                                                "-" "_" (symbol-name name))))))
+                    (list :name name
+                          :initarg (car (cl-rassoc name initargs))
+                          :json-key json-key
+                          :type (cl--slot-descriptor-type slot-desc)
+                          :props props)))))))
+        (puthash class (cons class-obj metas) beads-meta--slot-meta-cache)
+        metas))))
+
+(defun beads-meta--slot-meta (class slot-name)
+  "Return the memoized metadata plist for SLOT-NAME in CLASS, or nil.
+See `beads-meta--class-slot-meta'."
+  (cl-loop for meta in (beads-meta--class-slot-meta class)
+           when (eq (plist-get meta :name) slot-name)
+           return meta))
+
 (cl-defgeneric beads-from-json (class json-alist)
   "Construct an instance of CLASS from JSON-ALIST.
 Walks CLASS slots via EIEIO introspection (through beads-meta
@@ -396,12 +452,12 @@ Only passes initargs for keys actually present in JSON-ALIST,
 so absent fields use the slot's :initform default while explicit
 nulls get nil."
   (let (initargs)
-    (dolist (slot-name (beads-meta-command-slots class))
-      (let* ((json-key (beads-meta--slot-json-key class slot-name))
+    (dolist (meta (beads-meta--class-slot-meta class))
+      (let* ((json-key (plist-get meta :json-key))
              (pair (assq json-key json-alist)))
         (when pair  ;; key exists in JSON, even if value is nil
-          (let ((initarg (beads-meta-slot-initarg class slot-name))
-                (slot-type (beads-meta-slot-type class slot-name)))
+          (let ((initarg (plist-get meta :initarg))
+                (slot-type (plist-get meta :type)))
             (when initarg
               (push initarg initargs)
               (push (if slot-type
@@ -748,6 +804,13 @@ The advice performs the following steps:
 
 CNAME is the class name being defined.
 SLOTS is the list of slot specifications."
+  ;; Invalidate any memoized slot metadata for CNAME.  EIEIO redefines
+  ;; a class in place -- the class object keeps its identity -- so the
+  ;; cache keyed on the class object cannot detect the change on its
+  ;; own.  Class definitions are rare, so dropping the entry here is
+  ;; cheap and keeps a reloaded/redefined class from serving stale
+  ;; slot metadata.
+  (remhash cname beads-meta--slot-meta-cache)
   (dolist (slot slots)
     (when (consp slot)
       (let* ((slot-name (car slot))
@@ -810,13 +873,8 @@ SLOT-NAME is the slot name symbol.
 PROPERTY is a keyword like :transient-key, :long-option, etc.
 
 Returns the property value, or nil if not found."
-  (let* ((class-obj (cl--find-class class))
-         (slots-vec (and class-obj (eieio--class-slots class-obj))))
-    (when slots-vec
-      (cl-loop for slot-desc across slots-vec
-               when (eq (cl--slot-descriptor-name slot-desc) slot-name)
-               return (alist-get property
-                                 (cl--slot-descriptor-props slot-desc))))))
+  (let ((meta (beads-meta--slot-meta class slot-name)))
+    (and meta (alist-get property (plist-get meta :props)))))
 
 (defun beads-meta-slot-properties (class slot-name)
   "Get all custom properties for SLOT-NAME in CLASS.
@@ -825,15 +883,12 @@ SLOT-NAME is the slot name symbol.
 
 Returns an alist of (PROPERTY . VALUE) pairs for custom properties
 defined by `beads-meta--slot-properties'."
-  (let* ((class-obj (cl--find-class class))
-         (slots-vec (and class-obj (eieio--class-slots class-obj))))
-    (when slots-vec
-      (cl-loop for slot-desc across slots-vec
-               when (eq (cl--slot-descriptor-name slot-desc) slot-name)
-               return (cl-remove-if-not
-                       (lambda (pair)
-                         (memq (car pair) beads-meta--slot-properties))
-                       (cl--slot-descriptor-props slot-desc))))))
+  (let ((meta (beads-meta--slot-meta class slot-name)))
+    (when meta
+      (cl-remove-if-not
+       (lambda (pair)
+         (memq (car pair) beads-meta--slot-properties))
+       (plist-get meta :props)))))
 
 (defun beads-meta-slots-with-property (class property)
   "Find all slots in CLASS that have PROPERTY defined.
@@ -842,28 +897,20 @@ PROPERTY is a keyword like :transient-key, :long-option, etc.
 
 Returns a list of (SLOT-NAME . VALUE) pairs for slots that have
 the property defined."
-  (let* ((class-obj (cl--find-class class))
-         (slots-vec (and class-obj (eieio--class-slots class-obj)))
-         result)
-    (when slots-vec
-      (cl-loop for slot-desc across slots-vec
-               do (let ((value (alist-get property
-                                          (cl--slot-descriptor-props slot-desc))))
-                    (when value
-                      (push (cons (cl--slot-descriptor-name slot-desc) value)
-                            result))))
-      (nreverse result))))
+  (let (result)
+    (dolist (meta (beads-meta--class-slot-meta class))
+      (let ((value (alist-get property (plist-get meta :props))))
+        (when value
+          (push (cons (plist-get meta :name) value) result))))
+    (nreverse result)))
 
 (defun beads-meta-command-slots (class)
   "Get all slots for command CLASS including inherited slots.
 CLASS is a class name symbol.
 
 Returns a list of slot name symbols."
-  (let* ((class-obj (cl--find-class class))
-         (slots-vec (and class-obj (eieio--class-slots class-obj))))
-    (when slots-vec
-      (cl-loop for slot-desc across slots-vec
-               collect (cl--slot-descriptor-name slot-desc)))))
+  (mapcar (lambda (meta) (plist-get meta :name))
+          (beads-meta--class-slot-meta class)))
 
 (defun beads-meta--slot-initarg (class-obj slot-name)
   "Get the initarg keyword for SLOT-NAME in CLASS-OBJ.
@@ -908,26 +955,22 @@ Returns nil if slot not found."
 Uses the :json-key custom property if set, otherwise converts
 the slot name by replacing hyphens with underscores.
 Returns a symbol (e.g., slot `issue-type' -> `issue_type')."
-  (or (beads-meta-slot-property class slot-name :json-key)
-      (intern (replace-regexp-in-string
-               "-" "_" (symbol-name slot-name)))))
+  (let ((meta (beads-meta--slot-meta class slot-name)))
+    (or (and meta (plist-get meta :json-key))
+        (intern (replace-regexp-in-string
+                 "-" "_" (symbol-name slot-name))))))
 
 (defun beads-meta-slot-initarg (class slot-name)
   "Get the initarg keyword for SLOT-NAME in CLASS.
 CLASS is a class name symbol.  Returns a keyword (e.g., :title)."
-  (let ((class-obj (cl--find-class class)))
-    (when class-obj
-      (beads-meta--slot-initarg class-obj slot-name))))
+  (let ((meta (beads-meta--slot-meta class slot-name)))
+    (and meta (plist-get meta :initarg))))
 
 (defun beads-meta-slot-type (class slot-name)
   "Get the EIEIO :type for SLOT-NAME in CLASS.
 CLASS is a class name symbol."
-  (let* ((class-obj (cl--find-class class))
-         (slots-vec (and class-obj (eieio--class-slots class-obj))))
-    (when slots-vec
-      (cl-loop for slot-desc across slots-vec
-               when (eq (cl--slot-descriptor-name slot-desc) slot-name)
-               return (cl--slot-descriptor-type slot-desc)))))
+  (let ((meta (beads-meta--slot-meta class slot-name)))
+    (and meta (plist-get meta :type))))
 
 (defun beads-meta-positional-slots (class)
   "Get all positional slots for CLASS, sorted by position.
