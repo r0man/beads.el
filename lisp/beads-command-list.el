@@ -1335,8 +1335,9 @@ sections omit their issues."
       (let ((frag (beads-pager--mode-line-fragment)))
         (when frag (push (string-trim frag) parts))))
     (concat "  " (mapconcat #'identity (nreverse parts) " · ")
-            "  ·  RET visit · SPC fold · m mark · d close · C claim"
-            " · / filter · ? dispatch")))
+            "  ·  "
+            (beads-help-hint "RET visit" "SPC fold" "m mark"
+                             "d close" "C claim" "/ filter"))))
 
 (defun beads-list--section-at-point-p ()
   "Return non-nil when point is on a section header row."

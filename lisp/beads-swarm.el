@@ -492,16 +492,21 @@ epic title; nil matches everything."
 (defun beads-swarm-list--header-line ()
   "Return the fleet list header line."
   (let ((count (length beads-swarm-list--items)))
-    (format "Swarms (%d%s)%s"
-            count
-            (if beads-swarm-list--all " all" " active")
-            (cond
-             (beads-swarm-list--error
-              (propertize (format "  error: %s" beads-swarm-list--error)
-                          'face 'beads-face-error))
-             (beads-swarm-list--filter
-              (format "  filter: %s" beads-swarm-list--filter))
-             (t "")))))
+    (concat
+     (format "Swarms (%d%s)%s"
+             count
+             (if beads-swarm-list--all " all" " active")
+             (cond
+              (beads-swarm-list--error
+               (propertize (format "  error: %s" beads-swarm-list--error)
+                           'face 'beads-face-error))
+              (beads-swarm-list--filter
+               (format "  filter: %s" beads-swarm-list--filter))
+              (t "")))
+     "  "
+     (propertize (beads-help-hint "RET status" "c create" "f filter"
+                                  "g refresh" "q bury")
+                 'face 'shadow))))
 
 ;;; Fleet list: loading and entry point
 
@@ -1057,7 +1062,10 @@ Returns the empty string when there is no lane data yet."
   (hl-line-mode 1)
   (add-hook 'beads-thing-toggle-functions
             #'beads-swarm-status--toggle-thing nil t)
-  (beads-mode--install-navigation-keys beads-swarm-status-mode-map))
+  (beads-mode--install-navigation-keys beads-swarm-status-mode-map)
+  (setq header-line-format
+        '(" " (:eval (beads-help-hint "RET visit" "a assign" "c claim"
+                                       "W lanes" "g refresh" "q bury")))))
 
 (defun beads-swarm-status-buffer (id &optional directory)
   "Return the status board buffer for ID scoped to DIRECTORY."
@@ -1185,6 +1193,10 @@ lanes as well."
   "Major mode for the swarm validate / ready-fronts (waves) view."
   :interactive nil
   (setq-local truncate-lines t)
+  (setq header-line-format
+        '(" " (:eval (beads-help-hint "RET visit" "v verbose"
+                                       "g refresh" "q bury"))))
+  (beads-mode--install-navigation-keys beads-swarm-waves-mode-map)
   (setq-local revert-buffer-function
               (lambda (&rest _) (beads-swarm-waves-refresh))))
 

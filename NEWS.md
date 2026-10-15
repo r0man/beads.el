@@ -21,6 +21,22 @@ User-visible and API-breaking changes, newest first.
 * **Additive only.** The existing per-view error display and the debug
   buffer are unchanged.
 
+### Uniform `?` help/dispatch hints across primary views
+
+* **Every primary view now advertises `?`.** A new
+`beads-help-hint`/`beads-help-hint-entry` pair (`beads-buffer.el`) builds
+the canonical footer fragment `… · ? dispatch`, and the issue list, issue
+show, dashboard, agent list, events, events-history, rewind, formula and
+molecule/wisp views use it so the help entry reads the same everywhere
+(the wording shape matches gascity.el's footers).
+* **`?` opens the dispatch menu in every primary view.** The formula
+list/show and swarm waves views previously inherited `describe-mode` from
+their parent keymaps; they now install the universal navigation contract
+so `?` opens `beads-dispatch` there too.  A new
+`lisp/test/beads-discoverability-test.el` invokes each primary view mode
+and asserts the effective `?` binding, complementing the reserved-key
+table in `lisp/test/beads-key-registry-test.el`.
+
 ### Dashboard header names the owning city
 
 * **The dashboard header can name the owning city.** `beads-dashboard'
