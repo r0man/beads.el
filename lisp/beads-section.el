@@ -89,8 +89,8 @@ merged into the result (callers stamp surface-specific keys like
 Reads the `beads-section' text property and extracts the issue ID
 from a `beads-issue-section' data object."
   (when-let* ((sec (get-text-property (point) 'beads-section))
-              (_ (object-of-class-p sec 'beads-issue-section))
-              (issue (oref sec issue)))
+              (issue (and (object-of-class-p sec 'beads-issue-section)
+                          (oref sec issue))))
     (oref issue id)))
 
 ;;; vui Components

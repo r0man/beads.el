@@ -32,6 +32,26 @@ jobs:
           deps=$(scripts/ci-deps transient vui marginalia undercover)
           echo "EMACSLOADPATH=$deps" >> "$GITHUB_ENV"
 
+      # The `:unit' selector skips `:integration' tests, but some unit
+      # suites still resolve the bd executable (or spawn it through an
+      # unmocked process call), so bd/dolt/graphviz must be on PATH as
+      # they were before the autotools migration.  Keep these steps in
+      # sync with test.yml.
+      - name: Install Beads v1.3.1
+        run: |
+          curl -fsSL https://github.com/gastownhall/beads/releases/download/v1.3.1/beads_1.3.1_linux_amd64.tar.gz \
+            | tar -xz -C /usr/local/bin bd
+          bd --version
+
+      - name: Install Dolt
+        run: sudo bash -c 'curl -L https://github.com/dolthub/dolt/releases/latest/download/install.sh | bash'
+
+      - name: Verify Dolt installation
+        run: dolt version
+
+      - name: Install Graphviz
+        run: sudo apt-get update && sudo apt-get install -y graphviz
+
       - name: Create coverage directory
         run: mkdir -p coverage
 
