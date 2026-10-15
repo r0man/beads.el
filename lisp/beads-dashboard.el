@@ -88,6 +88,16 @@ collapsed because most projects do not use it."
   :type '(alist :key-type symbol :value-type boolean)
   :group 'beads)
 
+(defcustom beads-dashboard-city nil
+  "Name of the owning city to show in the dashboard header, or nil.
+When nil, a dashboard opened for a Gas City store falls back to the
+basename of the GC_CITY environment variable; otherwise the header
+falls back to the resolved store path.  A caller can also scope a
+board explicitly with the `:city' keyword of `beads-dashboard' (the
+seam a city/rig integration uses to disambiguate two same-named rigs)."
+  :type '(choice (const :tag "Resolve automatically" nil) string)
+  :group 'beads)
+
 (defvar beads-dashboard--visibility-cache nil
   "Session-scoped alist mapping project root -> collapsed alist.
 Restored on buffer init so collapse state survives close-and-reopen.")
@@ -130,6 +140,12 @@ Thin wrapper over `beads--project-root'; see it and
 Fold state, row overrides and refreshes key on it, so toggling a
 section never walks the tree again (a synchronous TRAMP walk for a
 remote store, dashboard-v3 §8.3 R2).")
+
+(defvar-local beads-dashboard--city nil
+  "Buffer-local owning city name for this dashboard, or nil.
+Set at open from the `:city' keyword, `beads-dashboard-city' or the
+GC_CITY environment variable, so the header can name the city without
+resolving it on every vui reconcile.")
 
 (defun beads-dashboard--current-root ()
   "Return this dashboard's root: the one cached at open, else resolved."
@@ -211,19 +227,37 @@ state is visible from any window showing the dashboard."
                             (if live-chip (format " · %s" live-chip) "")))))
       (force-mode-line-update))))
 
+(defun beads-dashboard--resolve-city (&optional city)
+  "Return the owning city name to label a dashboard, or nil.
+CITY (from `beads-dashboard's `:city' keyword) wins; then the
+`beads-dashboard-city' defcustom; then the basename of the GC_CITY
+environment variable a Gas City process exports.  Nil when no city is
+known, in which case the header falls back to the resolved store path."
+  (or (and (stringp city) (not (string-empty-p city)) city)
+      (and (stringp beads-dashboard-city)
+           (not (string-empty-p beads-dashboard-city))
+           beads-dashboard-city)
+      (when-let* ((env (getenv "GC_CITY")))
+        (let ((name (file-name-nondirectory (directory-file-name env))))
+          (unless (string-empty-p name) name)))))
+
 (defun beads-dashboard--header-vnode (root db)
   "Return the dashboard header vnode for project ROOT and DB path.
-A live journal chip (from `beads-live-header-string') is appended when
+The owning city (when known) is shown in parentheses after the rig
+name so a board is unambiguous across cities with a same-named rig;
+without a city the resolved store path (DB) is shown instead.  A live
+journal chip (from `beads-live-header-string') is appended when
 `beads-live' is loaded and a stream covers ROOT."
   (let ((project-name (if root
                           (file-name-nondirectory (directory-file-name root))
-                        "unknown")))
+                        "unknown"))
+        (scope (or beads-dashboard--city (beads-dashboard--resolve-city))))
     (vui-hstack :spacing 0
       (vui-text "Beads-Dashboard" :face 'bold)
       (vui-text " — " :face 'shadow)
       (vui-text project-name :face 'font-lock-constant-face)
-      (when db
-        (vui-text (format " (%s)" db) :face 'shadow))
+      (when-let* ((label (or scope db)))
+        (vui-text (format " (%s)" label) :face 'shadow))
       (when-let* ((chip (beads-dashboard--live-chip)))
         (vui-text "  " :face 'shadow)
         (vui-text chip :face 'beads-events-status)))))
@@ -1277,7 +1311,7 @@ the new state without the user having to press \\[beads-dashboard-refresh]."
 ;;; Entry Point
 
 ;;;###autoload
-(cl-defun beads-dashboard (&key directory)
+(cl-defun beads-dashboard (&key directory city)
   "Open or refresh the Magit-idiomatic beads dashboard for this project.
 
 With DIRECTORY non-nil, scope the board to the bead store at DIRECTORY
@@ -1287,6 +1321,10 @@ call; the project root and database path are both resolved relative to
 DIRECTORY, and the buffer's bd calls run with --directory
 \(`beads-store-directory').  Existing zero-argument callers are
 unaffected.
+
+With CITY non-nil, name that owning city in the header (see
+`beads-dashboard-city'); this is the seam a city/rig integration uses
+to disambiguate two cities that carry a same-named rig.
 
 Without DIRECTORY, a call from the menu of `project-switch-project'
 opens the board of the chosen project, not of the current buffer."
@@ -1315,7 +1353,9 @@ opens the board of the chosen project, not of the current buffer."
       ;; path, which is not looked up remotely (a directory scan).
       (setq-local beads-store-directory
                   (or store (and root (file-remote-p root) root)))
-      (setq-local beads-dashboard--root root))
+      (setq-local beads-dashboard--root root)
+      (setq-local beads-dashboard--city
+                  (or city (beads-dashboard--resolve-city))))
     ;; Probe the policy lazily (cached after first run).
     (unless beads-command--policy
       (beads-command--policy-probe (lambda (_p) (ignore))))
