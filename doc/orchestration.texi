@@ -153,6 +153,7 @@ menu, then run @command{scripts/dispatch-docs --write} to regenerate it
 @item Manage @tab @kbd{.} @tab @code{beads-config} @tab Config
 @item Manage @tab @kbd{W} @tab @code{beads-worktree-menu} @tab Worktrees...
 @item Maintenance @tab @kbd{!} @tab @code{beads-maintenance} @tab Maintenance...
+@item Maintenance @tab @kbd{*} @tab @code{beads-log} @tab Command log
 @item Maintenance @tab @kbd{g} @tab @code{beads-refresh-menu} @tab Refresh cache
 @item Maintenance @tab @kbd{q} @tab @code{transient-quit-one} @tab Quit
 @end multitable
@@ -175,6 +176,7 @@ menu, then run @command{scripts/dispatch-docs --write} to regenerate it
 @item Views & Reports @tab @kbd{O} @tab @code{beads-find-duplicates} @tab Find duplicates
 @item Views & Reports @tab @kbd{o} @tab @code{beads-orphans} @tab Orphans
 @item Views & Reports @tab @kbd{$} @tab @code{beads-wisp-list} @tab Wisps
+@item Views & Reports @tab @kbd{*} @tab @code{beads-log} @tab Command log
 @item Issue Details @tab @kbd{a} @tab @code{beads-children} @tab Children
 @item Issue Details @tab @kbd{=} @tab @code{beads-comments-menu} @tab Comments
 @item Issue Details @tab @kbd{[} @tab @code{beads-todo} @tab Todo

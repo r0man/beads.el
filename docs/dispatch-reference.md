@@ -68,6 +68,7 @@ prefixes owned by beads.el are part of this contract.
 | Key | Command | Description |
 | --- | --- | --- |
 | `!` | `beads-maintenance` | Maintenance... |
+| `*` | `beads-log` | Command log |
 | `g` | `beads-refresh-menu` | Refresh cache |
 | `q` | `transient-quit-one` | Quit |
 
@@ -96,6 +97,7 @@ prefixes owned by beads.el are part of this contract.
 | `O` | `beads-find-duplicates` | Find duplicates |
 | `o` | `beads-orphans` | Orphans |
 | `$` | `beads-wisp-list` | Wisps |
+| `*` | `beads-log` | Command log |
 
 ##### Issue Details
 

@@ -75,6 +75,9 @@ Enables debug logging if not already enabled."
         (erase-buffer)))
     (message "Debug buffer cleared")))
 
+;;;###autoload
+(autoload 'beads-log "beads-log" nil t)
+
 (defvar beads-debug-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "g") #'beads-show-debug-buffer)

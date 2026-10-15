@@ -180,6 +180,7 @@ the maintenance menu. The table below is generated from the menu definition by
 | Key | Command | Description |
 | --- | --- | --- |
 | `!` | `beads-maintenance` | Maintenance... |
+| `*` | `beads-log` | Command log |
 | `g` | `beads-refresh-menu` | Refresh cache |
 | `q` | `transient-quit-one` | Quit |
 <!-- END GENERATED: dispatch menu -->

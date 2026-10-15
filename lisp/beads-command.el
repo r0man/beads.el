@@ -45,6 +45,7 @@
 (require 'json)
 
 (require 'beads-util)
+(require 'beads-log)
 
 (defvar beads-list-default-limit)
 (declare-function beads-show "beads-command-show")
@@ -359,6 +360,21 @@ ERRORS may be a string, a list of strings, or nil."
    ((listp errors)
     (mapconcat #'identity errors "; "))
    (t (format "%s" errors))))
+
+(defun beads-command--log-async (status store argv exit-code duration stderr error)
+  "Record one async bd invocation in the durable Beads log.
+STATUS is a symbol (`ok', `failed', `timeout', `parse-error', or
+`spawn-error'); STORE is the directory bd ran in; ARGV is the command
+line; EXIT-CODE, DURATION, STDERR, and ERROR describe the outcome.
+Delegates to `beads-log-record' when that module is available."
+  (when (fboundp 'beads-log-record)
+    (beads-log-record :status status
+                      :store store
+                      :argv argv
+                      :exit-code exit-code
+                      :duration duration
+                      :stderr stderr
+                      :error error)))
 
 (defun beads-command-error-message (err)
   "Return the human-readable message of an async command error ERR.
@@ -1302,6 +1318,7 @@ an empty :stderr."
          (stderr-buffer nil)
          (process-environment (beads-command--process-environment))
          (start-time (current-time))
+         (store-dir default-directory)
          (timed-out nil)
          (timer nil)
          (counted nil)
@@ -1388,6 +1405,8 @@ an empty :stderr."
                                  default-directory)
                          :command cmd-string
                          :spawn-error 'remote-directory-missing)))
+          (beads-command--log-async 'spawn-error store-dir cmd-string
+                                    nil nil nil (car err))
           (run-at-time 0 nil (lambda () (reject-all err))))
         (cl-return-from beads-command--spawn-async nil))
       (with-connection-local-variables
@@ -1446,6 +1465,9 @@ an empty :stderr."
                        (decrement)
                        (cond
                         (timed-out
+                         (beads-command--log-async
+                          'timeout store-dir cmd-string proc-exit-code
+                          elapsed proc-stderr "Command timed out")
                          (reject-all
                           (list "Command timed out"
                                 :command cmd-string
@@ -1455,14 +1477,27 @@ an empty :stderr."
                          (condition-case parse-err
                              (let ((result (beads-command-parse
                                             command proc-stdout)))
+                               (beads-command--log-async
+                                'ok store-dir cmd-string proc-exit-code
+                                elapsed proc-stderr nil)
                                (resolve-all result))
                            (error
+                            (beads-command--log-async
+                             'parse-error store-dir cmd-string proc-exit-code
+                             elapsed proc-stderr
+                             (format "Parse error: %s"
+                                     (error-message-string parse-err)))
                             (reject-all
                              (list (format "Parse error: %s"
                                            (error-message-string parse-err))
                                    :stdout proc-stdout
                                    :parse-error parse-err)))))
                         (t
+                         (beads-command--log-async
+                          'failed store-dir cmd-string proc-exit-code
+                          elapsed proc-stderr
+                          (format "Command failed with exit code %d"
+                                  proc-exit-code))
                          (reject-all
                           (list (format "Command failed with exit code %d"
                                         proc-exit-code)
@@ -1477,6 +1512,8 @@ an empty :stderr."
                                   (error-message-string spawn-err))
                           :command cmd-string
                           :spawn-error spawn-err)))
+           (beads-command--log-async 'spawn-error store-dir cmd-string
+                                     nil nil nil (car err))
            (run-at-time 0 nil (lambda () (reject-all err))))
          (cl-return-from beads-command--spawn-async nil))))
       ;; A process that already exited DID spawn: a fast bd call (an
@@ -1490,6 +1527,8 @@ an empty :stderr."
         (let ((err (list (format "Failed to spawn bd command: %s" cmd-string)
                          :command cmd-string
                          :spawn-error 'no-process)))
+          (beads-command--log-async 'spawn-error store-dir cmd-string
+                                    nil nil nil (car err))
           (run-at-time 0 nil (lambda () (reject-all err))))
         (cl-return-from beads-command--spawn-async nil))
       ;; Wire single-flight entry now that we have the process.
