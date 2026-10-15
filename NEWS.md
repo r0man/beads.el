@@ -4,6 +4,23 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Durable command log for async bd invocations
+
+* **New `*beads-log*` buffer.** Async `bd` invocations now append a
+  durable entry on completion: timestamp, the resolved store, the `bd`
+  argv, the exit code, the duration, and the captured stderr (or the
+  error message for a spawn, timeout, or parse failure).  Unlike the
+  `*beads-debug*` buffer this is always on and is not gated by
+  `beads-enable-debug`.
+* **Bounded.** The in-memory log keeps at most `beads-log-max-entries`
+  entries and truncates each entry's stderr to
+  `beads-log-max-stderr-chars`, so it cannot grow without limit.
+* **Access.** `M-x beads-log` opens the buffer; `g` refreshes, `c`
+  clears, and clicking the `argv:` line copies the command.  The
+  command is bound to `*` in the dispatch and maintenance menus.
+* **Additive only.** The existing per-view error display and the debug
+  buffer are unchanged.
+
 ### Dashboard header names the owning city
 
 * **The dashboard header can name the owning city.** `beads-dashboard'

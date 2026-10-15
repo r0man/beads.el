@@ -111,6 +111,7 @@ gascity's `[City]' group when that package is present."
     ("W" "Worktrees..." beads-worktree-menu)]]
   [["Maintenance"
     ("!" "Maintenance..." beads-maintenance)
+    ("*" "Command log" beads-log)
     ("g" "Refresh cache" beads-refresh-menu)
     ("q" "Quit" transient-quit-one)]
    ;; Downstream groups (e.g. gascity's `[City]') are spliced in here.
@@ -197,7 +198,8 @@ integrations sub-dispatcher, and level 7 setup/migration."
    ("l" "Lint" beads-lint)
    ("O" "Find duplicates" beads-find-duplicates)
    ("o" "Orphans" beads-orphans)
-   ("$" "Wisps" beads-wisp-list)]
+   ("$" "Wisps" beads-wisp-list)
+   ("*" "Command log" beads-log)]
   [:level 1 "Issue Details"
    ("a" "Children" beads-children)
    ("=" "Comments" beads-comments-menu)
