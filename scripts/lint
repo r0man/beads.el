@@ -34,8 +34,7 @@ done
 
 # 1. Byte-compile every source file with warnings as errors.  This uses
 # the same plain-batch flags as the `make' byte-compile target (no -Q) so
-# it sees the dependency autoloads site-start activates; compile-time
-# `sesman-browser' is resolved that way until be-4fa65 removes sesman.
+# it sees the dependency autoloads site-start activates.
 # shellcheck disable=SC2086
 "$emacs_bin" --batch -L "$root/lisp" $load_path_args \
   -l "$root/build-aux/beads-compile.el" "$root"/lisp/*.el

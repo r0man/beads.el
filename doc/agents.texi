@@ -8,8 +8,8 @@
 beads.el can launch an AI agent on an issue from inside Emacs.  A
 @emph{session} is the combination of an agent @emph{type} (what the agent
 is asked to do) and a @emph{backend} (the program and terminal that run
-it), optionally isolated in a git worktree.  Sessions are managed with
-@uref{https://github.com/emacsattic/sesman, sesman}.
+it), optionally isolated in a git worktree.  Sessions are tracked in an
+in-house registry, so no external session-manager package is required.
 
 @menu
 * Agent Commands::
@@ -114,11 +114,12 @@ and leaves the rest selectable but out of the way.
 @section Sessions and Worktrees
 @cindex worktree isolation
 
-A session is registered with sesman as soon as it starts, so it can be
-revisited after a restart.  When git worktree isolation is enabled, the
-agent runs in its own worktree with its own branch, so parallel agents do
-not fight over the working tree.  The worktree helpers live in
-@code{beads-git.el} and are shared with the terminal and swarm modules.
+A session is registered in the in-house registry as soon as it starts, so
+it can be revisited after a restart.  When git worktree isolation is
+enabled, the agent runs in its own worktree with its own branch, so
+parallel agents do not fight over the working tree.  The worktree helpers
+live in @code{beads-git.el} and are shared with the terminal and swarm
+modules.
 
 @node Sling and Swarm
 @section Sling and Swarm

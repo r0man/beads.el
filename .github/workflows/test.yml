@@ -66,7 +66,7 @@ jobs:
 
       - name: Install Elisp dependencies
         run: |
-          echo "EMACSLOADPATH=$(scripts/ci-deps transient vui sesman marginalia)" >> "$GITHUB_ENV"
+          echo "EMACSLOADPATH=$(scripts/ci-deps transient vui marginalia)" >> "$GITHUB_ENV"
 
       # Bootstrap, configure (which discovers bd/dolt/graphviz and thus
       # selects the full suite), byte-compile with warnings as errors, and
