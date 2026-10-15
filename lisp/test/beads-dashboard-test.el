@@ -1489,6 +1489,41 @@ Idempotent: applying twice does not insert a second marker."
     (let ((rendered (format "%S" (beads-dashboard--header-vnode "/tmp/p/" nil))))
       (should (string-match-p "live" rendered)))))
 
+(ert-deftest beads-dashboard-test-header-vnode-names-city ()
+  "The header names the owning city when one is known (be-nfwwv)."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-dashboard--live-chip) (lambda () nil))
+            ((symbol-function 'beads-dashboard--resolve-city)
+             (lambda (&optional _city) "bright-lights")))
+    (let ((rendered (format "%S"
+                            (beads-dashboard--header-vnode "/tmp/hello-world/" nil))))
+      (should (string-match-p "hello-world" rendered))
+      (should (string-match-p "bright-lights" rendered)))))
+
+(ert-deftest beads-dashboard-test-header-city-explicit-wins ()
+  "`:city' / buffer-local overrides the defcustom and env fallback."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-dashboard--live-chip) (lambda () nil))
+            ((symbol-function 'beads-dashboard--resolve-city)
+             (lambda (&optional _city) "env-city")))
+    (with-temp-buffer
+      (setq-local beads-dashboard--city "explicit-city")
+      (let ((rendered (format "%S"
+                              (beads-dashboard--header-vnode "/tmp/hello-world/" nil))))
+        (should (string-match-p "explicit-city" rendered))
+        (should-not (string-match-p "env-city" rendered))))))
+
+(ert-deftest beads-dashboard-test-header-vnode-falls-back-to-store ()
+  "Without a city the header keeps showing the resolved store path."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-dashboard--live-chip) (lambda () nil))
+            ((symbol-function 'beads-dashboard--resolve-city)
+             (lambda (&optional _city) nil)))
+    (let ((rendered (format "%S"
+                            (beads-dashboard--header-vnode "/tmp/hello-world/"
+                                                          "/srv/hello-world/.beads"))))
+      (should (string-match-p "/srv/hello-world/.beads" rendered)))))
+
 (ert-deftest beads-dashboard-test-live-mode-line-chip ()
   "The mode line carries the live chip without dropping auto:on."
   :tags '(:unit)

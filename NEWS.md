@@ -4,6 +4,18 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Dashboard header names the owning city
+
+* **The dashboard header can name the owning city.** `beads-dashboard'
+now accepts a `:city' keyword and the `beads-dashboard-city' defcustom
+defaults to auto-resolution from the `GC_CITY' environment variable, so
+a board opened through a city/rig integration reads
+`Beads-Dashboard — hello-world (bright-lights)' and is unambiguous when
+two cities carry a same-named rig.  Without a known city the header
+keeps showing the resolved store path, and the rig name and stats are
+unchanged.  This is the beads.el side of the cross-repo city/rig scoping
+seam.
+
 ### Session management without the sesman dependency
 
 * **The external `sesman` package is no longer a dependency.** Agent
