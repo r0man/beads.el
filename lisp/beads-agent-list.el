@@ -454,7 +454,11 @@ with their status, duration, and working directory."
                        (format "  %d session%s%s"
                                count
                                (if (= count 1) "" "s")
-                               (or (beads-pager--mode-line-fragment) "")))))))
+                               (or (beads-pager--mode-line-fragment) ""))))
+              "  ·  "
+              (:eval (beads-help-hint
+                      "RET detail" "x stop" "r restart" "i show issue"
+                      "g refresh" "q bury")))))
     (pop-to-buffer buffer)))
 
 ;;; Hook Integration

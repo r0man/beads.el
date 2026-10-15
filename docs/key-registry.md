@@ -32,6 +32,14 @@ These keys mean the same thing in **every** beads mode.
 `beads-dashboard`; `beads-show` deliberately binds `N` elsewhere and
 is recorded as a declared exception below.
 
+The `?` dispatch binding is installed through the universal navigation
+contract (`beads-mode--install-navigation-keys`); every primary view
+binds it, including the formula list/show and swarm waves views added
+during the discoverability pass.  `beads-key-registry-test.el` asserts
+the effective binding for the four mode columns above and
+`beads-discoverability-test.el` covers the remaining primary views by
+invoking each mode and inspecting its local map.
+
 ## At-point / scope keys
 
 Keys are keyed by the **type at point**, not by the mode.  A bead row

@@ -264,10 +264,14 @@ Returns the record so callers can thread it as the next PREVIOUS."
 
 (defun beads-events-history--header-line ()
   "Return this history view's header line."
-  (format " %s history  %d events  store: %s"
-          (or beads-events-history--issue-id "?")
-          (length beads-events-history--records)
-          (or beads-events-history--store "?")))
+  (concat
+   (format " %s history  %d events  store: %s"
+           (or beads-events-history--issue-id "?")
+           (length beads-events-history--records)
+           (or beads-events-history--store "?"))
+   "  "
+   (propertize (beads-help-hint "RET visit" "g refresh" "q bury")
+               'face 'shadow)))
 
 (defun beads-events-history-refresh ()
   "Re-read and re-render this history view."

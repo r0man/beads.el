@@ -608,6 +608,11 @@ Pure over buffer-local state, so it is safe in `:eval'."
              'face 'shadow)
             (if filters (concat "  " (propertize filters 'face 'transient-value))
               "")
+            "  "
+            (propertize
+             (beads-help-hint "RET visit" "f filter" "H history" "r rewind"
+                              "e export" "g refresh")
+             'face 'shadow)
             (propertize " " 'display
                         `(space :align-to (- right ,(1+ (string-width right)))))
             right)))

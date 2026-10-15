@@ -452,6 +452,9 @@ Type-group header rows (whose id is not a string) return nil."
     (define-key map (kbd "o") #'beads-formula-list-open-source)
     (define-key map (kbd "l") #'beads-formula-seed-sling)
     (define-key map (kbd "s") #'beads-formula-launch-standalone)
+    ;; TAB/S-TAB move by thing, SPC toggles, ? dispatches, C-c b is
+    ;; reserved for extensions (design.md §3.3).
+    (beads-mode--install-navigation-keys map)
     map)
   "Keymap for `beads-formula-list-mode'.")
 
@@ -472,7 +475,13 @@ Type-group header rows (whose id is not a string) return nil."
   (setq tabulated-list-sort-key (cons "Name" nil))
   (tabulated-list-init-header)
   (hl-line-mode 1)
-  (beads-pager-mode 1))
+  (beads-pager-mode 1)
+  (setq mode-line-format
+        '("%e" mode-line-front-space
+          mode-line-buffer-identification
+          "  ·  "
+          (:eval (beads-help-hint "RET show" "o source" "l sling"
+                                  "s standalone" "g refresh" "q bury")))))
 
 ;;; ============================================================
 ;;; Formula Show Buffer
@@ -714,6 +723,8 @@ Uses `beads-formula-list--normalize-directory' for path comparison."
     (define-key map (kbd "p") #'backward-paragraph)
     (define-key map (kbd "l") #'beads-formula-seed-sling)
     (define-key map (kbd "s") #'beads-formula-launch-standalone)
+    ;; ? dispatch and the universal navigation contract (design.md §3.3).
+    (beads-mode--install-navigation-keys map)
     map)
   "Keymap for `beads-formula-show-mode'.")
 
@@ -730,6 +741,10 @@ Uses `beads-formula-list--normalize-directory' for path comparison."
 \\{beads-formula-show-mode-map}"
   (setq truncate-lines nil)
   (visual-line-mode 1)
+  (setq header-line-format
+        '(" "
+          (:eval (beads-help-hint "o source" "l sling" "s standalone"
+                                  "g refresh" "q bury"))))
   ;; Imenu integration for section navigation
   (setq-local imenu-generic-expression beads-formula-show-imenu-expression))
 

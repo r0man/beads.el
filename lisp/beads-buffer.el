@@ -120,6 +120,24 @@ signals `user-error' when point is not on an issue."
       (user-error "No issue at point"))
     (beads-show id)))
 
+;;; Discoverability hints
+
+(defconst beads-help-hint-entry "? dispatch"
+  "Canonical footer label for the `?' help/dispatch binding.
+Kept in one place so every primary view advertises the help entry the
+same way and `docs/dispatch-reference.md' stays the single source of
+truth for what `?' opens.  See `docs/key-registry.md'.")
+
+(defun beads-help-hint (&rest verbs)
+  "Return the canonical view hint naming VERBS plus the help entry.
+VERBS is a list of short verb strings such as \"g refresh\" and
+\"RET visit\".  The result joins them with \" · \" and ends with
+`beads-help-hint-entry', matching gascity.el's footer shape, e.g.
+\"g refresh · RET open · ? dispatch\"."
+  (mapconcat #'identity
+             (append verbs (list beads-help-hint-entry))
+             " · "))
+
 ;;; Helper Functions
 
 (defun beads-buffer--truncate-title (title)

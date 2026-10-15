@@ -631,8 +631,11 @@ is isolated so it cannot blank the rest of the view."
 (defun beads-molecule--footer-vnode ()
   "Return the key-hint footer vnode."
   (vui-text
-   (concat "  g refresh · r ready-only · SPC fold · TAB/S-TAB move · "
-           "RET inspect · ] next range · [ prev range · q bury")
+   (concat
+    "  "
+    (beads-help-hint
+     "g refresh" "r ready-only" "SPC fold" "TAB/S-TAB move"
+     "RET inspect" "] next range" "[ prev range" "q bury"))
    :face 'shadow))
 
 (defun beads-molecule--error-string (err)

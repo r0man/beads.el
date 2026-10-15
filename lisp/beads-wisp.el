@@ -577,7 +577,13 @@ argument NO-CONFIRM, skip the typed confirmation."
   (setq tabulated-list-sort-key nil)
   (tabulated-list-init-header)
   (hl-line-mode 1)
-  (beads-pager-mode 1))
+  (beads-pager-mode 1)
+  (setq mode-line-format
+        '("%e" mode-line-front-space
+          mode-line-buffer-identification
+          "  ·  "
+          (:eval (beads-help-hint "RET open" "s squash" "b burn"
+                                  "P purge" "g refresh" "q bury")))))
 
 ;;;###autoload
 (defun beads-wisp-list ()

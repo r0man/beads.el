@@ -33,6 +33,7 @@
 (require 'eieio)
 (require 'cl-lib)
 (require 'vui)
+(require 'beads-buffer)
 (require 'beads-section)
 (require 'beads-command)
 (require 'beads-prefix)
@@ -265,7 +266,12 @@ journal chip (from `beads-live-header-string') is appended when
 (defun beads-dashboard--footer-vnode ()
   "Return the dashboard footer vnode (key hints)."
   (vui-text
-   "KEYS: TAB/S-TAB next/prev · SPC fold · N/P section · M-0..M-4 depth · +/-/* rows · g refresh · c claim · b blocker · a agent · RET visit · ? dispatch · q quit"
+   (concat
+    "KEYS: "
+    (beads-help-hint
+     "TAB/S-TAB next/prev" "SPC fold" "N/P section" "M-0..M-4 depth"
+     "+/-/* rows" "g refresh" "c claim" "b blocker" "a agent"
+     "RET visit" "q quit"))
    :face 'shadow))
 
 (defun beads-dashboard--no-project-vnode ()

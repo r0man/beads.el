@@ -524,7 +524,10 @@ Format: ((epic-id . (expanded-p . children)) ...)")
 Key bindings:
 \\{beads-epic-status-mode-map}"
   (setq truncate-lines t)
-  (setq buffer-read-only t))
+  (setq buffer-read-only t)
+  (setq header-line-format
+        '(" " (:eval (beads-help-hint "N/P next/prev" "RET show"
+                                       "D distill" "g refresh" "q bury")))))
 
 (provide 'beads-command-epic)
 ;;; beads-command-epic.el ends here

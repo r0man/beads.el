@@ -555,7 +555,11 @@ ids."
                        (format "  %d gate%s%s"
                                count
                                (if (= count 1) "" "s")
-                               (or (beads-pager--mode-line-fragment) "")))))))
+                               (or (beads-pager--mode-line-fragment) ""))))
+              "  ·  "
+              (:eval (beads-help-hint "RET detail" "c create" "C check"
+                                      "R resolve" "a all" "g refresh"
+                                      "q bury")))))
     (pop-to-buffer buffer)))
 
 ;;; Create (REQ-SF-032)
@@ -812,11 +816,16 @@ The header is omitted when RENDERER inserts nothing."
          (type (plist-get display :type))
          (status (plist-get display :status)))
     (setq header-line-format
-          (format "%s — gate%s"
-                  id
-                  (if (plist-get display :repo)
-                      (format " · repo %s" (plist-get display :repo))
-                    "")))
+          (concat
+           (format "%s — gate%s"
+                   id
+                   (if (plist-get display :repo)
+                       (format " · repo %s" (plist-get display :repo))
+                     ""))
+           "  "
+           (propertize (beads-help-hint "C check" "R resolve" "w waiter"
+                                        "D discover" "g refresh" "q bury")
+                       'face 'shadow)))
     (insert (propertize (format "%s — gate\n" id) 'face 'beads-face-header))
     (insert (make-string 72 ?─) "\n")
     (beads-gate--insert-header "Type" (beads-gate--format-type type))

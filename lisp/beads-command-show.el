@@ -2305,7 +2305,11 @@ buffer only shows sections that have data."
     ;; breadcrumb back to the originating view (mockup §5a).
     (insert (propertize (make-string 78 ?─) 'face 'shadow))
     (insert "\n")
-    (insert (propertize "  q bury · g refresh · ? dispatch" 'face 'shadow))
+    (insert (propertize
+             (concat "  " (beads-help-hint
+                           "RET follow" "c comment" "d close" "C claim"
+                           "g refresh" "q bury"))
+             'face 'shadow))
     (insert "\n")
     (beads-show--insert-store-line)
     (beads-show--insert-breadcrumb)

@@ -208,11 +208,15 @@ A `:deleted' snapshot renders a tombstone."
 
 (defun beads-events-rewind--header-line ()
   "Return the read-only REWIND header line."
-  (propertize
-   (format " ⏪ REWIND @%d · +%d events · read-only"
-           beads-events-rewind--seq
-           (max 0 (- beads-events-rewind--head beads-events-rewind--seq)))
-   'face 'beads-events-rewind))
+  (concat
+   (propertize
+    (format " ⏪ REWIND @%d · +%d events · read-only"
+            beads-events-rewind--seq
+            (max 0 (- beads-events-rewind--head beads-events-rewind--seq)))
+    'face 'beads-events-rewind)
+   "  "
+   (propertize (beads-help-hint "l live" "g newer" "G older" "J jump" "q bury")
+               'face 'shadow)))
 
 (defun beads-events-rewind--render ()
   "Re-render this rewind buffer from its records at its current seq."
