@@ -41,7 +41,8 @@ jobs:
 
       - name: Install Elisp dependencies
         run: |
-          echo "EMACSLOADPATH=$(scripts/ci-deps transient vui)" >> "$GITHUB_ENV"
+          deps=$(scripts/ci-deps transient vui)
+          echo "EMACSLOADPATH=$deps" >> "$GITHUB_ENV"
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

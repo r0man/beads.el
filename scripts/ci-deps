@@ -26,15 +26,23 @@ emacs_bin=${EMACS:-emacs}
 deps_dir=${CI_DEPS_DIR:-$(mktemp -d)}
 user_dir="$deps_dir/elpa"
 
+## Build a Lisp list of quoted symbols, e.g. `'transient 'vui'.  The
+## quote is a prefix, not a pair, so each element is `'NAME' not
+## `'NAME'' -- a trailing quote would make the form unreadable.
 packages=""
 for pkg in "$@"; do
-  packages="$packages '$pkg'"
+  packages="$packages '$pkg"
 done
 
 mkdir -p "$user_dir"
 
 # Emacs' package.el chatter goes to stderr so stdout stays exactly the
-# load path the caller captures.
+# load path the caller captures.  Each request is installed from its
+# archive `package-desc' rather than by symbol: some dependencies, notably
+# transient, are built into recent Emacsen, and `package-install' called
+# with the symbol alone treats that built-in as already installed and
+# leaves the older bundled copy on the load path.  Passing the desc
+# installs the archive version on every matrix Emacs.
 "$emacs_bin" --batch -Q --eval "(progn
   (require 'package)
   (setq package-user-dir \"$user_dir\")
@@ -44,8 +52,10 @@ mkdir -p "$user_dir"
   (package-initialize)
   (package-refresh-contents)
   (dolist (pkg (list $packages))
-    (package-install pkg)))" >&2
+    (let ((desc (cadr (assq pkg package-archive-contents))))
+      (package-install (or desc pkg) 'dont-select))))" >&2
 
 # Every package lands in its own versioned directory; join them all so a
 # plain `emacs --batch' (no package-initialize) sees the dependencies.
-find "$user_dir" -maxdepth 1 -mindepth 1 -type d | paste -sd: -
+# `archives/' holds the downloaded archive metadata, not loadable code.
+find "$user_dir" -maxdepth 1 -mindepth 1 -type d ! -name archives | paste -sd: -

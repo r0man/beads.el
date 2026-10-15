@@ -34,7 +34,8 @@ jobs:
 
       - name: Install Elisp dependencies
         run: |
-          echo "EMACSLOADPATH=$(scripts/ci-deps transient vui marginalia package-lint)" >> "$GITHUB_ENV"
+          deps=$(scripts/ci-deps transient vui marginalia package-lint)
+          echo "EMACSLOADPATH=$deps" >> "$GITHUB_ENV"
 
       - name: Bootstrap, build and lint
         run: |

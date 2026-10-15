@@ -29,7 +29,8 @@ jobs:
 
       - name: Install Elisp dependencies
         run: |
-          echo "EMACSLOADPATH=$(scripts/ci-deps transient vui marginalia undercover)" >> "$GITHUB_ENV"
+          deps=$(scripts/ci-deps transient vui marginalia undercover)
+          echo "EMACSLOADPATH=$deps" >> "$GITHUB_ENV"
 
       - name: Create coverage directory
         run: mkdir -p coverage
