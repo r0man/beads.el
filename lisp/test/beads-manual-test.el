@@ -143,9 +143,38 @@ agent-shell value cannot reroute bd to a live store."
           (directory-files beads-manual-test--manual-dir t "\\.texi\\'")))
 
 (defun beads-manual-test--image-references ()
-  "Return every distinct `images/...png' path an `@image' form references.
-Searches the Texinfo chapters under `beads-manual-test--manual-dir' and
-reads the image file name from each `@image{FILE,...}' argument."
+  "Return every distinct `images/...png' path a manual form references.
+Resolves both the `@shot{<name>, ...}' macro (to `images/<name>.png' and
+its `images/<name>-thumb.png' preview) and any remaining
+`@image{images/<file>, ...}' form, so
+`beads-manual-image-references-exist' proves every referenced PNG exists."
+  (let (refs)
+    (dolist (page (beads-manual-test--manual-pages))
+      (with-temp-buffer
+        (insert (cdr page))
+        ;; `@shot{<name>, <caption>}' expands to the full-size image (the
+        ;; lightbox href) plus its bounded `-thumb' preview.  Anchor to the
+        ;; line start so the `@c' comment and `@macro shot' definition do
+        ;; not contribute a placeholder such as `NAME'.
+        (goto-char (point-min))
+        (while (re-search-forward
+                "^@shot{\\([A-Za-z0-9._-]+\\)," nil t)
+          (let ((name (match-string 1)))
+            (push (concat "images/" name ".png") refs)
+            (push (concat "images/" name "-thumb.png") refs)))
+        ;; Any remaining literal `@image{images/<file>, ...}' form.
+        (goto-char (point-min))
+        (while (re-search-forward
+                "@image{\\(images/[A-Za-z0-9._-]+\\)\\(?:,[^}]*\\)?}" nil t)
+          (push (concat (match-string 1) ".png") refs))))
+    (delete-dups (nreverse refs))))
+
+(defun beads-manual-test--unbounded-image-references ()
+  "Return full-size image paths embedded by a bare `@image' form.
+REQ-003 forbids an unbounded full-size `@image' in an illustrated HTML
+chapter; the bounded `@shot' macro emits only `-thumb' previews, so any
+`@image{images/<file>, ...}' whose file does not end in `-thumb' is a
+violation."
   (let (refs)
     (dolist (page (beads-manual-test--manual-pages))
       (with-temp-buffer
@@ -153,8 +182,10 @@ reads the image file name from each `@image{FILE,...}' argument."
         (goto-char (point-min))
         (while (re-search-forward
                 "@image{\\(images/[A-Za-z0-9._-]+\\)\\(?:,[^}]*\\)?}" nil t)
-          (push (concat (match-string 1) ".png") refs))))
-    (delete-dups (nreverse refs))))
+          (let ((path (match-string 1)))
+            (unless (string-suffix-p "-thumb" path)
+              (push (concat path ".png") refs))))))
+    (nreverse refs)))
 
 (defun beads-manual-test--write-fake-engine (file body)
   "Write an executable fake capture engine to FILE with shell BODY."
@@ -269,14 +300,16 @@ bd must not stamp a run-generated hash onto any imported issue."
                               shots)))))
 
 (ert-deftest beads-manual-manifest-views-have-pages ()
-  "Every manifest view is embedded as an `@image' by a Texinfo chapter.
-This is the REQ-004 image-coverage gate: dropping a view's `@image'
-from the Texinfo sources must fail it."
+  "Every manifest view is embedded by a Texinfo chapter.
+A view is embedded through the bounded `@shot' macro, or through a bare
+`@image' in a chapter not yet converted.  This is the REQ-004
+image-coverage gate: dropping a view's illustration must fail it."
   :tags '(:unit)
   (let ((pages (beads-manual-test--manual-pages)))
     (dolist (view (beads-manual-test--views "all"))
-      (let ((needle (format "@image{images/%s-\\(?:dark\\|light\\)"
-                            (regexp-quote view))))
+      (let ((needle (format
+                     "\\(?:@shot{%s-\\|@image{images/%s-\\)\\(?:dark\\|light\\)"
+                     (regexp-quote view) (regexp-quote view))))
         (should (seq-some
                  (lambda (page) (string-match-p needle (cdr page)))
                  pages))))))
@@ -295,6 +328,34 @@ from the Texinfo sources must fail it."
     (dolist (reference references)
       (should (file-exists-p
                (expand-file-name reference beads-manual-test--manual-dir))))))
+
+(ert-deftest beads-manual-no-unbounded-full-size-image ()
+  "No illustrated chapter embeds an unbounded full-size `@image' (REQ-003)."
+  :tags '(:unit)
+  (should-not (beads-manual-test--unbounded-image-references)))
+
+(ert-deftest beads-manual-manifest-theme-consistency ()
+  "The manifest dark theme and the shot engine default agree (REQ-004).
+The concrete theme is switched by the theme work item; this gate keeps
+`capture.sh' and `beads-shots.el' pinned to one standard dark theme."
+  :tags '(:unit)
+  (let* ((capture (beads-manual-test--slurp beads-manual-test--capture))
+         (shots (beads-manual-test--slurp beads-manual-test--shots))
+         (manifest-theme
+          (with-temp-buffer
+            (insert capture)
+            (goto-char (point-min))
+            (when (re-search-forward
+                   "^[ \t]*\\([A-Za-z0-9._-]+\\)[ \t]+-dark" nil t)
+              (match-string 1))))
+         (engine-theme
+          (and (string-match
+                "BEADS_SHOT_THEME\"[ \t]*\"\\([A-Za-z0-9._-]+\\)\""
+                shots)
+               (match-string 1 shots))))
+    (should manifest-theme)
+    (should engine-theme)
+    (should (equal manifest-theme engine-theme))))
 
 ;;; ============================================================
 ;;; Isolation list drift (plan-review P2)
