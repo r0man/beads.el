@@ -105,6 +105,7 @@ EXTRA_DIST = \
   doc/orchestration.texi \
   doc/views.texi \
   scripts/dispatch-docs \
+  scripts/check-manual-forbidden \
   scripts/lint \
   scripts/coverage \
   scripts/ci-deps \
@@ -176,10 +177,17 @@ html-local:
 ## `make check' (REQ-006, REQ-008): the whole ERT suite in one Emacs
 ## invocation.  build-aux/beads-check.el drops stale project byte-code
 ## first (F2, be-47jo) and writes coverage/junit.xml from
-## EMACS_TEST_JUNIT_REPORT (F3).
-check-local:
+## EMACS_TEST_JUNIT_REPORT (F3).  `check-manual' (REQ-015/REQ-016) runs
+## first as a cheap offline grep gate over the manual sources.
+check-local: check-manual
 	@BEADS_CHECK_TOOLS="bd=$(check_have_bd) dolt=$(check_have_dolt) graphviz=$(check_have_graphviz)" \
 	  $(EMACS_BATCH_Q) -L "$(abs_top_srcdir)/lisp/test" -l $(CHECK_HELPER)
+
+## `make check-manual' (REQ-015/REQ-016): fail if the forbidden host/city
+## name reappears in the Texinfo manual, its build inputs, or the generated
+## HTML.  Offline and dependency-free, so CI can also run it on its own.
+check-manual:
+	$(abs_top_srcdir)/scripts/check-manual-forbidden
 
 ## `make lint' (REQ-008): package-lint plus byte-compile
 ## warnings-as-errors, via scripts/lint (no Eldev).
@@ -196,4 +204,4 @@ coverage:
 	EMACS="$(EMACS)" TRANSIENT_DIR="$(TRANSIENT_DIR)" VUI_DIR="$(VUI_DIR)" \
 	  $(COVERAGE_SCRIPT)
 
-.PHONY: check-local lint coverage html-local
+.PHONY: check-local check-manual lint coverage html-local
