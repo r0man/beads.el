@@ -47,6 +47,11 @@ readonly SCRIPT_DIR
 readonly FIXTURE_FILE="$SCRIPT_DIR/fixtures/beads-fixture.jsonl"
 readonly FIXTURE_TMPDIR="${TMPDIR:-/tmp}"
 readonly FIXTURE_DIR_PREFIX="beads-fixture."
+# Unique per-run parent.  Two concurrent `create' invocations must never share
+# a store path: the fixed path let a second capture hit the first run's
+# `.beads.gate.lock' ("workspace gate busy") and lose images (RF-1).  `mktemp'
+# hands each run its own parent; the basename underneath it stays fixed.
+readonly FIXTURE_RUN_PREFIX="${FIXTURE_DIR_PREFIX}run."
 # Fixed, seeded project basename.  beads.el derives the buffer and mode-line
 # name from the project basename, so a random `mktemp' suffix leaks into every
 # screenshot and makes two separate capture invocations differ (REQ-007/AC-7).
@@ -129,30 +134,40 @@ seed_project() {
   )
 }
 
+remove_fixture_dir() {
+  local project="${1:-}" run_dir
+  [ -n "$project" ] || return 0
+  run_dir="${project%/*}"
+  rm -rf -- "$project"
+  if [ "$run_dir" != "$project" ]; then
+    rmdir -- "$run_dir" 2>/dev/null || true
+  fi
+}
+
 create_fixture() {
   [ -r "$FIXTURE_FILE" ] || die "fixture data not found: $FIXTURE_FILE"
   require_tool bd
   require_tool git
+  require_tool mktemp
 
-  # Deterministic project path (REQ-007): a stale fixture left by an
-  # interrupted run is ours to replace; anything without the marker is
-  # refused so a fixed name can never clobber a real checkout.
-  local project="$FIXTURE_TMPDIR/$FIXTURE_PROJECT_NAME"
-  if [ -e "$project" ]; then
-    [ -f "$project/$FIXTURE_MARKER" ] \
-      || die "refusing to reuse non-fixture path: $project"
-    rm -rf -- "$project"
-  fi
-  mkdir -p -- "$project" || die "mkdir failed: $project"
+  # Unique per-run parent (RF-1): a fresh `mktemp -d' means two concurrent
+  # captures get distinct store paths, so neither can hold the other's
+  # `.beads.gate.lock'.  The basename underneath stays fixed for REQ-007.
+  local run_dir project
+  run_dir="$(mktemp -d -- "$FIXTURE_TMPDIR/$FIXTURE_RUN_PREFIX"XXXXXXXX)" \
+    || die "mktemp failed under $FIXTURE_TMPDIR"
+  project="$run_dir/$FIXTURE_PROJECT_NAME"
+  mkdir -p -- "$project" \
+    || { remove_fixture_dir "$project"; die "mkdir failed: $project"; }
 
   # Clean up a half-built project if seeding fails partway.
   if ! seed_project "$project"; then
-    rm -rf -- "$project"
+    remove_fixture_dir "$project"
     die "failed to seed fixture project in $project"
   fi
 
   [ -d "$project/.beads" ] || {
-    rm -rf -- "$project"
+    remove_fixture_dir "$project"
     die "fixture project has no .beads store: $project"
   }
 
@@ -167,9 +182,10 @@ create_fixture() {
 teardown_fixture() {
   local project="${1:-}"
   [ -n "$project" ] || die "teardown needs the project directory"
+  project="${project%/}"
 
   case "$project" in
-    "$FIXTURE_TMPDIR/$FIXTURE_DIR_PREFIX"*) ;;
+    "$FIXTURE_TMPDIR/$FIXTURE_RUN_PREFIX"*"$FIXTURE_PROJECT_NAME") ;;
     *)
       die "refusing to remove unexpected path: $project"
       ;;
@@ -182,7 +198,7 @@ teardown_fixture() {
   [ -f "$project/$FIXTURE_MARKER" ] \
     || die "refusing to remove $project: missing $FIXTURE_MARKER (not a fixture project)"
 
-  rm -rf -- "$project"
+  remove_fixture_dir "$project"
   printf 'fixture.sh: removed %s\n' "$project" >&2
 }
 
@@ -281,10 +297,10 @@ verify_fixture() {
   if ! project=$(create_fixture); then
     die "failed to create fixture project"
   fi
-  trap 'rm -rf -- "${project:-}"' EXIT
+  trap 'remove_fixture_dir "${project:-}"' EXIT
 
   verify_project "$project"
-  rm -rf -- "$project"
+  remove_fixture_dir "$project"
   trap - EXIT
   printf 'fixture.sh: PASS\n'
 }

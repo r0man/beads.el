@@ -19,12 +19,14 @@ screenshots/
 ## What it does
 
 1. Creates (or reuses) a **deterministic, throwaway fixture project** — a
-   git repo at `${TMPDIR:-/tmp}/beads-fixture.project` with its own `bd` store
-   seeded from `fixtures/beads-fixture.jsonl`. The fixed basename keeps the
-   project name (and the mode line that displays it) identical across
-   invocations. It never reads or writes the repository's own `.beads` store
-   or a live/agent store (REQ-005). Pass `BEADS_SHOT_PROJECT=/path` to reuse
-   an existing fixture instead.
+   git repo at `${TMPDIR:-/tmp}/beads-fixture.run.<unique>/beads-fixture.project`
+   with its own `bd` store seeded from `fixtures/beads-fixture.jsonl`. Each run
+   gets a fresh `mktemp -d` parent so concurrent captures cannot share a store
+   path or its `.beads.gate.lock`; the fixed project basename keeps the project
+   name (and the mode line that displays it) identical across invocations. It
+   never reads or writes the repository's own `.beads` store or a live/agent
+   store (REQ-005). Pass `BEADS_SHOT_PROJECT=/path` to reuse an existing fixture
+   instead.
 2. Starts a **private, headless Wayland compositor** (`sway` with the
    wlroots headless backend) so capture frames never appear on the user's
    desktop. Windows are floated so Emacs's requested frame size is honored
