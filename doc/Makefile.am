@@ -3,9 +3,8 @@
 ## The manual is built by automake's `info_TEXINFOS' machinery, so
 ## `make', `make info', `make install' and `make dist' all handle it
 ## without a standalone Makefile.  The stylesheet, lightbox, the
-## `@include'd chapters, the generated Texinfo includes and the
-## screenshot PNGs are part of the distribution so a tarball builds the
-## manual as shipped.
+## `@include'd chapters and the screenshot PNGs are part of the
+## distribution so a tarball builds the manual as shipped.
 ##
 ## The HTML recipe stays automake's built-in `.texi.html' rule, extended
 ## through AM_MAKEINFOHTMLFLAGS so the shipped manual is a self-contained,
@@ -27,9 +26,9 @@ info_TEXINFOS = beads.texi
 ## Every Texinfo input the manual @includes, plus the presentation assets
 ## and the screenshot PNGs, is part of the distribution so `make dist'
 ## yields a tarball whose manual builds as shipped.  The generated tables
-## (REQ-009, REQ-013) are committed includes under doc/generated/; a clean
-## checkout builds the manual from them and a normal `make' never
-## rewrites them.
+## (REQ-009, REQ-013) live inline in `orchestration.texi' inside their
+## BEGIN/END GENERATED markers, so there is no separate generated source
+## directory to distribute.
 beads_TEXINFOS = \
   manual.css \
   lightbox.js \
@@ -44,7 +43,6 @@ beads_TEXINFOS = \
   maintenance.texi \
   reference.texi \
   concepts.texi \
-  $(sort $(wildcard $(srcdir)/generated/*.texi)) \
   $(sort $(wildcard $(srcdir)/images/*.png))
 
 EXTRA_DIST = $(beads_TEXINFOS)
