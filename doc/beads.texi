@@ -33,6 +33,28 @@ copy of the license is available from the Free Software Foundation.
 * beads.el: (beads).    Magit-like Emacs interface for the Beads issue tracker.
 @end direntry
 
+@c --- @shot{NAME, CAPTION} -------------------------------------------
+@c Embed a documentation screenshot.  In HTML the preview is a thumbnail;
+@c clicking it opens the full-resolution image in an in-page lightbox
+@c (doc/lightbox.js), and with JavaScript disabled the @code{screenshot-link}
+@c anchor still navigates to that image.  In Info and print a plain @image
+@c of the thumbnail is shown instead.  Keep CAPTION free of commas (the
+@c Texinfo macro argument separator).
+@macro shot{name, caption}
+@ifhtml
+@html
+<div class="screenshot">
+<a class="screenshot-link" href="images/\name\.png" title="\caption\ (click to enlarge)"><img src="images/\name\-thumb.png" alt="\caption\" loading="lazy"></a>
+<div class="screenshot-caption">\caption\</div>
+</div>
+@end html
+@end ifhtml
+@ifnothtml
+@image{images/\name\-thumb, , , \caption\, png}
+@center @emph{\caption\}
+@end ifnothtml
+@end macro
+
 @titlepage
 @title Beads.el User Manual
 @subtitle For version @value{VERSION}
