@@ -32,14 +32,16 @@ The whole CLI surface is reachable from two menus.
 @deffn Command beads-dispatch
 Open the dispatch menu on @kbd{?}: the high- and mid-frequency commands,
 grouped into @strong{Issues}, @strong{Workflow}, @strong{Views}, and
-@strong{Manage}.  The menu is opened from any beads buffer with @kbd{?};
-a context group is built from the view at point.
+@strong{Manage}, with a @strong{Maintenance} row underneath.  The menu is
+opened from any beads buffer with @kbd{?}.
 @end deffn
 
 @deffn Command beads-maintenance
-Open the maintenance menu on @kbd{!}: the low-frequency, admin, and
-infrastructure commands.  It replaces the former @code{beads-ops-menu}
-and @code{beads-advanced-menu}, which no longer exist.
+Open the maintenance menu: the low-frequency, admin, and infrastructure
+commands.  Reach it with @kbd{!} from the dispatch menu (that is,
+@kbd{?} @kbd{!}), or with @kbd{M-x beads-maintenance}.  It replaces the
+former @code{beads-ops-menu} and @code{beads-advanced-menu}, which no
+longer exist.
 @end deffn
 
 @defvr {Variable} beads-menu-providers

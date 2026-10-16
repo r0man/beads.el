@@ -215,9 +215,10 @@ Edit a field inline (a single-line title, or a temporary buffer for
 longer fields).
 @end table
 
-From a show buffer, @kbd{?} opens a persistent actions transient that
-stays open after each action, so you can run several without reopening
-it.
+From a show buffer, @kbd{?} opens the shared dispatch menu
+(@pxref{Transients}).  For a compact, stay-open menu of actions for the
+issue at point, run @kbd{M-x beads-show-actions}: each suffix keeps that
+menu open, so you can run several without reopening it.
 
 @node Closing and Reopening
 @section Closing and Reopening

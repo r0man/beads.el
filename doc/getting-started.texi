@@ -97,7 +97,7 @@ and are qualified by branch or remote when needed (see
 
 @itemize @bullet
 @item
-@code{*beads-dashboard[PROJECT]*}
+@code{*beads-dashboard<PROJECT>*}
 @item
 @code{*beads-list[PROJECT]*}, @code{*beads-ready[PROJECT]*},
 @code{*beads-blocked[PROJECT]*}
@@ -106,6 +106,12 @@ and are qualified by branch or remote when needed (see
 @item
 @code{*beads-agent[PROJECT]/TYPE#N*}
 @end itemize
+
+The board is the one view that brackets the project with angle brackets
+instead of square brackets; a remote board is qualified as
+@code{*beads-dashboard<REMOTE|PROJECT>*}.  The other views use square
+brackets, and the project is qualified by its branch when the store is
+scoped to one.
 
 @node Transients
 @subsection Transients: Dispatch and Maintenance
@@ -123,11 +129,13 @@ transient.  @kbd{M-x beads} runs @code{beads-dashboard}.
 @strong{Dispatch menu} (@kbd{?}) --- @code{beads-dispatch} is the command
 menu, opened with @kbd{?} from any beads buffer (or @kbd{M-x
 beads-dispatch}).  It groups the common flows into @strong{Issues},
-@strong{Workflow}, @strong{Views}, and @strong{Manage}, and builds a
-context group from the view at point.
+@strong{Workflow}, @strong{Views}, and @strong{Manage}, with a
+@strong{Maintenance} row at the foot.  Downstream packages append their
+own groups through @code{beads-menu-providers}.
 @item
-@strong{Maintenance menu} (@kbd{!}) --- @code{beads-maintenance} is the
-single admin and infrastructure menu.  It is the successor of the former
+@strong{Maintenance menu} (@kbd{?} @kbd{!}, or @kbd{M-x
+beads-maintenance}) --- @code{beads-maintenance} is the single admin and
+infrastructure menu.  It is the successor of the former
 @code{beads-ops-menu} and @code{beads-advanced-menu}, which no longer
 exist.
 @end enumerate
@@ -144,7 +152,7 @@ Open the full project board.  The board resolves the Beads store from
 @deffn Command beads-dispatch
 Open the dispatch menu: the common issue and workflow commands grouped
 into @strong{Issues}, @strong{Workflow}, @strong{Views}, and
-@strong{Manage}, plus a context group built from the view at point.
+@strong{Manage}, with a @strong{Maintenance} row underneath.
 @end deffn
 
 @deffn Command beads-maintenance
