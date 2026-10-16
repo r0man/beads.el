@@ -4,6 +4,23 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Documented fresh-`emacs -Q` walkthrough
+
+* **The manual is walked end to end.** A new `:integration` test
+  (`lisp/test/beads-manual-walkthrough-test.el`) drives the documented
+  path -- load, board, create/list/show/close, dependency, formula and
+  molecule, dispatch and maintenance menus -- in a throwaway store, and
+  `plans/manual-standard/walkthrough.md` records the interactive
+  fresh-`emacs -Q` evidence.
+* **Manual corrections the walkthrough surfaced.** The board brackets its
+  project with angle brackets (`*beads-dashboard<PROJECT>*`), not square
+  brackets; the epic menu is `M-x beads-epic-menu` (there is no dispatch
+  key for it); `?` in a show buffer opens the dispatch menu while
+  `M-x beads-show-actions` is the stay-open per-issue menu; the
+  maintenance menu is reached with `? !` (or `M-x beads-maintenance`),
+  not a bare `!`; and the dispatch menu has a `Maintenance` row but no
+  view-derived context group.
+
 ### Manual restructured to the Guix/PostgreSQL standard
 
 * **New top-level chapters.** The Texinfo manual now opens with an
