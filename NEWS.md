@@ -4,6 +4,18 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Manual restructured to the Guix/PostgreSQL standard
+
+* **New top-level chapters.** The Texinfo manual now opens with an
+  `Introduction`, `Installation and Requirements`, and the `Getting
+  Started` tutorial, followed by the existing task chapters, a `Command
+  and Variable Reference`, and a `Concepts` chapter that defines the
+  data-model vocabulary (stores, issues, dependencies, molecules and
+  formulas).
+* **Same single source of truth.** `doc/*.texi` remains the only manual
+  source; the Org pipeline is not reintroduced and the GFDL
+  `@copying`/`@insertcopying` block is unchanged.
+
 ### Durable command log for async bd invocations
 
 * **New `*beads-log*` buffer.** Async `bd` invocations now append a

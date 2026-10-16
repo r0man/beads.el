@@ -1,0 +1,81 @@
+@node Concepts
+@chapter Concepts
+@cindex concepts
+@cindex terminology
+
+This chapter defines the terms the rest of the manual uses.  Each term
+names a first-class object in the Beads data model; the commands that
+create and manipulate them are documented in @ref{Issue Workflow}, and
+the interface patterns that present them are in @ref{Getting Started}.
+
+@menu
+* Stores::
+* Issues::
+* Dependency Model::
+* Molecules and Formulas::
+@end menu
+
+@node Stores
+@section Stores
+@cindex store
+
+A @dfn{store} is the on-disk Beads database for one project.  It lives
+under a @file{.beads/} directory at the project root; @command{bd init}
+creates it.  The default engine is embedded Dolt, which keeps each
+project's data under @file{.beads/embeddeddolt/} with filesystem-level
+isolation, so two checkouts never share a database by accident.  A store
+can also be served by a shared Dolt server; @code{beads.el} then scopes
+every command with @command{--directory} so a shared server routes to the
+intended project (see @ref{Store Scoping}).
+
+@node Issues
+@section Issues
+@cindex issue
+@cindex issue id
+
+An @dfn{issue} is the unit of work: a ticket with a stable id, a title, a
+Markdown description, a status, a priority, a type, an assignee, labels,
+dependencies, and a comment thread.  Issue ids are short base-36 hashes
+with a project prefix, for example @code{bd-42}; @code{beads.el} matches
+them anywhere for eldoc previews.
+
+@table @asis
+@item Status
+One of @code{open}, @code{in_progress}, @code{blocked}, @code{closed},
+and the other states @command{bd} understands.
+@item Priority
+@code{0} (Critical) through @code{4} (Backlog).
+@item Type
+@code{bug}, @code{feature}, @code{task}, @code{epic}, @code{chore}, and
+friends.
+@item Labels
+Free-form tags shared across issues.
+@end table
+
+@node Dependency Model
+@section Dependency Model
+@cindex dependency
+@cindex blocks
+@cindex relates to
+
+A @dfn{dependency} is a directed edge between two issues that records
+how one constrains the other.  The common kinds are @code{blocks} (the
+source cannot proceed until the target is done), @code{relates_to} (a
+soft, bidirectional association), and parent/child links that make an
+issue a child of an epic.  Dependencies drive the ready and blocked
+views: an issue is @dfn{ready} when nothing blocks it and @dfn{blocked}
+when at least one dependency does.
+
+@node Molecules and Formulas
+@section Molecules and Formulas
+@cindex formula
+@cindex molecule
+@cindex epic
+
+A @dfn{formula} is a reusable, parameterized template (authored as TOML)
+that expands into a connected graph of issues.  Pouring a formula
+instantiates it into a @dfn{molecule}: the concrete graph of issues,
+dependencies, and labels created in a store.  Molecules make multi-step
+work such as release checklists or a whole feature plan repeatable.  An
+@dfn{epic} is an issue that parents other issues; epics compose with
+molecules and are surfaced by the epic-health views.

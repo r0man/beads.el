@@ -1,0 +1,56 @@
+@node Introduction
+@chapter Introduction
+@cindex introduction
+@cindex overview
+
+@code{beads.el} is a Magit-like Emacs interface for the
+@uref{https://github.com/steveyegge/beads, Beads} issue tracker.  It
+provides a keyboard-driven, transient-based UI for managing issues,
+dependencies, molecules, formulas, agents, and workflows without leaving
+Emacs.
+
+@code{beads.el} is a porcelain over the @command{bd} command-line tool:
+the UI never parses human-readable output, it always drives
+@command{bd --json} and renders the structured result.  Every
+@command{bd} command is reachable from Emacs, either through an
+auto-generated transient or a curated one.
+
+@menu
+* Reading This Manual::
+* Related Resources::
+@end menu
+
+@node Reading This Manual
+@section Reading This Manual
+@cindex manual organization
+@cindex reading the manual
+
+The manual is organized by task.  New users should read @ref{Installation
+and Requirements} and @ref{Getting Started} first, then @ref{Issue
+Workflow}.  The remaining task chapters --- @ref{Dashboards and Views},
+@ref{Formulas Molecules and Epics}, @ref{Agents and Sling},
+@ref{Orchestration and Terminal}, and @ref{Maintenance and Extending}
+--- cover the rest of the day-to-day and administrative surface.
+
+@ref{Command and Variable Reference} is the lookup chapter for individual
+commands and user options; @ref{Concepts} defines the data-model
+vocabulary the rest of the manual uses.  The @ref{Key Index} and the
+@ref{Command and Variable Index} close the manual.
+
+@node Related Resources
+@section Related Resources
+@cindex related resources
+
+@itemize @bullet
+@item
+Beads CLI: @uref{https://github.com/steveyegge/beads}
+@item
+Magit (interaction model): @uref{https://magit.vc}
+@item
+Forge (sections and references): @uref{https://magit.vc/manual/forge}
+@item
+Design record for the board and menus:
+@file{plans/beads-ui-redesign/design.md}
+@item
+Enforced key contract: @file{docs/key-registry.md}
+@end itemize

@@ -98,11 +98,15 @@ EXTRA_DIST = \
   guix.scm \
   doc/images \
   doc/agents.texi \
+  doc/concepts.texi \
   doc/formulas.texi \
   doc/getting-started.texi \
+  doc/installation.texi \
+  doc/introduction.texi \
   doc/issue-workflow.texi \
   doc/maintenance.texi \
   doc/orchestration.texi \
+  doc/reference.texi \
   doc/views.texi \
   scripts/dispatch-docs \
   scripts/lint \

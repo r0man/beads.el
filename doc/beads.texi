@@ -57,24 +57,35 @@ dependencies, molecules, formulas, agents, and workflows without leaving
 Emacs.  It is a porcelain over the @command{bd} command-line tool: every
 command drives @command{bd --json} and renders the structured result.
 
-The manual is organized by task.  New users should read
-@ref{Getting Started}, then @ref{Issue Workflow}.  The remaining task
-areas --- orchestration and the terminal, and maintenance and extending
---- complete the reference and the indexes.
+The manual is organized by task.  The @ref{Introduction} explains the
+conventions it uses, @ref{Installation and Requirements} sets the
+package up, and @ref{Getting Started} walks through a first issue.  The
+task chapters (@ref{Issue Workflow}, @ref{Dashboards and Views},
+@ref{Formulas Molecules and Epics}, @ref{Agents and Sling},
+@ref{Orchestration and Terminal}, and @ref{Maintenance and Extending})
+cover the day-to-day and administrative surface.  @ref{Command and
+Variable Reference} is the lookup chapter and @ref{Concepts} defines the
+vocabulary; the two indexes close the manual.
 
 @menu
-* Getting Started::             Install, first issue, and the concepts.
+* Introduction::                What beads.el is and how to read this manual.
+* Installation and Requirements::  What you need and how to install it.
+* Getting Started::             Your first issue and the interaction model.
 * Issue Workflow::              Create, list, view, edit, close, and label.
 * Dashboards and Views::        The board, lists, show, and eldoc.
 * Formulas Molecules and Epics:: Formulas, molecules, and epics.
 * Agents and Sling::            Agents, backends, sessions, sling, swarm.
 * Orchestration and Terminal::  Menus, terminal, Dolt, remotes, audit.
 * Maintenance and Extending::   Options, building, plumbing, contributing.
+* Command and Variable Reference:: Commands, options, and user options.
+* Concepts::                    Stores, issues, dependencies, molecules.
 * Key Index::                   Keystrokes.
 * Command and Variable Index::  Commands, functions and user options.
 @end menu
 @end ifnottex
 
+@include introduction.texi
+@include installation.texi
 @include getting-started.texi
 @include issue-workflow.texi
 @include views.texi
@@ -82,6 +93,8 @@ areas --- orchestration and the terminal, and maintenance and extending
 @include agents.texi
 @include orchestration.texi
 @include maintenance.texi
+@include reference.texi
+@include concepts.texi
 
 @c ====================================================================
 @node Key Index
