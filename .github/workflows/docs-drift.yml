@@ -21,6 +21,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Offline grep gate (REQ-015/REQ-016): the manual sources, build
+      # inputs, and generated HTML must not mention the forbidden
+      # host/city name.  No Emacs or dependencies needed.
+      - name: Check manual for forbidden host name
+        run: ./scripts/check-manual-forbidden
+
       - name: Set up Emacs 31.1
         uses: purcell/setup-emacs@master
         with:

@@ -47,6 +47,10 @@
   (expand-file-name "docs/manual/screenshots/capture.sh" beads-manual-test--root)
   "The screenshot pipeline orchestrator.")
 
+(defconst beads-manual-test--forbidden
+  (expand-file-name "scripts/check-manual-forbidden" beads-manual-test--root)
+  "The offline forbidden-host-name gate (REQ-015, REQ-016).")
+
 (defconst beads-manual-test--fixture
   (expand-file-name "docs/manual/screenshots/fixture.sh" beads-manual-test--root)
   "The deterministic fixture project manager.")
@@ -356,6 +360,73 @@ The concrete theme is switched by the theme work item; this gate keeps
     (should manifest-theme)
     (should engine-theme)
     (should (equal manifest-theme engine-theme))))
+
+;;; ============================================================
+;;; Forbidden host-name gate (REQ-015, REQ-016)
+;;; ============================================================
+
+(ert-deftest beads-manual-forbidden-gate-passes-tree ()
+  "The checked-in manual sources carry no forbidden host name."
+  :tags '(:unit)
+  (skip-unless (file-executable-p beads-manual-test--forbidden))
+  (let ((result (beads-manual-test--run beads-manual-test--forbidden nil)))
+    (should (equal 0 (car result)))
+    (should (string-empty-p (string-trim (cdr result))))))
+
+(ert-deftest beads-manual-forbidden-gate-detects-injected ()
+  "The gate prints `path:line' and fails on an injected token."
+  :tags '(:unit)
+  (skip-unless (file-executable-p beads-manual-test--forbidden))
+  (let* ((root (make-temp-file "beads-manual-forbidden-" t))
+         (script (expand-file-name "scripts/check-manual-forbidden" root))
+         (texi (expand-file-name "doc/beads.texi" root))
+         (html (expand-file-name "doc/beads.html" root))
+         (notes (expand-file-name "docs/manual/screenshots/fixtures/x.jsonl"
+                                  root))
+         (image (expand-file-name "docs/manual/images/x.png" root)))
+    (unwind-protect
+        (progn
+          (make-directory (file-name-directory script) t)
+          (make-directory (file-name-directory texi) t)
+          (make-directory (file-name-directory notes) t)
+          (make-directory (file-name-directory image) t)
+          (copy-file beads-manual-test--forbidden script)
+          (set-file-modes script #o755)
+          ;; A clean source plus a case-variant token and a generated-HTML
+          ;; token; the binary image hit must be ignored.
+          (write-region "clean line\n" nil texi)
+          (write-region "visit Burningswell.example\n" nil html)
+          (write-region "clean\n" nil notes)
+          (write-region "burningswell in an image path\n" nil image)
+          (let ((result (beads-manual-test--run script nil)))
+            (should (/= 0 (car result)))
+            (should (string-match-p "doc/beads\\.html:1:.*[Bb]urningswell"
+                                    (cdr result)))
+            (should-not (string-match-p "images/x\\.png" (cdr result)))))
+      (ignore-errors (delete-directory root t)))))
+
+(ert-deftest beads-manual-forbidden-gate-detects-build-input ()
+  "The gate scans the manual build inputs under `docs/manual/'."
+  :tags '(:unit)
+  (skip-unless (file-executable-p beads-manual-test--forbidden))
+  (let* ((root (make-temp-file "beads-manual-forbidden-" t))
+         (script (expand-file-name "scripts/check-manual-forbidden" root))
+         (texi (expand-file-name "doc/beads.texi" root))
+         (notes (expand-file-name "docs/manual/screenshots/fixture.sh" root)))
+    (unwind-protect
+        (progn
+          (make-directory (file-name-directory script) t)
+          (make-directory (file-name-directory texi) t)
+          (make-directory (file-name-directory notes) t)
+          (copy-file beads-manual-test--forbidden script)
+          (set-file-modes script #o755)
+          (write-region "clean line\n" nil texi)
+          (write-region "# burningswell.com\n" nil notes)
+          (let ((result (beads-manual-test--run script nil)))
+            (should (/= 0 (car result)))
+            (should (string-match-p
+                     "docs/manual/screenshots/fixture\\.sh:1:" (cdr result)))))
+      (ignore-errors (delete-directory root t)))))
 
 ;;; ============================================================
 ;;; Isolation list drift (plan-review P2)
