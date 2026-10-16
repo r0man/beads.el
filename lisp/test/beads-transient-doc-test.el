@@ -86,6 +86,17 @@
   :tags '(:unit)
   (should (beads-dispatch-doc-check)))
 
+(ert-deftest beads-transient-doc-test-check-fails-on-unregenerated-menu ()
+  "A menu edited without regeneration fails the drift check.
+This encodes the WI-10 verification bar that a hand-edited menu which
+was not regenerated makes the checked-in docs fail, not only a
+hand-edited checked-in artifact."
+  :tags '(:unit)
+  (let ((beads-dispatch-doc-menus
+         (cons '(beads-dispatch . "Hand-edited title that was not regenerated")
+               beads-dispatch-doc-menus)))
+    (should-error (beads-dispatch-doc-check))))
+
 (defun beads-transient-doc-test--table-keys (region)
   "Return the first-column keys of the Markdown table in REGION."
   (with-temp-buffer
