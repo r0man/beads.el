@@ -48,11 +48,9 @@ so it appears under the dispatch menu without editing beads.el.
 @end defvr
 
 @anchor{fig:dispatch-dark}
-@image{images/dispatch-dark,,,The dispatch menu (@code{beads-dispatch}).,png}
-@image{images/dispatch-dark-thumb,,,The dispatch menu thumbnail.,png}
+@shot{dispatch-dark, The dispatch menu (@code{beads-dispatch}).}
 @anchor{fig:maintenance-dark}
-@image{images/maintenance-dark,,,The maintenance menu (@code{beads-maintenance}).,png}
-@image{images/maintenance-dark-thumb,,,The maintenance menu thumbnail.,png}
+@shot{maintenance-dark, The maintenance menu (@code{beads-maintenance}).}
 
 @menu
 * Maintenance Groups::

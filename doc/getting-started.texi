@@ -220,8 +220,7 @@ Open the full project board.  The board resolves the Beads store from
 @end deffn
 
 @anchor{fig:dashboard-dark}
-@image{images/dashboard-dark,,,The project board.,png}
-@image{images/dashboard-dark-thumb,,,The project board thumbnail.,png}
+@shot{dashboard-dark, The project board.}
 
 @deffn Command beads-dispatch
 Open the dispatch menu: the common issue and workflow commands grouped

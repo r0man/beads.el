@@ -50,8 +50,7 @@ help-echo names the shadowed path.  @code{beads-formula-scope} switches the
 scope filter between @code{project}, @code{user}, and @code{all}.
 
 @anchor{fig:formula-dark}
-@image{images/formula-dark,,,The formula menu (@code{beads-formula-menu}).,png}
-@image{images/formula-dark-thumb,,,The formula menu thumbnail.,png}
+@shot{formula-dark, The formula menu (@code{beads-formula-menu}).}
 
 @node Molecules
 @section Molecules
@@ -68,8 +67,7 @@ health-check molecules.
 @end deffn
 
 @anchor{fig:molecule-dark}
-@image{images/molecule-dark,,,The molecule view of the fixture epic, showing poured steps.,png}
-@image{images/molecule-dark-thumb,,,The molecule view thumbnail.,png}
+@shot{molecule-dark, The molecule view of the fixture epic showing poured steps.}
 
 @menu
 * Instantiate::
@@ -165,11 +163,9 @@ Close eligible --- close every epic whose children are all complete.  Pass
 @end table
 
 @anchor{fig:epic-dark}
-@image{images/epic-dark,,,An epic detail view with its children.,png}
-@image{images/epic-dark-thumb,,,The epic detail view thumbnail.,png}
+@shot{epic-dark, An epic detail view with its children.}
 @anchor{fig:epic-light}
-@image{images/epic-light,,,The epic detail view under the light theme.,png}
-@image{images/epic-light-thumb,,,The light theme epic detail view thumbnail.,png}
+@shot{epic-light, The epic detail view under the light theme.}
 
 @node Cook Pour and Burn
 @section Cook, Pour, and Burn from One Place
