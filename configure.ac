@@ -13,8 +13,11 @@ AC_PREREQ([2.69])
 AC_INIT([beads.el], [0.1.0], [roman@burningswell.com], [beads.el])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIRS([m4])
-AM_INIT_AUTOMAKE([-Wall foreign])
-AC_CONFIG_FILES([Makefile])
+dnl `-Wno-portability' mirrors gascity.el/doc/Makefile.am: doc/Makefile.am
+dnl expands its image and generated-include lists with GNU make `sort' and
+dnl `wildcard', which Automake otherwise flags as a portability extension.
+AM_INIT_AUTOMAKE([-Wall -Wno-portability foreign])
+AC_CONFIG_FILES([Makefile doc/Makefile])
 AC_CONFIG_SRCDIR([lisp/beads.el])
 
 dnl ---------------------------------------------------------------------
