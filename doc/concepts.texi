@@ -26,7 +26,7 @@ project's data under @file{.beads/embeddeddolt/} with filesystem-level
 isolation, so two checkouts never share a database by accident.  A store
 can also be served by a shared Dolt server; @code{beads.el} then scopes
 every command with @command{--directory} so a shared server routes to the
-intended project (see @ref{Store Scoping}).
+intended project (@pxref{Store Scoping}).
 
 @node Issues
 @section Issues

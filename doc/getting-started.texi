@@ -134,8 +134,8 @@ exist.
 
 @deffn Command beads-dashboard
 Open the full project board.  The board resolves the Beads store from
-@code{default-directory}, unless @code{:directory} is given (see
-@ref{Store Scoping}).
+@code{default-directory}, unless @code{:directory} is given
+(@pxref{Store Scoping}).
 @end deffn
 
 @anchor{fig:dashboard-dark}
@@ -158,7 +158,7 @@ The menus are ordinary transient prefixes defined with
 @code{beads-define-prefix}.  Every suffix runs in the directory the menu
 was opened for, so a menu opened from another project acts on that
 project's store.  The bulk of the per-command menus is generated from
-command-class slot metadata; see @ref{Issue Workflow}.
+command-class slot metadata; @pxref{Issue Workflow}.
 
 @node Context-Aware Actions
 @subsection Context-Aware Actions
@@ -238,8 +238,8 @@ operate on every marked issue.  Bulk-specific operations live under the
 Every view moves with one primitive, @code{beads-thing}: @kbd{TAB} and
 @kbd{S-TAB} move between things and wrap, and @kbd{SPC} toggles the thing
 at point (folding a section, previewing an issue, and so on).  In
-tabulated lists each row is a thing without visible stamping.  See
-@ref{Issue Workflow}, for how movement applies to lists and show
+tabulated lists each row is a thing without visible stamping.
+@xref{Issue Workflow}, for how movement applies to lists and show
 buffers.  The movement commands are @code{beads-thing-forward}
 (@kbd{TAB}), @code{beads-thing-backward} (@kbd{S-TAB}), and
 @code{beads-thing-toggle} (@kbd{SPC}).
