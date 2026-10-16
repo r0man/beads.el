@@ -17,7 +17,7 @@
 ;; theme and selection:
 ;;
 ;;   BEADS_REPO          beads.el checkout (default: derived from this file)
-;;   BEADS_SHOT_THEME    theme symbol, e.g. ef-elea-dark
+;;   BEADS_SHOT_THEME    theme symbol, e.g. ef-deuteranopia-dark
 ;;   BEADS_SHOT_OUTDIR   directory for the raw PNGs
 ;;   BEADS_SHOT_SUFFIX   appended to every shot name, e.g. -dark
 ;;   BEADS_SHOT_VIEWS    space-separated view names; empty = all
@@ -80,7 +80,7 @@
 (setq screenshot-output-dir
       (beads-shots-getenv "BEADS_SHOT_OUTDIR" temporary-file-directory)
       screenshot-theme
-      (intern (beads-shots-getenv "BEADS_SHOT_THEME" "ef-elea-dark"))
+      (intern (beads-shots-getenv "BEADS_SHOT_THEME" "ef-deuteranopia-dark"))
       screenshot-theme-library "ef-themes"
       screenshot-async-process-regexp "beads-async\\|beads-policy-probe"
       screenshot-log-function #'beads-shots--progress)
