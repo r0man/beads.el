@@ -10,6 +10,8 @@ beads.el can launch an AI agent on an issue from inside Emacs.  A
 is asked to do) and a @emph{backend} (the program and terminal that run
 it), optionally isolated in a git worktree.  Sessions are tracked in an
 in-house registry, so no external session-manager package is required.
+The complete command and option lookup is in @ref{Command and Variable
+Reference}.
 
 @menu
 * Agent Commands::

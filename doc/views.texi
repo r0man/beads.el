@@ -8,7 +8,8 @@ This chapter covers the read-only surfaces of beads.el: the project board
 (the dashboard), the tabulated issue lists, the issue detail view, and the
 eldoc previews that show issue data in any buffer.  Together they are the
 day-to-day way to watch a store; the write commands live in
-@ref{Issue Workflow}.
+@ref{Issue Workflow}.  Every view command and user option is listed in
+@ref{Command and Variable Reference}.
 
 @menu
 * The Board::

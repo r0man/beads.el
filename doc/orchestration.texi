@@ -9,7 +9,8 @@ every command, the terminal subsystem that runs agents and interactive
 CLIs, the Dolt and repository commands, configuration, and the audit and
 provenance views.  The day-to-day issue commands are in @ref{Issue
 Workflow}, the views in @ref{Dashboards and Views}, and the build and
-extension guide in @ref{Maintenance and Extending}.
+extension guide in @ref{Maintenance and Extending}.  The complete
+command and key lookup is in @ref{Command and Variable Reference}.
 
 @menu
 * The Dispatch and Maintenance Menus::

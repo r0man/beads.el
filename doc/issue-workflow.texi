@@ -7,7 +7,8 @@ This chapter covers the day-to-day commands: create, list, view, edit,
 close and reopen, claim, set status and priority, manage dependencies and
 labels, and apply bulk actions.  The entry points are the dispatch menu
 (@kbd{?}) and the context-aware actions bound in @code{beads-list-mode}
-and @code{beads-show-mode} (@pxref{Interface Concepts}).
+and @code{beads-show-mode} (@pxref{Interface Concepts}).  The complete
+command and key lookup is in @ref{Command and Variable Reference}.
 
 @menu
 * Creating Issues::

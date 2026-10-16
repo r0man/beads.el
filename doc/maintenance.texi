@@ -8,7 +8,9 @@
 This chapter is for people who configure, build, or extend beads.el.  It
 documents the user options and faces, the command-layer plumbing, the
 supported extension points, the autotools build, and the lint and
-documentation-drift gates, and closes with a short FAQ.
+documentation-drift gates, and closes with a short FAQ.  The exhaustive
+list of commands and user options is in @ref{Command and Variable
+Reference}.
 
 @menu
 * Customizing::
