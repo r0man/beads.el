@@ -33,6 +33,8 @@ info_TEXINFOS = beads.texi
 beads_TEXINFOS = \
   manual.css \
   lightbox.js \
+  introduction.texi \
+  installation.texi \
   getting-started.texi \
   issue-workflow.texi \
   views.texi \
@@ -40,6 +42,8 @@ beads_TEXINFOS = \
   agents.texi \
   orchestration.texi \
   maintenance.texi \
+  reference.texi \
+  concepts.texi \
   $(sort $(wildcard $(srcdir)/generated/*.texi)) \
   $(sort $(wildcard $(srcdir)/images/*.png))
 

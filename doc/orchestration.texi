@@ -41,7 +41,7 @@ infrastructure commands.  It replaces the former @code{beads-ops-menu}
 and @code{beads-advanced-menu}, which no longer exist.
 @end deffn
 
-@defvr {User Option} beads-menu-providers
+@defvr {Variable} beads-menu-providers
 List of functions that append extra groups to the dispatch menu.
 Downstream packages (for example gascity.el) register their own group here
 so it appears under the dispatch menu without editing beads.el.
@@ -266,11 +266,11 @@ through the selected backend if the buffer is not live.
 Attach to the tmux SESSION, optionally on SOCKET and in DIR, for STORE.
 @end deftypefn
 
-@defvr {User Option} beads-terminal-backend
+@defopt beads-terminal-backend
 The preferred terminal backend, or nil to auto-detect.  When nil, the
 backends are tried in order: @code{vterm}, @code{ghostel},
 @code{eat}, @code{ansi-term}, @code{term}.
-@end defvr
+@end defopt
 
 Remote (TRAMP) stores are supported.  On a single-hop ssh-family store,
 asynchronous commands run as a local @command{ssh -T} pipe rather than a

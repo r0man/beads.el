@@ -1,0 +1,34 @@
+@node Command and Variable Reference
+@chapter Command and Variable Reference
+@cindex reference
+@cindex command reference
+@cindex variable reference
+
+This chapter is the lookup reference for the user-visible surface of
+@code{beads.el}.  The task chapters explain how and when to use a
+command; this chapter collects the commands, their transient suffixes,
+and the user options in one place.  The @ref{Key Index} lists keystrokes
+and the @ref{Command and Variable Index} collects the commands and
+options alphabetically.
+
+@menu
+* Command Reference::
+* User Option Reference::
+@end menu
+
+@node Command Reference
+@section Command Reference
+@cindex command reference
+
+Every user-visible @code{beads-defcommand} command and its
+auto-generated transient suffix is recorded here, with the keybinding
+that reaches it, the equivalent @command{bd} invocation, and the task
+chapter that explains it.
+
+@node User Option Reference
+@section User Option Reference
+@cindex user option reference
+@cindex defcustom
+
+Every user option defined in @file{lisp/beads-custom.el} is recorded
+here with its default value and its effect on the interface.
