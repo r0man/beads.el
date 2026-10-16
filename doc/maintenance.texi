@@ -432,7 +432,12 @@ the build.
 @item make check
 Run the ERT test suite.  The @command{bd}/@command{dolt}/@command{graphviz}
 conditionals decide how much of the @code{:integration} suite runs;
-@code{EMACS_TEST_JUNIT_REPORT} selects the JUnit output.
+@code{EMACS_TEST_JUNIT_REPORT} selects the JUnit output.  The offline
+@code{make check-manual} gate runs first.
+@item make check-manual
+Fail if the forbidden host/city name reappears in the manual sources,
+their build inputs, or the generated HTML.  It is offline and needs no
+Emacs or other dependency, so it also runs on its own in CI.
 @item make lint
 Run byte-compile warnings-as-errors plus the package-lint checks through
 @file{scripts/lint}, with no Eldev dependency.
@@ -469,6 +474,22 @@ Build the PDF manual with @command{texi2pdf}.
 Texinfo chapter file per task area (@pxref{The Dispatch and Maintenance
 Menus} for where those chapters are).  @command{makeinfo} must report no
 missing-node or undefined-reference warnings.
+
+The manual is configured by @file{doc/Makefile.am} (the top-level
+@file{Makefile.am} recurses through @code{SUBDIRS = doc}).  The HTML
+override inlines @file{manual.css} and @file{lightbox.js} into every page
+and mirrors the screenshot images next to the HTML, so
+@file{doc/beads.html} is self-contained and can be published as-is.
+@code{make html} is reproducible: a second clean build is byte-identical.
+
+The reference-completeness gate (@code{lisp/test/beads-manual-reference-test.el},
+run as part of @code{make check}) fails when a user-visible command, a
+generated @code{--execute} suffix, or a @code{defcustom} option has no
+@code{@@deffn}/@code{@@defopt} entry, so the Command and Variable
+Reference cannot silently fall behind the code.  The forbidden-name gate
+(@code{make check-manual}) and the dispatch-docs drift gate
+(@code{scripts/dispatch-docs --check}) guard the rest of the manual's
+build and dispatch tables.
 
 @node Guix Development Environment
 @subsection Guix Development Environment

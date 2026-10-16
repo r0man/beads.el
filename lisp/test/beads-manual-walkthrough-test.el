@@ -235,7 +235,18 @@ walkthrough surfaced are fixed in the manual and its images."
                                         (buffer-string))))))
         (ignore-errors (transient-quit-all)))
       ;; Leave no transient state behind for the next menu.
-      (beads-test--clear-transient-state))))
+      (beads-test--clear-transient-state))
+
+    ;; Leave no view buffers behind either: the later `:unit' test
+    ;; `beads-remote-open-test-dashboard-scopes-to-root' scans
+    ;; `buffer-list' for a dashboard buffer and must not find this
+    ;; throwaway store's.  Every buffer whose `beads-store-directory' is
+    ;; this temporary repo is safe to kill here.
+    (dolist (buffer (buffer-list))
+      (with-current-buffer buffer
+        (when (and (bound-and-true-p beads-store-directory)
+                   (equal beads-store-directory default-directory))
+          (kill-buffer buffer))))))
 
 (provide 'beads-manual-walkthrough-test)
 ;;; beads-manual-walkthrough-test.el ends here

@@ -5,9 +5,11 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-# GitHub Pages publish of the built HTML manual (REQ-012).  Publishing
-# happens only on a push to `main`; the build job fails on a broken
-# `make html` instead of uploading stale output.  The trigger, permissions,
+# GitHub Pages publish of the built HTML manual (REQ-012, REQ-014).
+# Publishing happens only on a push to `main`; the build job fails on a broken
+# `make html` instead of uploading stale output, and a self-contained/
+# reproducible check (REQ-014) fails the publish when the inlined stylesheet,
+# lightbox, or screenshot mirroring regresses.  The trigger, permissions,
 # concurrency, action versions and build-then-deploy split match the
 # parallel gascity.el migration (REQ-015).
 #
@@ -52,6 +54,34 @@ jobs:
           ./autogen.sh
           ./configure
           make html
+
+      # REQ-014: the artifact uploaded to Pages must be self-contained
+      # (the stylesheet and the lightbox script inlined into every page,
+      # the screenshot images mirrored next to the HTML) and reproducible
+      # (a second clean build is byte-identical), so a regression in
+      # `doc/Makefile.am` fails the publish instead of shipping a broken
+      # site.
+      - name: Verify the manual is self-contained and reproducible
+        run: |
+          set -eu
+          test -f doc/beads.html/index.html
+          test -d doc/beads.html/images
+          if grep -R -q 'rel="stylesheet"' doc/beads.html; then
+            echo 'external stylesheet link found in HTML output' >&2
+            exit 1
+          fi
+          if grep -RE -q '<script[^>]*src=' doc/beads.html; then
+            echo 'external script link found in HTML output' >&2
+            exit 1
+          fi
+          grep -q 'screenshot-link' doc/beads.html/index.html
+          find doc/beads.html -type f -name '*.html' -exec sha256sum {} + \
+            | sort -k2 > /tmp/manual-html-1
+          make -C doc clean
+          make html
+          find doc/beads.html -type f -name '*.html' -exec sha256sum {} + \
+            | sort -k2 > /tmp/manual-html-2
+          diff /tmp/manual-html-1 /tmp/manual-html-2
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

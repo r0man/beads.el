@@ -37,6 +37,19 @@ jobs:
           deps=$(scripts/ci-deps transient vui)
           echo "EMACSLOADPATH=$deps" >> "$GITHUB_ENV"
 
+      # Reference-completeness gate (REQ-008, REQ-009, REQ-013): every
+      # user-visible command, every generated `--execute' suffix, and
+      # every `defcustom' user option must have a `@deffn'/`@defopt'
+      # entry in `doc/*.texi'.  This is a `:unit' ERT test, so it only
+      # needs Emacs and the resolved transient/vui load path; running it
+      # in this workflow makes a missing reference entry fail CI even
+      # when the full `make check` matrix is not run.
+      - name: Check manual reference completeness
+        run: |
+          emacs --batch -Q -L lisp -L lisp/test \
+            -l lisp/test/beads-manual-reference-test.el \
+            --eval '(ert-run-tests-batch-and-exit (quote (tag :unit)))'
+
       - name: Check generated dispatch docs
         run: |
           ./autogen.sh
