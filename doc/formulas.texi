@@ -10,7 +10,8 @@ They are @emph{cooked} into proto beads that can then be @emph{poured} (made
 persistent) or @emph{wisped} (made ephemeral).  Running instances are
 called molecules, and an epic is the larger grouping they roll up to.  This
 chapter covers all three and the commands that manage them; the underlying
-concepts are introduced in @ref{Molecules and Formulas}.
+concepts are introduced in @ref{Molecules and Formulas}.  The full
+command and option lookup is in @ref{Command and Variable Reference}.
 
 @menu
 * Formulas::
