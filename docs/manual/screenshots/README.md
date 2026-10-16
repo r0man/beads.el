@@ -140,9 +140,13 @@ The capture **manifest** — which views are shot in which theme — is a short
 here-doc near the top of `capture.sh`:
 
 ```
-ef-elea-dark  -dark   dashboard list ready blocked show epic compose molecule swarm agents dispatch maintenance agent-menu formula
+ef-deuteranopia-dark  -dark   dashboard list ready blocked show epic compose molecule swarm agents dispatch maintenance agent-menu formula
 ef-cyprus     -light  dashboard list show epic
 ```
+
+`ef-deuteranopia-dark` is the standard screenshot theme (REQ-004); the
+`-dark` images are captured in it. `ef-cyprus` is kept only on the four
+views above as the deliberate light-theming demonstration.
 
 Each line is `THEME  SUFFIX  view view …`. A view named under two themes is
 captured twice (the dashboard, list, show, and epic are, to show theming).

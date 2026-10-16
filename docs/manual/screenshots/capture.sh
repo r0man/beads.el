@@ -58,7 +58,7 @@ THUMB_COLORS=128  # a preview needs fewer colours
 # The suffix is the "-<theme>" half of the committed name, so the output is
 # exactly <view>-<theme>.png and <view>-<theme>-thumb.png.
 read -r -d '' MANIFEST <<'EOF' || true
-ef-elea-dark  -dark   dashboard list ready blocked show epic compose molecule swarm agents dispatch maintenance agent-menu formula
+ef-deuteranopia-dark  -dark   dashboard list ready blocked show epic compose molecule swarm agents dispatch maintenance agent-menu formula
 ef-cyprus     -light  dashboard list show epic
 EOF
 
