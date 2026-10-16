@@ -1,5 +1,11 @@
 @c ====================================================================
-@c BEGIN GENERATED: command and variable reference (WI-07, be-50rac)
+@c Pinned inventory contract: command and variable reference (WI-07, be-50rac)
+@c
+@c This chapter's prose -- the descriptions, section grouping, key paths and
+@c the Keybinding Reference -- is maintained by hand.  Only the inventory is
+@c derived, by the pinned rule below, and checked by the WI-08
+@c reference-completeness :unit gate; no generator script exists.  Update an
+@c entry by hand and re-run that gate.
 @c
 @c Pinned inventory derivation rule -- reused verbatim by the
 @c WI-08 reference-completeness :unit gate.
@@ -26,7 +32,7 @@
 @c classes, and REQ-008 scopes this reference to the user-visible
 @c surface.  The test walks the same ROOTS and asserts that the four
 @c sets above match the entries here exactly.
-@c END GENERATED: command and variable reference
+@c End of pinned inventory contract: command and variable reference
 @c ====================================================================
 
 @node Command and Variable Reference
@@ -43,11 +49,11 @@ their keybindings, and the user options in one place.  The
 @ref{Key Index} lists keystrokes and the @ref{Command and Variable
 Index} collects the commands and options alphabetically.
 
-The inventory below is derived mechanically from the menu code and
-from the @file{lisp/} sources; the derivation rule is recorded in the
-@code{BEGIN GENERATED} comment at the head of @file{doc/reference.texi}
-and is enforced by the reference-completeness test.  Commands that are
-not reachable from the documented dispatch menus are internal and are
+The inventory below is defined by the pinned derivation rule recorded
+at the head of @file{doc/reference.texi} and is enforced by the
+reference-completeness test.  Both the inventory entries and the prose
+are maintained by hand; there is no generator.  Commands that are not
+reachable from the documented dispatch menus are internal and are
 deliberately omitted.
 
 @menu
