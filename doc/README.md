@@ -1,57 +1,49 @@
-# beads.el manual assets
+# beads.el manual build assets
 
-This directory holds the Texinfo sources of the beads.el user manual plus the
-two web-presentation assets that the HTML build inlines:
+Small, self-contained presentation assets for the Texinfo user manual in this
+directory.  Both are ported from the sibling `gascity.el` manual so the two
+manuals render equivalently (REQ-001); this file records the deliberate
+differences required by that requirement.
 
-- `manual.css` — the page styling, injected into every page's `<head>` with
-  `makeinfo --css-include`.
-- `lightbox.js` — the in-page screenshot lightbox, injected at the bottom of
-  every page through the `PRE_BODY_CLOSE` customization variable.
+## Files
 
-Both are progressive enhancements: without JavaScript the screenshot anchor
-still navigates to the full-resolution image. Neither file references any
-external network resource, web font, or third-party script; the CSS data-URI
-magnifier badge and the script are the whole dependency set, so the built
-site is self-contained.
+- **`manual.css`** — the manual's stylesheet.  Inlined into every HTML page by
+  `makeinfo --css-include` from `doc/Makefile.am`, so the published HTML needs
+  no external stylesheet.  No web fonts and no external assets.
+- **`lightbox.js`** — progressive enhancement for the manual's screenshots:
+  clicking a `.screenshot-link` opens the full-resolution image in an in-page
+  overlay (Esc, the backdrop, or the close button dismiss it).  Inlined into
+  every page through the `PRE_BODY_CLOSE` customization variable.  Without
+  JavaScript the anchor navigates to the image, the original behaviour.
 
-## Provenance
+Both files are referenced by the `@shot` macro defined in `beads.texi`, which
+renders a bounded `…-thumb.png` preview wrapped in a link to the full PNG.  The
+class contract is:
 
-`manual.css` and `lightbox.js` are ported and adapted from the sibling
-`gascity.el` manual so the two projects present as one documentation family
-(REQ-001). They were taken from `gascity.el` at revision
-`6a2953527dd6e2f53e1d4ec7c75a634724cedc09` (`gascity.el/doc/manual.css`,
-`gascity.el/doc/lightbox.js`).
+| Class | Element | Role |
+|-------|---------|------|
+| `.screenshot` | `div` | the preview wrapper |
+| `.screenshot-link` | `a` | the anchor to the full-resolution image |
+| `.screenshot-caption` | `div` | the caption under the preview |
 
-## Deliberate differences from gascity.el
+## Deliberate differences from `gascity.el`
 
-Keeping the two stylesheets close is the point; the following differences are
-intentional and the only ones. A `diff -u` of each file against the
-`gascity.el` original shows exactly these lines.
-
-1. **Product name, copyright, and provenance header.** `gascity.el` / "Gas
-   City Contributors" become `beads.el` / "Beads Contributors", and each file
-   records that it was ported from `gascity.el` and points here.
-2. **Product-colour note in `manual.css`.** The palette itself is unchanged:
-   the Guix/PostgreSQL-style neutral chrome is shared on purpose (REQ-001).
-   beads.el has no separate web palette, and its faces, colours, and buffer
-   names live in the Emacs screenshots embedded by the `@shot` macro, not in
-   this stylesheet. The header comment states this so a reader does not
-   expect a beads-specific recolour.
-3. **Explicit bounded-image rule (REQ-003).** `manual.css` adds a combined
-   `.screenshot img, img { max-width: 100%; height: auto; }` rule. gascity.el
-   bounds only `div.screenshot img`; beads.el additionally bounds every
-   image, so an illustration in a chapter that still uses a bare `@image`
-   cannot exceed the content column. The committed thumbnails are 520px wide
-   (narrower than the 54rem content column), so `max-width: 100%` leaves them
-   at their natural size on a wide screen and shrinks them on a narrow one.
-   The former `max-width`/`height` declarations were removed from the more
-   specific `div.screenshot img` block; its decoration is otherwise unchanged.
-4. **Lightbox globals renamed.** `window.__gascityLightbox` becomes
-   `window.__beadsLightbox` so the two manuals cannot collide if a page ever
-   includes both scripts, and the comment points at the `@shot` macro in
-   `beads.texi`.
-
-No other rule, selector, or behaviour differs. In particular the CSS
-selectors used by the `@shot` macro — `.screenshot`, `.screenshot-link`,
-`.screenshot-caption` (plus `.lightbox-*`) — are unchanged, so the same
-macro markup works in both manuals.
+1. **Product name and comments** retargeted to beads.el.  The lightbox guard
+   global is `window.__beadsLightbox` (gascity's was `window.__gascityLightbox`)
+   and the `@shot` cross-reference points at `beads.texi`.
+2. **Bounded illustrations (REQ-003).**  `manual.css` adds an explicit
+   `.screenshot img, img { max-width: 100%; height: auto; }` rule and caps the
+   `.screenshot` wrapper at the capture pipeline's thumbnail width
+   (`THUMB_W = 520px` in `docs/manual/screenshots/capture.sh`).  gascity relies
+   on `div.screenshot img` alone; the bare `img` clause is the safety net for an
+   illustration rendered outside the macro.
+3. **Explicit `.screenshot-link` selector.**  The anchor rules use
+   `div.screenshot a.screenshot-link` rather than gascity's generic
+   `div.screenshot a`, so the stylesheet names every class of the `@shot`
+   contract.
+4. **Layout, typography, colours, code/verbatim blocks, admonitions, table of
+   contents and lightbox styling are intentionally unchanged** for visual
+   parity with `gascity.el` (REQ-001).  beads.el has no separate HTML accent
+   palette; the shared Guix-inspired light palette is the standard.
+5. **No SPDX line** in the file headers, matching the rest of the beads.el
+   repository; the copyright holder is `Beads Contributors`.

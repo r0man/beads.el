@@ -48,9 +48,10 @@ two manuals present as one documentation family (REQ-001) and so the later
 `@shot`/HTML work (WI-02, WI-03) has a styled, self-contained home in the
 published Pages output (REQ-014). It is exactly the decomposition's WI-01
 (`be-bqc8z`): `doc/manual.css`, `doc/lightbox.js`, and a deliberate-differences
-record in `doc/README.md`. The implementation commit is `e3a8ccf2` in the
-source-anchor worktree
-`/home/roman/workspace/beads.el/worktrees/be-bqc8z`.
+record in `doc/README.md`. The assets were committed in the source-anchor
+worktree `/home/roman/workspace/beads.el/worktrees/be-bqc8z` (asset commit
+`e3a8ccf2`; the README refinement lands in the same item's follow-up commit),
+and the launcher checkout was never edited.
 
 Delivered:
 
@@ -59,23 +60,28 @@ Delivered:
   layout, typography, `@code`/`@verbatim` blocks, admonitions, table of
   contents, and screenshot/lightbox rules, and it adds an explicit
   **bounded-image rule** (`.screenshot img, img { max-width: 100%; height:
-  auto; }`, REQ-003). The committed thumbnails are 520px wide, narrower than
-  the 54rem content column, so they render at natural size on wide screens and
-  shrink on narrow ones; an illustration that still uses a bare `@image` also
-  cannot exceed the column.
-- **`doc/lightbox.js`** — the `gascity.el` lightbox, ported verbatim except for
-  the product/provenance header and the `window.__beadsLightbox` guard rename.
+  auto; }`, REQ-003) plus a `max-width: 520px` cap on the `.screenshot`
+  wrapper — the capture pipeline's `THUMB_W`. A preview therefore never
+  exceeds the content column, renders at its natural size on a wide screen and
+  shrinks on a narrow one, and an illustration that still uses a bare `@image`
+  is bounded by the same rule.
+- **`doc/lightbox.js`** — the `gascity.el` lightbox, ported behaviour-for-
+  behaviour except for the product/provenance header, the
+  `window.__beadsLightbox` guard rename, and the `beads.texi` cross-reference.
   Clicking a `.screenshot-link` opens the full-resolution `href` in an in-page
   overlay; the close button, `Esc`, and a backdrop click dismiss it; without
-  JavaScript the anchor navigates to the image. No external dependencies.
-- **`doc/README.md`** — records the four deliberate differences from
-  `gascity.el` (product/copyright header, the product-colour note, the global
-  bounded-image rule, and the lightbox global rename) plus the shared-selector
-  contract, so a reviewer can confirm the diff contains nothing else.
+  JavaScript the anchor navigates to the image. No external dependencies and
+  no build step.
+- **`doc/README.md`** — records the deliberate differences from `gascity.el`
+  (retargeted product name/comments, the explicit bounded-image rule, the
+  explicit `.screenshot-link` selector, the intentionally unchanged
+  palette/typography for visual parity, and the repo's no-SPDX header style)
+  plus the `.screenshot` / `.screenshot-link` / `.screenshot-caption` selector
+  contract, so a reviewer can confirm the `diff` contains nothing else.
 
 No `lisp/` runtime file is touched and no `bd` CLI surface changes (REQ-017);
 the palette is deliberately the shared neutral Guix chrome rather than a
-beads-specific recolour, which the stylesheet header and `doc/README.md` state.
+beads-specific recolour.
 
 Requirement coverage:
 
@@ -96,21 +102,22 @@ Requirement coverage:
   in without further asset edits. Every deliberate difference is recorded in
   `doc/README.md`.
 - **REQ-014 (published Pages output).** The assets are self-contained: the CSS
-  has no web fonts, no `@import`, and no network `url()`, and the JS references
-  no external script. `makeinfo --css-include` and `PRE_BODY_CLOSE` (wired in
-  WI-03) can therefore inline them into every page with no asset-copy step, so
-  the Pages site picks up the styled, functional presentation on merge.
+  has no web fonts, no `@import`, and no network `url()` (the only `url()` is
+  an inline SVG `data:` URI), and the JS references no external script.
+  `makeinfo --css-include` and `PRE_BODY_CLOSE` (wired in WI-03) can therefore
+  inline them into every page with no asset-copy step, so the Pages site picks
+  up the styled, functional presentation on merge.
 - **No behavior change (REQ-017).** No `lisp/*.el` file is modified; the change
   is documentation assets plus their provenance record.
 
 ## Changed Files
 
-- `doc/manual.css` (new, 308 lines) — the beads.el stylesheet, incl. the
-  explicit bounded-image rule.
-- `doc/lightbox.js` (new, 145 lines) — the dependency-free screenshot
-  lightbox.
-- `doc/README.md` (new, 57 lines) — provenance and the deliberate-differences
-  record.
+- `doc/manual.css` (new, 308 lines / 9761 bytes) — the beads.el stylesheet,
+  including the explicit bounded-image rule and the 520px preview cap.
+- `doc/lightbox.js` (new, 145 lines / 5583 bytes) — the dependency-free
+  screenshot lightbox.
+- `doc/README.md` (new, 49 lines / 2675 bytes) — provenance and the
+  deliberate-differences record.
 - `plans/manual-standard/items/be-bqc8z-implementation-summary.md` — this
   artifact.
 
@@ -119,52 +126,57 @@ Requirement coverage:
 First verification command (worktree, after the asset commit):
 
 ```sh
-node --check doc/lightbox.js && ls -l doc/manual.css doc/lightbox.js doc/README.md
+node --check doc/lightbox.js
 ```
 
-Observed: **pass** (exit 0). `node --check` reported no syntax error; the three
-files exist at 9622 / 5528 / 3109 bytes.
+Observed: **pass** (exit 0, no syntax error).
 
 Additional checks, all **pass**:
 
 - **Only documented differences.** `diff -u
   /home/roman/workspace/gascity.el/doc/manual.css doc/manual.css` and the same
-  for `lightbox.js` show exactly the four changes `doc/README.md` records
-  (product/copyright/provenance header, product-colour note, the global
-  bounded-image rule and the removal of the now-redundant `max-width`/`height`
-  from `div.screenshot img`, and the `__beadsLightbox` rename). No other rule,
-  selector, or behaviour differs.
+  for `lightbox.js` show only the changes `doc/README.md` records: the
+  product/copyright/provenance header, the explicit bounded-image rule and
+  520px wrapper cap (`box-sizing: border-box` added so the cap includes the
+  preview's padding/border), the explicit `.screenshot-link` selector, and the
+  `__beadsLightbox` rename. No other rule, selector, or behaviour differs.
 - **`@shot` selector contract.** `grep -nE
   '\.screenshot(-link|-caption)?\b' doc/manual.css` finds `.screenshot`,
-  `.screenshot-link` (in the lightbox comment and rules), and
+  `.screenshot-link` (anchor, hover/focus and badge rules), and
   `.screenshot-caption`; the JS matches `a.screenshot-link` and
   `.screenshot-caption`.
 - **No external network/asset dependency.** `grep -nE 'https?://|@import'`
   finds only the W3C XML namespace string inside the inline SVG `data:` URI of
   the magnifier badge — not a fetch; there is no `@import`, web font, remote
   URL, or external script.
-- **No runtime change.** `git diff --stat -- lisp/` is empty across the
-  commit; only `doc/` files were added.
+- **Well-formed sources.** The braces/quotes balance in both files, and
+  `node --check doc/lightbox.js` accepts the script.
+- **No runtime change.** `git diff --stat -- lisp/` is empty across the item's
+  commits; only `doc/` files were added.
 
-Final proof command (recorded diff audit):
+Final proof command (HTML inlining, run inside the worktree's `doc/`):
 
 ```sh
-diff -u /home/roman/workspace/gascity.el/doc/manual.css doc/manual.css
-diff -u /home/roman/workspace/gascity.el/doc/lightbox.js doc/lightbox.js
+makeinfo --html --no-split \
+  --css-include=manual.css \
+  --set-customization-variable "PRE_BODY_CLOSE=<script>$(cat lightbox.js)</script>" \
+  -o /tmp/beads-html-test/beads.html beads.texi
 ```
 
-Observed: **pass** (exit 1 with differences, all of which are the documented
-deliberate differences above; the files are otherwise byte-compatible ports).
-An empty diff is intentionally *not* expected, because beads.el must record its
-product identity and the explicit bounded-image rule.
+Observed: **pass** (exit 0). The generated page contains the inlined
+stylesheet (the bounded-image rule, `.screenshot-link` and `.lightbox-overlay`
+rules are present) and the inlined script inlined once (`__beadsLightbox`), with
+no external stylesheet or script reference. This proves the two assets are
+consumable by the `makeinfo` inlining WI-03 will wire up.
 
 ## Remaining Risks
 
 - **The assets are not yet exercised end-to-end.** WI-02 defines the `@shot`
   macro and WI-03 adds `doc/Makefile.am` with the `--css-include` /
-  `PRE_BODY_CLOSE` inlining, so a real `make html` that embeds these files
-  cannot run in this wave. The selector contract and the no-dependency audit
-  are the strongest checks available at this point; WI-03 owns the build proof.
+  `PRE_BODY_CLOSE` inlining, so the full `make html` content pipeline cannot be
+  run in this wave (the current `beads.texi` still uses bare `@image`). The
+  `makeinfo` inlining proof above and the no-dependency audit are the strongest
+  checks available at this point; WI-03 owns the full build proof.
 - **Palette intentionally unchanged.** REQ-001 asks for visual parity with
   `gascity.el`, so no beads-specific recolour was introduced. If a beads.el web
   palette is later defined, it must be added here and the divergence recorded
