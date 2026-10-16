@@ -12,6 +12,13 @@ User-visible and API-breaking changes, newest first.
   and Variable Reference`, and a `Concepts` chapter that defines the
   data-model vocabulary (stores, issues, dependencies, molecules and
   formulas).
+* **Populated Command and Variable Reference.** `doc/reference.texi` now
+  lists every command reachable from the documented dispatch menus with
+  its key path, the `--execute` suffix generated for each
+  `beads-defcommand` command, every menu keybinding, and every
+  `defcustom` user option, together with an index entry for each.  The
+  inventory is machine-derived; the derivation rule is recorded at the
+  head of the file for the reference-completeness gate.
 * **Same single source of truth.** `doc/*.texi` remains the only manual
   source; the Org pipeline is not reintroduced and the GFDL
   `@copying`/`@insertcopying` block is unchanged.

@@ -2879,7 +2879,7 @@ menu.
 @code{beads-formula-menu} --- Formulas...
 
 @item @kbd{F} @kbd{-t}
-@code{transient:beads-formula-menu:--type=} --- Type
+@code{--type=} --- Type
 
 @item @kbd{F} @kbd{l}
 @code{beads-formula-menu--list} --- 
@@ -2926,19 +2926,19 @@ menu.
 @code{beads-label-add} --- Add label to issue(s)
 
 @item @kbd{L} @kbd{a} @kbd{i}
-@code{transient:beads-label-add:--issue-ids=} --- Issue ID(s)
+@code{--issue-ids=} --- Issue ID(s)
 
 @item @kbd{L} @kbd{a} @kbd{l}
-@code{transient:beads-label-add:--label=} --- Label
+@code{--label=} --- Label
 
 @item @kbd{L} @kbd{r}
 @code{beads-label-remove} --- Remove label from issue(s)
 
 @item @kbd{L} @kbd{r} @kbd{i}
-@code{transient:beads-label-remove:--issue-ids=} --- Issue ID(s)
+@code{--issue-ids=} --- Issue ID(s)
 
 @item @kbd{L} @kbd{r} @kbd{l}
-@code{transient:beads-label-remove:--label=} --- Label
+@code{--label=} --- Label
 
 @item @kbd{L} @kbd{p}
 @code{beads-label-propagate} --- Propagate to children
@@ -3186,19 +3186,19 @@ menu.
 @code{beads-cook} --- Cook
 
 @item @kbd{!} @kbd{K} @kbd{-m}
-@code{transient:beads-cook:--mode=} --- Mode
+@code{--mode=} --- Mode
 
 @item @kbd{!} @kbd{K} @kbd{-p}
-@code{transient:beads-cook:--persist} --- Persist
+@code{--persist} --- Persist
 
 @item @kbd{!} @kbd{K} @kbd{-f}
-@code{transient:beads-cook:--force} --- Force (with persist)
+@code{--force} --- Force (with persist)
 
 @item @kbd{!} @kbd{K} @kbd{-x}
-@code{transient:beads-cook:--prefix=} --- Proto prefix
+@code{--prefix=} --- Proto prefix
 
 @item @kbd{!} @kbd{K} @kbd{-v}
-@code{transient:beads-cook:--var=} --- Variable
+@code{--var=} --- Variable
 
 @item @kbd{!} @kbd{K} @kbd{P}
 @code{beads-cook--preview} --- Full preview (dry-run)
