@@ -85,6 +85,50 @@
       screenshot-async-process-regexp "beads-async\\|beads-policy-probe"
       screenshot-log-function #'beads-shots--progress)
 
+;;; Frame-size determinism
+
+;; `set-frame-size' records the requested size immediately, but the headless
+;; sway compositor applies it asynchronously; `x-export-frames' can then read
+;; the frame while it is still at the previous size.  That made
+;; `capture.sh --verify all' intermittent: one shot exported at the 220x88
+;; baseline frame instead of its fitted size (ME-1).  Wait, bounded, for the
+;; frame's actual pixel size to match its character size just before every
+;; export.  Installed here, not in the engine, so `screenshot.el' stays a
+;; verbatim copy of the gascity.el file (README, "Provenance and reuse").
+(defvar beads-shots-frame-settle-timeout 2.0
+  "Seconds to wait for a pending frame resize before exporting.")
+
+(defun beads-shots--frame-settled-p (frame)
+  "Return non-nil when FRAME's pixel size matches its character size.
+The text area is `frame-width' x `frame-height' character cells plus the
+left/right fringes; `frame-pixel-width'/`-height' lag until the compositor
+applies the resize."
+  (let ((cw (frame-char-width frame))
+        (ch (frame-char-height frame))
+        (fringe (+ (or (frame-parameter frame 'left-fringe) 0)
+                   (or (frame-parameter frame 'right-fringe) 0))))
+    (and (<= (abs (- (frame-pixel-width frame)
+                     (+ (* (frame-width frame) cw) fringe)))
+             1)
+         (<= (abs (- (frame-pixel-height frame)
+                     (* (frame-height frame) ch)))
+             1))))
+
+(defun beads-shots--await-frame-size (&optional frame)
+  "Wait, bounded, until FRAME's resize has been applied.
+Pump the event loop so the compositor's configure event lands and the frame
+repaints at its requested size before `x-export-frames' reads it."
+  (let ((frame (or frame (selected-frame)))
+        (deadline (+ (float-time) beads-shots-frame-settle-timeout)))
+    (while (and (< (float-time) deadline)
+                (not (beads-shots--frame-settled-p frame)))
+      (accept-process-output nil 0.05)
+      (redisplay t))))
+
+(advice-add 'x-export-frames :before
+            (lambda (&optional frame &rest _)
+              (beads-shots--await-frame-size (and (framep frame) frame))))
+
 ;;; Deterministic role ids (defense in depth)
 
 (defvar beads-shots-role-prefix "demo"
@@ -223,7 +267,14 @@ Then clear the echo area, so the export shows no stray message."
 
 (defun beads-shots--transient-frame (prefix)
   "Show transient PREFIX in the current frame and return nil.
-:whole-frame shots export the frame as arranged by the thunk."
+:whole-frame shots export the frame as arranged by the thunk.
+
+The engine sets a wide baseline frame before each shot; `transient-setup'
+lays the popup out for whatever size the frame reports, so if the baseline
+resize is still in flight it sizes the menu for the previous shot's fitted
+frame and the menu is clipped once the frame grows (ME-1).  Wait for the
+baseline to land before laying the popup out."
+  (beads-shots--await-frame-size (selected-frame))
   (transient-setup prefix)
   (redisplay t)
   nil)
