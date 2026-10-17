@@ -8,7 +8,8 @@ This chapter covers the read-only surfaces of beads.el: the project board
 (the dashboard), the tabulated issue lists, the issue detail view, and the
 eldoc previews that show issue data in any buffer.  Together they are the
 day-to-day way to watch a store; the write commands live in
-@ref{Issue Workflow}.
+@ref{Issue Workflow}.  Every view command and user option is listed in
+@ref{Command and Variable Reference}.
 
 @menu
 * The Board::
@@ -40,11 +41,9 @@ and buffer-local store scoping keeps every command pointed at the same
 store (@pxref{Store Scoping}).
 
 @anchor{fig:board-dark}
-@image{images/dashboard-dark,,,The project board (@code{beads-dashboard}) with ready, in-progress, and blocked sections.,png}
-@image{images/dashboard-dark-thumb,,,The project board thumbnail.,png}
+@shot{dashboard-dark, The project board (@code{beads-dashboard}) with ready in-progress and blocked sections.}
 @anchor{fig:board-light}
-@image{images/dashboard-light,,,The project board under the light theme.,png}
-@image{images/dashboard-light-thumb,,,The light theme project board thumbnail.,png}
+@shot{dashboard-light, The project board under the light theme.}
 
 @menu
 * Board Sections and Folding::
@@ -73,11 +72,9 @@ waiting on dependencies or on a declared blocked status.  Open them from
 the dispatch menu with @kbd{r} and @kbd{b}, or from the board header.
 
 @anchor{fig:ready-dark}
-@image{images/ready-dark,,,The ready-work list.,png}
-@image{images/ready-dark-thumb,,,The ready-work list thumbnail.,png}
+@shot{ready-dark, The ready-work list.}
 @anchor{fig:blocked-dark}
-@image{images/blocked-dark,,,The blocked-issues list.,png}
-@image{images/blocked-dark-thumb,,,The blocked-issues list thumbnail.,png}
+@shot{blocked-dark, The blocked-issues list.}
 
 @node List and Show Views
 @section List and Show Views

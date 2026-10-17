@@ -7,7 +7,8 @@ This chapter covers the day-to-day commands: create, list, view, edit,
 close and reopen, claim, set status and priority, manage dependencies and
 labels, and apply bulk actions.  The entry points are the dispatch menu
 (@kbd{?}) and the context-aware actions bound in @code{beads-list-mode}
-and @code{beads-show-mode} (@pxref{Interface Concepts}).
+and @code{beads-show-mode} (@pxref{Interface Concepts}).  The complete
+command and key lookup is in @ref{Command and Variable Reference}.
 
 @menu
 * Creating Issues::
@@ -84,8 +85,7 @@ optional.  On success the buffer is killed and open lists are refreshed.
 changes.
 
 @anchor{fig:compose-dark}
-@image{images/compose-dark,,,The compose buffer for a new issue.,png}
-@image{images/compose-dark-thumb,,,The compose buffer thumbnail.,png}
+@shot{compose-dark, The compose buffer for a new issue.}
 
 @node Listing Issues
 @section Listing Issues
@@ -160,11 +160,9 @@ The number of rows shown by default is the user option
 the issue at point in another window (@pxref{One Movement Scheme}).
 
 @anchor{fig:list-dark}
-@image{images/list-dark,,,The issue list as a sortable filterable table.,png}
-@image{images/list-dark-thumb,,,The issue list thumbnail.,png}
+@shot{list-dark, The issue list as a sortable filterable table.}
 @anchor{fig:list-light}
-@image{images/list-light,,,The issue list under the light theme.,png}
-@image{images/list-light-thumb,,,The light theme issue list thumbnail.,png}
+@shot{list-light, The issue list under the light theme.}
 
 @node Viewing Issues
 @section Viewing Issues
@@ -199,11 +197,9 @@ Quit.
 @end table
 
 @anchor{fig:show-dark}
-@image{images/show-dark,,,The issue detail view with dependencies and comments.,png}
-@image{images/show-dark-thumb,,,The issue detail view thumbnail.,png}
+@shot{show-dark, The issue detail view with dependencies and comments.}
 @anchor{fig:show-light}
-@image{images/show-light,,,The issue detail view under the light theme.,png}
-@image{images/show-light-thumb,,,The light theme issue detail view thumbnail.,png}
+@shot{show-light, The issue detail view under the light theme.}
 
 @node Editing Issues
 @section Editing Issues
@@ -219,9 +215,10 @@ Edit a field inline (a single-line title, or a temporary buffer for
 longer fields).
 @end table
 
-From a show buffer, @kbd{?} opens a persistent actions transient that
-stays open after each action, so you can run several without reopening
-it.
+From a show buffer, @kbd{?} opens the shared dispatch menu
+(@pxref{Transients}).  For a compact, stay-open menu of actions for the
+issue at point, run @kbd{M-x beads-show-actions}: each suffix keeps that
+menu open, so you can run several without reopening it.
 
 @node Closing and Reopening
 @section Closing and Reopening

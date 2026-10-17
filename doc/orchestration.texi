@@ -9,7 +9,8 @@ every command, the terminal subsystem that runs agents and interactive
 CLIs, the Dolt and repository commands, configuration, and the audit and
 provenance views.  The day-to-day issue commands are in @ref{Issue
 Workflow}, the views in @ref{Dashboards and Views}, and the build and
-extension guide in @ref{Maintenance and Extending}.
+extension guide in @ref{Maintenance and Extending}.  The complete
+command and key lookup is in @ref{Command and Variable Reference}.
 
 @menu
 * The Dispatch and Maintenance Menus::
@@ -31,28 +32,28 @@ The whole CLI surface is reachable from two menus.
 @deffn Command beads-dispatch
 Open the dispatch menu on @kbd{?}: the high- and mid-frequency commands,
 grouped into @strong{Issues}, @strong{Workflow}, @strong{Views}, and
-@strong{Manage}.  The menu is opened from any beads buffer with @kbd{?};
-a context group is built from the view at point.
+@strong{Manage}, with a @strong{Maintenance} row underneath.  The menu is
+opened from any beads buffer with @kbd{?}.
 @end deffn
 
 @deffn Command beads-maintenance
-Open the maintenance menu on @kbd{!}: the low-frequency, admin, and
-infrastructure commands.  It replaces the former @code{beads-ops-menu}
-and @code{beads-advanced-menu}, which no longer exist.
+Open the maintenance menu: the low-frequency, admin, and infrastructure
+commands.  Reach it with @kbd{!} from the dispatch menu (that is,
+@kbd{?} @kbd{!}), or with @kbd{M-x beads-maintenance}.  It replaces the
+former @code{beads-ops-menu} and @code{beads-advanced-menu}, which no
+longer exist.
 @end deffn
 
-@defvr {User Option} beads-menu-providers
+@defvr {Variable} beads-menu-providers
 List of functions that append extra groups to the dispatch menu.
 Downstream packages (for example gascity.el) register their own group here
 so it appears under the dispatch menu without editing beads.el.
 @end defvr
 
 @anchor{fig:dispatch-dark}
-@image{images/dispatch-dark,,,The dispatch menu (@code{beads-dispatch}).,png}
-@image{images/dispatch-dark-thumb,,,The dispatch menu thumbnail.,png}
+@shot{dispatch-dark, The dispatch menu (@code{beads-dispatch}).}
 @anchor{fig:maintenance-dark}
-@image{images/maintenance-dark,,,The maintenance menu (@code{beads-maintenance}).,png}
-@image{images/maintenance-dark-thumb,,,The maintenance menu thumbnail.,png}
+@shot{maintenance-dark, The maintenance menu (@code{beads-maintenance}).}
 
 @menu
 * Maintenance Groups::
@@ -268,11 +269,11 @@ through the selected backend if the buffer is not live.
 Attach to the tmux SESSION, optionally on SOCKET and in DIR, for STORE.
 @end deftypefn
 
-@defvr {User Option} beads-terminal-backend
+@defopt beads-terminal-backend
 The preferred terminal backend, or nil to auto-detect.  When nil, the
 backends are tried in order: @code{vterm}, @code{ghostel},
 @code{eat}, @code{ansi-term}, @code{term}.
-@end defvr
+@end defopt
 
 Remote (TRAMP) stores are supported.  On a single-hop ssh-family store,
 asynchronous commands run as a local @command{ssh -T} pipe rather than a

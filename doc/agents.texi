@@ -10,6 +10,8 @@ beads.el can launch an AI agent on an issue from inside Emacs.  A
 is asked to do) and a @emph{backend} (the program and terminal that run
 it), optionally isolated in a git worktree.  Sessions are tracked in an
 in-house registry, so no external session-manager package is required.
+The complete command and option lookup is in @ref{Command and Variable
+Reference}.
 
 @menu
 * Agent Commands::
@@ -47,11 +49,9 @@ Start the generic agent at point.
 @end table
 
 @anchor{fig:agents-dark}
-@image{images/agents-dark,,,The agent session list (@code{beads-agent-list}).,png}
-@image{images/agents-dark-thumb,,,The agent session list thumbnail.,png}
+@shot{agents-dark, The agent session list (@code{beads-agent-list}).}
 @anchor{fig:agent-menu-dark}
-@image{images/agent-menu-dark,,,The agent menu (@code{beads-agent}).,png}
-@image{images/agent-menu-dark-thumb,,,The agent menu thumbnail.,png}
+@shot{agent-menu-dark, The agent menu (@code{beads-agent}).}
 
 @node Agent Types
 @section Agent Types
@@ -139,8 +139,7 @@ From the maintenance menu, open the swarm sub-dispatch.
 @end table
 
 @anchor{fig:swarm-dark}
-@image{images/swarm-dark,,,The swarm fleet list, showing wave progress.,png}
-@image{images/swarm-dark-thumb,,,The swarm fleet list thumbnail.,png}
+@shot{swarm-dark, The swarm fleet list showing wave progress.}
 
 The sling preview shows the prompt and target before the agent starts, so
 you can adjust them before committing.  Sling and swarm share the terminal

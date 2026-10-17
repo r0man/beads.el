@@ -10,7 +10,8 @@ They are @emph{cooked} into proto beads that can then be @emph{poured} (made
 persistent) or @emph{wisped} (made ephemeral).  Running instances are
 called molecules, and an epic is the larger grouping they roll up to.  This
 chapter covers all three and the commands that manage them; the underlying
-concepts are introduced in @ref{Molecules and Formulas}.
+concepts are introduced in @ref{Molecules and Formulas}.  The full
+command and option lookup is in @ref{Command and Variable Reference}.
 
 @menu
 * Formulas::
@@ -50,8 +51,7 @@ help-echo names the shadowed path.  @code{beads-formula-scope} switches the
 scope filter between @code{project}, @code{user}, and @code{all}.
 
 @anchor{fig:formula-dark}
-@image{images/formula-dark,,,The formula menu (@code{beads-formula-menu}).,png}
-@image{images/formula-dark-thumb,,,The formula menu thumbnail.,png}
+@shot{formula-dark, The formula menu (@code{beads-formula-menu}).}
 
 @node Molecules
 @section Molecules
@@ -68,8 +68,7 @@ health-check molecules.
 @end deffn
 
 @anchor{fig:molecule-dark}
-@image{images/molecule-dark,,,The molecule view of the fixture epic, showing poured steps.,png}
-@image{images/molecule-dark-thumb,,,The molecule view thumbnail.,png}
+@shot{molecule-dark, The molecule view of the fixture epic showing poured steps.}
 
 @menu
 * Instantiate::
@@ -89,6 +88,39 @@ health-check molecules.
 Pour --- create a persistent molecule from a proto.
 @item w
 Wisp --- create an ephemeral molecule.
+@end table
+
+A project-local formula lives at
+@file{.beads/formulas/@var{NAME}.formula.toml}.  A minimal two-step
+workflow looks like this:
+
+@example
+formula = "release"
+description = "Cut a release"
+type = "workflow"
+version = 1
+
+[[steps]]
+id = "test"
+title = "Run the test suite"
+
+[[steps]]
+id = "publish"
+title = "Publish the release"
+needs = ["test"]
+@end example
+
+Then cook the formula, pour the cooked proto into a molecule, and
+inspect the result:
+
+@table @asis
+@item @kbd{?} @kbd{!} @kbd{K}
+Cook --- pick @samp{release} in the maintenance menu to create the proto
+bead.
+@item @kbd{?} @kbd{m} @kbd{p}
+Pour --- pick the cooked proto to create the persistent molecule.
+@item @kbd{?} @kbd{m} @kbd{s}
+Show --- list the molecule root and its stepped issues.
 @end table
 
 @node Combine
@@ -150,8 +182,8 @@ Last activity --- show when each molecule was last touched.
 @cindex epic status
 
 @deffn Command beads-epic-menu
-Open the epic menu.  Press @kbd{E} from the dispatch menu
-(@pxref{Transients}).
+Open the epic menu.  Run @kbd{M-x beads-epic-menu}; the epic menu is not
+bound to a key in the dispatch menu.
 @end deffn
 
 @table @kbd
@@ -165,11 +197,9 @@ Close eligible --- close every epic whose children are all complete.  Pass
 @end table
 
 @anchor{fig:epic-dark}
-@image{images/epic-dark,,,An epic detail view with its children.,png}
-@image{images/epic-dark-thumb,,,The epic detail view thumbnail.,png}
+@shot{epic-dark, An epic detail view with its children.}
 @anchor{fig:epic-light}
-@image{images/epic-light,,,The epic detail view under the light theme.,png}
-@image{images/epic-light-thumb,,,The light theme epic detail view thumbnail.,png}
+@shot{epic-light, The epic detail view under the light theme.}
 
 @node Cook Pour and Burn
 @section Cook, Pour, and Burn from One Place
@@ -177,7 +207,8 @@ Close eligible --- close every epic whose children are all complete.  Pass
 @cindex cook
 @cindex swarm
 
-The maintenance menu (@kbd{!}) also carries the workflow verbs: @kbd{K}
+The maintenance menu (@kbd{?} @kbd{!}, or @kbd{M-x beads-maintenance})
+also carries the workflow verbs: @kbd{K}
 cook, @kbd{w} swarm, @kbd{g} gate, @kbd{H} ship, and the state helpers
 @kbd{z} and @kbd{Z}.  The swarm and gate flows are described in
 @ref{Agents and Sling}, and the menu itself is documented with the other

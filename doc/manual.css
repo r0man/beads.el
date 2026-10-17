@@ -1,0 +1,308 @@
+/* doc/manual.css --- Styling for the beads.el HTML manual
+ *
+ * Copyright © 2026 Beads Contributors
+ *
+ * Modeled on the GNU/Guix reference manual: a single readable column,
+ * boxed code and definitions, and muted navigation chrome.  Small and
+ * dependency-free (no web fonts, no external assets) so that the rules
+ * embedded into each page by `makeinfo --css-include' stay self-contained.
+ *
+ * Ported from the sibling `gascity.el/doc/manual.css' so that the two
+ * manuals render equivalently (REQ-001): the layout, typography,
+ * `@code'/`@verbatim' blocks, admonitions, table of contents, and
+ * screenshot/lightbox rules are kept; only the product name, identifiers
+ * and comments are retargeted to beads.el.  Deliberate differences are
+ * recorded in doc/README.md.
+ *
+ * makeinfo emits its own default rules first and appends the rules below,
+ * so anything here wins over a default at equal specificity (e.g. the
+ * 3.2em `div.example' indent is overridden on purpose).
+ */
+
+/* --- Page: a centered, readable column on a quiet background. --- */
+html {
+  background: #f4f5f6;
+}
+body {
+  max-width: 54rem;
+  margin: 0 auto;
+  padding: 1.5rem 1.4rem 4rem;
+  background: #ffffff;
+  color: #1f2328;
+  font-family: "DejaVu Sans", "Liberation Sans", Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+/* --- Headings. --- */
+h1, h2, h3, h4, h5, h6 {
+  color: #14181c;
+  font-weight: 600;
+  line-height: 1.25;
+}
+h1.settitle, h1.top {
+  font-size: 2rem;
+  margin-top: 0.4em;
+  padding-bottom: 0.25em;
+  border-bottom: 2px solid #e3e6e9;
+}
+h2.chapter, h2.unnumbered, h2.appendix, h2.contents-heading {
+  font-size: 1.55rem;
+  margin-top: 1.6em;
+  padding-bottom: 0.2em;
+  border-bottom: 1px solid #e7eaed;
+}
+h3.section { font-size: 1.25rem; margin-top: 1.6em; }
+h4.subsection { font-size: 1.08rem; margin-top: 1.4em; }
+
+/* --- Links. --- */
+a { color: #2f6fa8; text-decoration: none; }
+a:hover, a:focus { text-decoration: underline; }
+
+/* --- Navigation header/footer (Next/Prev/Up + Contents/Index). --- */
+div.header {
+  font-size: 0.85rem;
+  background: #f0f3f6;
+  border: 1px solid #e1e6ea;
+  border-radius: 4px;
+  padding: 0.4rem 0.7rem;
+  margin: 0.6rem 0 1.3rem;
+  color: #5b6670;
+}
+div.header p { margin: 0; }
+
+/* --- Inline code-like spans. --- */
+code, samp, kbd, tt, var {
+  font-family: "DejaVu Sans Mono", "Liberation Mono", "Courier New", monospace;
+  font-size: 0.92em;
+}
+code, samp, kbd {
+  background: #f2f3f5;
+  border-radius: 3px;
+  padding: 0.08em 0.32em;
+}
+/* Keystrokes (@kbd) read better with a subtle key-cap outline. */
+kbd {
+  border: 1px solid #d6dade;
+  box-shadow: 0 1px 0 #d6dade;
+}
+var { font-style: italic; }
+
+/* --- Block code: @example, @verbatim, @lisp, @smallexample. --- */
+div.example, div.display, div.lisp, div.smallexample {
+  margin-left: 0;            /* override makeinfo's 3.2em indent */
+}
+pre.example, pre.verbatim, pre.display, pre.format,
+pre.lisp, pre.smallexample, pre.smalllisp {
+  background: #f6f8fa;
+  border: 1px solid #e1e4e8;
+  border-radius: 5px;
+  padding: 0.8em 1em;
+  overflow-x: auto;
+  font-family: "DejaVu Sans Mono", "Liberation Mono", "Courier New", monospace;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+/* No nested pill background for code already inside a block. */
+pre code, pre samp, pre kbd { background: none; padding: 0; border: none; box-shadow: none; }
+
+/* --- Definitions: @defvr, @deffn, @deftp (user options, commands, ...). --- */
+dl.def {
+  background: #fbfcfd;
+  border: 1px solid #e6eaee;
+  border-left: 3px solid #b9c6d3;
+  border-radius: 0 5px 5px 0;
+  padding: 0.6em 0.95em;
+  margin: 1.3em 0;
+}
+dl.def > dt {
+  margin: 0 0 0.15em;
+  font-family: "DejaVu Sans Mono", "Liberation Mono", "Courier New", monospace;
+}
+dl.def > dt + dt { margin-top: 0.1em; }   /* stacked signatures */
+dl.def > dd { margin: 0.55em 0 0; }
+span.category {
+  color: #6a737d;
+  font-family: "DejaVu Sans", "Liberation Sans", Helvetica, Arial, sans-serif;
+  font-style: italic;
+  font-weight: normal;
+  margin-right: 0.3em;
+}
+
+/* Nested argument lists (@table inside a definition: <dl compact>). */
+dl[compact] { margin-left: 0.4em; }
+dl[compact] > dt {
+  font-family: "DejaVu Sans Mono", "Liberation Mono", "Courier New", monospace;
+}
+
+/* --- Tables of contents and @menu lists. --- */
+div.contents, div.section-toc {
+  background: #fafbfc;
+  border: 1px solid #eceff2;
+  border-radius: 5px;
+  padding: 0.4em 1em;
+  margin: 1.2em 0;
+}
+ul.no-bullet { padding-left: 1em; }
+a.summary-letter { text-decoration: none; }
+
+/* --- Tables and quotations. --- */
+table { border-collapse: collapse; }
+table td, table th { padding: 0.25em 0.6em; vertical-align: top; }
+blockquote {
+  margin: 1.2em 0;
+  padding: 0.2em 1em;
+  border-left: 3px solid #e3e6e9;
+  color: #44505a;
+}
+hr { border: none; border-top: 1px solid #e7eaed; }
+
+/* --- Bounded illustrations (REQ-003). ---
+ *
+ * No illustration may exceed the content column.  The `.screenshot img'
+ * clause bounds every `@shot' preview; the bare `img' clause is the safety
+ * net for any image a chapter renders outside the macro.  The screenshot
+ * rule below additionally pins the preview to the capture pipeline's
+ * thumbnail width (`THUMB_W = 520px' in docs/manual/screenshots/capture.sh)
+ * so a preview never grows past its source size. */
+.screenshot img,
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* --- Screenshots: a centered preview that opens a full-image lightbox. --- */
+div.screenshot {
+  /* The preview is a `-thumb' PNG at most `THUMB_W' (520px) wide; capping
+   * the wrapper at that width bounds the image without upscaling a narrow
+   * shot, and auto margins keep it centered in the column. */
+  max-width: 520px;
+  margin: 1.4em auto;
+  text-align: center;
+}
+div.screenshot a.screenshot-link { position: relative; display: inline-block; line-height: 0; }
+div.screenshot img {
+  max-width: 100%;
+  height: auto;
+  box-sizing: border-box;
+  border: 1px solid #e1e4e8;
+  border-radius: 6px;
+  background: #f6f8fa;
+  padding: 5px;
+  cursor: zoom-in;
+  box-shadow: 0 1px 4px rgba(27, 31, 35, 0.10);
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+div.screenshot a.screenshot-link:hover img,
+div.screenshot a.screenshot-link:focus img {
+  border-color: #b9c6d3;
+  box-shadow: 0 2px 8px rgba(27, 31, 35, 0.16);
+}
+/* A small magnifier badge in the corner signals that the thumbnail
+ * enlarges -- discoverability for the lightbox, since the zoom cursor
+ * and title tooltip only appear on hover.  Drawn from an inline SVG data
+ * URI (no font glyph to miss, no extra asset), subtle by default and
+ * brighter on hover/focus.  Hidden from the no-JS fallback would be ideal
+ * but harmless there: the link still enlarges, just by navigation. */
+div.screenshot a.screenshot-link::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 6px;
+  background-color: rgba(20, 24, 28, 0.6);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 0.95rem 0.95rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='10' cy='10' r='7'/%3E%3Cline x1='15.2' y1='15.2' x2='21' y2='21'/%3E%3C/svg%3E");
+  opacity: 0.62;
+  transition: opacity 0.12s ease;
+  pointer-events: none;
+}
+div.screenshot a.screenshot-link:hover::after,
+div.screenshot a.screenshot-link:focus::after { opacity: 0.95; }
+div.screenshot-caption {
+  margin-top: 0.5em;
+  font-size: 0.88rem;
+  color: #6a737d;
+  font-style: italic;
+}
+
+/* --- Lightbox: the full-image overlay opened by clicking a screenshot. ---
+ *
+ * Progressive enhancement.  doc/lightbox.js intercepts a click on a
+ * `.screenshot-link' and shows the full image here, above the page;
+ * without JavaScript the link just navigates to the image, so these
+ * rules style a feature that only ever appears when the script ran. */
+body.lightbox-open { overflow: hidden; }    /* freeze page scroll behind */
+
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2.2rem 1.5rem;
+  background: rgba(20, 24, 28, 0.82);
+  cursor: zoom-out;                          /* the backdrop closes on click */
+  animation: lightbox-fade 0.12s ease-out;
+}
+.lightbox-overlay[hidden] { display: none; }
+
+@keyframes lightbox-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.lightbox-figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 100%;
+  max-height: 100%;
+  cursor: default;                           /* clicks on the image do nothing */
+}
+.lightbox-image {
+  max-width: 100%;
+  max-height: calc(100vh - 7rem);            /* leave room for the caption */
+  width: auto;
+  height: auto;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 6px 32px rgba(0, 0, 0, 0.5);
+}
+.lightbox-caption {
+  margin-top: 0.8em;
+  max-width: 48rem;
+  color: #e8eaed;
+  font-size: 0.9rem;
+  font-style: italic;
+  text-align: center;
+}
+.lightbox-close {
+  position: fixed;
+  top: 0.7rem;
+  right: 0.9rem;
+  width: 2.1rem;
+  height: 2.1rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  color: #1f2328;
+  font-size: 1.4rem;
+  line-height: 2.1rem;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.45);
+}
+.lightbox-close:hover { background: #f0f3f6; }
+.lightbox-close:focus-visible { outline: 2px solid #2f6fa8; outline-offset: 2px; }
+
+/* --- Narrow screens: trim the page padding. --- */
+@media (max-width: 38rem) {
+  body { padding: 1rem 0.9rem 3rem; font-size: 15px; }
+  .lightbox-overlay { padding: 1rem 0.6rem; }
+}

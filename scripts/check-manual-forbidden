@@ -1,0 +1,53 @@
+#!/bin/sh
+# Offline gate: the forbidden host/city name must not appear in the manual.
+#
+#   scripts/check-manual-forbidden
+#
+# REQ-015/REQ-016: the manual sources and generated HTML must contain no
+# `burningswell' (or `burningswell.com').  This scans, case-insensitively:
+#
+#   doc/*.texi          the hand-authored manual, the single source of truth
+#   docs/manual/        the manual build inputs (images/ excluded -- PNG
+#                       binaries are not text and are regenerated separately)
+#   doc/beads.html      the generated HTML, when `make html' has built it
+#
+# Each offending `path:line' is printed and the script exits non-zero; a
+# clean tree exits 0.  It never touches the network or the database.
+
+set -eu
+
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+cd "$root"
+
+forbidden=burningswell
+
+list=$(mktemp)
+trap 'rm -f "$list"' EXIT HUP INT TERM
+
+# Manual sources at the top of doc/.
+find doc -maxdepth 1 -name '*.texi' -type f >> "$list"
+# Manual build inputs, but not the committed screenshot binaries.
+find docs/manual -type f ! -path '*/images/*' >> "$list"
+# Generated HTML, when present.
+if [ -f doc/beads.html ]; then
+  echo doc/beads.html >> "$list"
+fi
+
+dirty=0
+while IFS= read -r file; do
+  [ -n "$file" ] || continue
+  [ -f "$file" ] || continue
+  # -H always prefixes the file name, -n the line number, -i ignores case;
+  # -I skips binaries.  grep exits 0 only when something matched.
+  if matches=$(grep -IinH -e "$forbidden" "$file" 2>/dev/null); then
+    printf '%s\n' "$matches"
+    dirty=1
+  fi
+done < "$list"
+
+if [ "$dirty" -ne 0 ]; then
+  echo "check-manual-forbidden: '$forbidden' found in the manual" >&2
+  exit 1
+fi
+
+exit 0

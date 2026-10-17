@@ -23,6 +23,11 @@
 
 ACLOCAL_AMFLAGS = -I m4
 
+## Recurse into doc/ so `make', `make info', `make html', `make pdf',
+## `make install' and `make dist' all build, install and ship the manual
+## through doc/Makefile.am (REQ-002, REQ-014).
+SUBDIRS = doc
+
 EMACS = @EMACS@
 
 ## Dependency load-path flags resolved by configure (`--with-transient=DIR'
@@ -85,8 +90,6 @@ AUTOLOADS_FILE = lisp/beads-autoloads.el
 ## rules before anything is written into it.
 BEADS_BUILD_LISP_DIR = $(abs_builddir)/lisp
 
-info_TEXINFOS = doc/beads.texi
-
 EXTRA_DIST = \
   autogen.sh \
   build-aux/beads-compile.el \
@@ -96,15 +99,8 @@ EXTRA_DIST = \
   build-aux/beads-coverage.el \
   m4/.gitkeep \
   guix.scm \
-  doc/images \
-  doc/agents.texi \
-  doc/formulas.texi \
-  doc/getting-started.texi \
-  doc/issue-workflow.texi \
-  doc/maintenance.texi \
-  doc/orchestration.texi \
-  doc/views.texi \
   scripts/dispatch-docs \
+  scripts/check-manual-forbidden \
   scripts/lint \
   scripts/coverage \
   scripts/ci-deps \
@@ -152,34 +148,21 @@ uninstall-local:
 
 clean-local:
 	rm -f $(BEADS_LISP_COMPILED) $(AUTOLOADS_FILE)
-	rm -rf "$(builddir)/doc/beads.html"
-	rm -f "$(builddir)/doc/beads.pdf"
-
-## `make html' builds doc/beads.html, but `makeinfo --html' emits
-## `<img src="images/...">' without copying the PNG binaries, so the
-## published tree would have broken images.  Stage the screenshots into
-## the HTML output to keep the Pages site self-contained (REQ-012).
-## `html-local' is the Automake hook for extending `make html' (defining
-## `html' itself would override, and thus warn about, the Automake
-## target).  It runs after `$(HTMLS)' because automake makes
-## `html-am: $(HTMLS) html-local'.  doc/images is a symlink to
-## docs/manual/images, hence `cp -L'.
-HTML_IMAGES = $(builddir)/doc/beads.html/images
-
-html-local:
-	@src="$(srcdir)/doc/images"; \
-	if [ ! -e "$$src" ]; then src="$(srcdir)/docs/manual/images"; fi; \
-	$(MKDIR_P) "$(builddir)/doc/beads.html"; \
-	rm -rf "$(HTML_IMAGES)"; \
-	cp -RL "$$src" "$(HTML_IMAGES)"
 
 ## `make check' (REQ-006, REQ-008): the whole ERT suite in one Emacs
 ## invocation.  build-aux/beads-check.el drops stale project byte-code
 ## first (F2, be-47jo) and writes coverage/junit.xml from
-## EMACS_TEST_JUNIT_REPORT (F3).
-check-local:
+## EMACS_TEST_JUNIT_REPORT (F3).  `check-manual' (REQ-015/REQ-016) runs
+## first as a cheap offline grep gate over the manual sources.
+check-local: check-manual
 	@BEADS_CHECK_TOOLS="bd=$(check_have_bd) dolt=$(check_have_dolt) graphviz=$(check_have_graphviz)" \
 	  $(EMACS_BATCH_Q) -L "$(abs_top_srcdir)/lisp/test" -l $(CHECK_HELPER)
+
+## `make check-manual' (REQ-015/REQ-016): fail if the forbidden host/city
+## name reappears in the Texinfo manual, its build inputs, or the generated
+## HTML.  Offline and dependency-free, so CI can also run it on its own.
+check-manual:
+	$(abs_top_srcdir)/scripts/check-manual-forbidden
 
 ## `make lint' (REQ-008): package-lint plus byte-compile
 ## warnings-as-errors, via scripts/lint (no Eldev).
@@ -196,4 +179,4 @@ coverage:
 	EMACS="$(EMACS)" TRANSIENT_DIR="$(TRANSIENT_DIR)" VUI_DIR="$(VUI_DIR)" \
 	  $(COVERAGE_SCRIPT)
 
-.PHONY: check-local lint coverage html-local
+.PHONY: check-local check-manual lint coverage

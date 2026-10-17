@@ -4,6 +4,67 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Manual gates wired into CI and self-contained Pages publish
+
+* **Forbidden host/city name gate in CI (REQ-015, REQ-016).**
+  `make check-manual` (offline, dependency-free) runs first in
+  `make check` and the Docs drift workflow, so the manual, its build
+  inputs, or the generated HTML can no longer mention the forbidden
+  name.
+* **Reference-completeness gate in CI (REQ-008, REQ-009, REQ-013).**
+  The Docs drift workflow now runs the `:unit`
+  `beads-manual-reference-test.el` gate directly, so a command, a
+  generated `--execute` suffix, or a `defcustom` option without a
+  `@deffn`/`@defopt` entry fails CI without waiting for the full test
+  matrix.
+* **Pages publish verifies the manual (REQ-014).** The Pages workflow
+  asserts the uploaded `doc/beads.html` is self-contained (no external
+  stylesheet or script; the lightbox and screenshot mirroring present)
+  and reproducible (a second clean build is byte-identical) before the
+  artifact is uploaded.
+* **No behavior change (REQ-017).** The manual work is documentation,
+  build, and screenshot presentation only: no file under `lisp/` changes
+  except tests/support (`beads-manual-test.el`,
+  `beads-manual-reference-test.el`, `beads-manual-walkthrough-test.el`,
+  `beads-transient-doc-test.el`), and no command class, transient,
+  `defcustom`, or CLI slot changes.
+
+### Documented fresh-`emacs -Q` walkthrough
+
+* **The manual is walked end to end.** A new `:integration` test
+  (`lisp/test/beads-manual-walkthrough-test.el`) drives the documented
+  path -- load, board, create/list/show/close, dependency, formula and
+  molecule, dispatch and maintenance menus -- in a throwaway store, and
+  `plans/manual-standard/walkthrough.md` records the interactive
+  fresh-`emacs -Q` evidence.
+* **Manual corrections the walkthrough surfaced.** The board brackets its
+  project with angle brackets (`*beads-dashboard<PROJECT>*`), not square
+  brackets; the epic menu is `M-x beads-epic-menu` (there is no dispatch
+  key for it); `?` in a show buffer opens the dispatch menu while
+  `M-x beads-show-actions` is the stay-open per-issue menu; the
+  maintenance menu is reached with `? !` (or `M-x beads-maintenance`),
+  not a bare `!`; and the dispatch menu has a `Maintenance` row but no
+  view-derived context group.
+
+### Manual restructured to the Guix/PostgreSQL standard
+
+* **New top-level chapters.** The Texinfo manual now opens with an
+  `Introduction`, `Installation and Requirements`, and the `Getting
+  Started` tutorial, followed by the existing task chapters, a `Command
+  and Variable Reference`, and a `Concepts` chapter that defines the
+  data-model vocabulary (stores, issues, dependencies, molecules and
+  formulas).
+* **Populated Command and Variable Reference.** `doc/reference.texi` now
+  lists every command reachable from the documented dispatch menus with
+  its key path, the `--execute` suffix generated for each
+  `beads-defcommand` command, every menu keybinding, and every
+  `defcustom` user option, together with an index entry for each.  The
+  inventory is machine-derived; the derivation rule is recorded at the
+  head of the file for the reference-completeness gate.
+* **Same single source of truth.** `doc/*.texi` remains the only manual
+  source; the Org pipeline is not reintroduced and the GFDL
+  `@copying`/`@insertcopying` block is unchanged.
+
 ### Durable command log for async bd invocations
 
 * **New `*beads-log*` buffer.** Async `bd` invocations now append a

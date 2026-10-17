@@ -23,6 +23,20 @@ make
 # the missing tools.  Pass --with-bd=no (and siblings) to force it.
 make check
 
+# Build the user manual.  `make` already builds Info through
+# `SUBDIRS = doc'; HTML/PDF are on demand.  The HTML override in
+# `doc/Makefile.am` inlines `manual.css` and `lightbox.js` and mirrors
+# the screenshots, so `doc/beads.html` is self-contained (REQ-002,
+# REQ-014).
+make html
+make pdf
+
+# Offline gate (REQ-015/REQ-016): fail if the forbidden host/city name
+# reappears in the manual sources, their build inputs, or the generated
+# HTML.  Runs first inside `make check' and on its own in the Docs drift
+# workflow.
+make check-manual
+
 # Byte-compile warnings-as-errors + package-lint
 make lint
 

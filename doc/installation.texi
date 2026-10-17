@@ -1,0 +1,70 @@
+@node Installation and Requirements
+@chapter Installation and Requirements
+@cindex installation
+@cindex requirements
+
+This chapter lists what @code{beads.el} needs and how to install and set
+it up.  Once it is installed, continue with @ref{Getting Started}.
+
+@menu
+* Requirements::
+* Installing from MELPA::
+* Installing from Source::
+* Initial Setup::
+@end menu
+
+@node Requirements
+@section Requirements
+@cindex requirements
+
+@itemize @bullet
+@item
+Emacs 29.1 or newer.
+@item
+The @command{bd} executable on @var{PATH}.
+@item
+The MELPA libraries @code{transient} (0.10.1+) and @code{vui} (1.0.0+).
+@item
+@command{dolt} and @command{graphviz} for the full feature set and the
+complete test suite.
+@end itemize
+
+@node Installing from MELPA
+@section Installing from MELPA
+@cindex MELPA
+
+The package is published on MELPA:
+
+@lisp
+(use-package beads
+  :ensure t)
+@end lisp
+
+@node Installing from Source
+@section Installing from Source
+@cindex installing from source
+
+Clone the repository and add its @file{lisp/} directory to your load
+path:
+
+@lisp
+(add-to-list 'load-path "/path/to/beads.el/lisp")
+(require 'beads)
+@end lisp
+
+@node Initial Setup
+@section Initial Setup
+@cindex initial setup
+@cindex @command{bd} init
+
+Initialize a Beads store in a project directory:
+
+@example
+cd /path/to/project
+bd init
+@end example
+
+Then open the board in Emacs with @kbd{M-x beads}.  @code{beads.el}
+finds the store from the buffer's @code{default-directory}; act on a
+different project with the @code{:directory} argument
+(@pxref{Store Scoping}).
