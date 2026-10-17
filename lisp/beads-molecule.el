@@ -732,19 +732,18 @@ the view."
 
 (defun beads-molecule--root-state (key)
   "Return the value of KEY in the molecule root vui state, or nil."
-  (and (fboundp 'vui--buffer-root)
-       (vui--buffer-root)
-       (plist-get (vui-instance-state (vui--buffer-root)) key)))
+  (and (beads-buffer-vui-root)
+       (plist-get (vui-instance-state (beads-buffer-vui-root)) key)))
 
 (defun beads-molecule--bump (key value)
   "Apply VALUE to root state slot KEY and re-render the buffer.
 Skips the rerender when VALUE equals the current slot."
-  (when (and (fboundp 'vui--buffer-root) (vui--buffer-root))
-    (let ((state (vui-instance-state (vui--buffer-root))))
+  (when (beads-buffer-vui-root)
+    (let ((state (vui-instance-state (beads-buffer-vui-root))))
       (unless (equal (plist-get state key) value)
-        (setf (vui-instance-state (vui--buffer-root))
+        (setf (vui-instance-state (beads-buffer-vui-root))
               (plist-put state key value))
-        (vui--rerender-instance (vui--buffer-root))))))
+        (vui--rerender-instance (beads-buffer-vui-root))))))
 
 (defun beads-molecule-toggle-section (key)
   "Toggle the folded state of section KEY in the current molecule buffer."
