@@ -520,19 +520,19 @@ Sections receive collapse state as a prop because per-component
 
 (defun beads-dashboard--root-state (key)
   "Return the value of KEY in the dashboard root vui state, or nil."
-  (and vui--root-instance
-       (plist-get (vui-instance-state vui--root-instance) key)))
+  (and (vui--buffer-root)
+       (plist-get (vui-instance-state (vui--buffer-root)) key)))
 
 (defun beads-dashboard--bump (key value)
   "Apply VALUE to the root state slot KEY in the current buffer.
 Skips the rerender when VALUE equals the current slot — guards against
 no-op writes from idle ticks and back-to-back refreshes."
-  (when vui--root-instance
-    (let ((state (vui-instance-state vui--root-instance)))
+  (when (vui--buffer-root)
+    (let ((state (vui-instance-state (vui--buffer-root))))
       (unless (equal (plist-get state key) value)
-        (setf (vui-instance-state vui--root-instance)
+        (setf (vui-instance-state (vui--buffer-root))
               (plist-put state key value))
-        (vui--rerender-instance vui--root-instance)))))
+        (vui--rerender-instance (vui--buffer-root))))))
 
 (defun beads-dashboard-refresh ()
   "Refresh stale dashboard sections by bumping the generation counter."
