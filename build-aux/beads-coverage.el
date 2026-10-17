@@ -25,7 +25,14 @@
 ;; `:performance' tests are skipped too: they assert wall-clock bounds
 ;; (e.g. 1000 validations under 15s) that undercover's edebug
 ;; instrumentation makes flaky, and they cover no behavior the other
-;; `:unit' tests do not.  The stale-byte-code drop and the JUnit-path
+;; `:unit' tests do not.  `:no-coverage' tests are correct under
+;; `make check' but incompatible with undercover: `beads-manual-reference-test'
+;; re-`load's every `lisp/*.el' to build a clean documentation inventory,
+;; and undercover re-instruments a file when it is loaded again, resetting
+;; the coverage accumulated so far (which collapsed the whole report).  Those
+;; four tests are documentation-consistency gates, not product coverage, so
+;; they are skipped here and still run in `make check' and the docs-drift
+;; workflow.  The stale-byte-code drop and the JUnit-path
 ;; advice come from build-aux/beads-check.el, which is loaded without
 ;; running the suite.
 
@@ -81,6 +88,8 @@ spec only accepts vectors, but beads.el includes groups defined by
             (:report-file beads-coverage--report)
             (:send-report nil))
 
-(beads-check-run-tests '(not (or (tag :integration) (tag :performance))))
+(beads-check-run-tests '(not (or (tag :integration)
+                                 (tag :performance)
+                                 (tag :no-coverage))))
 
 ;;; beads-coverage.el ends here

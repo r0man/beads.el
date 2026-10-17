@@ -175,7 +175,7 @@ option\") for the failure message.  Returns t when nothing is missing."
 
 (ert-deftest beads-manual-reference-test-command-coverage ()
   "Every user-visible command has a @deffn entry (REQ-008)."
-  :tags '(:unit)
+  :tags '(:unit :no-coverage)
   (let ((commands (beads-manual-reference-test--commands)))
     (should commands)
     (beads-manual-reference-test--assert-covered
@@ -187,7 +187,7 @@ option\") for the failure message.  Returns t when nothing is missing."
 
 (ert-deftest beads-manual-reference-test-execute-suffix-coverage ()
   "Every generated command `--execute' suffix has a @deffn entry (REQ-008)."
-  :tags '(:unit)
+  :tags '(:unit :no-coverage)
   (let ((suffixes (beads-manual-reference-test--execute-suffixes
                    (beads-manual-reference-test--commands))))
     (should suffixes)
@@ -200,7 +200,7 @@ option\") for the failure message.  Returns t when nothing is missing."
 
 (ert-deftest beads-manual-reference-test-user-option-coverage ()
   "Every user option has a @defopt entry (REQ-009)."
-  :tags '(:unit)
+  :tags '(:unit :no-coverage)
   (let ((options (beads-manual-reference-test--user-options)))
     (should options)
     (beads-manual-reference-test--assert-covered
@@ -215,7 +215,7 @@ option\") for the failure message.  Returns t when nothing is missing."
 This is the reverse direction of the completeness gate: a stale entry
 left behind after a rename or removal must fail, mirroring the
 `scripts/dispatch-docs' drift check."
-  :tags '(:unit)
+  :tags '(:unit :no-coverage)
   (let* ((reference (expand-file-name "reference.texi"
                                       beads-manual-reference-test--manual-dir))
          (commands (beads-manual-reference-test--commands))
