@@ -243,10 +243,13 @@ walkthrough surfaced are fixed in the manual and its images."
     ;; throwaway store's.  Every buffer whose `beads-store-directory' is
     ;; this temporary repo is safe to kill here.
     (dolist (buffer (buffer-list))
-      (with-current-buffer buffer
-        (when (and (bound-and-true-p beads-store-directory)
-                   (equal beads-store-directory default-directory))
-          (kill-buffer buffer))))))
+      ;; A process sentinel can kill another buffer in this snapshot while
+      ;; we work, so re-check liveness before selecting it.
+      (when (buffer-live-p buffer)
+        (with-current-buffer buffer
+          (when (and (bound-and-true-p beads-store-directory)
+                     (equal beads-store-directory default-directory))
+            (kill-buffer buffer)))))))
 
 (provide 'beads-manual-walkthrough-test)
 ;;; beads-manual-walkthrough-test.el ends here
