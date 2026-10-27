@@ -252,7 +252,7 @@ can call it on every stage update."
    (dispatch
     :initarg :dispatch
     :type function
-    :documentation "Function called as (TARGET BEAD PROMPT) to launch.")
+    :documentation "Function called as (TARGET BEAD PROMPT &optional CONTEXT) to launch.")
    (description
     :initarg :description
     :initform ""
@@ -323,28 +323,39 @@ empty or every validator is satisfied."
 
 ;;; Dispatch
 
-(cl-defgeneric beads-sling-dispatch (target bead prompt)
+(cl-defgeneric beads-sling-dispatch (target bead prompt &optional context)
   "Dispatch BEAD with PROMPT to TARGET and return the started session.
 TARGET is a `beads-sling-target', BEAD is a bead id or freeform
-payload, and PROMPT is the optional freeform instruction.  The default
-method starts a local agent; extension packages specialize this generic
-on their own target subclasses to reach their own backend.")
+payload, and PROMPT is the optional freeform instruction.  CONTEXT,
+when non-nil, is the `beads-sling--scope-context' plist describing the
+pending dispatch (work, formula, recipe, target, resolved var values
+and shape).  The default method starts a local agent; extension
+packages specialize this generic on their own target subclasses to
+reach their own backend.  Three-argument methods and callers remain
+valid.")
 
-(cl-defmethod beads-sling-dispatch ((target beads-sling-target) bead prompt)
+(cl-defmethod beads-sling-dispatch ((target beads-sling-target) bead prompt
+                                    &optional context)
   "Default local method: launch BEAD to TARGET with PROMPT.
-Resolution order:
+CONTEXT, when non-nil, is the `beads-sling--scope-context' plist and is
+forwarded unchanged to a registered backend.  Resolution order:
 
 1. A registered `beads-sling-backend' whose name matches the target's
-   `backend' slot wins (Gas City's `gc' backend).
-2. A worktree target with a `:path' starts a local agent in that
+   `backend' slot wins (Gas City's `gc' backend); it receives CONTEXT as
+   its fourth argument.
+2. A formula-only dispatch (CONTEXT shape `formula') starts a local
+   agent in that target worktree.
+3. A worktree target with a `:path' starts a local agent in that
    worktree.
-3. Otherwise a local agent is started through `beads-agent-start'; a
+4. Otherwise a local agent is started through `beads-agent-start'; a
    non-local backend name selects that registered agent backend."
   (let* ((backend (oref target backend))
          (sling-backend (beads-sling-backend-get backend)))
     (cond
      (sling-backend
-      (funcall (oref sling-backend dispatch) target bead prompt))
+      (funcall (oref sling-backend dispatch) target bead prompt context))
+     ((eq (plist-get context :shape) 'formula)
+      (beads-sling--launch-formula context target))
      ((and (eq (oref target kind) 'worktree)
            (plist-get (oref target metadata) :path))
       (beads-agent--start-with-worktree
@@ -1067,9 +1078,10 @@ started in the target worktree (or the project root) instead."
 
 (defun beads-sling--launch (context)
   "Launch CONTEXT through the sling dispatch seam.
-The plain and on shapes dispatch the work bead (and prompt) to the
-resolved target; the formula-only shape starts a local agent in the
-target worktree.  A missing target is read interactively."
+Every shape (plain, on and formula) dispatches through
+`beads-sling-dispatch' with CONTEXT as the fourth argument; the default
+method preserves the local behaviour and starts a local agent for the
+formula-only shape.  A missing target is read interactively."
   (let* ((shape (plist-get context :shape))
          (target-name (plist-get context :target))
          (target (beads-sling--target-get
@@ -1077,9 +1089,8 @@ target worktree.  A missing target is read interactively."
     (unless target (user-error "No sling target selected"))
     (let ((prompt (beads-sling--launch-prompt context)))
       (pcase shape
-        ((or 'plain 'on)
-         (beads-sling-dispatch target (plist-get context :work) prompt))
-        ('formula (beads-sling--launch-formula context target))
+        ((or 'plain 'on 'formula)
+         (beads-sling-dispatch target (plist-get context :work) prompt context))
         (_ (user-error "Nothing to sling — pick work or a formula"))))))
 
 ;;; Transient suffixes

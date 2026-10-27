@@ -169,15 +169,15 @@ The default provider runs first, so its target wins over the extension."
          (beads-sling-backend
           :name "gc"
           :description "Gas City"
-          :dispatch (lambda (target bead prompt)
-                      (setq called (list target bead prompt))
+          :dispatch (lambda (target bead prompt &optional context)
+                      (setq called (list target bead prompt context))
                       'backend-session)))
         (let ((target (beads-sling-target :name "city/worker"
                                           :kind 'agent
                                           :backend "gc")))
           (should (eq (beads-sling-dispatch target "be-1" "p")
                       'backend-session))
-          (should (equal called (list target "be-1" "p")))))
+          (should (equal called (list target "be-1" "p" nil)))))
     (remhash "gc" beads-sling--backends)))
 
 (ert-deftest beads-sling-test-dispatch-worktree ()
