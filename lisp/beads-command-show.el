@@ -70,6 +70,7 @@
 (declare-function outline-show-subtree "outline" (&optional event))
 (declare-function outline-hide-subtree "outline" (&optional event))
 (declare-function org-link-store-props "org" (&rest args))
+(declare-function beads-sling-for-issue "beads-sling" ())
 
 ;; Forward declarations for the optional live layer: the show buffer
 ;; integrates with `beads-live' and the pure `beads-event' model when
@@ -917,6 +918,8 @@ Called from `kill-buffer-hook' to clean up session state."
     (define-key map (kbd "D") #'beads-formula-distill)
     (define-key map (kbd "C") #'beads-actions-claim)
     (define-key map (kbd "#") #'beads-actions-set-priority)
+    ;; Open the sling transient with the shown bead seeded (REQ-001).
+    (define-key map (kbd "S") #'beads-sling-for-issue)
 
     ;; Pattern 3: Buffer-based editing
     (define-key map (kbd "E") #'beads-show-compose-edit)
@@ -2215,12 +2218,12 @@ Signals `user-error' when no live origin was recorded."
     (?# "priority" beads-actions-set-priority)
     (?e "edit" beads-show-edit-field)
     (?a "agent" beads-agent-prefix-map)
-    (?S "sling" beads-sling-dispatch)
+    (?S "sling" beads-sling-for-issue)
     (?c "comment" beads-show-compose-comment)
     (?w "copy id" beads-show-copy-id)
     (?? "dispatch" beads-dispatch))
   "Built-in (KEY LABEL COMMAND) entries for the detail action bar.
-Entries whose command is not available (`beads-sling-dispatch' ships
+Entries whose command is not available (`beads-sling-for-issue' ships
 with the standalone sling work item) are dropped at render time.")
 
 (defun beads-show--action-bar-entries ()

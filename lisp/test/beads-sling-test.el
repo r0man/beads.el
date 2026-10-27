@@ -28,6 +28,22 @@
    (description :initform "Stub backend for sling tests"))
   "Minimal concrete agent backend used to exercise target collection.")
 
+(defclass beads-sling-test-launch-target (beads-sling-target)
+  ()
+  "Target subclass used to capture the launch context it is dispatched.")
+
+(defvar beads-sling-test--dispatched nil
+  "Last (BEAD PROMPT CONTEXT) captured by the test dispatch method.")
+
+(cl-defmethod beads-sling-dispatch ((target beads-sling-test-launch-target)
+                                    bead prompt &optional context)
+  "Record BEAD, PROMPT and CONTEXT instead of starting an agent.
+The method is on a target subclass, so the default
+`beads-sling-target' method stays untouched."
+  (ignore target)
+  (setq beads-sling-test--dispatched (list bead prompt context))
+  'captured-session)
+
 (ert-deftest beads-sling-test-empty-hook-yields-nil ()
   "An empty `beads-sling-target-functions' is the standalone no-op."
   :tags '(:unit)
@@ -169,15 +185,15 @@ The default provider runs first, so its target wins over the extension."
          (beads-sling-backend
           :name "gc"
           :description "Gas City"
-          :dispatch (lambda (target bead prompt)
-                      (setq called (list target bead prompt))
+          :dispatch (lambda (target bead prompt &optional context)
+                      (setq called (list target bead prompt context))
                       'backend-session)))
         (let ((target (beads-sling-target :name "city/worker"
                                           :kind 'agent
                                           :backend "gc")))
           (should (eq (beads-sling-dispatch target "be-1" "p")
                       'backend-session))
-          (should (equal called (list target "be-1" "p")))))
+          (should (equal called (list target "be-1" "p" nil)))))
     (remhash "gc" beads-sling--backends)))
 
 (ert-deftest beads-sling-test-dispatch-worktree ()
@@ -195,6 +211,183 @@ The default provider runs first, so its target wins over the extension."
         (should (equal captured
                        '("be-abc" nil "/proj/" "/proj/worktrees/be-abc"
                          "Task")))))))
+
+;;; Dispatch context passthrough and launch seam (REQ-004, AC-9)
+
+(ert-deftest beads-sling-test-launch-on-shape-delivers-context ()
+  "`beads-sling--launch' delivers work, formula and resolved vars.
+A 4-argument `beads-sling-dispatch' method receives the whole
+`beads-sling--scope-context' plist, not only the rendered prompt."
+  :tags '(:unit)
+  (let* ((recipe (beads-formula
+                  :name "build-basic"
+                  :vars (list (beads-formula-var :name "artifact_root" :required t)
+                              (beads-formula-var :name "max_iterations"))))
+         (target (beads-sling-test-launch-target
+                  :name "beads.el/implementation-worker" :kind 'agent))
+         (context (list :work "be-abcd"
+                        :work-title "Fix the blocker"
+                        :formula "build-basic"
+                        :recipe recipe
+                        :target "beads.el/implementation-worker"
+                        :values '(("artifact_root" . "plans/x/")
+                                  ("max_iterations" . "10"))
+                        :shape 'on))
+         (beads-sling-test--dispatched nil))
+    (cl-letf (((symbol-function 'beads-sling--target-get)
+               (lambda (name)
+                 (should (equal name "beads.el/implementation-worker"))
+                 target)))
+      (should (eq (beads-sling--launch context) 'captured-session))
+      (pcase-let ((`(,bead ,prompt ,delivered) beads-sling-test--dispatched))
+        (should (equal bead "be-abcd"))
+        (should (equal prompt
+                       (concat "Run formula build-basic.\n"
+                               "- artifact_root=plans/x/\n"
+                               "- max_iterations=10")))
+        (should (equal delivered context))
+        (should (equal (plist-get delivered :formula) "build-basic"))
+        (should (equal (plist-get delivered :values)
+                       '(("artifact_root" . "plans/x/")
+                         ("max_iterations" . "10"))))))))
+
+(ert-deftest beads-sling-test-launch-registered-backend-receives-context ()
+  "A registered backend receives the context through the default method.
+F1 regression guard: the seam must forward the fourth argument to the
+registered `beads-sling-backend' dispatch function."
+  :tags '(:unit)
+  (unwind-protect
+      (let ((captured nil)
+            (target (beads-sling-target :name "city/worker" :kind 'agent
+                                        :backend "test-gc"))
+            (context (list :work "be-abcd"
+                           :formula "build-basic"
+                           :target "city/worker"
+                           :values '(("artifact_root" . "plans/x/"))
+                           :shape 'on)))
+        (beads-sling-backend-register
+         (beads-sling-backend
+          :name "test-gc"
+          :description "Capture backend"
+          :dispatch (lambda (target bead prompt &optional context)
+                      (setq captured (list target bead prompt context))
+                      'backend-session)))
+        (cl-letf (((symbol-function 'beads-sling--target-get)
+                   (lambda (_name) target)))
+          (should (eq (beads-sling--launch context) 'backend-session))
+          (should (eq (nth 0 captured) target))
+          (should (equal (nth 1 captured) "be-abcd"))
+          (should (stringp (nth 2 captured)))
+          (should (equal (nth 3 captured) context))))
+    (remhash "test-gc" beads-sling--backends)))
+
+(ert-deftest beads-sling-test-launch-formula-shape-reaches-backend ()
+  "A formula-only launch reaches a registered backend with the context.
+F2 regression guard: the formula shape must dispatch through the seam
+instead of short-circuiting to a local project agent."
+  :tags '(:unit)
+  (unwind-protect
+      (let ((captured nil)
+            (target (beads-sling-target :name "city/worker" :kind 'agent
+                                        :backend "test-gc"))
+            (context (list :work nil
+                           :formula "build-basic"
+                           :recipe (beads-formula :name "build-basic")
+                           :target "city/worker"
+                           :values '(("max_iterations" . "5"))
+                           :shape 'formula)))
+        (beads-sling-backend-register
+         (beads-sling-backend
+          :name "test-gc"
+          :description "Capture backend"
+          :dispatch (lambda (target bead prompt &optional context)
+                      (setq captured (list target bead prompt context))
+                      'backend-session)))
+        (cl-letf (((symbol-function 'beads-sling--target-get)
+                   (lambda (_name) target))
+                  ((symbol-function 'beads-agent--start-project-agent)
+                   (lambda (&rest _)
+                     (ert-fail "formula launch bypassed the registered backend"))))
+          (should (eq (beads-sling--launch context) 'backend-session))
+          (should-not (nth 1 captured))
+          (should (equal (nth 2 captured)
+                         "Run formula build-basic.\n- max_iterations=5"))
+          (should (equal (nth 3 captured) context))))
+    (remhash "test-gc" beads-sling--backends)))
+
+(ert-deftest beads-sling-test-launch-local-plain-unchanged ()
+  "A plain launch with no registered backend still starts the local agent.
+The bead, resolved backend and prompt reaching `beads-agent-start' are
+unchanged by the context seam."
+  :tags '(:unit)
+  (dolist (case '(("be-abcd" "local" nil)
+                  ("summarise the blockers" "local" "summarise the blockers")
+                  ("be-abcd" "claude-code" nil)))
+    (pcase-let ((`(,work ,backend ,prompt) case))
+      (let ((captured nil)
+            (target (beads-sling-target :name "beads.el/task" :kind 'role
+                                        :backend backend))
+            (context (list :work work :formula nil :recipe nil
+                           :target "beads.el/task" :values nil
+                           :shape 'plain)))
+        (cl-letf (((symbol-function 'beads-sling--target-get)
+                   (lambda (_name) target))
+                  ((symbol-function 'beads-agent-start)
+                   (lambda (&rest args) (setq captured args) 'session)))
+          (should (eq (beads-sling--launch context) 'session))
+          (should (equal captured
+                         (list work
+                               (unless (equal backend "local") backend)
+                               prompt
+                               nil))))))))
+
+(ert-deftest beads-sling-test-launch-local-on-unchanged ()
+  "An `on' launch with no registered backend still starts the local agent.
+The formula and vars are rendered into the prompt exactly as before."
+  :tags '(:unit)
+  (let ((captured nil)
+        (target (beads-sling-target :name "beads.el/task" :kind 'role
+                                    :backend "local"))
+        (context (list :work "be-abcd"
+                       :formula "build-basic"
+                       :recipe (beads-formula :name "build-basic")
+                       :target "beads.el/task"
+                       :values '(("artifact_root" . "plans/x/"))
+                       :shape 'on)))
+    (cl-letf (((symbol-function 'beads-sling--target-get)
+               (lambda (_name) target))
+              ((symbol-function 'beads-agent-start)
+               (lambda (&rest args) (setq captured args) 'session)))
+      (should (eq (beads-sling--launch context) 'session))
+      (should (equal captured
+                     '("be-abcd" nil
+                       "Run formula build-basic.\n- artifact_root=plans/x/"
+                       nil))))))
+
+(ert-deftest beads-sling-test-launch-formula-shape-starts-local-project-agent ()
+  "A formula-only launch with no registered backend starts the local agent.
+The project agent keeps the same selected backend, project root and
+target directory as before."
+  :tags '(:unit)
+  (let ((captured nil)
+        (target (beads-sling-target :name "beads.el/task" :kind 'role
+                                    :backend "local"))
+        (context (list :work nil
+                       :formula "build-basic"
+                       :recipe (beads-formula :name "build-basic")
+                       :target "beads.el/task"
+                       :values nil
+                       :shape 'formula)))
+    (cl-letf (((symbol-function 'beads-sling--target-get)
+               (lambda (_name) target))
+              ((symbol-function 'beads-agent--select-backend)
+               (lambda (_type) 'task-backend))
+              ((symbol-function 'beads-git-find-project-root)
+               (lambda () "/proj/"))
+              ((symbol-function 'beads-agent--start-project-agent)
+               (lambda (&rest args) (setq captured args) 'project-session)))
+      (should (eq (beads-sling--launch context) 'project-session))
+      (should (equal captured '(task-backend "/proj/" "/proj/"))))))
 
 (ert-deftest beads-sling-test-validate ()
   "Validators are consulted; an empty hook warns about nothing."
@@ -499,6 +692,84 @@ end-to-end gate."
             (beads-sling-preview-launch))
           (should (equal captured '(:shape plain :work "be-abcd"))))
       (kill-buffer buffer))))
+
+;;; `S' entry point, keymaps and action bar (REQ-001, AC-1/2/3)
+
+(ert-deftest beads-sling-test-s-seeds-transient-from-show-buffer ()
+  "`S' in a `beads-show-mode' buffer seeds `beads-sling' with the bead.
+The cached `beads-show--issue-data' object is used, so no command runs,
+and the transient is opened with work, title and directory answered."
+  :tags '(:unit)
+  (require 'beads-command-show)
+  (let ((issue (beads-issue :id "be-abcd" :title "Fix the blocker"))
+        (captured nil)
+        (buffer (generate-new-buffer " *beads-sling-show-test*")))
+    (unwind-protect
+        (progn
+          (with-current-buffer buffer
+            (beads-show-mode)
+            (setq beads-show--issue-data issue)
+            (let ((binding (key-binding (kbd "S"))))
+              (should (eq binding #'beads-sling-for-issue))
+              (cl-letf (((symbol-function 'transient-setup)
+                         (lambda (&rest args) (setq captured args) nil)))
+                (call-interactively binding))))
+          (let ((scope (plist-get (nthcdr 3 captured) :scope)))
+            (should (eq (car captured) 'beads-sling--transient))
+            (should (equal (plist-get scope :work) "be-abcd"))
+            (should (equal (plist-get scope :work-title) "Fix the blocker"))
+            (should (equal (plist-get scope :directory)
+                           (buffer-local-value 'default-directory buffer)))
+            (should-not (plist-get scope :formula))
+            (should-not (plist-get scope :recipe))
+            (should-not (plist-get scope :target))))
+      (kill-buffer buffer))))
+
+(ert-deftest beads-sling-test-s-without-bead-signals-user-error ()
+  "`S' without a bead at point refuses to open the transient."
+  :tags '(:unit)
+  (require 'beads-command-show)
+  (with-temp-buffer
+    (beads-show-mode)
+    (setq beads-show--issue-data nil)
+    (cl-letf (((symbol-function 'transient-setup)
+               (lambda (&rest _)
+                 (ert-fail "the transient opened without a bead")))
+              ((symbol-function 'beads-issue-at-point)
+               (lambda () nil))
+              ((symbol-function 'beads-agent--detect-issue-id)
+               (lambda () nil)))
+      (should-error (beads-sling-for-issue) :type 'user-error))))
+
+(ert-deftest beads-sling-test-s-keymap-bindings ()
+  "`S' is the issue-seeded sling in the four bead views.
+Existing `S' meanings (`beads-list-sort' and
+`beads-agent-list-stop-all') must not be overwritten."
+  :tags '(:unit)
+  (require 'beads-command-show)
+  (require 'beads-command-epic)
+  (require 'beads-command-dep)
+  (require 'beads-wisp)
+  (require 'beads-command-list)
+  (require 'beads-agent-list)
+  (dolist (map '(beads-show-mode-map
+                 beads-epic-status-mode-map
+                 beads-dep-tree-mode-map
+                 beads-wisp-list-mode-map))
+    (should (eq (lookup-key (symbol-value map) (kbd "S"))
+                #'beads-sling-for-issue)))
+  (should (eq (lookup-key beads-list-mode-map (kbd "S"))
+              #'beads-list-sort))
+  (should (eq (lookup-key beads-agent-list-mode-map (kbd "S"))
+              #'beads-agent-list-stop-all)))
+
+(ert-deftest beads-sling-test-show-action-bar-names-sling-for-issue ()
+  "The show action bar's `S' entry resolves to `beads-sling-for-issue'."
+  :tags '(:unit)
+  (require 'beads-command-show)
+  (should (eq (nth 2 (assq ?S beads-show--action-bar-builtins))
+              #'beads-sling-for-issue))
+  (should (member (cons "S" "sling") (beads-show--action-bar-entries))))
 
 (provide 'beads-sling-test)
 ;;; beads-sling-test.el ends here

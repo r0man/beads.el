@@ -42,6 +42,7 @@
 (declare-function beads-completion-read-issue "beads-completion")
 (declare-function beads-check-executable "beads-util")
 (declare-function beads-show "beads-command-show")
+(declare-function beads-sling-for-issue "beads-sling" ())
 (defvar beads-show--issue-id)
 (defvar beads-auto-refresh)
 (defvar beads--issue-id-history)
@@ -624,6 +625,8 @@ context or prompt the user."
     (define-key map (kbd "q") #'quit-window)
     (define-key map (kbd "g") #'beads-dep-tree-refresh)
     (define-key map (kbd "RET") #'beads-dep-tree-show-issue)
+    ;; Open the sling transient with the issue at point (REQ-001).
+    (define-key map (kbd "S") #'beads-sling-for-issue)
     map)
   "Keymap for `beads-dep-tree-mode'.")
 

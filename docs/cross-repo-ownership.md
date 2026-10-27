@@ -63,13 +63,36 @@ drift silently.
 | `beads-command-formula-show` | EIEIO command | `bd formula show` |
 | `beads-command-formula-list` | EIEIO command | `bd formula list` |
 | `beads-sling-targets` | defun `(&optional bead) → list-of-target` | target discovery |
-| `beads-sling-dispatch` | cl-defgeneric `(target bead prompt)` | launch dispatch |
+| `beads-sling-dispatch` | cl-defgeneric `(target bead prompt &optional context)` | launch dispatch for every shape |
+| `beads-sling-for-issue` | autoloaded defun `()` | open `beads-sling` seeded with the bead at point |
 | `beads-terminal-spawn` | cl-defgeneric `(terminal argv &optional name)` | spawn a terminal |
 | `beads-terminal-attach` | defun `(session &optional socket dir store)` | attach to a session |
 
 The generic seams 1–4 are the ones the gascity.el dedup bead consumes;
 the rest are the stable porcelain and terminal seams the package already
 exposes (`plans/beads-ui-redesign/design.md` §4).
+
+### The sling dispatch seam
+
+`beads-sling-dispatch` is the one launch seam: every shape (`plain`,
+`on`, `formula`) dispatches through it, and the optional fourth argument
+carries the full `beads-sling--scope-context` plist (work, formula,
+recipe, resolved var values, target and shape).  A downstream package
+registers a named backend with `beads-sling-backend-register`; the
+target's `backend` slot selects it, and the backend's `dispatch`
+procedure is called as `(TARGET BEAD PROMPT &optional CONTEXT)`.  The
+three-argument form stays valid, so existing local callers and methods
+keep working.
+
+`beads-sling-for-issue` is the user-facing `S` entry point: it resolves
+the bead at point from the view's cache without running a command, and
+opens `beads-sling` with `:work`, `:work-title` and `:directory`
+seeded.  `S` is bound in `beads-show-mode-map`,
+`beads-epic-status-mode-map`, `beads-dep-tree-mode-map` and
+`beads-wisp-list-mode-map`; the show action bar names the same command.
+Two maps keep their existing `S` binding: `beads-list-mode-map`
+(`beads-list-sort`) and `beads-agent-list-mode-map`
+(`beads-agent-list-stop-all`).
 
 ## gascity.el-rig hand-off
 
