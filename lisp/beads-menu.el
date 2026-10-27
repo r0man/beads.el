@@ -54,11 +54,19 @@ returns nil, leaving the dispatch menu unchanged (standalone no-op)."
          (delq nil (mapcar #'funcall beads-menu-providers))))
 
 (defun beads-menu--provider-children (children)
-  "Return CHILDREN followed by every `beads-menu-providers' group.
+  "Return CHILDREN followed by every parsed `beads-menu-providers' group.
 Used as the `:setup-children' of the dispatch menu's provider group so
 downstream groups are spliced in at menu render time.  With no
-providers this is exactly CHILDREN (the standalone no-op)."
-  (append children (beads-menu-provider-groups)))
+providers this is exactly CHILDREN (the standalone no-op).
+
+Provider groups are raw group vectors in the `transient-define-prefix'
+shape, so they must be parsed for this prefix before transient sees
+them.  Feeding them to `transient--init-child' verbatim makes transient
+read the group name `City' as a suffix class and `beads-dispatch'
+fails to open."
+  (append children
+          (transient-parse-suffixes 'beads-dispatch
+                                    (beads-menu-provider-groups))))
 
 ;;; Dispatch Menu
 
@@ -113,10 +121,13 @@ gascity's `[City]' group when that package is present."
     ("!" "Maintenance..." beads-maintenance)
     ("*" "Command log" beads-log)
     ("g" "Refresh cache" beads-refresh-menu)
-    ("q" "Quit" transient-quit-one)]
-   ;; Downstream groups (e.g. gascity's `[City]') are spliced in here.
-   ["" :class transient-column
-    :setup-children beads-menu--provider-children]])
+    ("q" "Quit" transient-quit-one)]]
+  ;; Downstream groups (e.g. gascity's `[City]') are spliced in here at
+  ;; menu render time.  The placeholder is a top-level subgroup wrapper:
+  ;; providers return columns, which transient cannot nest inside a
+  ;; column (`transient-columns' formats its children as suffixes).
+  [:class transient-subgroups
+   :setup-children beads-menu--provider-children])
 
 ;;; Maintenance Menu
 

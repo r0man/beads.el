@@ -169,6 +169,45 @@ fails here instead of at render time."
   (should (equal (beads-menu--provider-children '(["X" ignore]))
                  '(["X" ignore]))))
 
+(defun beads-menu-test--rendered-groups (objs)
+  "Return every transient group object reachable from OBJS, depth first."
+  (seq-mapcat (lambda (obj)
+                (if (cl-typep obj 'transient-group)
+                    (cons obj (beads-menu-test--rendered-groups
+                               (oref obj suffixes)))
+                  nil))
+              objs))
+
+(ert-deftest beads-menu-test-provider-group-renders ()
+  "A provider group renders as a real group in `beads-dispatch'.
+Regression for be-cnn7f: the provider groups were spliced in as raw
+group vectors, so transient read the group name (City) as a suffix
+class and the whole menu failed to open.  The group and its keys must
+now be present in the rendered layout."
+  :tags '(:unit :transient)
+  (let ((beads-menu-providers
+         (list (lambda ()
+                 (list ["City" ("E" "Cockpit" ignore)
+                        ("Q" "Sling" ignore)])))))
+    (unwind-protect
+        (progn
+          (transient-setup 'beads-dispatch)
+          (with-current-buffer " *transient*"
+            (should (string-match-p "City" (buffer-string))))
+          (let ((city (seq-find (lambda (group)
+                                  (equal (ignore-errors
+                                           (oref group description))
+                                         "City"))
+                                (beads-menu-test--rendered-groups
+                                 transient--layout))))
+            (should city)
+            (should (equal (mapcar (lambda (suffix)
+                                     (and (cl-typep suffix 'transient-suffix)
+                                          (oref suffix key)))
+                                   (oref city suffixes))
+                           '("E" "Q")))))
+      (ignore-errors (transient-quit-all)))))
+
 ;;; Eager autoload coverage (be-qhpf)
 
 ;; The dispatch/maintenance menus reference command modules that `beads'
@@ -261,7 +300,11 @@ required by `beads' fails here (be-qhpf)."
   (let* ((group ["City" ("c" "City status" ignore)])
          (beads-menu-providers (list (lambda () (list group)))))
     (should (equal (beads-menu-provider-groups) (list group)))
-    (should (equal (beads-menu--provider-children nil) (list group)))
+    ;; The provider group is parsed for the prefix before transient sees it.
+    (should (equal (car (beads-menu--provider-children nil))
+                   [transient-column (:description "City")
+                    ((transient-suffix :key "c" :description "City status"
+                                       :command ignore))]))
     ;; The dispatch layout wires the provider group to the seam.
     (should (beads-menu-test--dispatch-provider-group-p))))
 
