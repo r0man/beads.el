@@ -62,6 +62,11 @@
                   (prompt &optional default require-match initial history))
 (declare-function beads-completion-sling-target-table "beads-completion"
                   (&optional bead))
+(declare-function beads-issue-at-point "beads" ())
+(declare-function beads-list--current-issue-id "beads-command-list" ())
+(declare-function beads-list--get-issue-by-id "beads-command-list" (id))
+
+(defvar beads-show--issue-data)
 
 
 ;;; Sling Target
@@ -1258,23 +1263,79 @@ preview and never gates `s'."
   "Return the bead id at point, or nil."
   (ignore-errors (beads-agent--detect-issue-id)))
 
+(defun beads-sling--bead-at-point ()
+  "Return the bead at point, or nil.
+Prefers the current view's cached `beads-issue' object, so resolving
+it runs no command, then falls back to the generic at-point id
+helpers and finally to the `beads-issue-id' text property."
+  (or (and (derived-mode-p 'beads-show-mode)
+           (bound-and-true-p beads-show--issue-data))
+      (and (derived-mode-p 'beads-list-mode)
+           (fboundp 'beads-list--current-issue-id)
+           (fboundp 'beads-list--get-issue-by-id)
+           (when-let* ((id (beads-list--current-issue-id)))
+             (beads-list--get-issue-by-id id)))
+      (ignore-errors (beads-issue-at-point))
+      (beads-sling--work-at-point)
+      (and (derived-mode-p 'tabulated-list-mode)
+           (let ((id (ignore-errors (tabulated-list-get-id))))
+             (and (stringp id) (not (beads-sling--blank id)) id)))
+      (get-text-property (point) 'beads-issue-id)))
+
+(defun beads-sling--bead-id (bead)
+  "Return BEAD's id string, or nil.
+BEAD is a `beads-issue' object, an id string or nil."
+  (cond
+   ((null bead) nil)
+   ((stringp bead) (unless (beads-sling--blank bead) bead))
+   ((eieio-object-p bead) (oref bead id))
+   (t nil)))
+
+(defun beads-sling--bead-title (bead)
+  "Return BEAD's title, or nil.
+BEAD is a `beads-issue' object or an id string."
+  (and (eieio-object-p bead) (oref bead title)))
+
 (defun beads-sling--initial-scope ()
   "Return the sling scope seeded from the buffer at point."
   (list :work (beads-sling--work-at-point)
         :work-title nil
+        :directory default-directory
         :formula nil
         :recipe nil
         :target nil))
 
 ;;;###autoload
-(defun beads-sling ()
+(defun beads-sling (&optional scope)
   "Sling a bead, freeform work or formula to an agent target.
 The one entry point (REQ-009): shape is inferred from the What stage,
 stages collapse as answered, and the live footer always shows the
-pending dispatch.  `s' launches, `P' opens the full preview."
+pending dispatch.  `s' launches, `P' opens the full preview.
+
+SCOPE, when non-nil, seeds the transient instead of the work at
+point, so a caller such as `beads-sling-for-issue' can open the menu
+with the work, title and directory already answered."
   (interactive)
   (transient-setup 'beads-sling--transient nil nil :scope
-                   (beads-sling--initial-scope)))
+                   (or scope (beads-sling--initial-scope))))
+
+;;;###autoload
+(defun beads-sling-for-issue ()
+  "Open the sling transient seeded with the bead at point.
+Resolves a `beads-issue' object or a bead id from the current view
+and signals `user-error' when there is none.  This only opens
+`beads-sling': it starts no `gc' process and no local agent."
+  (interactive)
+  (let ((bead (beads-sling--bead-at-point)))
+    (unless (beads-sling--bead-id bead)
+      (user-error "No bead at point"))
+    (beads-sling
+     (list :work (beads-sling--bead-id bead)
+           :work-title (beads-sling--bead-title bead)
+           :directory default-directory
+           :formula nil
+           :recipe nil
+           :target nil))))
 
 ;;; Full preview (`P', mockup §7)
 

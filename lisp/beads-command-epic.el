@@ -38,6 +38,7 @@
 (require 'beads-thing)
 
 (declare-function beads-formula-distill "beads-formula-edit" (&optional epic-id))
+(declare-function beads-sling-for-issue "beads-sling" ())
 
 ;; Forward declarations
 (declare-function beads-show "beads-command-show")
@@ -510,6 +511,8 @@ Format: ((epic-id . (expanded-p . children)) ...)")
     (define-key map (kbd "RET") #'beads-epic-status-show-at-point)
     ;; Distill the epic at point into a reusable formula (REQ-SF-063).
     (define-key map (kbd "D") #'beads-formula-distill)
+    ;; Open the sling transient with the epic's bead at point (REQ-001).
+    (define-key map (kbd "S") #'beads-sling-for-issue)
     (define-key map (kbd "n") #'beads-epic-status-next)
     (define-key map (kbd "p") #'beads-epic-status-previous)
     (define-key map (kbd "g") #'beads-epic-status-refresh)

@@ -54,6 +54,7 @@
 
 (declare-function beads-molecule-open "beads-molecule" (mol-id))
 (declare-function beads-dispatch "beads" ())
+(declare-function beads-sling-for-issue "beads-sling" ())
 
 ;;; Customization
 
@@ -552,6 +553,8 @@ argument NO-CONFIRM, skip the typed confirmation."
     (keymap-set map "b" #'beads-wisp-burn)
     (keymap-set map "B" #'beads-wisp-burn)
     (keymap-set map "P" #'beads-wisp-purge)
+    ;; Open the sling transient with the wisp at point (REQ-001).
+    (keymap-set map "S" #'beads-sling-for-issue)
     ;; View
     (keymap-set map "a" #'beads-wisp-toggle-all)
     (keymap-set map "t" #'beads-wisp-set-type)
