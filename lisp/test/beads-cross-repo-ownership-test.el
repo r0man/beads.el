@@ -35,6 +35,7 @@
     beads-command-formula-list
     beads-sling-targets
     beads-sling-dispatch
+    beads-sling-for-issue
     beads-terminal-spawn
     beads-terminal-attach)
   "The beads.el seam list owned by `docs/cross-repo-ownership.md'.")
@@ -62,6 +63,29 @@
                   (buffer-string))))
       (dolist (seam beads-cross-repo-ownership--seams)
         (should (string-match-p (regexp-quote (format "| `%s` |" seam)) text))))))
+
+(ert-deftest beads-cross-repo-ownership-sling-dispatch-signature ()
+  "The seam table and the dispatch docstring pin the same signature.
+The optional CONTEXT argument is the contract a downstream backend
+specializes on; the docstring is the authoritative copy for
+out-of-tree `beads-sling-dispatch' methods."
+  :tags '(:unit)
+  (let* ((lisp-dir (file-name-directory (locate-library "beads-sling")))
+         (doc (expand-file-name "../docs/cross-repo-ownership.md" lisp-dir))
+         (text (with-temp-buffer
+                 (insert-file-contents doc)
+                 (buffer-string))))
+    (should (string-match-p
+             (regexp-quote
+              (concat "| `beads-sling-dispatch` | cl-defgeneric "
+                      "`(target bead prompt &optional context)` |"))
+             text))
+    (should (string-match-p
+             (regexp-quote "(TARGET BEAD PROMPT &optional CONTEXT)")
+             text))
+    (should (string-match-p
+             (regexp-quote "(fn TARGET BEAD PROMPT &optional CONTEXT)")
+             (documentation 'beads-sling-dispatch)))))
 
 (ert-deftest beads-cross-repo-ownership-one-way-dependency ()
   "No beads.el source requires gascity.el (the dependency is one way)."

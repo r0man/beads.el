@@ -27,7 +27,10 @@
 ;; - `beads-sling-shape'       pure inference: plain | on | formula.
 ;; - `beads-sling-backend'     named dispatch backend value object.
 ;; - `beads-sling-backend-register'  registry for named backends.
-;; - `beads-sling-dispatch'    cl-defgeneric: launch BEAD to TARGET.
+;; - `beads-sling-dispatch'    cl-defgeneric: launch BEAD to TARGET,
+;;   with the full launch context as an optional fourth argument.
+;; - `beads-sling-for-issue'   open `beads-sling' seeded from the bead at
+;;   point (`S' in the beads views).
 ;; - `beads-sling-validators'  hook of pre-launch validation functions.
 ;;
 ;; Gas City and other extensions add targets (`add-hook
@@ -1324,7 +1327,9 @@ with the work, title and directory already answered."
   "Open the sling transient seeded with the bead at point.
 Resolves a `beads-issue' object or a bead id from the current view
 and signals `user-error' when there is none.  This only opens
-`beads-sling': it starts no `gc' process and no local agent."
+`beads-sling': it starts no `gc' process and no local agent.  It is
+bound to `S' in `beads-show-mode-map', `beads-epic-status-mode-map',
+`beads-dep-tree-mode-map' and `beads-wisp-list-mode-map'."
   (interactive)
   (let ((bead (beads-sling--bead-at-point)))
     (unless (beads-sling--bead-id bead)
