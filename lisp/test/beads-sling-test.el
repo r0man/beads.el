@@ -773,3 +773,28 @@ Existing `S' meanings (`beads-list-sort' and
 
 (provide 'beads-sling-test)
 ;;; beads-sling-test.el ends here
+
+(ert-deftest beads-sling-test-fetch-formula-inherits-vars ()
+  "The sling recipe carries variables declared on an extends parent."
+  :tags '(:unit)
+  (let ((parent (beads-formula
+                 :name "build-base"
+                 :vars (list (beads-formula-var :name "artifact_root"
+                                                :required t)
+                             (beads-formula-var :name "interaction_mode"
+                                                :default "interactive"))))
+        (child (beads-formula :name "build-basic"
+                              :extends '("build-base"))))
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (command)
+                 (pcase (oref command formula-name)
+                   ("build-basic" child)
+                   ("build-base" parent)))))
+      (let ((recipe (beads-sling--fetch-formula "build-basic")))
+        (should recipe)
+        (should (equal (mapcar (lambda (var) (oref var name))
+                               (oref recipe vars))
+                       '("artifact_root" "interaction_mode")))
+        (should (equal (beads-sling--missing-required-vars
+                        recipe nil)
+                       '("artifact_root")))))))

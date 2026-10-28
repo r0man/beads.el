@@ -174,6 +174,59 @@ Derived from the canonical `beads-face-header'."
            (json-data (json-read-from-string stdout)))
       (beads-from-json 'beads-formula json-data))))
 
+;;; Inherited variables
+
+(defun beads-formula--merge-vars (inherited own)
+  "Return INHERITED vars with OWN overriding same-named entries.
+Parent variables come first in their declared order; a child variable
+with the same name replaces the parent entry in place, and child-only
+variables append in child order."
+  (let ((merged (copy-sequence inherited)))
+    (dolist (var own)
+      (let* ((name (oref var name))
+             (found nil))
+        (setq merged
+              (mapcar (lambda (existing)
+                        (if (equal (oref existing name) name)
+                            (progn (setq found t) var)
+                          existing))
+                      merged))
+        (unless found
+          (setq merged (append merged (list var))))))
+    merged))
+
+(defun beads-formula-resolve-inherited-vars (formula &optional seen)
+  "Return FORMULA with variables inherited from `extends` parents merged.
+`bd formula show` reports only a formula's own `vars`; the gas pack's
+`build-basic` declares its 18 variables on the parent `build-base`.
+Without inheritance the sling How stage cannot offer or require
+`artifact_root` for such a formula.  Parents are fetched recursively
+through `bd formula show` and merged by name (the child wins).  A
+missing parent or a cycle is ignored so a malformed formula still
+renders.  FORMULA is a `beads-formula'; SEEN is the recursion guard."
+  (let ((name (oref formula name)))
+    (if (member name seen)
+        formula
+      (let* ((seen (cons name seen))
+             (inherited
+              (cl-loop
+               for parent in (oref formula extends)
+               unless (member parent seen)
+               append (let ((parent-formula
+                             (ignore-errors
+                               (beads-command-execute
+                                (beads-command-formula-show
+                                 :formula-name parent :json t)))))
+                        (when (and parent-formula
+                                   (not (member (oref parent-formula name)
+                                                seen)))
+                          (oref (beads-formula-resolve-inherited-vars
+                                 parent-formula (cons parent seen))
+                                vars))))))
+        (oset formula vars
+              (beads-formula--merge-vars inherited (oref formula vars)))
+        formula))))
+
 ;;; ============================================================
 ;;; Formula Convert Command Class
 ;;; ============================================================
@@ -691,7 +744,8 @@ Uses `beads-formula-list--normalize-directory' for path comparison."
   (let* ((command (beads-command-formula-show
                    :formula-name beads-formula-show--formula-name
                    :json t))
-         (formula (beads-command-execute command)))
+         (formula (beads-formula-resolve-inherited-vars
+                   (beads-command-execute command))))
     (setq beads-formula-show--formula-data formula)
     (beads-formula-show--render formula)
     (message "Refreshed formula: %s" beads-formula-show--formula-name)))
@@ -806,7 +860,8 @@ When called interactively with a prefix argument, prompts for TYPE."
          (command (beads-command-formula-show
                    :formula-name formula-name
                    :json t))
-         (formula (beads-command-execute command))
+         (formula (beads-formula-resolve-inherited-vars
+                   (beads-command-execute command)))
          (buf-name (format "*beads-formula[%s]/%s*"
                            (beads--project-name-for-root project-dir)
                            formula-name))

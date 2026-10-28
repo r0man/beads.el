@@ -1042,10 +1042,14 @@ Recomputed on every redraw, never a blocker."
      "Formula: " choices nil t nil 'beads-sling-formula-history)))
 
 (defun beads-sling--fetch-formula (name)
-  "Return the `beads-formula' named NAME, or nil on failure."
+  "Return the `beads-formula' named NAME, or nil on failure.
+Resolves variables inherited through `extends` so the How stage can
+collect them (for example `build-basic` inherits `artifact_root` and its
+other variables from `build-base`)."
   (ignore-errors
-    (beads-command-execute
-     (beads-command-formula-show :formula-name name :json t))))
+    (beads-formula-resolve-inherited-vars
+     (beads-command-execute
+      (beads-command-formula-show :formula-name name :json t)))))
 
 ;;; Launch
 
