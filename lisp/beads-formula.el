@@ -376,12 +376,14 @@ FORMULA may already be a full formula object, a `beads-formula-summary',
 or a formula name string; summaries and names are fetched with
 `bd formula show'."
   (cond
-   ((and (eieio-object-p formula) (slot-exists-p formula 'vars)) formula)
+   ((and (eieio-object-p formula) (slot-exists-p formula 'vars))
+    (beads-formula-resolve-inherited-vars formula))
    ((or (stringp formula) (beads-formula-summary-p formula))
-    (beads-command-execute
-     (beads-command-formula-show
-      :formula-name (beads-formula--name formula)
-      :json t)))
+    (beads-formula-resolve-inherited-vars
+     (beads-command-execute
+      (beads-command-formula-show
+       :formula-name (beads-formula--name formula)
+       :json t))))
    (t (error "Not a formula: %S" formula))))
 
 ;;; ============================================================

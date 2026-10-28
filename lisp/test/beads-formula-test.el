@@ -881,3 +881,86 @@ title = \"One\"
 
 (provide 'beads-formula-test)
 ;;; beads-formula-test.el ends here
+
+;;; Inherited formula variables
+
+(ert-deftest beads-formula-test-inherited-vars-merge ()
+  "A child formula sees its parent's vars; the child wins on a name clash."
+  :tags '(:unit)
+  (let* ((parent (beads-formula
+                  :name "parent"
+                  :vars (list (beads-formula-var :name "artifact_root"
+                                                 :required t)
+                              (beads-formula-var :name "shared"
+                                                 :default "parent"))))
+         (child (beads-formula
+                 :name "child"
+                 :extends '("parent")
+                 :vars (list (beads-formula-var :name "own" :default "x")
+                             (beads-formula-var :name "shared"
+                                                :default "child")))))
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (command)
+                 (when (equal (oref command formula-name) "parent")
+                   parent))))
+      (beads-formula-resolve-inherited-vars child)
+      (should (equal (mapcar (lambda (var) (oref var name))
+                             (oref child vars))
+                     '("artifact_root" "shared" "own")))
+      (should (oref (cl-find "artifact_root" (oref child vars)
+                             :key (lambda (var) (oref var name))
+                             :test #'equal)
+                    required))
+      (should (equal (oref (cl-find "shared" (oref child vars)
+                                    :key (lambda (var) (oref var name))
+                                    :test #'equal)
+                           default)
+                     "child")))))
+
+(ert-deftest beads-formula-test-resolve-merges-inherited-vars ()
+  "`beads-formula--resolve' returns a recipe with inherited vars."
+  :tags '(:unit)
+  (let ((parent (beads-formula
+                 :name "parent"
+                 :vars (list (beads-formula-var :name "artifact_root"
+                                                :required t))))
+        (child (beads-formula :name "child" :extends '("parent"))))
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (command)
+                 (pcase (oref command formula-name)
+                   ("child" child)
+                   ("parent" parent)))))
+      (let ((resolved (beads-formula--resolve "child")))
+        (should (equal (mapcar (lambda (var) (oref var name))
+                               (oref resolved vars))
+                       '("artifact_root")))))))
+
+(ert-deftest beads-formula-test-inherited-vars-missing-parent ()
+  "A missing extends parent leaves the child's own vars intact."
+  :tags '(:unit)
+  (let ((child (beads-formula
+                :name "child"
+                :extends '("missing")
+                :vars (list (beads-formula-var :name "own" :default "x")))))
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (_command) nil)))
+      (beads-formula-resolve-inherited-vars child)
+      (should (equal (mapcar (lambda (var) (oref var name))
+                             (oref child vars))
+                     '("own"))))))
+
+(ert-deftest beads-formula-test-inherited-vars-cycle-terminates ()
+  "A cycle in extends is ignored instead of recursing forever."
+  :tags '(:unit)
+  (let ((a (beads-formula :name "a" :extends '("b")
+                          :vars (list (beads-formula-var :name "va"))))
+        (b (beads-formula :name "b" :extends '("a")
+                          :vars (list (beads-formula-var :name "vb")))))
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (command)
+                 (pcase (oref command formula-name)
+                   ("a" a) ("b" b)))))
+      (beads-formula-resolve-inherited-vars a)
+      (should (equal (mapcar (lambda (var) (oref var name))
+                             (oref a vars))
+                     '("vb" "va"))))))

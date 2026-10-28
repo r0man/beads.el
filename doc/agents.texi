@@ -142,5 +142,9 @@ From the maintenance menu, open the swarm sub-dispatch.
 @shot{swarm-dark, The swarm fleet list showing wave progress.}
 
 The sling preview shows the prompt and target before the agent starts, so
-you can adjust them before committing.  Sling and swarm share the terminal
-subsystem with the other agent flows.
+you can adjust them before committing.  The How stage lists every variable
+the chosen formula accepts, including variables inherited through
+@code{extends}: a workflow such as @code{build-basic} shows the
+@code{artifact_root} and other variables declared on its @code{build-base}
+parent.  Sling and swarm share the terminal subsystem with the other agent
+flows.

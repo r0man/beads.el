@@ -39,7 +39,10 @@ or @code{aspect}) in the browser, or pass a prefix argument to
 Show a formula's details: phase, version, @code{extends}, aspects,
 expansion formulas, composition bond points, and each step's type,
 dependencies, gate, and waits-for, plus every variable's type, enum,
-pattern, default, and required flag.
+pattern, default, and required flag.  Variables inherited from
+@code{extends} parents are included, so a child formula such as
+@code{build-basic} shows the @code{artifact_root} declared on
+@code{build-base}.
 @item c
 Convert a formula from JSON to TOML.
 @end table
