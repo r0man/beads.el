@@ -521,6 +521,20 @@ Display strategy:
                     display-buffer-use-some-window)
                    (inhibit-same-window . t))))
 
+;;; vui compatibility
+
+(defvar vui--root-instance)
+
+(defun beads-buffer-vui-root ()
+  "Return the vui root instance of the tree in the current buffer, or nil.
+Newer vui keeps a buffer's mounted tree in `vui--mounted-root' and binds
+`vui--root-instance' only during renders and handlers, exposing the
+lookup as `vui--buffer-root'.  Older vui sets `vui--root-instance'
+buffer-locally; fall back to that."
+  (if (fboundp 'vui--buffer-root)
+      (vui--buffer-root)
+    (and (boundp 'vui--root-instance) vui--root-instance)))
+
 (provide 'beads-buffer)
 ;; Also provide the old name for backward compatibility
 (provide 'beads-buffer-name)
