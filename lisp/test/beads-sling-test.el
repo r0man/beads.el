@@ -107,14 +107,57 @@ The default provider runs first, so its target wins over the extension."
       (should (eq (car targets) default))
       (should (equal (oref (car targets) description) "default")))))
 
-(ert-deftest beads-sling-test-targets-call-providers-without-args ()
-  "Providers are called with no arguments (design.md §4.5 contract)."
+(ert-deftest beads-sling-test-targets-forward-bead-by-arity ()
+  "Providers that accept an argument receive BEAD; zero-arity ones survive."
   :tags '(:unit)
-  (let* ((called nil)
+  (let* ((zero-args 'unset)
+         (one-arg 'unset)
          (beads-sling-target-functions
-          (list (lambda () (setq called t) nil))))
-    (should-not (beads-sling-targets "be-abcd"))
-    (should called)))
+          (list (lambda () (setq zero-args t) nil)
+                (lambda (bead) (setq one-arg bead)
+                  (list (beads-sling-target :name "from-bead" :kind 'agent))))))
+    (should (equal (mapcar (lambda (target) (oref target name))
+                           (beads-sling-targets "be-abcd"))
+                   '("from-bead")))
+    (should zero-args)
+    (should (equal one-arg "be-abcd"))))
+
+(ert-deftest beads-sling-test-derived-target-provider-default ()
+  "A provider `:derived' row wins over the local role convention."
+  :tags '(:unit)
+  (let* ((provider (beads-sling-target
+                    :name "rig/default-worker" :kind 'agent
+                    :metadata '(:derived t)))
+         (role (beads-sling-target :name "beads.el/task" :kind 'role))
+         (seen 'unset)
+         (beads-sling-target-functions
+          (list (lambda (bead) (setq seen bead) (list provider))
+                (lambda () (list role)))))
+    (should (equal (beads-sling--derived-target-name "be-abcd")
+                   "rig/default-worker"))
+    (should (equal seen "be-abcd"))
+    ;; Without a work bead an argument-taking provider still gets nil.
+    (should (equal (beads-sling--derived-target-name)
+                   "rig/default-worker"))
+    (should-not seen)))
+
+(ert-deftest beads-sling-test-launch-resolves-context-target-with-bead ()
+  "Launch-time target lookup forwards the work bead to providers."
+  :tags '(:unit)
+  (let* ((target (beads-sling-target :name "rig/default-worker"
+                                     :kind 'agent :backend "local"))
+         (beads-sling-target-functions
+          (list (lambda (bead)
+                  (should (equal bead "be-abcd"))
+                  (list target))))
+         (context (list :work "be-abcd" :formula nil :recipe nil
+                        :target "rig/default-worker" :values nil
+                        :shape 'plain))
+         (captured nil))
+    (cl-letf (((symbol-function 'beads-agent-start)
+               (lambda (&rest args) (setq captured args) 'session)))
+      (should (eq (beads-sling--launch context) 'session))
+      (should (equal (car captured) "be-abcd")))))
 
 (ert-deftest beads-sling-test-shape ()
   "Shape inference is the pure table from design.md §8."
@@ -235,8 +278,9 @@ A 4-argument `beads-sling-dispatch' method receives the whole
                         :shape 'on))
          (beads-sling-test--dispatched nil))
     (cl-letf (((symbol-function 'beads-sling--target-get)
-               (lambda (name)
+               (lambda (name &optional bead)
                  (should (equal name "beads.el/implementation-worker"))
+                 (should (equal bead "be-abcd"))
                  target)))
       (should (eq (beads-sling--launch context) 'captured-session))
       (pcase-let ((`(,bead ,prompt ,delivered) beads-sling-test--dispatched))
@@ -273,7 +317,7 @@ registered `beads-sling-backend' dispatch function."
                       (setq captured (list target bead prompt context))
                       'backend-session)))
         (cl-letf (((symbol-function 'beads-sling--target-get)
-                   (lambda (_name) target)))
+                   (lambda (_name &optional _bead) target)))
           (should (eq (beads-sling--launch context) 'backend-session))
           (should (eq (nth 0 captured) target))
           (should (equal (nth 1 captured) "be-abcd"))
@@ -304,7 +348,7 @@ instead of short-circuiting to a local project agent."
                       (setq captured (list target bead prompt context))
                       'backend-session)))
         (cl-letf (((symbol-function 'beads-sling--target-get)
-                   (lambda (_name) target))
+                   (lambda (_name &optional _bead) target))
                   ((symbol-function 'beads-agent--start-project-agent)
                    (lambda (&rest _)
                      (ert-fail "formula launch bypassed the registered backend"))))
@@ -331,7 +375,7 @@ unchanged by the context seam."
                            :target "beads.el/task" :values nil
                            :shape 'plain)))
         (cl-letf (((symbol-function 'beads-sling--target-get)
-                   (lambda (_name) target))
+                   (lambda (_name &optional _bead) target))
                   ((symbol-function 'beads-agent-start)
                    (lambda (&rest args) (setq captured args) 'session)))
           (should (eq (beads-sling--launch context) 'session))
@@ -355,7 +399,7 @@ The formula and vars are rendered into the prompt exactly as before."
                        :values '(("artifact_root" . "plans/x/"))
                        :shape 'on)))
     (cl-letf (((symbol-function 'beads-sling--target-get)
-               (lambda (_name) target))
+               (lambda (_name &optional _bead) target))
               ((symbol-function 'beads-agent-start)
                (lambda (&rest args) (setq captured args) 'session)))
       (should (eq (beads-sling--launch context) 'session))
@@ -379,7 +423,7 @@ target directory as before."
                        :values nil
                        :shape 'formula)))
     (cl-letf (((symbol-function 'beads-sling--target-get)
-               (lambda (_name) target))
+               (lambda (_name &optional _bead) target))
               ((symbol-function 'beads-agent--select-backend)
                (lambda (_type) 'task-backend))
               ((symbol-function 'beads-git-find-project-root)
@@ -550,7 +594,7 @@ plain, cold, formula and on sentences."
   (cl-letf (((symbol-function 'beads-sling--project-label)
              (lambda () "beads.el"))
             ((symbol-function 'beads-sling--derived-target-name)
-             (lambda () "beads.el/task")))
+             (lambda (&optional _bead) "beads.el/task")))
     (let* ((recipe (beads-formula
                     :name "build-basic"
                     :vars (list (beads-formula-var :name "artifact_root"))))
@@ -595,7 +639,7 @@ What/Who groups."
   (cl-letf (((symbol-function 'beads-sling--project-label)
              (lambda () "beads.el"))
             ((symbol-function 'beads-sling--derived-target-name)
-             (lambda () "beads.el/task")))
+             (lambda (&optional _bead) "beads.el/task")))
     (unwind-protect
         (progn
           ;; Cold entry: no work, no formula, no target.

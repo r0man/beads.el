@@ -20,6 +20,9 @@
 (require 'beads-sling)
 (require 'beads-terminal)
 
+(declare-function beads-sling-targets "beads-sling" (&optional bead))
+(defvar beads-sling-target-functions)
+
 (defconst beads-cross-repo-ownership--seams
   '(beads-formula-var-reader
     beads-formula-var-kind
@@ -86,6 +89,32 @@ out-of-tree `beads-sling-dispatch' methods."
     (should (string-match-p
              (regexp-quote "(fn TARGET BEAD PROMPT &optional CONTEXT)")
              (documentation 'beads-sling-dispatch)))))
+
+(ert-deftest beads-cross-repo-ownership-sling-targets-signature ()
+  "The target-discovery seam forwards BEAD to arity-accepting providers.
+The ownership table, the provider hook's docstring and the collector's
+docstring must describe the same context seam."
+  :tags '(:unit)
+  (let* ((lisp-dir (file-name-directory (locate-library "beads-sling")))
+         (doc (expand-file-name "../docs/cross-repo-ownership.md" lisp-dir))
+         (text (with-temp-buffer
+                 (insert-file-contents doc)
+                 (buffer-string))))
+    (should (string-match-p
+             (regexp-quote
+              (concat "| `beads-sling-targets` | defun "
+                      "`(&optional bead) → list-of-target` |"))
+             text))
+    (should (string-match-p
+             (regexp-quote "forwards BEAD to arity-accepting providers")
+             text))
+    (should (string-match-p
+             (regexp-quote "(FN BEAD)")
+             (documentation-property 'beads-sling-target-functions
+                                     'variable-documentation)))
+    (should (string-match-p
+             (regexp-quote "BEAD is forwarded")
+             (documentation 'beads-sling-targets)))))
 
 (ert-deftest beads-cross-repo-ownership-one-way-dependency ()
   "No beads.el source requires gascity.el (the dependency is one way)."

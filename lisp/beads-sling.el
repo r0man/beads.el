@@ -108,12 +108,16 @@ Extensions build these and return them from
 this class; a downstream package can subclass it to override dispatch
 for its own targets without changing the core.
 
-The `metadata' plist is the extension carrier.  Core understands two
-keys on worktree targets:
+The `metadata' plist is the extension carrier.  Core understands these
+keys:
 
 - `:path'      absolute worktree path the agent should run in.
 - `:branch'    branch checked out in the worktree, for display.
-- `:agent-type'  agent role name to start in that worktree.")
+- `:agent-type'  agent role name to start in that worktree.
+- `:derived'   non-nil marks this row as the context-derived Who
+default (`beads-sling--derived-target-name' prefers it).  A provider
+that receives the work bead uses this to surface, for example, the
+owning rig's `default_sling_target'.")
 
 (defun beads-sling-worktree-target (name path &optional branch)
   "Build a local worktree `beads-sling-target' for PATH.
@@ -195,27 +199,46 @@ the Who picker leads with the common choices."
 
 (defvar beads-sling-target-functions (list #'beads-sling--default-targets)
   "Hook of functions returning sling targets.
-Each function is called with no arguments and returns a list of
-`beads-sling-target' objects.  The default value is
-`beads-sling--default-targets', which contributes the local role,
-backend and worktree targets; extensions `add-hook' their own providers,
-for example Gas City contributes city and rig agents.
+Each function returns a list of `beads-sling-target' objects.  A
+provider may take the optional work bead as its one argument: a
+provider whose arity accepts an argument is called as (FN BEAD), with
+nil when `beads-sling-targets' has no bead, and a provider without
+arguments is still called as (FN).  This keeps existing providers
+working while letting an extension derive context-sensitive rows (Gas
+City uses it to surface the owning rig's `default_sling_target').  The
+default value is `beads-sling--default-targets', which contributes the
+local role, backend and worktree targets.
 `beads-sling-targets' consults providers in order and dedupes by target
 name, so an extension cannot shadow a default target of the same name.
 A hook bound to nil yields no targets.")
+
+(defun beads-sling--call-target-provider (fn bead)
+  "Call target provider FN with BEAD when its arity accepts an argument.
+The provider contract is an optional single BEAD argument; a provider
+that accepts one is always called as (FN BEAD), with nil when the
+caller has no work item.  Providers written before that argument
+existed take none, so their arity keeps them callable.  An unknown
+arity is treated as zero-argument, which is the conservative choice: a
+provider is never called with an unexpected argument."
+  (let ((max (cdr (ignore-errors (func-arity fn)))))
+    (if (or (eq max 'many)
+            (and (integerp max) (>= max 1)))
+        (funcall fn bead)
+      (funcall fn))))
 
 (defun beads-sling-targets (&optional bead)
   "Collect, dedupe and return the sling targets for BEAD.
 Runs `beads-sling-target-functions', keeps only
 `beads-sling-target' instances and dedupes by `name' (first provider
-wins).  BEAD is accepted for API symmetry with the dispatch signature
-but is not forwarded to providers, which take no arguments.  Returns
-nil when the hook is empty."
-  (ignore bead)
+wins).  BEAD is forwarded to every provider whose arity accepts it (see
+`beads-sling-target-functions'), so a provider can derive targets from
+the work item — for example the owning rig's default sling target.
+Returns nil when the hook is empty."
   (let ((seen (make-hash-table :test #'equal))
         (targets nil))
     (dolist (fn beads-sling-target-functions)
-      (dolist (target (ignore-errors (funcall fn)))
+      (dolist (target (ignore-errors
+                        (beads-sling--call-target-provider fn bead)))
         (when (beads-sling-target-p target)
           (let ((key (oref target name)))
             (unless (gethash key seen)
@@ -484,25 +507,37 @@ never a flag (menu-mockups.md §6):
 
 ;;; Target lookup and derivation
 
-(defun beads-sling--target-get (name)
-  "Return the collected `beads-sling-target' named NAME, or nil."
+(defun beads-sling--target-get (name &optional bead)
+  "Return the collected `beads-sling-target' named NAME, or nil.
+BEAD is forwarded to the target providers, so a row that exists only
+for that work item (a context-sensitive provider row) is found too."
   (when (and name (not (beads-sling--blank name)))
-    (cl-find name (beads-sling-targets)
+    (cl-find name (beads-sling-targets bead)
              :key (lambda (target) (oref target name))
              :test #'equal)))
 
-(defun beads-sling--derived-target-name ()
+(defun beads-sling--derived-target-name (&optional bead)
   "Return the default target for this rig, or nil.
-The first local role target named `<project>/task' is the convention
-default (the mockup §6a `derived for this rig' tag); any other role target
-answers next; backends and worktrees are explicit choices, never the
-derived default."
-  (let* ((project (beads-sling--project-label))
+A provider may mark its row as the derived default with `:derived' in
+the target's `metadata' plist; the first such row wins, so a package
+that knows the work item (Gas City's rig `default_sling_target') can
+derive it.  Otherwise the first local role target named
+`<project>/task' is the convention default (the mockup §6a `derived for
+this rig' tag); any other role target answers next; backends and
+worktrees are explicit choices, never the derived default.  BEAD is
+forwarded to the target providers."
+  (let* ((targets (beads-sling-targets bead))
+         (provider-default
+          (seq-find (lambda (target)
+                      (plist-get (oref target metadata) :derived))
+                    targets))
+         (project (beads-sling--project-label))
          (preferred (format "%s/task" project))
          (roles (cl-remove-if-not (lambda (target)
                                     (eq (oref target kind) 'role))
-                                  (beads-sling-targets))))
-    (or (and (cl-find preferred roles
+                                  targets)))
+    (or (and provider-default (oref provider-default name))
+        (and (cl-find preferred roles
                       :key (lambda (target) (oref target name))
                       :test #'equal)
              preferred)
@@ -513,10 +548,11 @@ derived default."
   (and (eq (oref target kind) 'worktree)
        (plist-get (oref target metadata) :path)))
 
-(defun beads-sling--read-target-name ()
-  "Read a sling target name with completion, or nil when none exist."
+(defun beads-sling--read-target-name (&optional bead)
+  "Read a sling target name with completion, or nil when none exist.
+BEAD is forwarded to the target providers through the completion table."
   (require 'beads-completion)
-  (beads-completion-read-sling-target "Target: "))
+  (beads-completion-read-sling-target "Target: " bead))
 
 ;;; Formula-var scope seeds
 
@@ -947,7 +983,7 @@ the inferred shape."
          (formula (plist-get scope :formula))
          (recipe (plist-get scope :recipe))
          (target (or (plist-get scope :target)
-                     (beads-sling--derived-target-name))))
+                     (beads-sling--derived-target-name work))))
     (list :work work
           :work-title (plist-get scope :work-title)
           :formula formula
@@ -1095,9 +1131,11 @@ Every shape (plain, on and formula) dispatches through
 method preserves the local behaviour and starts a local agent for the
 formula-only shape.  A missing target is read interactively."
   (let* ((shape (plist-get context :shape))
+         (work (plist-get context :work))
          (target-name (plist-get context :target))
          (target (beads-sling--target-get
-                  (or target-name (beads-sling--read-target-name)))))
+                  (or target-name (beads-sling--read-target-name work))
+                  work)))
     (unless target (user-error "No sling target selected"))
     (let ((prompt (beads-sling--launch-prompt context)))
       (pcase shape
@@ -1147,13 +1185,15 @@ formula-only shape.  A missing target is read interactively."
 (transient-define-suffix beads-sling--pick-target ()
   "Pick the Who target for the sling and rebuild the menu in place."
   :description (lambda (_obj)
-                 (concat "Target: "
-                         (beads-sling--target-label
-                          (or (plist-get (transient-scope) :target)
-                              (beads-sling--derived-target-name)))))
+                 (let ((scope (transient-scope)))
+                   (concat "Target: "
+                           (beads-sling--target-label
+                            (or (plist-get scope :target)
+                                (beads-sling--derived-target-name
+                                 (plist-get scope :work)))))))
   (interactive)
   (let* ((scope (transient-scope))
-         (name (beads-sling--read-target-name)))
+         (name (beads-sling--read-target-name (plist-get scope :work))))
     (beads-sling--resetup
      (plist-put (copy-sequence scope) :target name))))
 
@@ -1215,7 +1255,8 @@ the routing flags render only on the settled plain shape."
                           (plist-get scope :work)
                           (plist-get scope :formula)
                           (or (plist-get scope :target)
-                              (beads-sling--derived-target-name))
+                              (beads-sling--derived-target-name
+                               (plist-get scope :work)))
                           (plist-get scope :recipe)))))
               (list :info
                     '(lambda ()

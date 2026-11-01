@@ -62,7 +62,7 @@ drift silently.
 | `beads-formula-var` | EIEIO class | typed formula variable |
 | `beads-command-formula-show` | EIEIO command | `bd formula show` |
 | `beads-command-formula-list` | EIEIO command | `bd formula list` |
-| `beads-sling-targets` | defun `(&optional bead) → list-of-target` | target discovery |
+| `beads-sling-targets` | defun `(&optional bead) → list-of-target` | target discovery; forwards BEAD to arity-accepting providers |
 | `beads-sling-dispatch` | cl-defgeneric `(target bead prompt &optional context)` | launch dispatch for every shape |
 | `beads-sling-for-issue` | autoloaded defun `()` | open `beads-sling` seeded with the bead at point |
 | `beads-terminal-spawn` | cl-defgeneric `(terminal argv &optional name)` | spawn a terminal |
@@ -73,6 +73,19 @@ the rest are the stable porcelain and terminal seams the package already
 exposes (`plans/beads-ui-redesign/design.md` §4).
 
 ### The sling dispatch seam
+
+`beads-sling-targets` is the discovery seam for the Who picker.  Its
+optional BEAD is forwarded to every provider in
+`beads-sling-target-functions` whose arity accepts one (`(FN BEAD)`, nil
+when no work item is in scope); zero-argument providers predate that
+argument and keep working.  A provider can therefore derive a
+context-sensitive row: Gas City uses the bead's id prefix to find the
+owning rig and contributes its `default_sling_target` as a `gc` target.
+A target marks itself as the Who default with `:derived' non-nil in its
+`metadata' plist, and `beads-sling--derived-target-name' prefers the
+first such row over the local role convention.  Launch-time target
+lookup and the completion table forward the same bead, so a row that
+exists only for that work item is still resolvable.
 
 `beads-sling-dispatch` is the one launch seam: every shape (`plain`,
 `on`, `formula`) dispatches through it, and the optional fourth argument
