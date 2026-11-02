@@ -692,8 +692,41 @@ end-to-end gate."
         ;; And it evaluates to the callable transient will invoke.
         (should (functionp (eval (cadr info) t)))))))
 
+(ert-deftest beads-sling-test-transient-s-opens-preview ()
+  "The sling menu's `s' opens the full preview instead of launching.
+The preview is now the only launch path, so the menu must not bind a
+direct launch (and the old `P' alias is gone)."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-sling--project-label)
+             (lambda () "beads.el")))
+    (let* ((specs (beads-sling--children-specs
+                   '(:work "be-abcd" :formula nil :recipe nil :target nil)))
+           (actions (cl-find "Actions" specs
+                             :key (lambda (group) (aref group 0))
+                             :test #'equal))
+           (entries (cdr (append actions nil))))
+      (should (equal (nth 2 (assoc "s" entries))
+                     'beads-sling--show-preview))
+      (should-not (assoc "P" entries))
+      (should-not (cl-find 'beads-sling--run entries
+                           :key (lambda (entry) (nth 2 entry)))))))
+
+(ert-deftest beads-sling-test-transient-s-preview-uses-scope-context ()
+  "The menu's `s' previews the live scope context."
+  :tags '(:unit)
+  (let ((captured nil))
+    (cl-letf (((symbol-function 'transient-scope)
+               (lambda (&rest _) '(:work "be-abcd")))
+              ((symbol-function 'beads-sling--scope-context)
+               (lambda (&optional _scope)
+                 '(:work "be-abcd" :shape plain)))
+              ((symbol-function 'beads-sling--full-preview)
+               (lambda (context) (setq captured context) 'preview)))
+      (should (eq (call-interactively #'beads-sling--show-preview) 'preview))
+      (should (equal captured '(:work "be-abcd" :shape plain))))))
+
 (ert-deftest beads-sling-test-preview-paints-sections ()
-  "The `P' preview renders header, Validation, Recipe and plan."
+  "The preview renders header, Validation, Recipe and plan."
   :tags '(:unit)
   (cl-letf (((symbol-function 'beads-sling--project-label)
              (lambda () "beads.el"))
@@ -723,18 +756,69 @@ end-to-end gate."
         (kill-buffer buffer)))))
 
 (ert-deftest beads-sling-test-preview-launch-never-gated ()
-  "`s' in the preview launches exactly the stored context."
+  "The preview's launch keys run exactly the stored context."
   :tags '(:unit)
-  (let ((captured nil)
-        (buffer (generate-new-buffer " *beads-sling-preview-launch-test*")))
+  (dolist (key '("s" "C-c C-c"))
+    (let ((captured nil)
+          (buffer (generate-new-buffer " *beads-sling-preview-launch-test*")))
+      (unwind-protect
+          (progn
+            (with-current-buffer buffer
+              (beads-sling-preview-mode)
+              (setq beads-sling-preview--context '(:shape plain :work "be-abcd")))
+            (cl-letf (((symbol-function 'beads-sling--launch)
+                       (lambda (context) (setq captured context) 'session)))
+              (with-current-buffer buffer
+                (call-interactively
+                 (lookup-key beads-sling-preview-mode-map (kbd key)))))
+            (should (equal captured '(:shape plain :work "be-abcd"))))
+        (kill-buffer buffer)))))
+
+(ert-deftest beads-sling-test-preview-keymap-launch-and-abort ()
+  "`s' and `C-c C-c' launch; `q' aborts the preview."
+  :tags '(:unit)
+  (should (eq (lookup-key beads-sling-preview-mode-map (kbd "s"))
+              #'beads-sling-preview-launch))
+  (should (eq (lookup-key beads-sling-preview-mode-map (kbd "C-c C-c"))
+              #'beads-sling-preview-launch))
+  (should (eq (lookup-key beads-sling-preview-mode-map (kbd "q"))
+              #'quit-window)))
+
+(ert-deftest beads-sling-test-preview-q-aborts-without-launch ()
+  "`q' in the preview aborts without dispatching."
+  :tags '(:unit)
+  (let ((launched nil)
+        (aborted nil)
+        (buffer (generate-new-buffer " *beads-sling-preview-abort-test*")))
     (unwind-protect
-        (cl-letf (((symbol-function 'beads-sling--launch)
-                   (lambda (context) (setq captured context) 'session)))
+        (progn
           (with-current-buffer buffer
             (beads-sling-preview-mode)
-            (setq beads-sling-preview--context '(:shape plain :work "be-abcd"))
-            (beads-sling-preview-launch))
-          (should (equal captured '(:shape plain :work "be-abcd"))))
+            (setq beads-sling-preview--context '(:shape plain :work "be-abcd")))
+          (cl-letf (((symbol-function 'beads-sling--launch)
+                     (lambda (context) (setq launched context) 'session))
+                    ((symbol-function 'quit-window)
+                     (lambda (&optional _kill) (setq aborted t))))
+            (with-current-buffer buffer
+              (funcall (lookup-key beads-sling-preview-mode-map (kbd "q")))))
+          (should aborted)
+          (should-not launched))
+      (kill-buffer buffer))))
+
+(ert-deftest beads-sling-test-preview-without-context-refuses-to-launch ()
+  "A preview with no stored context signals instead of dispatching."
+  :tags '(:unit)
+  (let ((launched nil)
+        (buffer (generate-new-buffer " *beads-sling-preview-empty-test*")))
+    (unwind-protect
+        (progn
+          (cl-letf (((symbol-function 'beads-sling--launch)
+                     (lambda (context) (setq launched context) 'session)))
+            (with-current-buffer buffer
+              (beads-sling-preview-mode)
+              (setq beads-sling-preview--context nil)
+              (should-error (beads-sling-preview-launch) :type 'user-error)))
+          (should-not launched))
       (kill-buffer buffer))))
 
 ;;; `S' entry point, keymaps and action bar (REQ-001, AC-1/2/3)

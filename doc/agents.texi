@@ -141,10 +141,17 @@ From the maintenance menu, open the swarm sub-dispatch.
 @anchor{fig:swarm-dark}
 @shot{swarm-dark, The swarm fleet list showing wave progress.}
 
-The sling preview shows the prompt and target before the agent starts, so
-you can adjust them before committing.  The How stage lists every variable
-the chosen formula accepts, including variables inherited through
-@code{extends}: a workflow such as @code{build-basic} shows the
-@code{artifact_root} and other variables declared on its @code{build-base}
-parent.  Sling and swarm share the terminal subsystem with the other agent
-flows.
+Sling is preview-first.  Pressing @kbd{s} in the sling menu opens the
+full preview instead of dispatching immediately; the preview shows the
+header sentence, the validation checks, the recipe's steps and the
+routing plan, so you can adjust the work, formula, target and variables
+before committing.  From the preview, @kbd{s} or @kbd{C-c C-c} launches
+exactly what was previewed, and @kbd{q} aborts without dispatching.  The
+preview never gates launch: any warnings it shows are advisory and the
+same checks feed the live menu footer.
+
+The How stage lists every variable the chosen formula accepts, including
+variables inherited through @code{extends}: a workflow such as
+@code{build-basic} shows the @code{artifact_root} and other variables
+declared on its @code{build-base} parent.  Sling and swarm share the
+terminal subsystem with the other agent flows.
