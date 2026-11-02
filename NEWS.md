@@ -4,6 +4,15 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Sling is preview-first
+
+* **`s` in the sling menu opens the full preview instead of launching.**
+  The preview keeps the header sentence, validation checks, recipe steps
+  and routing plan, and gains explicit launch keys: `s` or `C-c C-c`
+  dispatches exactly what was previewed, while `q` aborts without
+  dispatching.  The old `P` preview alias is gone; the preview remains
+  advisory and never gates launch.
+
 ### Manual gates wired into CI and self-contained Pages publish
 
 * **Forbidden host/city name gate in CI (REQ-015, REQ-016).**
@@ -597,10 +606,10 @@ directory, agent and numeric readers chosen from the var's declared
 shape, failing soft to string entry.
 - `T` picks the Who target; the plain shape also shows the routing
   flags.
-- `s` launches through the existing `beads-sling-dispatch` seam, `P`
-  opens a full special-mode preview (`beads-sling-preview-mode`) whose
-  own `s` launches exactly what was previewed.  The preview never
-  gates launch.
+- `s` opens a full special-mode preview (`beads-sling-preview-mode`);
+  the preview's own `s` or `C-c C-c` launches exactly what was previewed
+  through the existing `beads-sling-dispatch` seam, and `q` aborts.
+  The preview never gates launch.
 - `beads-sling-validators` warnings feed the footer and the preview.
 
 ### Standalone sling abstraction

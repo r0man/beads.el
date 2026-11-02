@@ -406,8 +406,9 @@ forwarded unchanged to a registered backend.  Resolution order:
 ;; The adaptive sling surface: one transient (`beads-sling') whose
 ;; stages collapse as they are answered, a live footer that recomputes
 ;; on every redraw, typed How readers generated from a picked formula's
-;; `beads-formula-var' definitions, and a `P' full preview that never
-;; gates launch.  Shape is inferred (WI-10's `beads-sling-shape') and
+;; `beads-formula-var' definitions, and a full preview opened by `s'
+;; that never gates launch.  Shape is inferred (WI-10's
+;; `beads-sling-shape') and
 ;; rendered as one sentence; the stages are the signed-off mockups
 ;; (menu-mockups.md §6 and §7).  Everything here is client-side: it
 ;; works with `bd' plus the local agent subsystem alone.
@@ -1198,7 +1199,9 @@ formula-only shape.  A missing target is read interactively."
      (plist-put (copy-sequence scope) :target name))))
 
 (transient-define-suffix beads-sling--run ()
-  "Launch the sling exactly as shown (never gated by the preview)."
+  "Launch the sling directly from its current scope.
+The menu's `s' previews first; this suffix remains the programmatic
+direct-launch path used by callers that have already previewed."
   (interactive)
   (beads-sling--launch (beads-sling--scope-context)))
 
@@ -1286,8 +1289,8 @@ the routing flags render only on the settled plain shape."
       (apply #'vector
              "Actions"
              (delq nil
-                   (list '("s" "Launch" beads-sling--run)
-                         '("P" "Full preview" beads-sling--show-preview)
+                   (list '("s" "Preview & launch"
+                           beads-sling--show-preview)
                          (and formula '("r" "Recipe preview"
                                         beads-sling--recipe-preview))
                          '("x" "Reset" beads-sling--reset)
@@ -1303,8 +1306,9 @@ the routing flags render only on the settled plain shape."
   "Adaptive sling transient (REQ-009, mockup §6).
 One entry point covers the plain, formula and `--on' shapes: shape is
 inferred and shown as one sentence, stages collapse as answered, and
-the live footer recomputes on every redraw.  `P' opens a fuller
-preview and never gates `s'."
+the live footer recomputes on every redraw.  `s' opens the full preview
+instead of dispatching; the preview's own `s' or `C-c C-c' launches
+exactly what was previewed, and `q' aborts."
   [ :class transient-subgroups :setup-children beads-sling--setup-children ])
 
 (defun beads-sling--work-at-point ()
@@ -1358,7 +1362,8 @@ BEAD is a `beads-issue' object or an id string."
   "Sling a bead, freeform work or formula to an agent target.
 The one entry point (REQ-009): shape is inferred from the What stage,
 stages collapse as answered, and the live footer always shows the
-pending dispatch.  `s' launches, `P' opens the full preview.
+pending dispatch.  `s' opens the full preview, where `s' or `C-c C-c'
+launches and `q' aborts.
 
 SCOPE, when non-nil, seeds the transient instead of the work at
 point, so a caller such as `beads-sling-for-issue' can open the menu
@@ -1387,7 +1392,7 @@ bound to `S' in `beads-show-mode-map', `beads-epic-status-mode-map',
            :recipe nil
            :target nil))))
 
-;;; Full preview (`P', mockup §7)
+;;; Full preview (`s', mockup §7)
 
 (defconst beads-sling-preview-buffer-name "*beads-sling: preview*"
   "Base name of the full sling preview buffer.")
@@ -1465,7 +1470,7 @@ bound to `S' in `beads-show-mode-map', `beads-epic-status-mode-map',
   (with-current-buffer buffer
     (let ((inhibit-read-only t))
       (erase-buffer)
-      (insert (format "Sling preview — %s  (s launch · q quit)\n"
+      (insert (format "Sling preview — %s  (s or C-c C-c launch · q abort)\n"
                       (beads-sling--project-label))
               (make-string 72 ?─) "\n")
       (dolist (line (beads-sling--preview-lines context))
@@ -1490,16 +1495,18 @@ bound to `S' in `beads-show-mode-map', `beads-epic-status-mode-map',
   (beads-sling--launch beads-sling-preview--context))
 
 (defvar-keymap beads-sling-preview-mode-map
-  :doc "Keymap of the full sling preview buffer.\n`s' launches, `q' quits."
+  :doc "Keymap of the full sling preview buffer.
+`s' and `C-c C-c' launch, `q' aborts."
   "s" #'beads-sling-preview-launch
+  "C-c C-c" #'beads-sling-preview-launch
   "q" #'quit-window)
 
 (define-derived-mode beads-sling-preview-mode special-mode "Beads-Sling-Preview"
   "Read-only full preview of the pending sling (mockup §7).
 The buffer shows the header sentence, the client-side validation
 checks in full, the recipe's steps and the client-side routing plan.
-`s' launches exactly what was previewed; `q' quits.  The preview is
-never a gate: the menu's `s' works with or without it."
+`s' or `C-c C-c' launches exactly what was previewed; `q' aborts
+without dispatching.  The menu's `s' always opens this preview first."
   (setq-local truncate-lines nil))
 
 (provide 'beads-sling)
