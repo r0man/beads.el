@@ -166,23 +166,42 @@ then by issue priority within each status."
             (_ "Other"))
         "Other"))))
 
-;;; Issue Completion Style
+;;; Style TRY Result
 
-(defun beads-completion--issue-style-try (string table pred point)
-  "Try completion of STRING with title-aware matching.
-TABLE is the completion table, PRED is the predicate, POINT is the position.
-Return nil if no matches, t if STRING is exact unique match, single match
-string if only one match, or STRING itself if multiple matches."
-  (let ((matches (beads-completion--issue-style-all string table pred point)))
+(defun beads-completion--style-try-result (string point matches)
+  "Return a `completion-try-completion' result for STRING and MATCHES.
+MATCHES is the list of candidates returned by a completion style's ALL
+function.  POINT is point's position in STRING, defaulting to its end.
+
+Return nil when MATCHES is empty, t for a single exact match, and
+otherwise a cons of the completed string and point's position in it.
+Style TRY functions must return this cons form: a bare string is read
+as a list by the completion machinery, so TAB signals
+`wrong-type-argument listp' instead of listing candidates."
+  (let ((point (if (integerp point)
+                   (min point (length string))
+                 (length string))))
     (cond
      ((null matches) nil)
      ((and (= (length matches) 1)
            (string= string (substring-no-properties (car matches))))
       t)
      ((= (length matches) 1)
-      ;; Return plain string - properties cause issues with completion machinery
-      (substring-no-properties (car matches)))
-     (t string))))  ;; Multiple matches - return input unchanged
+      (let ((candidate (substring-no-properties (car matches))))
+        ;; Keep any text that follows point, as `completion-basic' does.
+        (cons (concat candidate (substring string point))
+              (length candidate))))
+     (t (cons string point)))))
+
+;;; Issue Completion Style
+
+(defun beads-completion--issue-style-try (string table pred point)
+  "Try completion of STRING with title-aware matching.
+TABLE is the completion table, PRED is the predicate, POINT is the position.
+Return a `completion-try-completion' result: nil, t, or (STRING . POS)."
+  (beads-completion--style-try-result
+   string point
+   (beads-completion--issue-style-all string table pred point)))
 
 (defun beads-completion--issue-style-all (string table pred point)
   "Return issue completions matching STRING against ID or title.
@@ -355,18 +374,10 @@ Otherwise, return the group name (\"Available\" or \"Unavailable\")."
 (defun beads-completion--backend-style-try (string table pred point)
   "Try completion of STRING with description-aware matching.
 TABLE is the completion table, PRED is the predicate, POINT is the position.
-Return nil if no matches, t if STRING is exact unique match, single match
-string if only one match, or STRING itself if multiple matches."
-  (let ((matches (beads-completion--backend-style-all string table pred point)))
-    (cond
-     ((null matches) nil)
-     ((and (= (length matches) 1)
-           (string= string (substring-no-properties (car matches))))
-      t)
-     ((= (length matches) 1)
-      ;; Return plain string - properties cause issues with completion machinery
-      (substring-no-properties (car matches)))
-     (t string))))  ;; Multiple matches - return input unchanged
+Return a `completion-try-completion' result: nil, t, or (STRING . POS)."
+  (beads-completion--style-try-result
+   string point
+   (beads-completion--backend-style-all string table pred point)))
 
 (defun beads-completion--backend-style-all (string table pred point)
   "Return backend completions matching STRING against name or description.
@@ -601,18 +612,10 @@ remaining candidates fall through to a beads-state grouping
 (defun beads-completion--worktree-style-try (string table pred point)
   "Try completion of STRING with worktree-aware matching.
 TABLE is the completion table, PRED is the predicate, POINT is the position.
-Return nil if no matches, t if STRING is exact unique match, single match
-string if only one match, or STRING itself if multiple matches."
-  (let ((matches (beads-completion--worktree-style-all string table pred point)))
-    (cond
-     ((null matches) nil)
-     ((and (= (length matches) 1)
-           (string= string (substring-no-properties (car matches))))
-      t)
-     ((= (length matches) 1)
-      ;; Return plain string - properties cause issues with completion machinery
-      (substring-no-properties (car matches)))
-     (t string))))  ;; Multiple matches - return input unchanged
+Return a `completion-try-completion' result: nil, t, or (STRING . POS)."
+  (beads-completion--style-try-result
+   string point
+   (beads-completion--worktree-style-all string table pred point)))
 
 (defun beads-completion--worktree-style-all (string table pred point)
   "Return worktree completions matching STRING against name, branch, or state.
@@ -749,16 +752,11 @@ If TRANSFORM is non-nil, return CANDIDATE."
 
 (defun beads-completion--worktree-name-style-try (string table pred point)
   "Try completion of STRING for worktree names.
-TABLE is the completion table, PRED is the predicate, POINT is the position."
-  (let ((matches (beads-completion--worktree-name-style-all string table pred point)))
-    (cond
-     ((null matches) nil)
-     ((and (= (length matches) 1)
-           (string= string (substring-no-properties (car matches))))
-      t)
-     ((= (length matches) 1)
-      (substring-no-properties (car matches)))
-     (t string))))
+TABLE is the completion table, PRED is the predicate, POINT is the position.
+Return a `completion-try-completion' result: nil, t, or (STRING . POS)."
+  (beads-completion--style-try-result
+   string point
+   (beads-completion--worktree-name-style-all string table pred point)))
 
 (defun beads-completion--worktree-name-style-all (string table pred point)
   "Return worktree name completions matching STRING.

@@ -102,18 +102,37 @@ PRIORITY is the priority (default 2), TYPE is the issue type (default \"task\").
       (should (= 0 (length matches))))))
 
 (ert-deftest beads-completion-test-style-try-single-match ()
-  "Test try-completion returns single match when only one."
+  "Test try-completion returns the match and its length when only one."
   (let ((beads-completion--cache (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (let* ((table (beads-completion-issue-table))
            (result (beads-completion--issue-style-try "authentication" table nil nil)))
-      (should (string= "bd-abc1" result)))))
+      (should (equal (cons "bd-abc1" 7) result)))))
 
 (ert-deftest beads-completion-test-style-try-multiple-matches ()
-  "Test try-completion returns input string when multiple matches."
+  "Test try-completion returns input and point when multiple matches."
   (let ((beads-completion--cache (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (let* ((table (beads-completion-issue-table))
            (result (beads-completion--issue-style-try "bd-" table nil nil)))
-      (should (string= "bd-" result)))))
+      (should (equal (cons "bd-" 3) result)))))
+
+(ert-deftest beads-completion-test-style-try-preserves-suffix-after-point ()
+  "Test try-completion keeps buffer text that follows point."
+  (should (equal (cons "claude!" 6)
+                 (beads-completion--style-try-result
+                  "cl!" 2 '("claude")))))
+
+(ert-deftest beads-completion-test-issue-style-try-through-completion-machinery ()
+  "Test the issue style is accepted by `completion-try-completion'.
+A style TRY function must return nil, t, or a (STRING . POS) cons.
+Returning a bare string makes TAB signal `wrong-type-argument listp'."
+  (let ((beads-completion--cache (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
+    (let* ((table (beads-completion-issue-table))
+           (completion-category-overrides
+            (cons '(beads-issue (styles beads-issue-title basic))
+                  completion-category-overrides))
+           (md (completion-metadata "" table nil)))
+      (should (equal (cons "" 0)
+                     (completion-try-completion "" table nil 0 md))))))
 
 (ert-deftest beads-completion-test-style-try-exact-match ()
   "Test try-completion returns t for exact unique match."
@@ -797,24 +816,37 @@ Annotation functions may return nil or empty string for missing data."
       (should (= 0 (length matches))))))
 
 (ert-deftest beads-completion-test-backend-style-try-single-match ()
-  "Test try-completion returns single match when only one."
+  "Test try-completion returns the match and its length when only one."
   (cl-letf (((symbol-function 'beads-agent--get-all-backends)
              #'beads-completion-test--make-mock-backends))
     (let* ((table (beads-completion-backend-table))
            (result (beads-completion--backend-style-try "terminal" table nil nil)))
-      (should (string= "claudemacs" result)))))
+      (should (equal (cons "claudemacs" 10) result)))))
 
 (ert-deftest beads-completion-test-backend-style-try-multiple-matches ()
-  "Test try-completion returns input string when multiple matches."
+  "Test try-completion returns input and point when multiple matches."
   (cl-letf (((symbol-function 'beads-agent--get-all-backends)
              #'beads-completion-test--make-mock-backends))
     (let* ((table (beads-completion-backend-table))
-           ;; "agent" matches both "agent-shell" (in name) and "claudemacs" (via "AI" in description)
-           ;; Actually let's use a pattern that matches multiple backends
+           ;; "AI" appears in both claudemacs' and agent-shell's descriptions.
            (result (beads-completion--backend-style-try "AI" table nil nil)))
-      ;; "AI" appears in descriptions of both claudemacs and agent-shell
-      ;; Should return input unchanged when multiple matches
-      (should (string= "AI" result)))))
+      (should (equal (cons "AI" 2) result)))))
+
+(ert-deftest beads-completion-test-backend-style-try-through-completion-machinery ()
+  "Test the backend style is accepted by `completion-try-completion'.
+TAB at the backend prompt calls this; a bare string result makes it
+signal `wrong-type-argument listp' and shows no completions."
+  (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+             #'beads-completion-test--make-mock-backends))
+    (let* ((table (beads-completion-backend-table))
+           (completion-category-overrides
+            (cons '(beads-agent-backend (styles beads-backend-description basic))
+                  completion-category-overrides))
+           (md (completion-metadata "" table nil)))
+      (should (equal (cons "" 0)
+                     (completion-try-completion "" table nil 0 md)))
+      (should (equal (cons "claudemacs" 10)
+                     (completion-try-completion "cl" table nil 2 md))))))
 
 (ert-deftest beads-completion-test-backend-style-try-exact-match ()
   "Test try-completion returns t for exact unique match."
@@ -1197,21 +1229,21 @@ on-disk paths so `file-truename' resolves cleanly."
       (should (= 0 (length matches))))))
 
 (ert-deftest beads-completion-test-worktree-style-try-single-match ()
-  "Test try-completion returns single match when only one."
+  "Test try-completion returns the match and its length when only one."
   (let ((beads-completion--worktree-cache
          (cons (float-time) (beads-completion-test--make-mock-worktrees))))
     (let* ((table (beads-completion-worktree-table))
            ;; Use partial match "experi" which uniquely matches "experiment"
            (result (beads-completion--worktree-style-try "experi" table nil nil)))
-      (should (string= "experiment" result)))))
+      (should (equal (cons "experiment" 10) result)))))
 
 (ert-deftest beads-completion-test-worktree-style-try-multiple-matches ()
-  "Test try-completion returns input string when multiple matches."
+  "Test try-completion returns input and point when multiple matches."
   (let ((beads-completion--worktree-cache
          (cons (float-time) (beads-completion-test--make-mock-worktrees))))
     (let* ((table (beads-completion-worktree-table))
            (result (beads-completion--worktree-style-try "redirect" table nil nil)))
-      (should (string= "redirect" result)))))
+      (should (equal (cons "redirect" 8) result)))))
 
 (ert-deftest beads-completion-test-worktree-style-try-exact-match ()
   "Test try-completion returns t for exact unique match."
