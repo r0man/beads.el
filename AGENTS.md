@@ -49,6 +49,20 @@ or the ambient `EMACSLOADPATH`; `package-lint` and `undercover` are resolved
 the same way (`PACKAGE_LINT_DIR`/`EMACSLOADPATH`). Under Guix,
 `guix shell -D -f guix.scm` provides all of them.
 
+### Loading from a source checkout
+
+Emacs prefers an existing `.elc` over a newer `.el` by default, so after
+pulling a fix into this checkout a running Emacs can silently keep the old
+bytecode. Remove stale bytecode before loading the package from `lisp/`:
+
+```bash
+find lisp -name '*.elc' -delete
+```
+
+(Or `make clean` before a fresh build.) This bit the dogfood pass on
+2026-11-01: the live checkouts had `.elc` from an older build and the UI
+behaved as if already-merged fixes were missing.
+
 Running a subset of tests directly (plain Emacs, no build system):
 
 ```bash
