@@ -212,6 +212,43 @@ Runs for real with a trivial `cat' (term is built in)."
         (kill-buffer buf))
       (delete-directory dir t))))
 
+(ert-deftest beads-terminal-test-term-decodes-utf8-without-locale ()
+  "Built-in `term' decodes UTF-8 even when the ambient locale is unset.
+`term-emulate-terminal' decodes output with `locale-coding-system'.
+With LANG/LC_* unset that variable is nil, so `decode-coding-string'
+returns raw bytes: box-drawing glyphs render as octal escapes
+\(`\\342\\224\\200' in the bug report) and their byte length inflates
+term's wrap loop until it computes a negative `substring' end
+\(\"Args out of range: ... 0, -347\").  Spawning must therefore give
+the term buffer a UTF-8 locale of last resort."
+  (require 'term)
+  (let* ((dir (make-temp-file "bde-term-" t))
+         (name "*beads-agent[utf8]*")
+         (process-environment process-environment)
+         (default-directory dir)
+         (locale-coding-system nil)
+         buf)
+    (unwind-protect
+        (progn
+          (setq buf (beads-terminal-spawn (beads-terminal-term)
+                                          name '("cat") dir nil))
+          (should (eq (buffer-local-value 'locale-coding-system buf)
+                      'utf-8-unix))
+          ;; Drive the real filter with a long box-drawing line: pre-fix
+          ;; this both sprayed octal escapes and signalled the negative
+          ;; `substring' range from term's line-wrapping loop.
+          (with-current-buffer buf
+            (term-emulate-terminal
+             (get-buffer-process buf)
+             (encode-coding-string (concat (make-string 240 ?\u2500) "\n")
+                                   'utf-8-unix))
+            (should (string-match-p "\u2500" (buffer-string)))
+            (should-not (string-match-p "\\\\342" (buffer-string)))))
+      (when (buffer-live-p buf)
+        (when-let* ((p (get-buffer-process buf))) (delete-process p))
+        (kill-buffer buf))
+      (delete-directory dir t))))
+
 ;;; Kill without confirmation
 
 (ert-deftest beads-terminal-test-spawn-clears-query-on-exit ()

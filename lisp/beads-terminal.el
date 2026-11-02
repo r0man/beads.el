@@ -326,11 +326,33 @@ passed to `eat-exec'.  `eat-mode' is ensured FIRST (mandatory —
    (priority :initform 40))
   :documentation "Built-in `term-mode' terminal via `term-exec'.")
 
+(defconst beads-terminal--term-fallback-coding-system 'utf-8-unix
+  "Coding system `term' uses to decode output when no locale is set.
+`term-emulate-terminal' decodes non-control output with
+`locale-coding-system'.  That variable is nil when LANG and LC_ALL are
+unset (a \"clean env\" launch), and decoding with nil leaves raw UTF-8
+bytes: glyphs such as U+2500 render as octal escapes (\\342\\224\\200)
+and their inflated byte length drives term's line-wrapping loop to a
+negative `substring' end (\"Args out of range: ... 0, -347\").
+Agent CLIs (pi, claude) emit UTF-8 regardless of the ambient locale, so
+a UTF-8 locale of last resort is always the right decode.")
+
+(defun beads-terminal--term-ensure-locale (buffer)
+  "Give BUFFER a usable `locale-coding-system' if none is configured.
+The process filter runs inside BUFFER, so a buffer-local value is what
+matters.  Leave any real ambient locale untouched."
+  (with-current-buffer buffer
+    (unless locale-coding-system
+      (setq-local locale-coding-system
+                  beads-terminal--term-fallback-coding-system))))
+
 (defun beads-terminal--term-spawn (buffer-name argv working-dir env)
   "Spawn ARGV in a `term-mode' BUFFER-NAME (mirrors `--run-term').
 Order matters: mode -> exec -> char-mode (switching mode after exec
 detaches the filter).  `term-sentinel' does not kill the buffer, so
-the buffer survives process exit with no extra knob."
+the buffer survives process exit with no extra knob.  The UTF-8 locale
+fallback must be buffer-local before the filter sees output; see
+`beads-terminal--term-fallback-coding-system'."
   (require 'term)
   (let* ((default-directory working-dir)
          (process-environment (beads-terminal--apply-env env))
@@ -340,6 +362,7 @@ the buffer survives process exit with no extra knob."
         (term-mode))
       (beads-terminal--kill-stale-process buf)
       (erase-buffer)
+      (beads-terminal--term-ensure-locale buf)
       (term-exec buf buffer-name (car argv) nil (cdr argv))
       (term-char-mode))
     buf))

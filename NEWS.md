@@ -13,6 +13,16 @@ User-visible and API-breaking changes, newest first.
   dispatching.  The old `P` preview alias is gone; the preview remains
   advisory and never gates launch.
 
+### Terminals decode UTF-8 without a configured locale
+
+* **Agents launched in the built-in `term`/`ansi-term` backend render
+  box-drawing and other UTF-8 output correctly when `LANG`/`LC_*` are
+  unset.**  `term-emulate-terminal` decodes with `locale-coding-system`;
+  a nil locale left raw bytes in the buffer (octal escapes such as
+  `\342\224\200`) whose inflated length also made term's wrap loop
+  signal `Args out of range`.  Term buffers now fall back to
+  `utf-8-unix` when no ambient locale is configured (bug be-4bfgb).
+
 ### Manual gates wired into CI and self-contained Pages publish
 
 * **Forbidden host/city name gate in CI (REQ-015, REQ-016).**
