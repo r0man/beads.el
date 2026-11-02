@@ -56,7 +56,8 @@
     (should (slot-exists-p spec 'label))
     (should (slot-exists-p spec 'order))
     (should (slot-exists-p spec 'limit))
-    (should (slot-exists-p spec 'ready-only))))
+    (should (slot-exists-p spec 'ready-only))
+    (should (slot-exists-p spec 'all))))
 
 (ert-deftest beads-spec-test-default-values ()
   "Verify beads-issue-spec has correct default slot values."
@@ -68,7 +69,8 @@
     (should (null (oref spec label)))
     (should (eq (oref spec order) 'newest))
     (should (= (oref spec limit) 50))
-    (should (null (oref spec ready-only)))))
+    (should (null (oref spec ready-only)))
+    (should (null (oref spec all)))))
 
 (ert-deftest beads-spec-test-slot-values-set ()
   "Verify beads-issue-spec slots can be set via initargs."
@@ -80,7 +82,8 @@
                :label "urgent"
                :order 'priority
                :limit 25
-               :ready-only t)))
+               :ready-only t
+               :all t)))
     (should (equal (oref spec status) "open"))
     (should (equal (oref spec type) "bug"))
     (should (= (oref spec priority) 1))
@@ -88,7 +91,8 @@
     (should (equal (oref spec label) "urgent"))
     (should (eq (oref spec order) 'priority))
     (should (= (oref spec limit) 25))
-    (should (oref spec ready-only))))
+    (should (oref spec ready-only))
+    (should (oref spec all))))
 
 ;;; beads-issue-spec--to-args Tests
 
@@ -176,6 +180,15 @@
   (let* ((spec (beads-issue-spec :ready-only t))
          (args (beads-issue-spec--to-args spec)))
     (should (member "--ready" args))))
+
+(ert-deftest beads-spec-test-to-args-all ()
+  "Verify to-args includes --all when the all slot is t."
+  (let* ((spec (beads-issue-spec :all t))
+         (args (beads-issue-spec--to-args spec)))
+    (should (member "--all" args)))
+  (let* ((spec (beads-issue-spec))
+         (args (beads-issue-spec--to-args spec)))
+    (should-not (member "--all" args))))
 
 (ert-deftest beads-spec-test-to-args-no-ready-only ()
   "Verify to-args omits --ready when ready-only is nil."
@@ -295,6 +308,20 @@
       ;; Used a command (demonstrating buffer spec was used)
       (should used-cmd))))
 
+(ert-deftest beads-spec-test-refresh-sets-all ()
+  "Verify beads-list--refresh applies the spec all slot to the command."
+  (with-temp-buffer
+    (beads-list-mode)
+    (let ((used-cmd nil))
+      (cl-letf (((symbol-function 'beads-command-execute)
+                 (lambda (cmd)
+                   (setq used-cmd cmd)
+                   (beads-spec-test--mock-execute nil)))
+                ((symbol-function 'beads-list--populate-buffer)
+                 (lambda (_is _command &optional _cmd-obj) nil)))
+        (beads-list--refresh (beads-issue-spec :all t)))
+      (should (oref used-cmd all)))))
+
 (ert-deftest beads-spec-test-refresh-falls-back-to-default-spec ()
   "Verify beads-list--refresh uses default spec when no spec anywhere."
   (with-temp-buffer
@@ -384,6 +411,15 @@
          (args (beads-list-filter--spec-to-args spec)))
     (should-not (member "--filter-ready-only" args))))
 
+(ert-deftest beads-spec-test-spec-to-args-all ()
+  "Verify spec-to-args encodes the all slot as --filter-all."
+  (let* ((spec (beads-issue-spec :all t))
+         (args (beads-list-filter--spec-to-args spec)))
+    (should (member "--filter-all" args)))
+  (let* ((spec (beads-issue-spec))
+         (args (beads-list-filter--spec-to-args spec)))
+    (should-not (member "--filter-all" args))))
+
 (ert-deftest beads-spec-test-spec-to-args-returns-strings ()
   "Verify spec-to-args returns a list of strings."
   (let* ((spec (beads-issue-spec :status "open" :type "bug" :limit 10))
@@ -443,6 +479,13 @@
   (let ((spec (beads-list-filter--args-to-spec '("--filter-ready-only"))))
     (should (oref spec ready-only))))
 
+(ert-deftest beads-spec-test-args-to-spec-all ()
+  "Verify args-to-spec parses --filter-all switch."
+  (let ((spec (beads-list-filter--args-to-spec '("--filter-all"))))
+    (should (oref spec all)))
+  (let ((spec (beads-list-filter--args-to-spec '())))
+    (should-not (oref spec all))))
+
 (ert-deftest beads-spec-test-round-trip-full-spec ()
   "Verify spec → args → spec round-trip preserves all fields."
   (let* ((orig (beads-issue-spec
@@ -453,7 +496,8 @@
                 :label "polish"
                 :order 'priority
                 :limit 30
-                :ready-only t))
+                :ready-only t
+                :all t))
          (args (beads-list-filter--spec-to-args orig))
          (spec (beads-list-filter--args-to-spec args)))
     (should (equal (oref spec status) "closed"))
@@ -463,7 +507,8 @@
     (should (equal (oref spec label) "polish"))
     (should (eq (oref spec order) 'priority))
     (should (= (oref spec limit) 30))
-    (should (oref spec ready-only))))
+    (should (oref spec ready-only))
+    (should (oref spec all))))
 
 (ert-deftest beads-spec-test-filter-menu-is-defined ()
   "Verify beads-list-filter-menu is defined as a command."
@@ -554,12 +599,19 @@
 
 (ert-deftest beads-spec-test-transient-args-to-spec-empty ()
   "Verify empty args returns spec with defaults."
-  (let ((spec (beads--transient-args-to-spec '())))
+  (let ((beads-list-default-limit 0)
+        (spec (beads--transient-args-to-spec '())))
     (should (beads-issue-spec-p spec))
     (should (null (oref spec status)))
     (should (null (oref spec type)))
     (should (eq (oref spec order) 'newest))
-    (should (= (oref spec limit) 50))))
+    (should (= (oref spec limit) 0))))
+
+(ert-deftest beads-spec-test-transient-args-to-spec-no-limit-uses-default-limit ()
+  "Verify no --limit uses `beads-list-default-limit'."
+  (let* ((beads-list-default-limit 25)
+         (spec (beads--transient-args-to-spec '("--status=open"))))
+    (should (= (oref spec limit) 25))))
 
 (ert-deftest beads-spec-test-transient-args-to-spec-status ()
   "Verify --status= maps to spec status."
@@ -593,8 +645,14 @@
 
 (ert-deftest beads-spec-test-transient-args-to-spec-limit ()
   "Verify --limit= maps to spec limit as integer."
-  (let ((spec (beads--transient-args-to-spec '("--limit=25"))))
+  (let* ((beads-list-default-limit 0)
+         (spec (beads--transient-args-to-spec '("--limit=25"))))
     (should (= (oref spec limit) 25))))
+
+(ert-deftest beads-spec-test-transient-args-to-spec-all ()
+  "Verify --all maps to spec all."
+  (let ((spec (beads--transient-args-to-spec '("--all"))))
+    (should (oref spec all))))
 
 (ert-deftest beads-spec-test-transient-args-to-spec-ready ()
   "Verify --ready switch maps to spec ready-only."
@@ -606,7 +664,7 @@
   (let ((spec (beads--transient-args-to-spec
                '("--status=closed" "--type=feature" "--priority=0"
                  "--assignee=bob" "--label=v2" "--order=updated"
-                 "--limit=10" "--ready"))))
+                 "--limit=10" "--ready" "--all"))))
     (should (equal (oref spec status) "closed"))
     (should (equal (oref spec type) "feature"))
     (should (= (oref spec priority) 0))
@@ -614,7 +672,8 @@
     (should (equal (oref spec label) "v2"))
     (should (eq (oref spec order) 'updated))
     (should (= (oref spec limit) 10))
-    (should (oref spec ready-only))))
+    (should (oref spec ready-only))
+    (should (oref spec all))))
 
 (provide 'beads-spec-test)
 ;;; beads-spec-test.el ends here

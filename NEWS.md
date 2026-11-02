@@ -4,6 +4,19 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### List UI honors `beads-list-default-limit` and "All issues" includes closed
+
+* **The interactive list path now applies `beads-list-default-limit`.**
+  Opening the list with the dispatch `l` (or the `l` suffix of the filter
+  transient) without an explicit `--limit` uses the custom default
+  (0 = fetch everything) instead of the spec class default of 50.
+* **"All issues" really means all issues.**  With no status filter,
+  `beads-list-all` sets the spec's new `all` slot, so `bd list --all`
+  returns closed issues too.  An explicit status filter still lists
+  exactly that status.
+* **The filter menu round-trips the new `all` slot** through
+  `--filter-all` ("Include closed").
+
 ### Sling is preview-first
 
 * **`s` in the sling menu opens the full preview instead of launching.**

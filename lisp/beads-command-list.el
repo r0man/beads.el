@@ -2075,7 +2075,12 @@ the transient menu options."
 Converts transient args to a `beads-issue-spec' and refreshes the
 list buffer.  This is the primary entry point for listing issues:
 the dispatch binds `l' directly to it, and it is the `l' suffix of
-the `beads-list-filters' transient."
+the `beads-list-filters' transient.
+
+Without an explicit status filter this is the all-issues entry
+point, so it includes closed issues (`:all t') and honors
+`beads-list-default-limit' (0 means no limit).  With a status
+filter it lists exactly that status."
   (interactive)
   (require 'beads-spec)
   (beads-check-executable)
@@ -2084,6 +2089,10 @@ the `beads-list-filters' transient."
          (args (transient-args 'beads-list-filters))
          (spec (beads--transient-args-to-spec args))
          (buffer (beads-list--get-or-create-buffer 'list)))
+    ;; "All issues" means all of them: with no status filter, do not
+    ;; silently drop the closed ones (bd list excludes them by default).
+    (unless (oref spec status)
+      (oset spec all t))
     (with-current-buffer buffer
       (unless (derived-mode-p 'beads-list-mode)
         (beads-list-mode))

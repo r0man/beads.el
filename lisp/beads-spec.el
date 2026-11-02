@@ -114,12 +114,18 @@ Default 50; use 0 for unlimited.")
     :initarg :ready-only
     :type boolean
     :initform nil
-    :documentation "When non-nil, show only ready (unblocked) issues (--ready)."))
+    :documentation "When non-nil, show only ready (unblocked) issues (--ready).")
+   (all
+    :initarg :all
+    :type boolean
+    :initform nil
+    :documentation "When non-nil, include closed issues (--all)."))
   "Filter spec for a beads list view.
 
 Captures all criteria needed to construct a `bd list' command:
 status, type, priority, assignee, label, sort order, result limit,
-and whether to restrict to ready-only issues.
+whether to restrict to ready-only issues, and whether to include
+closed issues.
 
 Use `beads-issue-spec--to-args' to convert a spec to CLI argument
 strings, or pass a spec to `beads-list--refresh' to populate the
@@ -172,6 +178,9 @@ The `order' slot maps to --sort / --reverse flags:
     ;; Ready-only
     (when (oref spec ready-only)
       (push "--ready" args))
+    ;; Include closed issues
+    (when (oref spec all)
+      (push "--all" args))
     (nreverse args)))
 
 ;;; Customization
@@ -235,6 +244,9 @@ stores the spec in `beads-list--spec', and calls
     ;; Ready-only
     (when (oref effective-spec ready-only)
       (oset cmd ready t))
+    ;; Include closed issues
+    (when (oref effective-spec all)
+      (oset cmd all t))
     ;; Execute and populate
     (let ((issues (beads-list--fetch (lambda () (beads-command-execute cmd)))))
       (setq beads-list--spec effective-spec)
@@ -270,9 +282,10 @@ Returns nil for nil or empty ARGS."
 
 ARGS is a list of strings as returned by `transient-args'.
 Recognized keys: --status=, --type=, --priority=, --assignee=,
---label=, --order=, --limit=, --ready.
+--label=, --order=, --limit=, --ready, --all.
 Unrecognized keys are ignored.  Unspecified fields receive their
-class defaults."
+class defaults, except `limit', which falls back to
+`beads-list-default-limit' (0 means fetch everything)."
   (let ((plist (beads--transient-args-to-plist args)))
     (beads-issue-spec
      :status (plist-get plist :status)
@@ -286,8 +299,9 @@ class defaults."
               'newest)
      :limit (if-let* ((l (plist-get plist :limit)))
                 (string-to-number l)
-              50)
-     :ready-only (and (plist-get plist :ready) t))))
+              beads-list-default-limit)
+     :ready-only (and (plist-get plist :ready) t)
+     :all (and (plist-get plist :all) t))))
 
 ;;; Filter Menu
 
@@ -316,6 +330,8 @@ value.  Only non-nil/non-default fields are included."
     (push (format "--filter-limit=%d" (oref spec limit)) args)
     (when (oref spec ready-only)
       (push "--filter-ready-only" args))
+    (when (oref spec all)
+      (push "--filter-all" args))
     (nreverse args)))
 
 (defun beads-list-filter--args-to-spec (args)
@@ -330,7 +346,8 @@ Unspecified fields receive their class defaults."
         (label nil)
         (order 'newest)
         (limit 50)
-        (ready-only nil))
+        (ready-only nil)
+        (all nil))
     (dolist (arg args)
       (cond
        ((string-prefix-p "--filter-status=" arg)
@@ -351,7 +368,9 @@ Unspecified fields receive their class defaults."
         (setq limit
               (string-to-number (substring arg (length "--filter-limit=")))))
        ((string= arg "--filter-ready-only")
-        (setq ready-only t))))
+        (setq ready-only t))
+       ((string= arg "--filter-all")
+        (setq all t))))
     (beads-issue-spec
      :status status
      :type type
@@ -360,7 +379,8 @@ Unspecified fields receive their class defaults."
      :label label
      :order order
      :limit limit
-     :ready-only ready-only)))
+     :ready-only ready-only
+     :all all)))
 
 ;; Helper functions used by suffix commands to operate on a saved buffer.
 
@@ -446,6 +466,11 @@ calling buffer's `beads-list--spec'.")
   :description "Ready issues only"
   :argument "--filter-ready-only")
 
+(transient-define-infix beads-list-filter--all ()
+  :class 'transient-switch
+  :description "Include closed issues"
+  :argument "--filter-all")
+
 ;;; Suffixes
 
 (transient-define-suffix beads-list-filter--apply ()
@@ -481,6 +506,7 @@ and refresh the list; press R to reset to defaults."
     ("l" "Label" beads-list-filter--label)]
    ["Options"
     ("r" "Ready only" beads-list-filter--ready-only)
+    ("A" "Include closed" beads-list-filter--all)
     ("n" "Limit" beads-list-filter--limit)
     ("o" "Order" beads-list-filter--order)]
    ["Actions"
