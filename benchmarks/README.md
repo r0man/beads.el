@@ -1,9 +1,12 @@
 # Large-store benchmark
 
 `large-store.sh` builds a throwaway git + beads project seeded with N
-issues (default 1200, the size of the real stores this exists to
-protect) and runs `large-store.el` under a batch Emacs to time the
-pure-Emacs hot paths and count `bd` reads per operation.
+issues (default 1200; the dogfood runs use 2500) and runs
+`large-store.el` under a batch Emacs to time the list/dashboard hot paths
+and count `bd` reads per operation.  The seed has explicit ids, mixed
+statuses/priorities/types/labels, deterministic timestamps with ties, and
+blocking/related dependencies, so `bd ready` and the dashboard sections
+see realistic data.
 
 It is the measurement tool behind the "Measure and improve behavior on
 large stores" work; the numbers below are a point-in-time record.
@@ -16,6 +19,8 @@ benchmarks/large-store.sh                    # 1200 issues, best of 3
 benchmarks/large-store.sh 3000               # custom issue count
 benchmarks/large-store.sh 1200 --repeat 5    # more repetitions
 benchmarks/large-store.sh 1200 --label pr-78 --keep
+benchmarks/large-store.sh 2500 --repeat 3 --keep --profile
+benchmarks/large-store.sh 500 --proxied --seed-only
 ```
 
 Options:
@@ -26,6 +31,10 @@ Options:
 | `--repeat K` | Repetitions per measurement, best-of (default 3). |
 | `--label TEXT` | Free-form label shown in the report header. |
 | `--keep` | Keep the seeded store and print its path instead of deleting it. |
+| `--proxied` | Init with `bd init --proxied-server` instead of the embedded engine.  Required for `bd --offset` experiments. |
+| `--deps N` | Make every Nth issue depend on the issue N slots earlier (default 4; 0 disables).  Also adds a `related` edge every 10th issue. |
+| `--seed-only` | Build the fixture, print its path, and exit without running Emacs.  Implies `--keep`. |
+| `--profile` | Run the CPU profiler over list-all + dashboard open/refresh and write `large-store-profile.txt` into the fixture. |
 
 The store lives under `mktemp -d` and is removed on exit unless
 `--keep`.  Every isolation variable that could reroute `bd` to a shared
@@ -41,8 +50,16 @@ beads.el's dependencies (`transient`, `vui`) on the load path.  Point
 `guix shell -D -f guix.scm -- benchmarks/large-store.sh`.
 
 The seeded JSONL intentionally uses varied statuses, types, priorities,
-assignees and labels so every dashboard section and list grouping has
-data.
+assignees, labels and dependencies so every dashboard section and list
+grouping has data.  Three consecutive issues share a `created_at`
+timestamp so equal-key sort ties are exercised.  The generator unsets
+`BEADS_DIR` and the Dolt port variables before every `bd` call, so it
+cannot write to a real store.
+
+Proxied fixtures are deliberately slow to seed (500 issues took about two
+minutes here; 2500 did not finish in 15 minutes), because the proxied
+route commits differently.  Use embedded for the 2500 timing run and a
+small proxied fixture (`--seed-only`) only for `--offset` probes.
 
 ## What is measured
 
@@ -53,6 +70,11 @@ data.
 * Dashboard `render-ready` / `render-blocked`.
 * Dashboard open fan-out — all 8 built-in section loaders driven
   concurrently through `beads-command-execute-async`.
+* Per-section loader latency (one async read each).
+* List open/refresh through `beads-list--refresh` (default spec and
+  limit 0), filters, and mark/unmark-all.
+* Dashboard open/refresh, M-0..M-4 depth re-renders, plus RSS after the
+  list and dashboard paths.
 
 The count column is the number of `bd` reads issued during the
 operation, counted with advice on `beads-command-execute` and
@@ -82,6 +104,28 @@ pays the `bd`/Dolt subprocess and the raw `json-read-from-string`
 parse, both outside beads.el.  The dashboard open fan-out is
 subprocess-latency bound (8 `bd` reads under the concurrency cap), so
 it benefits least (1.3x); its remaining cost is not object coercion.
+
+## Recorded baseline (2026-11, Emacs 31.1, bd 1.3.2, 2500 seeded; best of 3)
+
+The dogfood report with the full table is
+`docs/qa/2026-11-02-large-store-dogfood.md`.  Headline numbers:
+
+| Measurement | Best | bd reads |
+|---|---:|---:|
+| `bd list --json` (process + parse + coerce) | 0.927 s | 1 |
+| `beads-command-parse` (coercion) | 0.355 s | 0 |
+| list open all (limit 0, 2250 rows) | 1.191 s | 1 |
+| list default spec (50 rows) | 0.488 s | 1 |
+| dashboard open all sections | 5.129 s | 9 |
+| dashboard refresh all sections | 5.461 s | 9 |
+| dashboard open fan-out (8 loaders) | 3.039 s | 8 |
+| RSS after list-all open | 200.0 MB | — |
+
+The profile over list-all + dashboard open/refresh is dominated by
+`vui--rerender-instance` (~55% cumulative) and
+`beads-coerce-json-value`/`beads-from-json` (~39%).  Section fetch
+latency is mostly `bd` subprocess/server time; list parsing is still
+the main pure-Emacs cost.
 
 ## Adding a measurement
 
