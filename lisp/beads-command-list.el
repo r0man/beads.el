@@ -50,6 +50,7 @@
 (require 'beads-types)
 (require 'transient)
 (require 'beads-prefix)
+(require 'beads-store)
 (require 'beads-thing)
 (require 'beads-faces)
 (require 'seq)
@@ -812,6 +813,24 @@ column title.")
 (defvar-local beads-list--last-error nil
   "Last error message shown in the list header/mode-line, or nil.")
 
+;; Server-side paging state (`beads-store-offset-capable-p').  A list
+;; buffer that runs on a proxied-server store fetches one page at a time
+;; with `--limit PAGE --offset K' instead of fetching every matching
+;; issue and slicing it in Emacs.  The template keeps the filters and
+;; the user's overall limit; each fetch clones it and sets limit/offset.
+(defvar-local beads-list--server-command nil
+  "Template `beads-command-list' for server-side paging, or nil.")
+
+(defvar-local beads-list--server-has-next nil
+  "Non-nil when the current server page has a following page.")
+
+(defvar-local beads-list--server-page 1
+  "1-based server page most recently fetched for this buffer.")
+
+(defvar-local beads-list--server-id-pages nil
+  "Hash table mapping issue id to the first server page that showed it.
+Used to drop a row that an offset shift repeats on a later page.")
+
 ;; Directory-aware buffer identity (beads.el-n3lv)
 ;; Key principle: Directory is identity, branch is metadata.
 
@@ -1105,19 +1124,28 @@ is retained.  Point is left untouched."
   "Populate current buffer with ISSUES using COMMAND for refresh.
 Optional COMMAND-OBJ is a beads-command-list object for context.
 When `beads-list-group-by-status' is non-nil, ISSUES render as
-collapsible status-grouped sections; otherwise as a flat table."
+collapsible status-grouped sections; otherwise as a flat table.
+A server-paged buffer displays the fetched page as-is; every other
+buffer keeps the client-side pager over the complete ISSUES list."
   (setq beads-list--command command
         beads-list--raw-issues issues
         beads-list--command-obj command-obj
         beads-list--last-error nil)
   (beads-list--prune-changed)
-  (if beads-list-group-by-status
-      (progn
-        (setq beads-list--sections (beads-list--make-sections issues))
-        (setq tabulated-list-sort-key nil)
-        (beads-pager-set-entries (beads-list--sectioned-entries)))
-    (setq beads-list--sections nil)
-    (beads-pager-set-entries (mapcar #'beads-list--issue-to-entry issues)))
+  (let ((entries
+         (if beads-list-group-by-status
+             (progn
+               (setq beads-list--sections
+                     (beads-list--make-sections issues))
+               (setq tabulated-list-sort-key nil)
+               (beads-list--sectioned-entries))
+           (setq beads-list--sections nil)
+           (mapcar #'beads-list--issue-to-entry issues))))
+    (if (and (eq command 'list) (beads-list--server-paging-p))
+        (beads-pager-set-server-page beads-list--server-page entries
+                                     beads-list--server-has-next
+                                     (length issues))
+      (beads-pager-set-entries entries)))
   (beads-list--restore-marks)
   (beads-list-live-attach)
   (force-mode-line-update))
@@ -1267,8 +1295,13 @@ sections omit their issues."
 (defun beads-list--render-sections ()
   "Re-render the grouped entries, preserving buffer/window point."
   (let* ((win (get-buffer-window (current-buffer)))
-         (pos (if win (window-point win) (point))))
-    (beads-pager-set-entries (beads-list--sectioned-entries))
+         (pos (if win (window-point win) (point)))
+         (entries (beads-list--sectioned-entries)))
+    (if (beads-list--server-paging-p)
+        (beads-pager-set-server-page beads-pager--page entries
+                                     beads-list--server-has-next
+                                     (length beads-list--raw-issues))
+      (beads-pager-set-entries entries))
     (if (and win (window-live-p win))
         (set-window-point win (min pos (point-max)))
       (goto-char (min pos (point-max))))
@@ -1311,11 +1344,13 @@ sections omit their issues."
   (let* ((name (or beads-list--proj-name "beads"))
          (count (length beads-list--raw-issues))
          (counts (beads-list--counts-string))
-         (filter (beads-list--filter-description)))
+         (filter (beads-list--filter-description))
+         (server (beads-list--server-paging-p)))
     (concat
      (propertize (format "Beads list — %s" name) 'face 'beads-face-header)
-     (format "  [%d issue%s%s · filter: %s%s]  (g refresh)"
+     (format "  [%d issue%s%s%s · filter: %s%s]  (g refresh)"
              count (if (= count 1) "" "s")
+             (if server " on this page" "")
              (if (string-empty-p counts) "" (concat " · " counts))
              filter
              (beads-list--live-chip)))))
@@ -1492,30 +1527,47 @@ Uses directory-aware buffer identity: same project = same buffer."
   :description "List issues"
   (interactive)
   (let* ((caller-dir default-directory)
+         (caller-store (and (boundp 'beads-store-directory)
+                            beads-store-directory))
          (project-dir (or (beads--project-root) default-directory))
          (args (transient-args 'beads-list-advanced))
          (command (beads-list--parse-transient-args args)))
     (condition-case err
-        (let* ((issue-objects (beads-command-execute command))
-               (buffer (beads-list--get-or-create-buffer 'list)))
+        (let ((buffer (beads-list--get-or-create-buffer 'list)))
           (with-current-buffer buffer
             (unless (derived-mode-p 'beads-list-mode)
               (beads-list-mode))
-            ;; Update directory-aware state
+            ;; Update directory-aware state.  Keep the caller's store so
+            ;; a transient opened from a store-scoped view runs against
+            ;; the same store it used before server paging moved the
+            ;; command execution into this buffer.
             (setq beads-list--project-dir project-dir)
             (setq beads-list--branch (beads-git-get-branch))
             (setq beads-list--proj-name (beads--project-name-for-root project-dir))
             (setq default-directory caller-dir)
-            (if (not issue-objects)
+            (setq-local beads-store-directory caller-store)
+            (if (beads-list--server-paging-supported-p command)
                 (progn
-                  (setq beads-pager--all-entries nil
-                        tabulated-list-entries nil)
-                  (tabulated-list-print t)
-                  (message "No issues found"))
-              (beads-list--populate-buffer issue-objects 'list command)
-              (message "Found %d issue%s"
-                       (length issue-objects)
-                       (if (= (length issue-objects) 1) "" "s"))))
+                  (beads-list--start-server-paging command)
+                  (beads-list--server-fetch-page 1)
+                  (if beads-list--raw-issues
+                      (message "Found %d issue%s on this page"
+                               (length beads-list--raw-issues)
+                               (if (= (length beads-list--raw-issues) 1)
+                                   "" "s"))
+                    (message "No issues found")))
+              (beads-list--stop-server-paging)
+              (let ((issue-objects (beads-command-execute command)))
+                (if (not issue-objects)
+                    (progn
+                      (setq beads-pager--all-entries nil
+                            tabulated-list-entries nil)
+                      (tabulated-list-print t)
+                      (message "No issues found"))
+                  (beads-list--populate-buffer issue-objects 'list command)
+                  (message "Found %d issue%s"
+                           (length issue-objects)
+                           (if (= (length issue-objects) 1) "" "s"))))))
           (beads-list--display-buffer buffer))
       (error
        (message "Failed to list issues: %s"
@@ -1638,43 +1690,61 @@ Transient levels control which filter groups are visible
 
 (defun beads-list-refresh (&optional silent)
   "Refresh the current issue list buffer.
-When SILENT is non-nil, suppress messages (for hook-triggered refreshes)."
+When SILENT is non-nil, suppress messages (for hook-triggered refreshes).
+A server-paged buffer refetches its current page silently and resets to
+page 1 on an explicit refresh."
   (interactive)
   (unless beads-list--command
     (user-error "No command associated with this buffer"))
-  (let* ((issues
-          (beads-list--fetch
-           (lambda ()
-             (pcase beads-list--command
-               ('list
-                (if beads-list--command-obj
-                    (beads-command-execute beads-list--command-obj)
-                  (beads-list-execute)))
-               ('ready
-                (beads-issue-ready))
-               ('blocked
-                (beads-blocked-issue-list))
-               ('search
-                (when-let* ((cmd (and (boundp 'beads-search--command-obj)
-                                      beads-search--command-obj)))
-                  (oset cmd json t)
-                  (beads-command-execute cmd)))
-               (_ (error "Unknown command: %s" beads-list--command))))))
-         ;; Save window point if buffer is displayed, otherwise buffer point.
-         ;; This keeps point correct when called via `beads-list-refresh-all'.
-         (win (get-buffer-window (current-buffer)))
-         (pos (if win (window-point win) (point))))
-    (beads-list--populate-buffer issues beads-list--command beads-list--command-obj)
-    ;; Restore point in window or buffer as appropriate
-    (if win
-        (set-window-point win pos)
-      (goto-char pos))
-    (when (not silent)
-      (if issues
-          (message "Refreshed %d issue%s"
-                   (length issues)
-                   (if (= (length issues) 1) "" "s"))
-        (message "No issues found")))))
+  (if (beads-list--server-paging-p)
+      (let* ((win (get-buffer-window (current-buffer)))
+             (pos (if win (window-point win) (point)))
+             (page (if silent beads-pager--page 1)))
+        (beads-list--server-fetch-page page)
+        ;; Restore point in window or buffer as appropriate.
+        (if win
+            (set-window-point win (min pos (point-max)))
+          (goto-char (min pos (point-max))))
+        (unless silent
+          (if beads-list--raw-issues
+              (message "Refreshed %d issue%s%s"
+                       (length beads-list--raw-issues)
+                       (if (= (length beads-list--raw-issues) 1) "" "s")
+                       " on this page")
+            (message "No issues found"))))
+    (let* ((issues
+            (beads-list--fetch
+             (lambda ()
+               (pcase beads-list--command
+                 ('list
+                  (if beads-list--command-obj
+                      (beads-command-execute beads-list--command-obj)
+                    (beads-list-execute)))
+                 ('ready
+                  (beads-issue-ready))
+                 ('blocked
+                  (beads-blocked-issue-list))
+                 ('search
+                  (when-let* ((cmd (and (boundp 'beads-search--command-obj)
+                                        beads-search--command-obj)))
+                    (oset cmd json t)
+                    (beads-command-execute cmd)))
+                 (_ (error "Unknown command: %s" beads-list--command))))))
+           ;; Save window point if buffer is displayed, otherwise buffer point.
+           ;; This keeps point correct when called via `beads-list-refresh-all'.
+           (win (get-buffer-window (current-buffer)))
+           (pos (if win (window-point win) (point))))
+      (beads-list--populate-buffer issues beads-list--command beads-list--command-obj)
+      ;; Restore point in window or buffer as appropriate
+      (if win
+          (set-window-point win pos)
+        (goto-char pos))
+      (when (not silent)
+        (if issues
+            (message "Refreshed %d issue%s"
+                     (length issues)
+                     (if (= (length issues) 1) "" "s"))
+          (message "No issues found"))))))
 
 (defun beads-list-refresh-all ()
   "Refresh all visible beads-list buffers.
@@ -1784,6 +1854,111 @@ OPS).  Each buffer debounces again, so bursts still coalesce."
   (or beads-store-directory beads-list--project-dir
       (ignore-errors (beads--project-root))
       default-directory))
+
+;;; Server-Side Paging
+;;
+;; A list buffer on a proxied-server store pages on the server with
+;; `--limit PAGE --offset K' (see `beads-store-offset-capable-p').  The
+;; backend never returns a total, so navigation is next-until-short:
+;; a page shorter than requested (or the last page of the user's
+;; overall limit) ends the sequence.  Embedded/direct stores keep the
+;; existing client-side pager over a bounded fetch.
+
+(defun beads-list--server-paging-p ()
+  "Return non-nil when this list buffer pages on the server."
+  (and beads-list--server-command
+       (beads-pager-server-paging-p)))
+
+(defun beads-list--server-paging-supported-p (&optional command)
+  "Return non-nil when the store and COMMAND may use `--offset'.
+COMMAND is the base `beads-command-list'.  Besides the store's backend,
+require pager mode (so the page keys exist) and never combine offset
+with `--sort id', which bd rejects because it fetches the full set to
+sort."
+  (and (bound-and-true-p beads-pager-mode)
+       (beads-store-offset-capable-p (beads-list--store-root))
+       (not (equal (downcase (or (and command (oref command sort)) ""))
+                   "id"))))
+
+(defun beads-list--start-server-paging (command)
+  "Make COMMAND the template for server-side paging in this buffer.
+Resets navigation to page 1 and clears the row-dedupe state."
+  (setq beads-list--server-command command
+        beads-list--server-has-next nil
+        beads-list--server-page 1
+        beads-list--server-id-pages (make-hash-table :test #'equal))
+  (beads-pager-start-server-paging #'beads-list--server-fetch-page))
+
+(defun beads-list--stop-server-paging ()
+  "Stop server-side paging in this buffer, leaving rows in place."
+  (setq beads-list--server-command nil
+        beads-list--server-has-next nil
+        beads-list--server-page 1
+        beads-list--server-id-pages nil)
+  (beads-pager-stop-server-paging))
+
+(defun beads-list--server-dedupe-page (issues page)
+  "Return ISSUES minus rows already shown on an earlier server PAGE.
+Offset paging is not snapshot-safe: an insert between two fetches can
+shift a row from page N to page N+1.  Recording the first page each id
+appeared on and dropping ids first seen on an earlier page prevents the
+duplicate without suppressing a legitimate revisit of the same page."
+  (when (= page 1)
+    (setq beads-list--server-id-pages (make-hash-table :test #'equal)))
+  (let ((seen-this-page (make-hash-table :test #'equal))
+        kept)
+    (dolist (issue issues)
+      (let* ((id (oref issue id))
+             (earlier (and id
+                           (gethash id beads-list--server-id-pages))))
+        (unless (and id
+                     (or (gethash id seen-this-page)
+                         (and earlier (< earlier page))))
+          (when id
+            (puthash id page seen-this-page)
+            (unless earlier
+              (puthash id page beads-list--server-id-pages)))
+          (push issue kept))))
+    (nreverse kept)))
+
+(defun beads-list--server-fetch-page (page &optional page-size)
+  "Fetch and display server-side PAGE of the current list query.
+PAGE-SIZE defaults to the effective pager page size.  The template's
+`limit' is the user's overall cap (0 means unlimited); each fetch asks
+for at most one page and never more than that cap has left.  Pager
+state advances only after a successful fetch."
+  (let* ((template beads-list--server-command)
+         (page-size (or page-size (beads-pager--effective-page-size)))
+         (raw-overall (and template (oref template limit)))
+         (overall (cond ((integerp raw-overall) raw-overall)
+                        ((stringp raw-overall)
+                         (string-to-number raw-overall))
+                        (t nil)))
+         (offset (* (1- page) page-size))
+         (per-page (if (and (integerp overall) (> overall 0))
+                       (max 0 (min page-size (- overall offset)))
+                     page-size)))
+    (if (or (null template) (<= per-page 0))
+        (progn
+          (setq beads-list--server-has-next nil
+                beads-list--server-page page)
+          (beads-list--populate-buffer nil 'list template))
+      (let* ((command (clone template))
+             (issues
+              (beads-list--fetch
+               (lambda ()
+                 (oset command limit per-page)
+                 (oset command offset offset)
+                 (beads-command-execute command))))
+             (fetched (length issues))
+             (deduped (beads-list--server-dedupe-page issues page)))
+        (setq beads-list--server-has-next
+              (and (> per-page 0)
+                   (or (not (and (integerp overall) (> overall 0)))
+                       (< (+ offset per-page) overall))
+                   (= fetched per-page))
+              beads-list--server-page page)
+        (beads-list--populate-buffer deduped 'list command)))))
 
 (defun beads-list--live-supported-p ()
   "Return non-nil when beads-live is available to attach to."

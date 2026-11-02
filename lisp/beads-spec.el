@@ -61,6 +61,7 @@
 (require 'beads-custom)
 (require 'beads-command)
 (require 'beads-command-list)
+(require 'beads-store)
 
 ;;; beads-issue-spec Class
 
@@ -212,9 +213,12 @@ Set by `beads-list--refresh' after each fetch.")
 SPEC is a `beads-issue-spec' instance.  When nil, falls back to the
 buffer-local `beads-list--spec', then to `beads-list-default-spec'.
 
-Builds a `beads-command-list' from the effective spec, executes it,
-stores the spec in `beads-list--spec', and calls
-`beads-list--populate-buffer' with the resulting issues."
+Builds a `beads-command-list' from the effective spec and stores the
+spec in `beads-list--spec'.  On a proxied-server store the command
+becomes a server-paging template and page 1 is fetched with
+`--limit'/`--offset'; on the embedded/direct route (and when `--sort id'
+is requested) the complete result is fetched and the client-side pager
+slices it as before."
   (let* ((effective-spec (or spec beads-list--spec beads-list-default-spec))
          (cmd (beads-command-list :json t)))
     ;; Apply spec slots to the command object
@@ -247,10 +251,15 @@ stores the spec in `beads-list--spec', and calls
     ;; Include closed issues
     (when (oref effective-spec all)
       (oset cmd all t))
-    ;; Execute and populate
-    (let ((issues (beads-list--fetch (lambda () (beads-command-execute cmd)))))
-      (setq beads-list--spec effective-spec)
-      (beads-list--populate-buffer issues 'list cmd))))
+    (setq beads-list--spec effective-spec)
+    (if (beads-list--server-paging-supported-p cmd)
+        (progn
+          (beads-list--start-server-paging cmd)
+          (beads-list--server-fetch-page 1))
+      (beads-list--stop-server-paging)
+      (let ((issues (beads-list--fetch
+                     (lambda () (beads-command-execute cmd)))))
+        (beads-list--populate-buffer issues 'list cmd)))))
 
 ;;; Transient Argument Conversion
 

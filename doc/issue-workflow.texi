@@ -156,6 +156,16 @@ Jump to a page.
 The number of rows shown by default is the user option
 @code{beads-list-default-limit}.
 
+@cindex page size
+@cindex server-side pagination
+Each page holds the rows that fit the window (with a floor of five).
+On a proxied-server store the list fetches that page from @code{bd} with
+@code{--limit} and @code{--offset}; on an embedded or direct store it
+fetches the bounded result once and slices it in Emacs.  The pager never
+asks for a total, so @kbd{]} stops at the first short page.  Because
+offset paging is not snapshot-safe, a row repeated by an insert between
+fetches is dropped and @kbd{g} reloads from page 1.
+
 @kbd{TAB} and @kbd{S-TAB} move between rows and wrap; @kbd{SPC} previews
 the issue at point in another window (@pxref{One Movement Scheme}).
 

@@ -46,6 +46,27 @@ When nil, no pagination is active (all entries fit on one page).")
   "Entries per page.
 When nil, computed dynamically from `window-body-height'.")
 
+(defvar-local beads-pager--server-paging nil
+  "Non-nil when the current buffer pages on the server.
+Server paging fetches one page at a time from the backend, so the
+number of pages is unknown.  Navigation stops when
+`beads-pager--server-has-next' is nil rather than computing totals.")
+
+(defvar-local beads-pager--server-has-next nil
+  "Non-nil when a server-paged buffer has another page after this one.")
+
+(defvar-local beads-pager--server-fetch-function nil
+  "Function of (PAGE PAGE-SIZE) fetching and rendering a server page.
+Set by `beads-pager-start-server-paging'.")
+
+(defvar-local beads-pager--server-page-size nil
+  "Page size used for the last server-side fetch, or nil.
+Compared with the effective page size on resize so a changed window
+geometry refetches the current page.")
+
+(defvar-local beads-pager--server-item-count 0
+  "Number of issue rows on the current server page, for the mode line.")
+
 ;;; Pure Pagination Core (public, buffer-agnostic)
 ;;
 ;; These four functions take all their inputs as arguments and read no
@@ -79,6 +100,52 @@ entries per page."
   (let ((bounds (beads-pager-page-bounds page page-size (length entries))))
     (seq-subseq entries (car bounds) (cdr bounds))))
 
+;;; Server-Side Paging State
+
+(defun beads-pager-server-paging-p ()
+  "Return non-nil when the current buffer pages on the server.
+Unlike `beads-pager--server-paging', this also requires pager mode to
+be active, so a disabled pager never tries to fetch a page."
+  (and (bound-and-true-p beads-pager-mode)
+       beads-pager--server-paging))
+
+(defun beads-pager-start-server-paging (fetch-function)
+  "Enable server-side paging in the current buffer with FETCH-FUNCTION.
+FETCH-FUNCTION is called as (PAGE PAGE-SIZE); it must render the
+result with `beads-pager-set-server-page'.  Page 1 is selected, and
+any client-side entry cache is dropped."
+  (setq beads-pager--server-paging t
+        beads-pager--server-fetch-function fetch-function
+        beads-pager--server-has-next nil
+        beads-pager--server-page-size nil
+        beads-pager--server-item-count 0
+        beads-pager--page 1
+        beads-pager--all-entries nil))
+
+(defun beads-pager-stop-server-paging ()
+  "Disable server-side paging in the current buffer.
+The displayed entries are left in place for the caller to replace."
+  (setq beads-pager--server-paging nil
+        beads-pager--server-has-next nil
+        beads-pager--server-fetch-function nil
+        beads-pager--server-page-size nil
+        beads-pager--server-item-count 0))
+
+(defun beads-pager-set-server-page (page entries has-next &optional item-count)
+  "Display ENTRIES as server-side PAGE.
+HAS-NEXT says whether another page follows.  ITEM-COUNT is the number
+of issue rows in ENTRIES and defaults to the length of ENTRIES.
+Unlike `beads-pager-set-entries', this does not slice or reset the
+page; the backend already returned exactly one page."
+  (setq beads-pager--page (max 1 page)
+        beads-pager--server-has-next (and has-next t)
+        beads-pager--server-page-size (beads-pager--effective-page-size)
+        beads-pager--server-item-count (or item-count (length entries))
+        beads-pager--all-entries nil
+        tabulated-list-entries entries)
+  (tabulated-list-print t)
+  (force-mode-line-update))
+
 ;;; Buffer-Stateful Layer (private, built on the pure core above)
 
 (defun beads-pager--effective-page-size ()
@@ -107,28 +174,43 @@ entries per page."
 (defun beads-pager--total-count ()
   "Return total entry count regardless of current page.
 When pager mode is active and all-entries is set, returns the full
-count.  Otherwise returns the length of `tabulated-list-entries'."
-  (if (and (bound-and-true-p beads-pager-mode)
-           beads-pager--all-entries)
-      (length beads-pager--all-entries)
-    (length tabulated-list-entries)))
+count.  On a server page there is no full count, so the page's issue
+count is returned.  Otherwise returns the length of
+`tabulated-list-entries'."
+  (cond
+   ((beads-pager-server-paging-p) beads-pager--server-item-count)
+   ((and (bound-and-true-p beads-pager-mode)
+         beads-pager--all-entries)
+    (length beads-pager--all-entries))
+   (t (length tabulated-list-entries))))
 
 ;;; Core: Apply Current Page
 
 (defun beads-pager--apply ()
-  "Slice `beads-pager--all-entries' to the current page and redisplay.
-Clamps `beads-pager--page' to the valid range before slicing."
-  (when beads-pager--all-entries
-    ;; Clamp page number
-    (let ((total-pages (beads-pager--total-pages)))
-      (setq beads-pager--page
-            (max 1 (min beads-pager--page total-pages))))
-    (setq tabulated-list-entries
-          (beads-pager-slice beads-pager--all-entries
-                             beads-pager--page
-                             (beads-pager--effective-page-size)))
-    (tabulated-list-print t)
-    (force-mode-line-update)))
+  "Redisplay the current page.
+In client-side mode, slice `beads-pager--all-entries' to the current
+page, clamping `beads-pager--page' to the valid range first.  In
+server-side mode there is nothing to slice: refetch the current page
+only when the window geometry changed the effective page size, so the
+page window stays aligned with the rows the user sees."
+  (if (beads-pager-server-paging-p)
+      (when (and beads-pager--server-fetch-function
+                 (not (equal beads-pager--server-page-size
+                             (beads-pager--effective-page-size))))
+        (funcall beads-pager--server-fetch-function
+                 beads-pager--page
+                 (beads-pager--effective-page-size)))
+    (when beads-pager--all-entries
+      ;; Clamp page number
+      (let ((total-pages (beads-pager--total-pages)))
+        (setq beads-pager--page
+              (max 1 (min beads-pager--page total-pages))))
+      (setq tabulated-list-entries
+            (beads-pager-slice beads-pager--all-entries
+                               beads-pager--page
+                               (beads-pager--effective-page-size)))
+      (tabulated-list-print t)
+      (force-mode-line-update))))
 
 ;;; Public API
 
@@ -137,7 +219,11 @@ Clamps `beads-pager--page' to the valid range before slicing."
 Call this instead of setting `tabulated-list-entries' directly.
 When `beads-pager-mode' is not active this falls back to setting
 `tabulated-list-entries' and calling `tabulated-list-print'.
-Empty ENTRIES clear the buffer rather than leaving stale rows."
+A caller taking over with a complete entry list ends any server-side
+paging first.  Empty ENTRIES clear the buffer rather than leaving
+stale rows."
+  (when beads-pager--server-paging
+    (beads-pager-stop-server-paging))
   (if (bound-and-true-p beads-pager-mode)
       (progn
         (setq beads-pager--all-entries entries
@@ -152,49 +238,87 @@ Empty ENTRIES clear the buffer rather than leaving stale rows."
 
 ;;; Navigation Commands
 
+(defun beads-pager--server-goto (page)
+  "Fetch and display server-side PAGE.
+Does nothing when no fetch function is installed.  Page state advances
+only after the fetch succeeds, so an error leaves the current page."
+  (when beads-pager--server-fetch-function
+    (funcall beads-pager--server-fetch-function
+             (max 1 page)
+             (beads-pager--effective-page-size))
+    (goto-char (point-min))
+    (when (and (> page 1) (zerop beads-pager--server-item-count))
+      (message "No issues on page %d" page))))
+
 (defun beads-pager-next-page ()
   "Advance to the next page."
   (interactive)
-  (if (< beads-pager--page (beads-pager--total-pages))
-      (progn
-        (cl-incf beads-pager--page)
-        (beads-pager--apply)
-        (goto-char (point-min)))
-    (message "Already on last page (%d/%d)"
-             beads-pager--page (beads-pager--total-pages))))
+  (if (beads-pager-server-paging-p)
+      (if beads-pager--server-has-next
+          (beads-pager--server-goto (1+ beads-pager--page))
+        (message "Already on last page"))
+    (if (< beads-pager--page (beads-pager--total-pages))
+        (progn
+          (cl-incf beads-pager--page)
+          (beads-pager--apply)
+          (goto-char (point-min)))
+      (message "Already on last page (%d/%d)"
+               beads-pager--page (beads-pager--total-pages)))))
 
 (defun beads-pager-prev-page ()
   "Go back to the previous page."
   (interactive)
-  (if (> beads-pager--page 1)
-      (progn
-        (cl-decf beads-pager--page)
-        (beads-pager--apply)
-        (goto-char (point-min)))
-    (message "Already on first page")))
+  (if (beads-pager-server-paging-p)
+      (if (> beads-pager--page 1)
+          (beads-pager--server-goto (1- beads-pager--page))
+        (message "Already on first page"))
+    (if (> beads-pager--page 1)
+        (progn
+          (cl-decf beads-pager--page)
+          (beads-pager--apply)
+          (goto-char (point-min)))
+      (message "Already on first page"))))
 
 (defun beads-pager-goto-page (n)
-  "Go to page N (1-based), clamped to the valid range."
+  "Go to page N (1-based), clamped to the valid range.
+Server-side paging cannot know the last page, so N is fetched as-is;
+an empty page is reported and the user can go back."
   (interactive "nGo to page: ")
-  (setq beads-pager--page
-        (max 1 (min n (beads-pager--total-pages))))
-  (beads-pager--apply)
-  (goto-char (point-min)))
+  (if (beads-pager-server-paging-p)
+      (beads-pager--server-goto (max 1 n))
+    (setq beads-pager--page
+          (max 1 (min n (beads-pager--total-pages))))
+    (beads-pager--apply)
+    (goto-char (point-min))))
 
 ;;; Mode-Line Fragment
 
 (defun beads-pager--mode-line-fragment ()
   "Return a pagination status string for use in mode-line, or nil.
-Returns nil when pager mode is off or there is only one page."
-  (when (and (bound-and-true-p beads-pager-mode)
-             beads-pager--all-entries
-             (> (beads-pager--total-pages) 1))
+Returns nil when pager mode is off or there is only one page.  A
+server page shows its page number and item range but no total, because
+the backend is never asked to count every matching row."
+  (cond
+   ((beads-pager-server-paging-p)
+    (let* ((size (or beads-pager--server-page-size
+                     (beads-pager--effective-page-size)))
+           (start (1+ (* (1- beads-pager--page) size)))
+           (count beads-pager--server-item-count))
+      (if (zerop count)
+          (format "  [Page %d, no items]" beads-pager--page)
+        (format "  [Page %d, items %d-%d%s]"
+                beads-pager--page start (+ start (1- count))
+                (if beads-pager--server-has-next " (more)" "")))))
+   ((and (bound-and-true-p beads-pager-mode)
+         beads-pager--all-entries
+         (> (beads-pager--total-pages) 1))
     (let* ((total (length beads-pager--all-entries))
            (total-pages (beads-pager--total-pages))
            (start (1+ (beads-pager--page-start)))
            (end (beads-pager--page-end)))
       (format "  [Page %d/%d, items %d-%d of %d]"
-              beads-pager--page total-pages start end total))))
+              beads-pager--page total-pages start end total)))
+   (t nil)))
 
 ;;; Window Resize Hook
 
@@ -218,7 +342,8 @@ pressing RET on an issue in `beads-list')."
              (when (window-live-p window)
                (with-current-buffer (window-buffer window)
                  (when (and (bound-and-true-p beads-pager-mode)
-                            beads-pager--all-entries)
+                            (or beads-pager--all-entries
+                                beads-pager--server-paging))
                    (goto-char (window-point window))
                    (beads-pager--apply)
                    (set-window-point window (point)))))))
@@ -257,11 +382,15 @@ when the frame is resized.
                 #'beads-pager--on-window-resize nil t)
     (remove-hook 'window-size-change-functions
                  #'beads-pager--on-window-resize t)
-    ;; Restore full entry list when mode is disabled
-    (when beads-pager--all-entries
-      (setq tabulated-list-entries beads-pager--all-entries
-            beads-pager--all-entries nil)
-      (tabulated-list-print t))))
+    (if beads-pager--server-paging
+        ;; A server page is already the complete displayed entry list;
+        ;; dropping it would erase the buffer.  Just stop paging.
+        (beads-pager-stop-server-paging)
+      ;; Restore full entry list when mode is disabled
+      (when beads-pager--all-entries
+        (setq tabulated-list-entries beads-pager--all-entries
+              beads-pager--all-entries nil)
+        (tabulated-list-print t)))))
 
 (provide 'beads-pager)
 ;;; beads-pager.el ends here

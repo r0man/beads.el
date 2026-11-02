@@ -356,6 +356,39 @@ Return the sublist of ENTRIES for PAGE.
 These read no buffer-local state; @code{beads-pager-mode} is built on the
 same core.
 
+@deftypefn {Emacs Lisp Function} {} beads-pager-server-paging-p ()
+Return non-nil when the current buffer is in server-side paging mode.
+@end deftypefn
+
+@deftypefn {Emacs Lisp Function} {} beads-pager-start-server-paging (fetch-function)
+Enable server-side paging and select page 1.  FETCH-FUNCTION is called
+as @code{(PAGE PAGE-SIZE)} and renders its result with
+@code{beads-pager-set-server-page}.
+@end deftypefn
+
+@deftypefn {Emacs Lisp Function} {} beads-pager-set-server-page (page entries has-next &optional item-count)
+Display ENTRIES for server-side PAGE; HAS-NEXT says another page exists.
+Unlike @code{beads-pager-set-entries} this does not slice or reset the
+page, because the backend already returned exactly one page.
+@end deftypefn
+
+@deftypefn {Emacs Lisp Function} {} beads-pager-stop-server-paging ()
+Leave server-side paging while keeping the displayed entries.
+@end deftypefn
+
+@deftypefn {Emacs Lisp Function} {} beads-store-offset-capable-p (&optional directory)
+Return non-nil when DIRECTORY's store accepts @code{bd list --offset}.
+Only the proxied-server route is capable.  The backend is probed once
+per store (from @code{bd context --json}, then
+@code{.beads/metadata.json}, then a one-row offset probe) and cached.
+@end deftypefn
+
+@deftypefn {Emacs Lisp Function} {} beads-store-forget-cache (&optional directory)
+Forget the cached backend capability for DIRECTORY, or for every store
+when DIRECTORY is nil.  Call it after changing a store's backend, for
+example after @code{bd migrate}.
+@end deftypefn
+
 @node Building and Installing with Autotools
 @section Building and Installing with Autotools
 @anchor{building}

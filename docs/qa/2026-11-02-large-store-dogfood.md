@@ -224,6 +224,27 @@ gains keyset/cursor pagination, offset parity on the direct route, offset
 on blocked/search, and a documented unique tiebreaker. Tracked as
 `be-y0v5c`.
 
+### Addendum 2026-11-02: optional server-side paging (be-ps0ki)
+
+The blanket "do not ship" decision above was superseded the same day.
+The list view now pages on the server **only** when capability detection
+confirms the store runs on the proxied-server route:
+
+- `bd context --json` is the primary probe (`dolt_mode` is
+  `proxied-server`); `.beads/metadata.json` is the fallback, and a
+  cached one-row `bd list --limit 1 --offset 0` probe is the last
+  resort.  The answer is cached per store.
+- A capable list buffer fetches `--limit PAGE --offset K` per page,
+  preserving filters and the user's overall limit.  Page size is the
+  pager's window-derived size.  The mode line shows `Page N, items A-B`
+  and `(more)` while a page is full; no total is computed.
+- Embedded/direct stores keep the existing client-side pager over a
+  bounded fetch.  `bd blocked`, search and dashboard sections are
+  untouched.
+- `--sort id` is never combined with `--offset`.  Duplicate ids caused
+  by an insert between fetches are dropped, and `g` reloads page 1.  An
+  insert can still shift rows, so the snapshot caveat remains.
+
 ## Findings filed
 
 - `be-4tjw2` — List UI ignores `beads-list-default-limit`; "All issues"

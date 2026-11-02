@@ -4,6 +4,25 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Optional server-side pagination on proxied-server stores
+
+* **The list view now pages on the server when the store's `bd` runs
+  against a proxied Dolt server.**  Each page is one `bd list --limit
+  PAGE --offset K` call instead of a full fetch plus an Emacs-side
+  slice; filters and the overall `beads-list-default-limit` are
+  preserved, and the mode line shows the page and item range with
+  `(more)` while another page exists.  Embedded and direct stores keep
+  the existing client-side pager byte-for-byte, and `bd blocked`,
+  search and the dashboard are unchanged.
+* **Capability detection is cached per store.**  It prefers `bd context
+  --json`, falls back to `.beads/metadata.json`, and uses a one-row
+  `bd list --offset 0` probe only as a last resort.
+* **`--sort id` never uses offset,** and a row repeated by an insert
+  between page fetches is deduplicated by issue id.  An explicit
+  refresh (`g`) returns to page 1; a silent live refresh keeps the
+  current page.  Offset paging is not snapshot-safe, so rows can still
+  shift between pages.
+
 ### List UI honors `beads-list-default-limit` and "All issues" includes closed
 
 * **The interactive list path now applies `beads-list-default-limit`.**
