@@ -154,10 +154,14 @@ view pages on the server instead of fetching every matching issue: each
 page is one @code{bd list --limit PAGE --offset K} call, filters and the
 overall @code{beads-list-default-limit} are preserved, and the mode line
 shows a page and item range with @samp{(more)} when another page exists.
-The total is never computed, so navigation stops at the first short
-page.  Embedded and direct stores reject @code{--offset} and keep the
-client-side pager over a bounded fetch; @code{bd blocked}, search and
-the dashboard sections also keep their existing behavior.
+The page size is the window-derived pager size, so resizing the window
+refetches the current page at the new size.  The total is never computed,
+so navigation stops at the first short page.  Jumping past that page with
+@kbd{G} shows an empty page (@samp{Page N, no items}); @kbd{[} returns to
+the last real page.  Embedded and direct stores reject a meaningful
+@code{--offset} and keep the client-side pager over a bounded fetch;
+@code{bd blocked}, search and the dashboard sections also keep their
+existing behavior.
 
 Offset paging is not snapshot-safe.  An issue inserted between two page
 fetches can shift rows and repeat one on the next page, so the list
