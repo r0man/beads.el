@@ -922,6 +922,15 @@ Reads through `bd --json' tolerate concurrent invocations on both
 embedded and server Dolt; this lets the dashboard's cold open finish
 in a few round-trips instead of strictly serially.")
 
+(defconst beads-command--policy-server-modes '("server" "proxied-server")
+  "`bd dolt status' modes backed by a shared server.
+`server' is a directly configured dolt sql-server; `proxied-server'
+is a store whose CLI talks to one through the local proxy.  Both
+serve concurrent readers, so the policy probe caps them above one.
+Embedded storage keeps a cap of one: its exclusive store lock makes
+parallel `bd' readers slower (they queue/spin on the lock), while a
+server handles them in parallel.")
+
 (defvar beads-command--policy nil
   "Cached plist of the latest concurrency-policy probe.
 Shape: `(:backend SYMBOL :max-concurrent N)'.  Re-probed by
@@ -1064,9 +1073,11 @@ own dispatch consults; call this within
 (defun beads-command-policy--from-dolt-status (callback)
   "Probe `bd dolt status --json' and resolve a concurrency policy.
 
-Calls CALLBACK with `(:backend SYM :max-concurrent N)'.  Maps
-`mode=server' to 8 and anything else to 1 — the safe default.  Calls
-CALLBACK with nil if probe spawn fails."
+Calls CALLBACK with `(:backend SYM :max-concurrent N)'.  Maps the
+server modes in `beads-command--policy-server-modes' (mode=server and
+mode=proxied-server) to 8; embedded storage and unknown modes stay at
+1, the safe default.  Calls CALLBACK with nil if the probe spawn
+fails."
   (let* ((ssh (beads-remote-ssh-pipe-p))
          (cmd (list (if (boundp 'beads-executable)
                         (let ((beads-command--ssh-pipe ssh))
@@ -1120,7 +1131,9 @@ CALLBACK with nil if probe spawn fails."
                                  (funcall callback
                                           (list :backend (intern (or mode "unknown"))
                                                 :max-concurrent
-                                                (if (equal mode "server") 8 1))))
+                                                (if (member mode beads-command--policy-server-modes)
+                                                    8
+                                                  1))))
                              (error (funcall callback nil)))
                          (funcall callback nil))))))))
       (error

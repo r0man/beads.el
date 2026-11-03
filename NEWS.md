@@ -4,6 +4,18 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Proxied-server dashboards load concurrently
+
+* **Dashboard sections now read in parallel on a `proxied-server`
+  store.**  The concurrency probe treated only `mode=server` as
+  server-backed, so a proxied store — the Gas Town production route —
+  was capped at one reader and serialized all nine section reads.
+  `mode=proxied-server` now maps to the server cap (8): on a 1.8k-issue
+  proxied store, dashboard open drops from ~1.1 s to ~0.3 s and refresh
+  from ~1.0 s to ~0.25 s, with identical rows.  Embedded stores keep
+  the cap of one, where parallel readers are measurably slower on the
+  store lock (see `docs/qa/2026-11-02-dashboard-open-refresh.md`).
+
 ### Optional server-side pagination on proxied-server stores
 
 * **The list view now pages on the server when the store's `bd` runs

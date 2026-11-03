@@ -1969,6 +1969,47 @@ The default limit behavior is in beads-command-list!, not the class."
     (beads-command--policy-probe (lambda (p) (setq called-with p)))
     (should (equal called-with '(:backend embedded :max-concurrent 1)))))
 
+(defun beads-command-test--policy-probe-stub (mode)
+  "Run the dolt-status policy probe against a stub bd reporting MODE.
+Returns the plist the probe resolved to, or `:nil' when it never
+called back.  The stub is a shell script, matching the existing
+remote probe test's seam; no real store is touched."
+  (let* ((dir (make-temp-file "beads-policy-probe" t))
+         (stub (expand-file-name "bd" dir))
+         (box (list :pending)))
+    (unwind-protect
+        (progn
+          (write-region
+           (format "#!/bin/sh\nprintf '{\"mode\":\"%s\"}'\n" mode)
+           nil stub)
+          (set-file-modes stub #o755)
+          (let ((beads-executable stub)
+                (default-directory dir))
+            (beads-command-policy--from-dolt-status
+             (lambda (plist) (setcar box (or plist :nil)))))
+          (let ((deadline (+ (float-time) 15)))
+            (while (and (eq (car box) :pending) (< (float-time) deadline))
+              (accept-process-output nil 0.02)))
+          (car box))
+      (delete-directory dir t))))
+
+(ert-deftest beads-command-test-async-policy-probe-proxied-server-mode ()
+  "Probe maps mode=proxied-server to max-concurrent=8.
+A proxied-server store is backed by a shared dolt sql-server, so
+concurrent async reads are safe and several times faster than
+serializing them behind embedded storage's exclusive lock."
+  :tags '(:unit)
+  (let ((plist (beads-command-test--policy-probe-stub "proxied-server")))
+    (should (eq (plist-get plist :backend) 'proxied-server))
+    (should (= (plist-get plist :max-concurrent) 8))))
+
+(ert-deftest beads-command-test-async-policy-probe-stub-embedded-mode ()
+  "The stub seam sees embedded storage capped at one reader."
+  :tags '(:unit)
+  (let ((plist (beads-command-test--policy-probe-stub "embedded")))
+    (should (eq (plist-get plist :backend) 'embedded))
+    (should (= (plist-get plist :max-concurrent) 1))))
+
 (ert-deftest beads-command-test-async-policy-probe-error-defaults-to-policy-default ()
   "When all probes return nil, policy falls back to the policy default."
   :tags '(:unit)

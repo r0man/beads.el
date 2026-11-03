@@ -250,7 +250,10 @@ confirms the store runs on the proxied-server route:
 - `be-4tjw2` — List UI ignores `beads-list-default-limit`; "All issues"
   fetches 50 and skips closed.
 - `be-07g7g` — Dashboard open/refresh costs ~5 s and 9 `bd` reads on a
-  2.5k store.
+  2.5k store.  Follow-up measurement and the proxied-server concurrency
+  fix are in `docs/qa/2026-11-02-dashboard-open-refresh.md`; the
+  embedded 9-read floor is unchanged (it needs an upstream `bd` read
+  batch or a product decision to lazy-load folded sections).
 - `be-y0v5c` — Pagination decision: keep client-side pager; `bd --offset`
   not viable yet.
 
