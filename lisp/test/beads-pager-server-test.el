@@ -131,7 +131,7 @@ capable."
       (delete-directory dir t))))
 
 (ert-deftest beads-pager-server-test-probe-is-last-resort-and-cached ()
-  "Without `bd context' or metadata, one offset probe decides and is cached."
+  "Without `bd context' or metadata, one probe decides and is cached."
   :tags '(:unit)
   (let ((dir (make-temp-file "beads-store-mode-" t))
         (probes 0)
@@ -146,6 +146,52 @@ capable."
           (should (beads-store-offset-capable-p dir))
           (should (beads-store-offset-capable-p dir))
           (should (= probes 1)))
+      (delete-directory dir t))))
+
+(ert-deftest beads-pager-server-test-probe-rejects-embedded-store ()
+  "The last-resort probe must not call an embedded store proxied.
+Embedded `bd' accepts `--offset 0' and rejects every non-zero offset,
+so a zero-offset probe would misclassify the store as server-capable."
+  :tags '(:unit)
+  (let ((dir (make-temp-file "beads-store-mode-" t))
+        (probed-offsets nil)
+        (beads-store--backend-cache (make-hash-table :test #'equal)))
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads-store--context-mode)
+                   (lambda (_store) nil))
+                  ((symbol-function 'beads-store--metadata-mode)
+                   (lambda (_store) nil))
+                  ((symbol-function 'beads-command-execute)
+                   (lambda (command)
+                     (let ((offset (oref command offset)))
+                       (push offset probed-offsets)
+                       (if (and (integerp offset) (> offset 0))
+                           (error "--offset is only supported under --proxied-server")
+                         (list (beads-pager-server-test--issue 1)))))))
+          (should-not (beads-store-offset-capable-p dir))
+          (should (equal probed-offsets '(1)))
+          ;; The negative answer is cached; no second probe.
+          (should-not (beads-store-offset-capable-p dir))
+          (should (equal probed-offsets '(1))))
+      (delete-directory dir t))))
+
+(ert-deftest beads-pager-server-test-probe-accepts-proxied-store ()
+  "The last-resort probe reports a route that honours a non-zero offset."
+  :tags '(:unit)
+  (let ((dir (make-temp-file "beads-store-mode-" t))
+        (probed-offsets nil)
+        (beads-store--backend-cache (make-hash-table :test #'equal)))
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads-store--context-mode)
+                   (lambda (_store) nil))
+                  ((symbol-function 'beads-store--metadata-mode)
+                   (lambda (_store) nil))
+                  ((symbol-function 'beads-command-execute)
+                   (lambda (command)
+                     (push (oref command offset) probed-offsets)
+                     (list (beads-pager-server-test--issue 2)))))
+          (should (beads-store-offset-capable-p dir))
+          (should (equal probed-offsets '(1))))
       (delete-directory dir t))))
 
 (ert-deftest beads-pager-server-test-forget-cache-reprobes ()

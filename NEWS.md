@@ -4,6 +4,16 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Embedded stores are never mistaken for proxied ones
+
+* **The last-resort capability probe no longer calls an embedded store
+  `proxied-server`.**  Embedded `bd` accepts `--offset 0` and rejects
+  every non-zero offset, so probing zero reported the store as
+  offset-capable and switched the list to server paging.  The probe now
+  asks for `--offset 1`; stores that answer `bd context` or carry
+  `.beads/metadata.json` were already classified correctly.  Embedded
+  lists stay on the client-side pager and proxied paging is unchanged.
+
 ### A window resize no longer empties a server page
 
 * **Shrinking the list window (for example by opening a transient) no
@@ -49,7 +59,8 @@ User-visible and API-breaking changes, newest first.
   search and the dashboard are unchanged.
 * **Capability detection is cached per store.**  It prefers `bd context
   --json`, falls back to `.beads/metadata.json`, and uses a one-row
-  `bd list --offset 0` probe only as a last resort.
+  `bd list --offset 1` probe only as a last resort (non-zero, because
+  embedded `bd` rejects only non-zero offsets).
 * **`--sort id` never uses offset,** and a row repeated by an insert
   between page fetches is deduplicated by issue id.  An explicit
   refresh (`g`) returns to page 1; a silent live refresh keeps the

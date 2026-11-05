@@ -20,8 +20,11 @@
 ;;      (`dolt_mode' is `proxied-server' on the paging route).
 ;;   2. `.beads/metadata.json' is read only when `bd context' is
 ;;      unavailable or too old to answer.
-;;   3. A one-row `bd list --limit 1 --offset 0 --json' probe is the last
-;;      resort, for stores whose `bd' answers neither of the above.
+;;   3. A one-row `bd list --limit 1 --offset 1 --json' probe is the last
+;;      resort, for stores whose `bd' answers neither of the above.  The
+;;      offset must be non-zero: the embedded route accepts `--offset 0'
+;;      and only rejects a non-zero offset, so probing zero would call an
+;;      embedded store server-capable.
 ;;
 ;; Failures are cached as "not capable" rather than signaled: an old or
 ;; missing `bd' is a fallback, not an error.  Call
@@ -128,19 +131,21 @@ answer; probing a view must never escape with an I/O error."
     (error nil)))
 
 (defun beads-store--probe-mode (store)
-  "Probe STORE with a one-row `bd list --offset 0', returning a mode or nil.
+  "Probe STORE with a one-row `bd list --offset 1', returning a mode or nil.
 Only used when neither `bd context' nor `metadata.json' answered.  A
-successful probe means the route accepts `--offset', so the store is
-reported as \"proxied-server\"; any error (including the embedded
-route's \"--offset is only supported under --proxied-server\") yields
-nil."
+successful probe means the route honours a non-zero `--offset', so the
+store is reported as \"proxied-server\"; any error (including the
+embedded route's \"--offset is only supported under --proxied-server\")
+yields nil.  The offset is deliberately non-zero: embedded `bd' accepts
+`--offset 0' and only rejects a non-zero offset, so a zero-offset probe
+would misclassify an embedded store."
   (condition-case err
       (progn
         (require 'beads-command-list)
         (let ((default-directory (file-name-as-directory store))
               (beads-store-directory nil))
           (ignore beads-store-directory)
-          (beads-execute 'beads-command-list :limit 1 :offset 0)
+          (beads-execute 'beads-command-list :limit 1 :offset 1)
           "proxied-server"))
     (error
      (when (fboundp 'beads--log)
@@ -152,7 +157,7 @@ nil."
 (defun beads-store--detect-backend (store)
   "Return STORE's backend mode, or nil when it cannot be determined.
 Tries `bd context --json', then `.beads/metadata.json', then a
-one-row offset probe."
+one-row non-zero offset probe."
   (or (beads-store--context-mode store)
       (beads-store--metadata-mode store)
       (beads-store--probe-mode store)))
