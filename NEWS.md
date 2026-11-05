@@ -4,6 +4,16 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### List order `newest` is actually newest-first
+
+* **The `newest` list order no longer returns oldest-first.**  The
+  spec mapped `newest` to `--sort created --reverse`, but bd's
+  `--sort created` is already newest-first and `--reverse` flips it to
+  oldest-first (verified against bd 1.3.2).  `newest` now sends
+  `--sort created` and `oldest` sends `--sort created --reverse`;
+  `priority` and `updated` were already correct.  This also fixes
+  which rows server-side page 1 contains.
+
 ### Proxied-server dashboards load concurrently
 
 * **Dashboard sections now read in parallel on a `proxied-server`

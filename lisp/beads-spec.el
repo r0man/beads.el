@@ -45,7 +45,7 @@
 ;;   (let ((spec (beads-issue-spec :status "open" :type "bug" :priority 0)))
 ;;     (beads-issue-spec--to-args spec))
 ;;   ;; => ("--status=open" "--type=bug" "--priority=0"
-;;   ;;     "--sort=created" "--reverse" "--limit=50")
+;;   ;;     "--sort=created" "--limit=50")
 ;;
 ;;   ;; Refresh the current list buffer with a custom spec
 ;;   (beads-list--refresh (beads-issue-spec :status "open" :order 'priority))
@@ -101,10 +101,13 @@ Nil means no label filter.")
     :type symbol
     :initform 'newest
     :documentation "Sort order.  One of:
-- `newest'   — newest first (--sort=created --reverse)
-- `oldest'   — oldest first (--sort=created)
+- `newest'   — newest first (--sort=created)
+- `oldest'   — oldest first (--sort=created --reverse)
 - `priority' — by priority ascending (--sort=priority)
-- `updated'  — most recently updated first (--sort=updated)")
+- `updated'  — most recently updated first (--sort=updated)
+
+bd sorts `created' newest-first by default; `--reverse' flips it to
+oldest-first.  Verified against bd 1.3.2.")
    (limit
     :initarg :limit
     :type integer
@@ -140,11 +143,11 @@ current list buffer.")
 SPEC is a `beads-issue-spec' instance.  Returns a list of strings
 suitable for appending to a bd list command, for example:
 
-  (\"--status=open\" \"--sort=created\" \"--reverse\" \"--limit=50\")
+  (\"--status=open\" \"--sort=created\" \"--limit=50\")
 
 The `order' slot maps to --sort / --reverse flags:
-  newest   → --sort=created --reverse
-  oldest   → --sort=created
+  newest   → --sort=created
+  oldest   → --sort=created --reverse
   priority → --sort=priority
   updated  → --sort=updated"
   (let (args)
@@ -166,10 +169,10 @@ The `order' slot maps to --sort / --reverse flags:
     ;; Order → sort/reverse
     (pcase (oref spec order)
       ('newest
+       (push "--sort=created" args))
+      ('oldest
        (push "--sort=created" args)
        (push "--reverse" args))
-      ('oldest
-       (push "--sort=created" args))
       ('priority
        (push "--sort=priority" args))
       ('updated
@@ -233,12 +236,16 @@ slices it as before."
     (when-let* ((l (oref effective-spec label)))
       (oset cmd label (list l)))
     ;; Order → sort/reverse
+    ;; `bd --sort created' is newest-first; `--reverse' is oldest-first.
+    ;; Verified against bd 1.3.2 (`bd list --sort created' vs
+    ;; `bd list --sort created --reverse').
     (pcase (oref effective-spec order)
       ('newest
        (oset cmd sort "created")
-       (oset cmd reverse t))
+       (oset cmd reverse nil))
       ('oldest
-       (oset cmd sort "created"))
+       (oset cmd sort "created")
+       (oset cmd reverse t))
       ('priority
        (oset cmd sort "priority"))
       ('updated

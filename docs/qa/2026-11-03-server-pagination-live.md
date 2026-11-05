@@ -251,6 +251,22 @@ embedded
    changes which rows page 1 contains, but paging itself is consistent.
    Not touched here; worth a separate look.
 
+   **Resolved (`be-uvqor`).**  `newest` now sends `--sort created` and
+   `oldest` sends `--sort created --reverse`; `priority` (ascending) and
+   `updated` (descending) were already correct.  Version matrix,
+   checked directly with `bd list --flat --json` on throwaway embedded
+   fixtures (one issue per second, then `--sort` / `--sort --reverse`):
+
+   | bd | `--sort created` | `--sort created --reverse` | `--sort priority` | `--sort updated` |
+   |---|---|---|---|---|
+   | 1.3.1 | newest first | oldest first | priority ascending | newest first |
+   | 1.3.2 | newest first | oldest first | priority ascending | newest first |
+
+   So the mapping is correct for both the CI-pinned 1.3.1 and the city's
+   1.3.2; there is no version split to carry.  ERT pins the argv in
+   `lisp/test/beads-spec-test.el` (`beads-spec-test-to-args-order-*`,
+   `beads-spec-test-refresh-order-*-command-line`).
+
 ## Quality gates
 
 Run from the repository root before committing:

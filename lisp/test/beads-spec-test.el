@@ -102,9 +102,9 @@
          (args (beads-issue-spec--to-args spec)))
     ;; Should include sort and limit at minimum
     (should (member "--limit=50" args))
-    ;; newest order → --sort=created --reverse
+    ;; newest order → --sort=created (bd sorts created descending)
     (should (member "--sort=created" args))
-    (should (member "--reverse" args))))
+    (should-not (member "--reverse" args))))
 
 (ert-deftest beads-spec-test-to-args-status ()
   "Verify to-args includes --status when set."
@@ -143,18 +143,21 @@
     (should (member "--label=urgent" args))))
 
 (ert-deftest beads-spec-test-to-args-order-newest ()
-  "Verify order=newest maps to --sort=created --reverse."
+  "Verify order=newest maps to --sort=created without --reverse.
+
+bd's `--sort created' is already newest-first; `--reverse' would
+flip it to oldest-first (verified against bd 1.3.2)."
   (let* ((spec (beads-issue-spec :order 'newest))
          (args (beads-issue-spec--to-args spec)))
     (should (member "--sort=created" args))
-    (should (member "--reverse" args))))
+    (should-not (member "--reverse" args))))
 
 (ert-deftest beads-spec-test-to-args-order-oldest ()
-  "Verify order=oldest maps to --sort=created without --reverse."
+  "Verify order=oldest maps to --sort=created --reverse."
   (let* ((spec (beads-issue-spec :order 'oldest))
          (args (beads-issue-spec--to-args spec)))
     (should (member "--sort=created" args))
-    (should-not (member "--reverse" args))))
+    (should (member "--reverse" args))))
 
 (ert-deftest beads-spec-test-to-args-order-priority ()
   "Verify order=priority maps to --sort=priority."
@@ -338,6 +341,64 @@
       (should used-cmd)
       ;; The default spec has status=open, so the command should have status=open
       (should (equal (oref used-cmd status) "open")))))
+
+;;; Order → command-line mapping
+
+(defun beads-spec-test--refresh-command (spec)
+  "Run `beads-list--refresh' with SPEC and return the built command."
+  (with-temp-buffer
+    (beads-list-mode)
+    (let (used-cmd)
+      (cl-letf (((symbol-function 'beads-command-execute)
+                 (lambda (cmd)
+                   (setq used-cmd cmd)
+                   (beads-spec-test--mock-execute nil)))
+                ((symbol-function 'beads-list--populate-buffer)
+                 (lambda (_is _command &optional _cmd-obj) nil)))
+        (beads-list--refresh spec))
+      used-cmd)))
+
+(ert-deftest beads-spec-test-refresh-order-newest-command-line ()
+  "order=newest sends `--sort created' and no `--reverse'."
+  (let* ((cmd (beads-spec-test--refresh-command
+               (beads-issue-spec :order 'newest)))
+         (args (beads-command-line cmd)))
+    (should (equal (oref cmd sort) "created"))
+    (should-not (oref cmd reverse))
+    (should (member "--sort" args))
+    (should (member "created" args))
+    (should-not (member "--reverse" args))))
+
+(ert-deftest beads-spec-test-refresh-order-oldest-command-line ()
+  "order=oldest sends `--sort created --reverse'."
+  (let* ((cmd (beads-spec-test--refresh-command
+               (beads-issue-spec :order 'oldest)))
+         (args (beads-command-line cmd)))
+    (should (equal (oref cmd sort) "created"))
+    (should (oref cmd reverse))
+    (should (member "--sort" args))
+    (should (member "created" args))
+    (should (member "--reverse" args))))
+
+(ert-deftest beads-spec-test-refresh-order-priority-command-line ()
+  "order=priority sends `--sort priority' without `--reverse'."
+  (let* ((cmd (beads-spec-test--refresh-command
+               (beads-issue-spec :order 'priority)))
+         (args (beads-command-line cmd)))
+    (should (equal (oref cmd sort) "priority"))
+    (should-not (oref cmd reverse))
+    (should (member "priority" args))
+    (should-not (member "--reverse" args))))
+
+(ert-deftest beads-spec-test-refresh-order-updated-command-line ()
+  "order=updated sends `--sort updated' without `--reverse'."
+  (let* ((cmd (beads-spec-test--refresh-command
+               (beads-issue-spec :order 'updated)))
+         (args (beads-command-line cmd)))
+    (should (equal (oref cmd sort) "updated"))
+    (should-not (oref cmd reverse))
+    (should (member "updated" args))
+    (should-not (member "--reverse" args))))
 
 ;;; beads-list-filter-menu Tests
 
