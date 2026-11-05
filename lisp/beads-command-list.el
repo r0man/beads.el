@@ -831,6 +831,18 @@ column title.")
   "Hash table mapping issue id to the first server page that showed it.
 Used to drop a row that an offset shift repeats on a later page.")
 
+(defvar-local beads-list--server-dedupe-page-size nil
+  "Effective page size `beads-list--server-id-pages' was built for.
+Offset paging is only consistent at a fixed page size: a resize changes
+which rows each page covers, so an overlap after a resize is not a
+duplicate and the table must be rebuilt.")
+
+(defvar-local beads-list--server-page-start nil
+  "1-based index of the first kept row on the current server page, or nil.")
+
+(defvar-local beads-list--server-page-end nil
+  "1-based index of the last kept row on the current server page, or nil.")
+
 ;; Directory-aware buffer identity (beads.el-n3lv)
 ;; Key principle: Directory is identity, branch is metadata.
 
@@ -1144,7 +1156,9 @@ buffer keeps the client-side pager over the complete ISSUES list."
     (if (and (eq command 'list) (beads-list--server-paging-p))
         (beads-pager-set-server-page beads-list--server-page entries
                                      beads-list--server-has-next
-                                     (length issues))
+                                     (length issues)
+                                     beads-list--server-page-start
+                                     beads-list--server-page-end)
       (beads-pager-set-entries entries)))
   (beads-list--restore-marks)
   (beads-list-live-attach)
@@ -1300,7 +1314,9 @@ sections omit their issues."
     (if (beads-list--server-paging-p)
         (beads-pager-set-server-page beads-pager--page entries
                                      beads-list--server-has-next
-                                     (length beads-list--raw-issues))
+                                     (length beads-list--raw-issues)
+                                     beads-list--server-page-start
+                                     beads-list--server-page-end)
       (beads-pager-set-entries entries))
     (if (and win (window-live-p win))
         (set-window-point win (min pos (point-max)))
@@ -1886,7 +1902,10 @@ Resets navigation to page 1 and clears the row-dedupe state."
   (setq beads-list--server-command command
         beads-list--server-has-next nil
         beads-list--server-page 1
-        beads-list--server-id-pages (make-hash-table :test #'equal))
+        beads-list--server-id-pages (make-hash-table :test #'equal)
+        beads-list--server-dedupe-page-size nil
+        beads-list--server-page-start nil
+        beads-list--server-page-end nil)
   (beads-pager-start-server-paging #'beads-list--server-fetch-page))
 
 (defun beads-list--stop-server-paging ()
@@ -1894,7 +1913,10 @@ Resets navigation to page 1 and clears the row-dedupe state."
   (setq beads-list--server-command nil
         beads-list--server-has-next nil
         beads-list--server-page 1
-        beads-list--server-id-pages nil)
+        beads-list--server-id-pages nil
+        beads-list--server-dedupe-page-size nil
+        beads-list--server-page-start nil
+        beads-list--server-page-end nil)
   (beads-pager-stop-server-paging))
 
 (defun beads-list--server-dedupe-page (issues page)
@@ -1921,6 +1943,29 @@ duplicate without suppressing a legitimate revisit of the same page."
           (push issue kept))))
     (nreverse kept)))
 
+(defun beads-list--server-kept-span (issues kept offset)
+  "Return the 1-based absolute (FIRST . LAST) of KEPT within ISSUES.
+OFFSET is the 0-based offset of ISSUES in the server result set.  A
+dropped duplicate in the middle of the page must not pull the reported
+end inward, so the span covers the first and last rows actually kept.
+Returns nil when KEPT is empty."
+  (let ((positions (make-hash-table :test #'equal))
+        (index 0))
+    (dolist (issue issues)
+      (let ((id (oref issue id)))
+        (when (and id (not (gethash id positions)))
+          (puthash id index positions)))
+      (cl-incf index))
+    (let (first last)
+      (dolist (issue kept)
+        (when-let* ((position (and (oref issue id)
+                                   (gethash (oref issue id) positions))))
+          (setq first (if first (min first position) position)
+                last (if last (max last position) position))))
+      (when first
+        (cons (1+ (+ offset first))
+              (1+ (+ offset last)))))))
+
 (defun beads-list--server-fetch-page (page &optional page-size)
   "Fetch and display server-side PAGE of the current list query.
 PAGE-SIZE defaults to the effective pager page size.  The template's
@@ -1941,7 +1986,9 @@ state advances only after a successful fetch."
     (if (or (null template) (<= per-page 0))
         (progn
           (setq beads-list--server-has-next nil
-                beads-list--server-page page)
+                beads-list--server-page page
+                beads-list--server-page-start nil
+                beads-list--server-page-end nil)
           (beads-list--populate-buffer nil 'list template))
       (let* ((command (clone template))
              (issues
@@ -1950,15 +1997,23 @@ state advances only after a successful fetch."
                  (oset command limit per-page)
                  (oset command offset offset)
                  (beads-command-execute command))))
-             (fetched (length issues))
-             (deduped (beads-list--server-dedupe-page issues page)))
-        (setq beads-list--server-has-next
-              (and (> per-page 0)
-                   (or (not (and (integerp overall) (> overall 0)))
-                       (< (+ offset per-page) overall))
-                   (= fetched per-page))
-              beads-list--server-page page)
-        (beads-list--populate-buffer deduped 'list command)))))
+             (fetched (length issues)))
+        ;; A resize changes which rows every page covers, so an overlap
+        ;; with the previous page at another size is not a duplicate.
+        (unless (equal page-size beads-list--server-dedupe-page-size)
+          (setq beads-list--server-id-pages (make-hash-table :test #'equal)
+                beads-list--server-dedupe-page-size page-size))
+        (let* ((deduped (beads-list--server-dedupe-page issues page))
+               (span (beads-list--server-kept-span issues deduped offset)))
+          (setq beads-list--server-has-next
+                (and (> per-page 0)
+                     (or (not (and (integerp overall) (> overall 0)))
+                         (< (+ offset per-page) overall))
+                     (= fetched per-page))
+                beads-list--server-page page
+                beads-list--server-page-start (car span)
+                beads-list--server-page-end (cdr span))
+          (beads-list--populate-buffer deduped 'list command))))))
 
 (defun beads-list--live-supported-p ()
   "Return non-nil when beads-live is available to attach to."

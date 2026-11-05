@@ -155,10 +155,11 @@ page is one @code{bd list --limit PAGE --offset K} call, filters and the
 overall @code{beads-list-default-limit} are preserved, and the mode line
 shows a page and item range with @samp{(more)} when another page exists.
 The page size is the window-derived pager size, so resizing the window
-refetches the current page at the new size.  The total is never computed,
-so navigation stops at the first short page.  Jumping past that page with
-@kbd{G} shows an empty page (@samp{Page N, no items}); @kbd{[} returns to
-the last real page.  Embedded and direct stores reject a meaningful
+refetches the current page at the new size; rows that the new size
+overlaps from an earlier page are not duplicates.  The total is never
+computed, so navigation stops at the first short page.  Jumping past
+that page with @kbd{G} shows an empty page (@samp{Page N, no items});
+@kbd{[} returns to the last real page.  Embedded and direct stores reject a meaningful
 @code{--offset} and keep the client-side pager over a bounded fetch;
 @code{bd blocked}, search and the dashboard sections also keep their
 existing behavior.
@@ -167,7 +168,9 @@ Offset paging is not snapshot-safe.  An issue inserted between two page
 fetches can shift rows and repeat one on the next page, so the list
 drops any issue id it already showed on an earlier page and an explicit
 refresh (@kbd{g}) starts again at page 1.  A silent refresh from the
-live journal keeps the current page.
+live journal keeps the current page.  The item range in the mode line
+covers the rows actually shown, so dropping a repeated row does not
+understate it.
 
 @node Eldoc Previews
 @section Eldoc Previews

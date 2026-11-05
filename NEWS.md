@@ -4,6 +4,17 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### A window resize no longer empties a server page
+
+* **Shrinking the list window (for example by opening a transient) no
+  longer shows `Page N, no items`.**  The resize refetches the current
+  page at the new page size; when that page overlapped rows already
+  shown at the previous size, the duplicate filter dropped all of them.
+  The dedupe table is now rebuilt when the effective page size changes.
+* **The mode-line item range covers the rows actually kept.**  A
+  repeated row dropped from a later page no longer pulls the reported
+  end inward, so the range matches what is on screen.
+
 ### List order `newest` is actually newest-first
 
 * **The `newest` list order no longer returns oldest-first.**  The

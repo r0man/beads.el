@@ -384,5 +384,56 @@ capable."
         (should (string-match-p "items 7-7" frag))
         (should-not (string-match-p "(more)" frag))))))
 
+;;; Window shrink and dedupe
+
+(ert-deftest beads-pager-server-test-shrink-refetch-keeps-page-rows ()
+  "A page-size shrink refetches without dropping every overlapping row.
+Opening a transient shrinks the window, so the resize hook refetches the
+current page at the minimum page size.  Rows that the smaller window
+overlaps from an earlier page must not be deduped away, leaving the page
+empty."
+  :tags '(:unit)
+  (beads-pager-server-test--with-fake-bd
+      (beads-pager-server-test--issues 1 40)
+    (beads-pager-server-test--with-list
+      (setq beads-pager--page-size 12)
+      (beads-list--refresh (beads-issue-spec :limit 0))
+      (beads-pager-next-page)
+      (should (equal (beads-pager-server-test--visible-ids)
+                     (mapcar (lambda (n) (format "bd-%03d" n))
+                             (number-sequence 13 24))))
+      ;; The window shrinks to the minimum page size.
+      (setq beads-pager--page-size 5)
+      (beads-pager--apply)
+      (should (equal (beads-pager-server-test--visible-ids)
+                     (mapcar (lambda (n) (format "bd-%03d" n))
+                             (number-sequence 6 10))))
+      (let ((frag (beads-pager--mode-line-fragment)))
+        (should-not (string-match-p "no items" frag))
+        (should (string-match-p "items 6-10" frag))))))
+
+(ert-deftest beads-pager-server-test-range-follows-kept-rows ()
+  "The mode-line range spans the raw rows kept, not offset plus count.
+An insert shift can repeat an earlier page's row mid-page; dropping that
+duplicate must not pull the reported end inward."
+  :tags '(:unit)
+  (beads-pager-server-test--with-list
+    (let ((pages '((0 . (1 2 3))
+                   (3 . (4 3 5))
+                   (6 . (6 7)))))
+      (cl-letf (((symbol-function 'beads-store-offset-capable-p)
+                 (lambda (&optional _directory) t))
+                ((symbol-function 'beads-command-execute)
+                 (lambda (command)
+                   (mapcar #'beads-pager-server-test--issue
+                           (cdr (assq (oref command offset) pages))))))
+        (beads-list--refresh (beads-issue-spec :limit 0))
+        (beads-pager-next-page)
+        (should (equal (beads-pager-server-test--visible-ids)
+                       '("bd-004" "bd-005")))
+        ;; bd-003 was dropped at raw item 5; the kept rows are items 4 and 6.
+        (let ((frag (beads-pager--mode-line-fragment)))
+          (should (string-match-p "items 4-6" frag)))))))
+
 (provide 'beads-pager-server-test)
 ;;; beads-pager-server-test.el ends here

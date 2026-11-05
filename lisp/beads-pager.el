@@ -67,6 +67,16 @@ geometry refetches the current page.")
 (defvar-local beads-pager--server-item-count 0
   "Number of issue rows on the current server page, for the mode line.")
 
+(defvar-local beads-pager--server-start nil
+  "1-based index of the first row displayed on the current server page.
+When nil, the mode line falls back to \((page-1) * page-size + 1\).  A
+backend that drops rows (for example a repeated id after an offset
+shift) sets this so the reported range covers the rows actually kept.")
+
+(defvar-local beads-pager--server-end nil
+  "1-based index of the last row displayed on the current server page.
+When nil, the mode line falls back to START + item count - 1.")
+
 ;;; Pure Pagination Core (public, buffer-agnostic)
 ;;
 ;; These four functions take all their inputs as arguments and read no
@@ -119,6 +129,8 @@ any client-side entry cache is dropped."
         beads-pager--server-has-next nil
         beads-pager--server-page-size nil
         beads-pager--server-item-count 0
+        beads-pager--server-start nil
+        beads-pager--server-end nil
         beads-pager--page 1
         beads-pager--all-entries nil))
 
@@ -129,18 +141,26 @@ The displayed entries are left in place for the caller to replace."
         beads-pager--server-has-next nil
         beads-pager--server-fetch-function nil
         beads-pager--server-page-size nil
-        beads-pager--server-item-count 0))
+        beads-pager--server-item-count 0
+        beads-pager--server-start nil
+        beads-pager--server-end nil))
 
-(defun beads-pager-set-server-page (page entries has-next &optional item-count)
+(defun beads-pager-set-server-page (page entries has-next
+                                    &optional item-count start end)
   "Display ENTRIES as server-side PAGE.
 HAS-NEXT says whether another page follows.  ITEM-COUNT is the number
-of issue rows in ENTRIES and defaults to the length of ENTRIES.
+of issue rows in ENTRIES and defaults to the length of ENTRIES.  START
+and END, when non-nil, are the 1-based indices of the first and last
+row actually kept from the fetched page; the mode line uses them so a
+dropped row does not shift the reported range.
 Unlike `beads-pager-set-entries', this does not slice or reset the
 page; the backend already returned exactly one page."
   (setq beads-pager--page (max 1 page)
         beads-pager--server-has-next (and has-next t)
         beads-pager--server-page-size (beads-pager--effective-page-size)
         beads-pager--server-item-count (or item-count (length entries))
+        beads-pager--server-start start
+        beads-pager--server-end end
         beads-pager--all-entries nil
         tabulated-list-entries entries)
   (tabulated-list-print t)
@@ -302,12 +322,15 @@ the backend is never asked to count every matching row."
    ((beads-pager-server-paging-p)
     (let* ((size (or beads-pager--server-page-size
                      (beads-pager--effective-page-size)))
-           (start (1+ (* (1- beads-pager--page) size)))
-           (count beads-pager--server-item-count))
+           (count beads-pager--server-item-count)
+           (start (or beads-pager--server-start
+                      (1+ (* (1- beads-pager--page) size))))
+           (end (or beads-pager--server-end
+                    (+ start (1- count)))))
       (if (zerop count)
           (format "  [Page %d, no items]" beads-pager--page)
         (format "  [Page %d, items %d-%d%s]"
-                beads-pager--page start (+ start (1- count))
+                beads-pager--page start end
                 (if beads-pager--server-has-next " (more)" "")))))
    ((and (bound-and-true-p beads-pager-mode)
          beads-pager--all-entries
