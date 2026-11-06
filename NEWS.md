@@ -4,6 +4,15 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Eldoc previews work on ssh-pipe remotes without a prior connection
+
+* **Eldoc no longer skips a single-hop ssh store whose TRAMP connection is
+  not open yet.**  With the default ssh-pipe transport, bd runs as a local
+  `ssh -T` process whose start never waits on TRAMP, so
+  `beads-eldoc--fetch-allowed-p` now allows the lookup.  Stores on the
+  TRAMP transport still require an established connection; local stores
+  are unaffected.
+
 ### Eldoc previews are on by default
 
 * **Loading `beads-eldoc' now enables `beads-eldoc-mode` once.**  Bead

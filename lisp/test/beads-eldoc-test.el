@@ -423,16 +423,46 @@ whenever it likes.  Also binds fresh cache and pending tables."
     (should (beads-eldoc--get-cached-issue "bd-1" "/tmp/fn"))
     (should-not (beads-eldoc--get-cached-issue "bd-1" "/tmp/a"))))
 
+(ert-deftest beads-eldoc-test-fetch-allowed-p ()
+  "Local and ssh-pipe stores are allowed; an unconnected TRAMP one is not."
+  :tags '(:unit)
+  (require 'tramp)
+  (should (beads-eldoc--fetch-allowed-p "/tmp/"))
+  (let ((beads-remote-transport 'ssh))
+    ;; A single-hop ssh name runs bd as a local ssh pipe: no TRAMP
+    ;; connection is needed to start the lookup.
+    (should (beads-eldoc--fetch-allowed-p "/ssh:nohost.invalid:/tmp/")))
+  (let ((beads-remote-transport 'tramp))
+    ;; With the TRAMP transport the host must already be connected.
+    (should-not (beads-eldoc--fetch-allowed-p "/ssh:nohost.invalid:/tmp/")))
+  ;; A non-ssh method always needs its TRAMP connection.
+  (should-not (beads-eldoc--fetch-allowed-p "/sudo:root@nohost.invalid:/tmp/")))
+
 (ert-deftest beads-eldoc-test-request-issue-remote-not-connected ()
-  "No lookup is spawned for a remote store that is not connected."
+  "No lookup is spawned for a TRAMP-transport store that is not connected."
   (require 'tramp)
   (beads-eldoc-test--with-async-mock (spawns commands successes errors)
     (let ((default-directory "/ssh:nohost.invalid:/tmp/")
+          (beads-remote-transport 'tramp)
           (called nil))
       (should (null (beads-eldoc--request-issue "bd-1" (lambda (_) (setq called t)))))
       (should-not called)
       (should (= spawns 0))
       (should (zerop (hash-table-count beads-eldoc--pending))))))
+
+(ert-deftest beads-eldoc-test-request-issue-remote-ssh-pipe-allowed ()
+  "A single-hop ssh store spawns without an established TRAMP connection."
+  (require 'tramp)
+  (beads-eldoc-test--with-async-mock (spawns commands successes errors)
+    (let ((default-directory "/ssh:nohost.invalid:/tmp/")
+          (beads-remote-transport 'ssh)
+          (called nil))
+      (should (eq (beads-eldoc--request-issue
+                   "bd-1" (lambda (_) (setq called t)))
+                  'pending))
+      (should-not called)
+      (should (= spawns 1))
+      (should (equal (oref (car commands) issue-ids) '("bd-1"))))))
 
 (ert-deftest beads-eldoc-test-request-issue-spawn-error ()
   "A spawn that signals is recorded as a miss, not raised."

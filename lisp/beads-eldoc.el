@@ -39,6 +39,7 @@
 ;; Loaded lazily by `beads-eldoc--spawn': beads-command-show requires
 ;; this file, so a top-level require would be a cycle.
 (declare-function beads-command-show "beads-command-show")
+(declare-function beads-remote-ssh-pipe-p "beads-remote" (&optional dir))
 
 ;;; Customization
 
@@ -214,12 +215,15 @@ Honours the buffer's `beads-issue-id-prefixes' allowlist and
 
 (defun beads-eldoc--fetch-allowed-p (dir)
   "Return non-nil when a lookup may run in DIR without opening a connection.
-Local directories always may; a remote one only while its TRAMP
-connection is already established.  Eldoc runs from an idle timer and
-must never be the thing that dials a host."
+Local directories always may.  A remote one may when its TRAMP
+connection is already established, or when its bd processes run over a
+local ssh pipe (`beads-remote-ssh-pipe-p'): starting such a pipe is a
+plain local process spawn and never waits on TRAMP.  Eldoc runs from an
+idle timer and must never be the thing that dials a host."
   (let ((remote (file-remote-p dir)))
     (or (null remote)
-        (and (file-remote-p dir nil 'connected) t))))
+        (and (file-remote-p dir nil 'connected) t)
+        (beads-remote-ssh-pipe-p dir))))
 
 (defun beads-eldoc--pending-fresh-p (pending)
   "Return non-nil when PENDING, a `beads-eldoc--pending' value, is still awaited."
