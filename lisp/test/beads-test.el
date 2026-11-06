@@ -2399,15 +2399,24 @@ The log format is compatible with `log-view-mode':
 ;;; Alias Tests
 ;;; ========================================
 
-
+(defun beads-test--underlying-function (symbol)
+  "Return the function SYMBOL names, looking through added advice.
+`beads-eldoc-mode' advises `beads--invalidate-completion-cache' (and
+loading beads-eldoc enables the mode by default), so the alias's
+function cell may hold an advice wrapper around the aliased function."
+  (let ((function (symbol-function symbol)))
+    (if (advice--p function)
+        (advice--cdr function)
+      function)))
 
 (ert-deftest beads-test-completion-aliases ()
   "Test completion function aliases."
-  (should (eq (symbol-function 'beads--issue-completion-table)
+  (should (eq (beads-test--underlying-function 'beads--issue-completion-table)
               #'beads-completion-issue-table))
-  (should (eq (symbol-function 'beads--invalidate-completion-cache)
+  (should (eq (beads-test--underlying-function
+               'beads--invalidate-completion-cache)
               #'beads-completion-invalidate-cache))
-  (should (eq (symbol-function 'beads--get-cached-issues)
+  (should (eq (beads-test--underlying-function 'beads--get-cached-issues)
               #'beads-completion--get-cached-issues)))
 
 ;;; ========================================

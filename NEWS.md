@@ -4,6 +4,19 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### Eldoc previews are on by default
+
+* **Loading `beads-eldoc' now enables `beads-eldoc-mode` once.**  Bead
+  ids in any buffer are previewed in the echo area without an init-file
+  hook.  A mode you enabled yourself is left alone and never disabled
+  by this option; a store that is slow or remote still only affects the
+  asynchronous lookup, never the UI.
+* **New user option `beads-eldoc-auto-enable` (default t) turns the
+  automatic enablement off.**  Set it to nil before the library loads
+  (`(setq beads-eldoc-auto-enable nil)` near the top of your init file)
+  to keep the mode off entirely, or use `M-x customize-option` at any
+  time; the latter disables the mode only if this package enabled it.
+
 ### Embedded stores are never mistaken for proxied ones
 
 * **The last-resort capability probe no longer calls an embedded store

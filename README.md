@@ -74,8 +74,11 @@ After installing, load the package and bind the entry point:
 (use-package beads
   :commands (beads beads-dispatch beads-list-all beads-ready
              beads-show beads-create)
-  :bind ("C-c b" . beads)                 ; M-x beads opens the full board
-  :hook (after-init . beads-eldoc-mode))  ; Enable eldoc support
+  :bind ("C-c b" . beads))                ; M-x beads opens the full board
+
+;; Eldoc previews of bead ids are enabled automatically when beads-eldoc
+;; loads.  Opt out *before* it loads with:
+(setq beads-eldoc-auto-enable nil)
 ```
 
 ## Quick start

@@ -17,9 +17,13 @@
 ;; This works in all major modes: code comments, org files, markdown,
 ;; etc.
 ;;
-;; Usage:
+;; Loading this library enables `beads-eldoc-mode' once by default, so
+;; previews work without any init-file setup.  Set
+;; `beads-eldoc-auto-enable' to nil (before loading, or with
+;; \[customize-option] at any time) to keep the mode off; a mode the
+;; user enabled by hand is never disabled by that option.
 ;;
-;;   (beads-eldoc-mode 1)  ; Enable globally
+;;   (setq beads-eldoc-auto-enable nil)  ; Opt out before load
 ;;
 ;; Lookups run asynchronously through `beads-command-execute-async';
 ;; results (and misses) are cached per store and invalidated when
@@ -42,6 +46,45 @@
   "Eldoc support for Beads issue references."
   :group 'beads
   :prefix "beads-eldoc-")
+
+(defvar beads-eldoc--auto-enabled nil
+  "Non-nil when loading this library turned `beads-eldoc-mode' on.
+It records ownership: setting `beads-eldoc-auto-enable' to nil only
+disables a mode this library enabled, never one the user enabled by
+hand.")
+
+(defun beads-eldoc--set-auto-enable (symbol value)
+  "Set SYMBOL to VALUE, the :set function of `beads-eldoc-auto-enable'.
+A non-nil VALUE enables `beads-eldoc-mode' unless it is already on; an
+already-on mode is left alone and not claimed.  A nil VALUE disables
+the mode only when this library auto-enabled it, and clears the
+ownership flag.  Before this library is loaded the mode is not yet
+defined, so setting the option early only records VALUE; the load-time
+step then honours it."
+  (set-default symbol value)
+  (cond
+   (value
+    (when (and (featurep 'beads-eldoc)
+               (not (bound-and-true-p beads-eldoc-mode)))
+      (beads-eldoc-mode 1)
+      (setq beads-eldoc--auto-enabled t)))
+   (beads-eldoc--auto-enabled
+    (when (bound-and-true-p beads-eldoc-mode)
+      (beads-eldoc-mode -1))
+    (setq beads-eldoc--auto-enabled nil))))
+
+(defcustom beads-eldoc-auto-enable t
+  "Whether loading `beads-eldoc' enables `beads-eldoc-mode'.
+When non-nil (the default), loading this library turns the global
+minor mode on once, unless it is already on.  Set it to nil before the
+library loads -- for example at the top of your init file -- to keep
+the mode off, or use \[customize-option] to turn it off at runtime;
+the latter disables the mode only if this library enabled it, never a
+mode you enabled with `beads-eldoc-mode' yourself.  Lookups stay
+asynchronous and cached either way."
+  :type 'boolean
+  :group 'beads-eldoc
+  :set #'beads-eldoc--set-auto-enable)
 
 (defcustom beads-eldoc-cache-ttl 300
   "Seconds a fetched issue stays in the eldoc cache."
@@ -375,6 +418,19 @@ put point on an id."
                    #'beads-eldoc--invalidate-cache)
     ;; Clear cache
     (beads-eldoc--invalidate-cache)))
+
+;;; Auto-enable
+
+(defun beads-eldoc--maybe-auto-enable ()
+  "Enable `beads-eldoc-mode' when `beads-eldoc-auto-enable' says so.
+Called once when this library loads.  A mode that is already on is
+left alone and not claimed as auto-enabled."
+  (when (and beads-eldoc-auto-enable
+             (not beads-eldoc-mode))
+    (beads-eldoc-mode 1)
+    (setq beads-eldoc--auto-enabled t)))
+
+(beads-eldoc--maybe-auto-enable)
 
 ;;; Autoload
 

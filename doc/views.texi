@@ -183,12 +183,28 @@ Toggle hover previews of issue references in the current buffer.
 
 @vindex beads-issue-id-regexp
 @vindex beads-issue-id-prefixes
+@vindex beads-eldoc-auto-enable
 Hover over an issue reference anywhere in Emacs --- a comment, a commit
-message, an Org file --- and eldoc previews the issue asynchronously.  The
-command is @code{beads-eldoc-mode}; enable it in the buffers where you
-want previews.  Issue ids are matched with the shared
-@code{beads-issue-id-regexp} and restricted by
+message, an Org file --- and eldoc previews the issue asynchronously.
+Loading @code{beads-eldoc} enables @code{beads-eldoc-mode} once by
+default, so previews work without any init-file setup; issue ids are
+matched with the shared @code{beads-issue-id-regexp} and restricted by
 @code{beads-issue-id-prefixes}.
+
+The user option @code{beads-eldoc-auto-enable} controls that automatic
+enablement.  Set it to @code{nil} before the library loads to keep the
+mode off:
+
+@lisp
+(setq beads-eldoc-auto-enable nil)
+@end lisp
+
+@noindent
+or turn it off later with @kbd{M-x customize-option @key{RET}
+beads-eldoc-auto-enable}.  Turning the option off disables the mode only
+when this package enabled it; a mode you enabled yourself with
+@code{beads-eldoc-mode} is never disabled.  Enabling repeatedly is safe:
+the eldoc hook and the cache-invalidation advice are added only once.
 
 Preview data is cached per store, including negative results, so a
 reference to an unknown id does not re-query on every keystroke.  Remote

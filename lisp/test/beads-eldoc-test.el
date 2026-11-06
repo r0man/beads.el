@@ -18,6 +18,8 @@
 ;;; Code:
 
 (require 'ert)
+(require 'cl-lib)
+(require 'seq)
 (require 'beads)
 (require 'beads-eldoc)
 (require 'beads-types)
@@ -657,6 +659,149 @@ whenever it likes.  Also binds fresh cache and pending tables."
         ;; Buffer should have full details
         (should (string-match-p "Issue: beads\\.el-22" result-buffer))
         (should (string-match-p "Description:" result-buffer))))))
+
+;;; ========================================
+;;; Auto-enable Tests
+;;; ========================================
+
+(defconst beads-eldoc-test--handle-advice
+  #'beads-eldoc--invalidate-cache
+  "Advice this package adds when `beads-eldoc-mode' is enabled.")
+
+(defun beads-eldoc-test--hook-count ()
+  "Return how many times `beads-eldoc-function' is in the eldoc hook.
+The check reads the global (default) value: `beads-eldoc-mode' is a
+global mode, and some buffers carry a buffer-local value of the hook."
+  (seq-count (lambda (function) (eq function 'beads-eldoc-function))
+             (default-value 'eldoc-documentation-functions)))
+
+(defun beads-eldoc-test--emacs-batch (form)
+  "Evaluate FORM in a fresh batch Emacs and return its stdout.
+The subprocess inherits this Emacs's `load-path' so it resolves the
+checkout and the package's dependencies exactly as the suite does."
+  (let* ((program (or (and invocation-directory invocation-name
+                           (expand-file-name invocation-name
+                                             invocation-directory))
+                      (executable-find "emacs")))
+         (dirs (delete-dups
+                (delq nil
+                      (mapcar (lambda (dir)
+                                (and (stringp dir)
+                                     (file-directory-p dir)
+                                     (expand-file-name dir)))
+                              load-path))))
+         (args (append (list "--batch" "-Q")
+                       (mapcan (lambda (dir) (list "-L" dir)) dirs)
+                       (list "--eval" form)))
+         (buffer (generate-new-buffer " *beads-eldoc-batch*"))
+         (status nil)
+         (output nil))
+    (unwind-protect
+        (progn
+          (setq status (apply #'call-process program nil buffer nil args))
+          (setq output (with-current-buffer buffer (buffer-string)))
+          (unless (eq status 0)
+            (ert-fail (format "batch Emacs failed (%s): %s" status output)))
+          (string-trim output))
+      (kill-buffer buffer))))
+
+(defmacro beads-eldoc-test--with-clean-mode (&rest body)
+  "Run BODY with `beads-eldoc-mode' off and auto-ownership cleared.
+The mode state seen on entry is restored afterwards, so this file's
+tests do not leak state into the rest of the suite."
+  (declare (indent 0) (debug t))
+  `(let ((beads-eldoc-test--entry-on beads-eldoc-mode)
+         (beads-eldoc-test--entry-flag beads-eldoc--auto-enabled)
+         (beads-eldoc-test--entry-option beads-eldoc-auto-enable))
+     (when beads-eldoc-mode (beads-eldoc-mode -1))
+     (setq beads-eldoc--auto-enabled nil)
+     (unwind-protect
+         (progn ,@body)
+       (when beads-eldoc-mode (beads-eldoc-mode -1))
+       (setq beads-eldoc-auto-enable beads-eldoc-test--entry-option)
+       (setq beads-eldoc--auto-enabled beads-eldoc-test--entry-flag)
+       (when beads-eldoc-test--entry-on (beads-eldoc-mode 1)))))
+
+(ert-deftest beads-eldoc-test-auto-enable-default-on-load ()
+  "Loading beads-eldoc with the default enables the mode once."
+  :tags '(:no-coverage)
+  (let ((out (beads-eldoc-test--emacs-batch
+              (concat "(progn (require 'beads-eldoc)"
+                      " (prin1 (list beads-eldoc-mode"
+                      " (and (memq 'beads-eldoc-function"
+                      " (default-value 'eldoc-documentation-functions)) t)"
+                      " beads-eldoc--auto-enabled)))"))))
+    (should (equal out "(t t t)"))))
+
+(ert-deftest beads-eldoc-test-auto-enable-nil-before-load ()
+  "Setting `beads-eldoc-auto-enable' to nil before load keeps the mode off."
+  :tags '(:no-coverage)
+  (let ((out (beads-eldoc-test--emacs-batch
+              (concat "(progn (setq beads-eldoc-auto-enable nil)"
+                      " (require 'beads-eldoc)"
+                      " (prin1 (list beads-eldoc-mode"
+                      " (and (memq 'beads-eldoc-function"
+                      " (default-value 'eldoc-documentation-functions)) t)"
+                      " beads-eldoc--auto-enabled)))"))))
+    (should (equal out "(nil nil nil)"))))
+
+(ert-deftest beads-eldoc-test-auto-enable-keeps-manual-mode ()
+  "A mode the user enabled by hand is never claimed or disabled."
+  (beads-eldoc-test--with-clean-mode
+    (beads-eldoc-mode 1)
+    (should (= 1 (beads-eldoc-test--hook-count)))
+    (beads-eldoc--maybe-auto-enable)
+    (should beads-eldoc-mode)
+    (should-not beads-eldoc--auto-enabled)
+    (should (= 1 (beads-eldoc-test--hook-count)))
+    ;; Turning the option off must not touch a manually enabled mode.
+    (customize-set-variable 'beads-eldoc-auto-enable nil)
+    (should beads-eldoc-mode)
+    (should (= 1 (beads-eldoc-test--hook-count)))
+    (should (advice-member-p beads-eldoc-test--handle-advice
+                             'beads--invalidate-completion-cache))))
+
+(ert-deftest beads-eldoc-test-auto-enable-option-off-and-on ()
+  "The :set function disables only its own mode and re-enables once."
+  (beads-eldoc-test--with-clean-mode
+    (beads-eldoc--maybe-auto-enable)
+    (should beads-eldoc-mode)
+    (should beads-eldoc--auto-enabled)
+    (should (= 1 (beads-eldoc-test--hook-count)))
+    (should (advice-member-p beads-eldoc-test--handle-advice
+                             'beads--invalidate-completion-cache))
+    ;; Off: removes the hook and the advice, clears ownership.
+    (customize-set-variable 'beads-eldoc-auto-enable nil)
+    (should-not beads-eldoc-mode)
+    (should-not beads-eldoc--auto-enabled)
+    (should (= 0 (beads-eldoc-test--hook-count)))
+    (should-not (advice-member-p beads-eldoc-test--handle-advice
+                                 'beads--invalidate-completion-cache))
+    ;; Back on: one hook entry, not two.
+    (customize-set-variable 'beads-eldoc-auto-enable t)
+    (should beads-eldoc-mode)
+    (should beads-eldoc--auto-enabled)
+    (should (= 1 (beads-eldoc-test--hook-count)))
+    (should (advice-member-p beads-eldoc-test--handle-advice
+                             'beads--invalidate-completion-cache))))
+
+(ert-deftest beads-eldoc-test-auto-enable-idempotent ()
+  "Repeated enables do not duplicate the hook or the advice."
+  (beads-eldoc-test--with-clean-mode
+    (beads-eldoc--maybe-auto-enable)
+    (beads-eldoc--maybe-auto-enable)
+    (beads-eldoc-mode 1)
+    (beads-eldoc-mode 1)
+    (should (= 1 (beads-eldoc-test--hook-count)))
+    (should (advice-member-p beads-eldoc-test--handle-advice
+                             'beads--invalidate-completion-cache))
+    ;; One call of the advised function runs the advice once: a duplicated
+    ;; advice would invalidate the cache twice, which the counter shows.
+    (let ((calls 0))
+      (cl-letf (((symbol-function 'beads-eldoc--invalidate-cache)
+                 (lambda (&rest _) (setq calls (1+ calls)))))
+        (beads--invalidate-completion-cache))
+      (should (= 1 calls)))))
 
 (provide 'beads-eldoc-test)
 

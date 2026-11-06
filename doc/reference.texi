@@ -4337,6 +4337,18 @@ then auto-start.
 Default: @code{nil}.
 @end defopt
 
+@defopt beads-eldoc-auto-enable
+Whether loading ‘beads-eldoc’ enables ‘beads-eldoc-mode’.
+When non-nil (the default), loading this library turns the global
+minor mode on once, unless it is already on.  Set it to nil before the
+library loads -- for example at the top of your init file -- to keep
+the mode off, or use ‘customize-option’ to turn it off at runtime;
+the latter disables the mode only if this library enabled it, never a
+mode you enabled with ‘beads-eldoc-mode’ yourself.  Lookups stay
+asynchronous and cached either way.
+Default: @code{t}.
+@end defopt
+
 @defopt beads-eldoc-cache-ttl
 Seconds a fetched issue stays in the eldoc cache.
 Default: @code{300}.
