@@ -16,7 +16,11 @@
 ## symlink to docs/manual/images, so the mirror must use `cp -RL': a bare
 ## `cp -R' copies the symlink itself and yields broken images.  The PDF
 ## keeps automake's built-in `.texi.pdf' rule, the same `texi2pdf'
-## invocation the standalone Makefile used.
+## invocation the standalone Makefile used.  `build-aux/texinfo.tex' aborts
+## the PDF build unless `epsf.tex' is on TEXINPUTS when the manual uses
+## `@image' (every screenshot goes through the `@shot' macro), so a minimal
+## TeX installation without the `texlive-epsf' package cannot make the PDF;
+## `make info' and `make html' do not need it.
 ##
 ## `make html' and `make pdf' at the top level recurse here through
 ## `SUBDIRS = doc' in the top-level Makefile.am.

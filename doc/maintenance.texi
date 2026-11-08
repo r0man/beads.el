@@ -500,7 +500,14 @@ Build @file{doc/beads.info} from @file{doc/beads.texi}.
 @item make html
 Build the self-contained HTML manual under @file{doc/}.
 @item make pdf
-Build the PDF manual with @command{texi2pdf}.
+Build the PDF manual with @command{texi2pdf}.  This is optional and needs
+a working @TeX{} installation that provides @file{epsf.tex}: the
+@file{build-aux/texinfo.tex} shipped with the package refuses to typeset
+any @code{@@image} without it, and every screenshot is one.  A minimal
+@code{texlive-scheme-basic} install does not include it; add the
+@code{texlive-epsf} package, or install a full @TeX{} Live scheme.  The
+build repeats its cross-reference pass until none remain, so a successful
+run also proves that every @code{@@xref}-family target resolves in print.
 @end table
 
 @file{doc/beads.texi} is the only manual source; it @code{@@include}s one
