@@ -50,9 +50,9 @@ Downstream packages (for example gascity.el) register their own group here
 so it appears under the dispatch menu without editing beads.el.
 @end defvr
 
-@anchor{fig:dispatch-dark}
+@anchor{fig-dispatch-dark}
 @shot{dispatch-dark, The dispatch menu (@code{beads-dispatch}).}
-@anchor{fig:maintenance-dark}
+@anchor{fig-maintenance-dark}
 @shot{maintenance-dark, The maintenance menu (@code{beads-maintenance}).}
 
 @menu

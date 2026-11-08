@@ -40,9 +40,9 @@ If you are unsure which Beads store a buffer acts on, the header names it,
 and buffer-local store scoping keeps every command pointed at the same
 store (@pxref{Store Scoping}).
 
-@anchor{fig:board-dark}
+@anchor{fig-board-dark}
 @shot{dashboard-dark, The project board (@code{beads-dashboard}) with ready in-progress and blocked sections.}
-@anchor{fig:board-light}
+@anchor{fig-board-light}
 @shot{dashboard-light, The same project board with Emacs's default faces and no theme loaded.}
 
 @menu
@@ -71,9 +71,9 @@ no unmet dependencies.  The @emph{blocked} list is its complement: issues
 waiting on dependencies or on a declared blocked status.  Open them from
 the dispatch menu with @kbd{r} and @kbd{b}, or from the board header.
 
-@anchor{fig:ready-dark}
+@anchor{fig-ready-dark}
 @shot{ready-dark, The ready-work list.}
-@anchor{fig:blocked-dark}
+@anchor{fig-blocked-dark}
 @shot{blocked-dark, The blocked-issues list.}
 
 @node List and Show Views

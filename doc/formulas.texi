@@ -55,7 +55,7 @@ lower on the @command{bd} search path with a @samp{⧉shad} badge; its
 help-echo names the shadowed path.  @code{beads-formula-scope} switches the
 scope filter between @code{project}, @code{user}, and @code{all}.
 
-@anchor{fig:formula-dark}
+@anchor{fig-formula-dark}
 @shot{formula-dark, The formula menu (@code{beads-formula-menu}).}
 
 @node Molecules
@@ -72,7 +72,7 @@ Open the molecule menu: instantiate, combine, inspect, clean up, and
 health-check molecules.
 @end deffn
 
-@anchor{fig:molecule-dark}
+@anchor{fig-molecule-dark}
 @shot{molecule-dark, The molecule view of the fixture epic showing poured steps.}
 
 @menu
@@ -216,9 +216,9 @@ Close eligible --- close every epic whose children are all complete.  Pass
 @code{--dry-run} to preview first.
 @end table
 
-@anchor{fig:epic-dark}
+@anchor{fig-epic-dark}
 @shot{epic-dark, An epic detail view with its children.}
-@anchor{fig:epic-light}
+@anchor{fig-epic-light}
 @shot{epic-light, The epic detail view with Emacs's default faces and no theme loaded.}
 
 @node Cook Pour and Burn

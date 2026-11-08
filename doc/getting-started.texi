@@ -2,21 +2,58 @@
 @chapter Getting Started
 @cindex getting started
 
-This chapter is a guided tour of @code{beads.el}: it opens the board,
-creates a first issue, and explains the interaction patterns every view
-shares.  Install the package first (@pxref{Installation and
-Requirements}); the vocabulary the rest of the manual assumes is defined
-in @ref{Concepts}, and the commands that create, list, view, edit, close,
-and label issues are in @ref{Issue Workflow}.
+This chapter is a guided tour of @code{beads.el}.  It walks one
+reproducible scenario through the deterministic demo project both this
+manual and the @code{gascity.el} manual use, and then explains the
+interaction patterns every view shares.  Create the demo project first
+(@pxref{The Shared Demo Project}), install the package
+(@pxref{Installation and Requirements}), and keep @ref{Concepts} handy
+for the vocabulary; the commands behind the walkthrough are in
+@ref{Issue Workflow}.
 
 @menu
-* Your First Issue::        Open the board and create an issue.
+* The Shared Walkthrough::  Create, list, show, triage, unblock, close, maintain.
 * Interface Concepts::      Modes, transients, actions, movement, stores.
 @end menu
 
-@node Your First Issue
-@section Your First Issue
-@cindex first issue
+@node The Shared Walkthrough
+@section The Shared Walkthrough
+@cindex walkthrough
+@cindex getting started walkthrough
+
+This is the one walkthrough both manuals share.  It assumes the
+canonical demo project exists, @command{bd} is on @env{PATH}, and
+@code{beads.el} is loaded from @file{lisp/} (or installed).  Create
+the project with @code{docs/manual/screenshots/fixture.sh create};
+@xref{The Shared Demo Project}, for the exact @file{/tmp/demo-project}
+path, the frozen dataset and its hash, the isolation guarantee, and
+the cross-repo contract with @code{gascity.el}.  Start a
+@w{@code{emacs -Q}} session, open @file{/tmp/demo-project} as the
+current directory, and follow the steps in order.  Every step names the
+exact keys to press, the buffer that opens, the echo-area or transient
+feedback to expect, and the screenshot that shows the result.
+
+The four shared demo steps, in the order both manuals describe them, are:
+triage @code{demo-3}, unblock @code{demo-4}, close @code{demo-6}, and
+inspect the @code{demo-10} epic.  The beads.el chapter expands them into
+the full arc: create, list, show, claim and update, dependency, close,
+and maintenance.
+
+@menu
+* Create an Issue::
+* List the Issues::
+* Show an Issue::
+* Triage demo-3 and Update It::
+* Unblock demo-4::
+* Close and Reopen demo-6::
+* Inspect the demo-10 Epic::
+* Open the Dispatch and Maintenance Menus::
+@end menu
+
+@node Create an Issue
+@subsection Create an Issue
+@cindex create an issue
+@cindex board
 
 @deffn Command beads
 Open the Beads board for the current project.  This is the primary entry
@@ -24,33 +61,201 @@ point of @code{beads.el}; it opens the full board (@code{beads-dashboard}).
 Press @kbd{?} inside the buffer for the @code{beads-dispatch} menu.
 @end deffn
 
+Open the board with @kbd{M-x beads}.  The buffer is named
+@code{*beads-dashboard<demo-project>*} and its header names the store
+(@pxref{fig-dashboard-dark}).
+
+Create a bead:
+
 @enumerate
 @item
-Open the board: @kbd{M-x beads}.
+Press @kbd{?} to open the dispatch menu.
 @item
-Press @kbd{?} for the dispatch menu, then @kbd{c} to create an issue.
+Press @kbd{c} to open the compose buffer
+@code{*beads-create[demo-project]*} (@pxref{fig-compose-dark}).
 @item
-Type the title on the first line, then the description below it.
+Type @kbd{Walkthrough: document the shared demo} on the first line.
 @item
-Press @kbd{C-c C-c} to submit.  The new issue appears in refreshed lists.
+Press @kbd{RET} twice and type a description, for example
+@kbd{Created from the shared demo walkthrough.}.
+@item
+Press @kbd{C-c C-c} to submit.  The echo area reports
+@code{Created issue demo-xxxx: Walkthrough: document the shared demo}
+(the generated id keeps the @code{demo} prefix) and open lists refresh.
 @end enumerate
 
-From the board, press @kbd{?} again and use:
+@kbd{C-c C-k} cancels the compose buffer instead.
 
-@table @kbd
-@kindex l
-@item l
-List all issues.
-@kindex r
-@item r
-List ready (unblocked) work.
-@kindex b
-@item b
-List blocked work.
-@kindex D
-@item D
-Open the full project dashboard.
-@end table
+@node List the Issues
+@subsection List the Issues
+@cindex listing issues
+
+Press @kbd{?} and then @kbd{l} to list every bead, closed ones included.
+The buffer is named @code{*beads-list[demo-project]*} and opens in
+@code{beads-list-mode} (@pxref{fig-list-dark}).  Each row shows the id,
+status, priority, type, and title.  The demo state is visible at a
+glance: @code{demo-3} is @code{in_progress} in the warning face
+(@code{beads-list-status-in-progress}), @code{demo-4} is
+@code{blocked} in the error face (@code{beads-list-status-blocked}), and
+@code{demo-6} is @code{closed} in the shadow face
+(@code{beads-list-status-closed}).  The new bead from the previous step
+appears in the same list.
+
+Move with @kbd{TAB} and @kbd{S-TAB}; @kbd{SPC} previews the bead at point
+in another window.
+
+@node Show an Issue
+@subsection Show an Issue
+@cindex showing an issue
+
+With point on @code{demo-3}, press @kbd{RET}.  The detail buffer is named
+@code{*beads-show[demo-project]/demo-3*} and opens in
+@code{beads-show-mode} (@pxref{fig-show-dark}).  The header renders the
+stored status @code{in_progress} as @code{In Progress} in the warning
+face, the priority 0 in the critical face, and the assignee
+@code{demo}.  The body renders sections for the description,
+dependencies, blocks, labels, and comments.
+
+@kbd{TAB} and @kbd{S-TAB} move between headings and references, @kbd{SPC}
+folds the section at point, @kbd{g} refreshes, and @kbd{q} quits.  Follow
+a reference with @kbd{RET}.
+
+@node Triage demo-3 and Update It
+@subsection Triage demo-3 and Update It
+@cindex triage
+@cindex claim
+
+With the @code{demo-3} detail buffer current, triage the bead in place:
+
+@enumerate
+@item
+Press @kbd{C} to claim it.  The echo area reports
+@code{Claimed 1 issue(s)} (the immediate refresh then reports
+@code{Refreshed demo-3}) and the assignee stays @code{demo} (the actor
+the fixture uses).
+@item
+Press @kbd{#} to set priority.  At the @code{Priority for demo-3:}
+prompt choose @code{1 - High}.  The echo area reports
+@code{Set priority to 1 for 1 issue(s)} and the priority renders in the
+@code{beads-list-priority-high} face (warning, bold); the refresh then
+reports @code{Refreshed demo-3}.
+@item
+Press @kbd{s} to set status.  At the @code{Status for demo-3:} prompt
+choose @code{in_progress}.  The echo area reports
+@code{Set status to 'in_progress' for 1 issue(s)} and the status renders
+in the warning face; the refresh then reports @code{Refreshed demo-3}.
+@end enumerate
+
+The fixture already starts @code{demo-3} in progress; pressing the keys
+records your actor as owner and demonstrates the update path the rest of
+the manual uses.  Refresh the list with @kbd{g} to see the new priority
+and owner.
+
+@node Unblock demo-4
+@subsection Unblock demo-4
+@cindex unblock
+@cindex dependency
+
+@code{demo-4} is blocked by @code{demo-3}.  Resolve the blocker, then
+reopen the dependent bead:
+
+@enumerate
+@item
+With the @code{demo-3} detail buffer current, press @kbd{d}.  At the
+@code{Close demo-3 reason:} prompt type @kbd{blocker resolved} and press
+@kbd{RET}.  The echo area reports @code{Closed 1 issue(s)} (then
+@code{Refreshed demo-3}).
+@item
+Open @code{demo-4} with @kbd{M-x beads-show} and choose @code{demo-4},
+or follow the @strong{Blocks} reference from @code{demo-3}.  The detail
+buffer renders @code{demo-4} as @code{Blocked} with a dependency on
+@code{demo-3}.
+@item
+Press @kbd{s} and choose @code{open}.  The echo area reports
+@code{Set status to 'open' for 1 issue(s)}.
+@item
+Press @kbd{?} and then @kbd{r} to open the ready list
+@code{*beads-ready[demo-project]*}.  @code{demo-4} is now listed as ready
+(@pxref{fig-ready-dark}), and the blocked list (@kbd{?} @kbd{b},
+@pxref{fig-blocked-dark}) no longer shows it.
+@end enumerate
+
+Closing @code{demo-3} satisfies its dependency; setting @code{demo-4} to
+@code{open} moves it into the ready frontier.  The two updates can be
+done in either order.
+
+@node Close and Reopen demo-6
+@subsection Close and Reopen demo-6
+@cindex close
+@cindex reopen
+
+@code{demo-6} starts closed.  Open the list with @kbd{?} @kbd{l}; the
+closed section is on a later page, so press @kbd{]} until the
+@code{demo-6} row is visible (or press @kbd{/} and filter by status
+@code{closed}).  Then:
+
+@enumerate
+@item
+Press @kbd{o} to reopen.  At the @code{Reopen demo-6 reason:} prompt
+press @kbd{RET} to accept the empty reason.  The echo area reports
+@code{Reopened 1 issue(s)} and the status changes to @code{open} in the
+success face (the list refresh then reports @code{Refreshed 13 issues}).
+@item
+Press @kbd{d} to close it again.  At the @code{Close demo-6 reason:}
+prompt type @kbd{walkthrough} and press @kbd{RET}.  The echo area
+reports @code{Closed 1 issue(s)} and the status returns to
+@code{closed} in the shadow face.
+@end enumerate
+
+In the list (@kbd{?} @kbd{l}) the @code{demo-6} row is now grey
+(@pxref{fig-list-dark}); the same keys work on marked rows and on
+every row of a list buffer.
+
+@node Inspect the demo-10 Epic
+@subsection Inspect the demo-10 Epic
+@cindex epic
+@cindex parent-child
+
+Run @kbd{M-x beads-epic-menu}.  The transient offers @kbd{s} (status
+overview) and @kbd{c} (close eligible); press @kbd{s}.
+
+The buffer @code{*beads-epic-status[demo-project]*} lists
+@code{demo-10}, @strong{Epic: rewrite the user manual}, with
+@code{Progress: 0/2 children closed (0%)} in the low-progress face.
+Press @kbd{SPC} on the epic to expand its children, @code{demo-11} and
+@code{demo-12}; press @kbd{RET} to open the epic's detail buffer, which
+renders the same two children under its parent-child section
+(@pxref{fig-epic-dark}).  @kbd{g} refreshes and @kbd{q} quits.
+
+Because both children are open, @code{demo-10} is not eligible for
+closure; that is what @kbd{c} would close once every child is done.
+
+@node Open the Dispatch and Maintenance Menus
+@subsection Open the Dispatch and Maintenance Menus
+@cindex dispatch menu
+@cindex maintenance menu
+
+The walkthrough ends at the two menus every other chapter uses.  From any
+beads buffer, press @kbd{?} to open the dispatch menu: @strong{Issues},
+@strong{Workflow}, @strong{Views}, and @strong{Manage}, with a
+@strong{Maintenance} row at the foot (@pxref{fig-dispatch-dark}).  The
+keys used above live there: @kbd{c} create, @kbd{l} list, @kbd{r} ready,
+@kbd{b} blocked, @kbd{d} dependencies, @kbd{C} claim, @kbd{s} status,
+and @kbd{#} priority.
+
+Press @kbd{!} from the dispatch menu (or @kbd{M-x beads-maintenance}) to
+open the maintenance menu (@pxref{fig-maintenance-dark}).  Its
+@strong{Issue Lifecycle}, @strong{Views & Reports}, @strong{Issue
+Details}, @strong{Events}, and @strong{Workflow} groups are the daily
+tools; @kbd{C-x l} cycles the transient level to reveal the
+@strong{Database}, @strong{Structure}, and @strong{Data & Sync} groups.
+Press @kbd{q} to quit a transient.
+
+That is the whole arc: create, list, show, claim and update, dependency,
+close, and maintenance.  The task chapters expand each part:
+@ref{Issue Workflow} for the commands, @ref{Dashboards and Views} for the
+read-only surfaces, @ref{Formulas Molecules and Epics} for epics and
+molecules, and @ref{Maintenance and Extending} for the admin menus.
 
 @node Interface Concepts
 @section Interface Concepts
@@ -150,7 +355,7 @@ Open the full project board.  The board resolves the Beads store from
 (@pxref{Store Scoping}).
 @end deffn
 
-@anchor{fig:dashboard-dark}
+@anchor{fig-dashboard-dark}
 @shot{dashboard-dark, The project board.}
 
 @deffn Command beads-dispatch
@@ -179,7 +384,8 @@ command-class slot metadata; @pxref{Issue Workflow}.
 maps.  They detect the issue at point (falling back to
 @code{completing-read}) and act immediately.
 
-Examples in @code{beads-list-mode} and @code{beads-show-mode}:
+Examples in @code{beads-list-mode}; @code{beads-show-mode} binds the
+same claim, close, status, and priority keys (reopen is list-only):
 
 @table @kbd
 @kindex C

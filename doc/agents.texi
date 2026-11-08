@@ -56,9 +56,9 @@ Jump to the agent buffer.
 Start the generic agent at point.
 @end table
 
-@anchor{fig:agents-dark}
+@anchor{fig-agents-dark}
 @shot{agents-dark, The agent session list (@code{beads-agent-list}).}
-@anchor{fig:agent-menu-dark}
+@anchor{fig-agent-menu-dark}
 @shot{agent-menu-dark, The agent menu (@code{beads-agent}).}
 
 @node Agent Types
@@ -148,7 +148,7 @@ From the dispatch menu, open the swarm fleet list
 From the maintenance menu, open the swarm sub-dispatch.
 @end table
 
-@anchor{fig:swarm-dark}
+@anchor{fig-swarm-dark}
 @shot{swarm-dark, The swarm fleet list showing wave progress.}
 
 Sling is preview-first.  Pressing @kbd{s} in the sling menu opens the

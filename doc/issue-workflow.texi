@@ -89,7 +89,7 @@ optional.  On success the buffer is killed and open lists are refreshed.
 @kbd{C-c C-k} cancels; you are asked to confirm if there are unsaved
 changes.
 
-@anchor{fig:compose-dark}
+@anchor{fig-compose-dark}
 @shot{compose-dark, The compose buffer for a new issue.}
 
 @node Listing Issues
@@ -181,9 +181,9 @@ fetches is dropped and @kbd{g} reloads from page 1.
 @kbd{TAB} and @kbd{S-TAB} move between rows and wrap; @kbd{SPC} previews
 the issue at point in another window (@pxref{One Movement Scheme}).
 
-@anchor{fig:list-dark}
+@anchor{fig-list-dark}
 @shot{list-dark, The issue list as a sortable filterable table.}
-@anchor{fig:list-light}
+@anchor{fig-list-light}
 @shot{list-light, The same issue list with Emacs's default faces and no theme loaded.}
 
 @node Viewing Issues
@@ -227,9 +227,9 @@ Refresh.
 Quit.
 @end table
 
-@anchor{fig:show-dark}
+@anchor{fig-show-dark}
 @shot{show-dark, The issue detail view with dependencies and comments.}
-@anchor{fig:show-light}
+@anchor{fig-show-light}
 @shot{show-light, The same issue detail view with Emacs's default faces and no theme loaded.}
 
 @node Editing Issues

@@ -12,6 +12,7 @@ it up.  Once it is installed, continue with @ref{Getting Started}.
 * Installing from Source::
 * Initial Setup::
 * The Shared Demo Project::
+* Tested with::
 @end menu
 
 @node Requirements
@@ -103,9 +104,12 @@ refused rather than deleted.  @code{teardown} accepts only the exact shared
 path, requires the marker, and succeeds when the directory is already gone.
 
 @cindex fixture dataset hash
-The dataset is frozen at twelve role-keyed issues, @code{demo-1} through
-@code{demo-12}, with pinned ids, dependencies, labels, comments, and
-timestamps.  Its @code{sha256} digest is
+The dataset is frozen at twelve role-keyed issues with pinned ids,
+dependencies, labels, comments, and timestamps.  The twelve ids are
+@code{demo-1}, @code{demo-2}, @code{demo-3}, @code{demo-4},
+@code{demo-5}, @code{demo-6}, @code{demo-7}, @code{demo-8},
+@code{demo-9}, @code{demo-10}, @code{demo-11}, and @code{demo-12}.
+Its @code{sha256} digest is
 @code{6504c508bd25f3a2efc8a0e99bc940767b3306ae41352077fa446d2d6c319ca8}.
 @code{fixture.sh verify} hashes the dataset against the single
 @code{FIXTURE_DATA_SHA256} literal in @code{fixture.sh}, then checks that this
@@ -126,7 +130,61 @@ workspace lock.  The lock file lives next to, never inside, the project;
 @code{capture.sh} exports @code{FIXTURE_LOCK_HELD=1} after acquiring it so the
 nested @code{fixture.sh} calls it makes do not block against their own parent.
 
+@cindex cross-repo contract
+@cindex demo-rig
+@cindex gascity-fixture
+The @code{gascity.el} manual uses the same checkout as the @code{demo-rig}
+rig inside the throwaway @file{/tmp/gascity-fixture} city.  The beads and
+their ids, titles, and statuses are identical; both manuals use the same
+vocabulary: @dfn{bead}, the status names @code{open}, @code{in_progress},
+@code{blocked}, and @code{closed}, and @dfn{epic}.  Only the surrounding
+city is specific to @code{gascity.el}.
+
+Every bead is held by the @code{demo} actor.  @command{bd} refuses to let
+another actor claim or close a held bead, so run the walkthrough with
+@env{BEADS_ACTOR=demo} in the environment:
+
+@example
+BEADS_ACTOR=demo emacs -Q
+@end example
+
 To follow along, create the project, open Emacs in it, and continue with
-@ref{Getting Started}.  The @ref{Issue Workflow} chapter carries the
-walkthrough that triages @code{demo-3}, unblocks @code{demo-4}, closes
-@code{demo-6}, and inspects the @code{demo-10} epic.
+@ref{Getting Started}.  @ref{The Shared Walkthrough} carries the walkthrough
+that triages @code{demo-3}, unblocks @code{demo-4}, closes @code{demo-6},
+and inspects the @code{demo-10} epic.
+
+@node Tested with
+@section Tested with
+@cindex tested with
+@cindex versions
+@cindex GNU Guix
+@cindex reproducible environment
+
+The screenshots and the manual-only black-box QA pass for this edition
+were produced with this environment:
+
+@table @asis
+@item Emacs
+GNU Emacs 31.1 (@code{emacs --version}).  The screenshots were captured
+from a graphical pgtk build; the QA pass followed the walkthrough in
+@code{emacs -nw -Q}.
+@item GNU Guix
+@command{guix describe} records the @code{guix} channel at commit
+@code{f546638fed68114b67e5bf1c681c5c62876a4018} (with the
+@code{asahi} channel at @code{b9132769b361431e999f7d166d715ef4c6e101d2}).
+The development environment is @code{guix shell -D -f guix.scm}.
+@item Beads CLI
+@command{bd} 1.3.2 (dev).
+@item Supporting tools
+Dolt 2.4.2, Graphviz 7.0.1, sway 1.12, and ImageMagick 6.9.13-5.
+@end table
+
+The demo dataset is
+@file{docs/manual/screenshots/fixtures/beads-fixture.jsonl}, SHA-256
+@code{sha256:6504c508bd25f3a2efc8a0e99bc940767b3306ae41352077fa446d2d6c319ca8}.
+@xref{The Shared Demo Project}, for how to recreate it.
+
+The automated CI matrix is cited separately and is not the capture
+environment: CI runs Emacs 29.4, 30.2, 31.1, and snapshot.  Emacs 29.4 is
+@code{continue-on-error} because of a known EIEIO byte-compilation bug,
+so a 29.4-only failure is not necessarily a regression.
