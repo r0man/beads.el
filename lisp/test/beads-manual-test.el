@@ -7,10 +7,12 @@
 
 ;;; Commentary:
 
-;; Guards for W7 (implementation plan WI-6; REQ-007, REQ-008, REQ-010;
-;; plan-review P2, P3): the deterministic fixture, the capture scope
-;; parser, the manifest/view/page/image contract, and the isolation list
-;; shared with `beads-test-isolation-env-vars'.
+;; Guards for W7 and W8 (implementation plan WS-8; REQ-014, REQ-015;
+;; AC-004, AC-005; plus the W7 fixture/scope/manifest guards): the
+;; deterministic fixture, the capture scope parser, the
+;; manifest/view/page/image contract, the isolation list shared with
+;; `beads-test-isolation-env-vars', the no-third-party-theme policy, and
+;; image-orphan coverage.
 ;;
 ;; The `:unit' tests read files and run the resolution-only paths of
 ;; `capture.sh --list-views' and `fixture.sh print-isolation-vars', none
@@ -71,6 +73,36 @@
     "maintenance" "agent-menu" "formula")
   "The complete view set of the capture manifest, in manifest order.")
 
+(defconst beads-manual-test--theme-path-files
+  (mapcar (lambda (file) (expand-file-name file beads-manual-test--root))
+          '("docs/manual/screenshots/capture.sh"
+            "docs/manual/screenshots/fixture.sh"
+            "docs/manual/screenshots/formula-verify.sh"
+            "docs/manual/screenshots/beads-shots.el"
+            "docs/manual/screenshots/screenshot.el"
+            "scripts/emacs-minimal"
+            "share/emacs.d/init.el"
+            "Makefile.am"
+            "guix.scm"))
+  "The capture/test/build path scanned for third-party theme use (AC-004).
+Prose (the screenshot README) is excluded on purpose: it documents the
+removed requirement, it does not load a theme.")
+
+(defconst beads-manual-test--third-party-theme-patterns
+  '(("\\buse-package[ \t\n]+['\"]?[a-z0-9-]*themes?\\b"
+     . "use-package of a theme")
+    ("\\bemacs-[a-z0-9-]*themes?\\b"
+     . "theme package requirement")
+    ("\\(?:require\\|load\\|load-file\\)[ \t]+['\"]ef-"
+     . "require/load of an ef- theme")
+    ("screenshot-theme-library[ \t\n]+['\"]"
+     . "literal screenshot-theme-library")
+    ("\\bBEADS_SHOT_THEME_LIBRARY=['\"]?[^'\" \t$]"
+     . "literal BEADS_SHOT_THEME_LIBRARY"))
+  "Requirement/load forms that would introduce a third-party theme.
+Each entry is (REGEXP . DESCRIPTION).  A docstring that merely cites
+`ef-themes' as an example matches none of these.")
+
 ;;; ============================================================
 ;;; Helpers
 ;;; ============================================================
@@ -108,6 +140,64 @@ ENV is passed through to `beads-manual-test--run'."
          (output (cdr result)))
     (should (equal code 0))
     (split-string output "[\n\r]+" t)))
+
+(defun beads-manual-test--run-stdout (program args &optional env)
+  "Run PROGRAM with ARGS and return (EXIT-CODE . STDOUT).
+Standard error is discarded, so a caller can assert a command's reserved
+stdout contract (the pipeline sends all progress chatter to stderr)."
+  (let ((out (generate-new-buffer " *beads-manual-stdout-only*"))
+        (process-environment (append env process-environment)))
+    (unwind-protect
+        (cons (apply #'call-process program nil (list out nil) nil args)
+              (with-current-buffer out (buffer-string)))
+      (kill-buffer out))))
+
+(defun beads-manual-test--theme-violations (&optional files)
+  "Return \"FILE:LINE: DESCRIPTION\" for third-party theme use in FILES.
+FILES defaults to the capture/test/build path.  Only requirement/load
+forms are matched, so the verbatim engine docstring -- which merely cites
+`ef-themes' as an example of an external theme library -- cannot trip the
+gate.  A missing file is itself reported, because the gate must not pass
+vacuously after a rename."
+  (let (violations)
+    (dolist (file (or files beads-manual-test--theme-path-files))
+      (cond
+       ((not (file-readable-p file))
+        (push (format "%s: missing from the capture path"
+                      (file-relative-name file beads-manual-test--root))
+              violations))
+       (t
+        (let ((text (beads-manual-test--slurp file)))
+          (dolist (pattern beads-manual-test--third-party-theme-patterns)
+            (let ((pos 0))
+              (while (string-match (car pattern) text pos)
+                (with-temp-buffer
+                  (insert text)
+                  (push (format "%s:%d: %s"
+                                (file-relative-name file
+                                                   beads-manual-test--root)
+                                (line-number-at-pos (match-beginning 0))
+                                (cdr pattern))
+                        violations))
+                (setq pos (match-end 0)))))))))
+    (nreverse violations)))
+
+(defun beads-manual-test--manifest-themes ()
+  "Return the THEME field of every slot line in the capture manifest."
+  (let (themes)
+    (with-temp-buffer
+      (insert (beads-manual-test--slurp beads-manual-test--capture))
+      (goto-char (point-min))
+      (when (search-forward "read -r -d '' MANIFEST" nil t)
+        (forward-line 1)
+        (while (and (not (eobp)) (not (looking-at-p "EOF")))
+          (let ((line (string-trim
+                       (buffer-substring-no-properties
+                        (line-beginning-position) (line-end-position)))))
+            (unless (string-empty-p line)
+              (push (car (split-string line "[\t ]+")) themes)))
+          (forward-line 1))))
+    (nreverse themes)))
 
 (defun beads-manual-test--fixture-issues ()
   "Parse the fixture JSONL into a list of alists."
@@ -191,6 +281,41 @@ violation."
             (unless (string-suffix-p "-thumb" path)
               (push (concat path ".png") refs))))))
     (nreverse refs)))
+
+(defun beads-manual-test--referenced-images (&optional pages)
+  "Return the set of `images/...' references PAGES make.
+Resolves the bounded `@shot{<name>, ...}' macro to `images/<name>.png'
+and its `images/<name>-thumb.png' preview, plus any literal
+`images/<file>.png'.  PAGES defaults to the handwritten chapters."
+  (let ((referenced (make-hash-table :test #'equal)))
+    (dolist (page (or pages (beads-manual-test--manual-pages)))
+      (dolist (line (split-string (cdr page) "\n" t))
+        (cond
+         ((string-prefix-p "@shot{" line)
+          (let ((name (string-trim
+                       (car (split-string (substring line 6) ",")))))
+            (puthash (concat "images/" name ".png") t referenced)
+            (puthash (concat "images/" name "-thumb.png") t referenced)))
+         (t
+          (let ((pos 0))
+            (while (string-match "images/[A-Za-z0-9._-]+[.]png" line pos)
+              (puthash (substring line (match-beginning 0) (match-end 0))
+                       t referenced)
+              (setq pos (match-end 0))))))))
+    referenced))
+
+(defun beads-manual-test--orphan-images (&optional images-dir pages)
+  "Return the `images/...' references no page embeds.
+IMAGES-DIR defaults to the manual's images directory and PAGES to the
+handwritten chapters.  Both the full image and its `-thumb' must be
+referenced; any other committed PNG is an orphan (AC-005)."
+  (let ((referenced (beads-manual-test--referenced-images pages))
+        (dir (or images-dir beads-manual-test--images-dir)))
+    (seq-remove
+     (lambda (reference) (gethash reference referenced))
+     (mapcar (lambda (file) (concat "images/" file))
+             (seq-filter (lambda (file) (string-suffix-p ".png" file))
+                         (directory-files dir nil nil t))))))
 
 (defun beads-manual-test--write-fake-engine (file body)
   "Write an executable fake capture engine to FILE with shell BODY."
@@ -331,6 +456,36 @@ path be recreated safely."
                          (list (concat "TMPDIR=" tmp)))))
             (should (equal 0 (car result)))
             (should (string-match-p "already gone" (cdr result)))))
+      (ignore-errors (delete-directory tmp t)))))
+
+(ert-deftest beads-manual-fixture-recreates-stale-marker-project ()
+  "`create' replaces a stale marker project at the shared path (REQ-001).
+The fixed path is reused on every run, so a leftover fixture carrying the
+marker must be recreated instead of refused -- and the command still
+prints exactly one stdout line, the project path."
+  :tags '(:integration)
+  (skip-unless (file-executable-p beads-manual-test--fixture))
+  (skip-unless (executable-find "bd"))
+  (skip-unless (executable-find "flock"))
+  (let* ((tmp (make-temp-file "beads-manual-fixture-stale-" t))
+         (project (expand-file-name "demo-project" tmp))
+         (env (list (concat "TMPDIR=" tmp)))
+         (first (beads-manual-test--run-stdout
+                 beads-manual-test--fixture '("create") env)))
+    (unwind-protect
+        (progn
+          (should (equal 0 (car first)))
+          (should (equal (string-trim (cdr first)) project))
+          (should (file-exists-p
+                   (expand-file-name ".beads-fixture-project" project)))
+          (let ((second (beads-manual-test--run-stdout
+                         beads-manual-test--fixture '("create") env)))
+            (should (equal 0 (car second)))
+            (should (equal (string-trim (cdr second)) project))
+            (should (file-exists-p
+                     (expand-file-name ".beads-fixture-project" project)))))
+      (beads-manual-test--run beads-manual-test--fixture
+                              (list "teardown" project) env)
       (ignore-errors (delete-directory tmp t)))))
 
 (ert-deftest beads-manual-fixture-serializes-on-shared-lock ()
@@ -536,28 +691,93 @@ image-coverage gate: dropping a view's illustration must fail it."
   :tags '(:unit)
   (should-not (beads-manual-test--unbounded-image-references)))
 
-(ert-deftest beads-manual-manifest-theme-consistency ()
-  "The manifest dark theme and the shot engine default agree (REQ-004).
-The concrete theme is switched by the theme work item; this gate keeps
-`capture.sh' and `beads-shots.el' pinned to one standard dark theme."
+(ert-deftest beads-manual-image-orphans ()
+  "Every committed image, full size and thumbnail, is referenced (AC-005).
+This is the reverse of `beads-manual-image-references-exist': a committed
+PNG that no `@shot' or `@image' embeds is an orphan the manual no longer
+shows."
   :tags '(:unit)
-  (let* ((capture (beads-manual-test--slurp beads-manual-test--capture))
-         (shots (beads-manual-test--slurp beads-manual-test--shots))
-         (manifest-theme
-          (with-temp-buffer
-            (insert capture)
-            (goto-char (point-min))
-            (when (re-search-forward
-                   "^[ \t]*\\([A-Za-z0-9._-]+\\)[ \t]+-dark" nil t)
-              (match-string 1))))
-         (engine-theme
-          (and (string-match
-                "BEADS_SHOT_THEME\"[ \t]*\"\\([A-Za-z0-9._-]+\\)\""
-                shots)
-               (match-string 1 shots))))
-    (should manifest-theme)
-    (should engine-theme)
-    (should (equal manifest-theme engine-theme))))
+  (let ((committed
+         (mapcar (lambda (file) (concat "images/" file))
+                 (seq-filter (lambda (file) (string-suffix-p ".png" file))
+                             (directory-files beads-manual-test--images-dir
+                                              nil nil t)))))
+    (should committed)
+    (should-not (beads-manual-test--orphan-images))))
+
+(ert-deftest beads-manual-image-orphans-detects-injected ()
+  "The orphan gate reports an unreferenced full image or thumbnail."
+  :tags '(:unit)
+  (let* ((dir (make-temp-file "beads-manual-orphans-" t))
+         (page (expand-file-name "page.texi" dir))
+         (images (expand-file-name "images" dir)))
+    (unwind-protect
+        (progn
+          (make-directory images)
+          (write-region "@shot{list, A list view}\n" nil page)
+          (dolist (name '("list.png" "list-thumb.png" "stale.png"))
+            (write-region name nil (expand-file-name name images)))
+          (should (equal (beads-manual-test--orphan-images
+                          images
+                          (list (cons page (beads-manual-test--slurp page))))
+                         '("images/stale.png"))))
+      (ignore-errors (delete-directory dir t)))))
+
+(ert-deftest beads-manual-manifest-theme-consistency ()
+  "The manifest slots and the shot engine resolve to the same default (REQ-004).
+Both slots name the `default' sentinel, which `beads-shots-theme' resolves
+to nil (load no theme); the manifest must not claim a third-party theme
+that the capture path does not load."
+  :tags '(:unit)
+  (let ((themes (beads-manual-test--manifest-themes)))
+    (should themes)
+    (should (equal themes (make-list (length themes) "default")))
+    (let ((process-environment
+           (cons "BEADS_SHOTS_NO_RUN=1"
+                 (cons "BEADS_SHOT_THEME=default"
+                       (cons "BEADS_SHOT_THEME_LIBRARY="
+                             process-environment)))))
+      (load beads-manual-test--shots t t)
+      (should-not (beads-shots-theme))
+      (should-not (beads-shots-theme-library)))))
+
+(ert-deftest beads-manual-no-third-party-theme ()
+  "The capture, test, and build path loads no third-party theme (REQ-004).
+`beads-shots.el' is the only theme switch: the `default' sentinel means
+no theme, and a library is consulted only from an explicit
+`BEADS_SHOT_THEME_LIBRARY' value.  The verbatim engine docstring's
+`ef-themes' example is a citation, not a requirement or a load, so only
+requirement/load forms are matched."
+  :tags '(:unit)
+  (let ((violations (beads-manual-test--theme-violations)))
+    (should-not violations))
+  ;; The engine keeps a nil default, so a library can only reach it through
+  ;; the explicit environment value (an operator's opt-in).
+  (should (string-match-p
+           "screenshot-theme-library nil"
+           (beads-manual-test--slurp
+            (expand-file-name "docs/manual/screenshots/screenshot.el"
+                              beads-manual-test--root)))))
+
+(ert-deftest beads-manual-no-third-party-theme-detects-injected ()
+  "The theme gate reports a requirement/load but ignores a citation."
+  :tags '(:unit)
+  (let ((file (make-temp-file "beads-manual-theme-" nil ".el")))
+    (unwind-protect
+        (progn
+          (write-region (concat "(use-package ef-themes)\n"
+                                "(require 'ef-cyprus)\n"
+                                "(setq screenshot-theme-library \"ef-themes\")\n")
+                        nil file)
+          (should (= 3 (length (beads-manual-test--theme-violations
+                                (list file)))))
+          ;; The verbatim engine docstring cites an example only; a
+          ;; citation must not be flagged, nor must the nil default.
+          (write-region (concat "(defun x () \"(e.g. ef-themes from a Guix profile).\")\n"
+                                "(defvar screenshot-theme-library nil)\n")
+                        nil file)
+          (should-not (beads-manual-test--theme-violations (list file))))
+      (ignore-errors (delete-file file)))))
 
 ;;; ============================================================
 ;;; Forbidden host-name gate (REQ-015, REQ-016)

@@ -313,9 +313,14 @@ The contract fixes exactly these values:
   `changed` selects the views touched by the working diff, and a
   comma-separated list selects that exact subset. A subset run must not
   rewrite or delete any out-of-scope image.
-- **Fixture**: referenced by role, never by a stored id; the generated ids
-  have the form `demo-<role>`. It is a deterministic, isolated temporary
-  project, never the repository or a live store.
+- **Fixture**: the one shared project is `${TMPDIR:-/tmp}/demo-project`
+  (default `/tmp/demo-project`), marker `.beads-fixture-project`, seeded with
+  the frozen `demo-1` … `demo-12` role ids; it is never the repository or a
+  live store. The sibling `gascity.el` manual points the same checkout at the
+  `demo-rig` rig inside its throwaway `/tmp/gascity-fixture` city (marker
+  `.gascity-fixture-project`). The ids, titles, statuses, and vocabulary are
+  identical, and `fixture.sh` refuses to delete a sibling's project rather
+  than replacing it.
 - **Layout**: `screenshots/` holds the pipeline and `images/` holds the
   committed images.  beads.el keeps both under `docs/manual/` even though
   its manual source moved to `doc/`; gascity.el keeps them under `doc/`.

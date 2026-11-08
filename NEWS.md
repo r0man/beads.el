@@ -4,6 +4,26 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### User manual: one shared demo fixture and default-face screenshots
+
+* **The user manual's screenshots now come from one shared
+  `${TMPDIR:-/tmp}/demo-project` fixture.**
+  `docs/manual/screenshots/fixture.sh` creates the same marker-guarded store
+  the sibling `gascity.el` manual documents, seeded with the frozen
+  `demo-1` … `demo-12` dataset, and refuses to replace a project it does not
+  own.  The screenshot README and the manual's "The Shared Demo Project"
+  section are the authoritative contract for the path, the lock, and the
+  dataset hash.
+* **Every screenshot is captured from Emacs's built-in default faces.**  No
+  third-party theme is required or loaded by the capture, test, or build path;
+  the `-dark` and `-light` filenames remain link-stability slots rather than
+  theme claims.
+* **The manual is complete and exercised.**  The walkthrough, reference, and
+  index are covered by the test suite, and the manual-only black-box pass with
+  its durable report is committed at
+  `plans/manual-demo-consistency/qa-report.md`.  These are documentation
+  changes only; no runtime behavior is claimed.
+
 ### Eldoc previews work on ssh-pipe remotes without a prior connection
 
 * **Eldoc no longer skips a single-hop ssh store whose TRAMP connection is
