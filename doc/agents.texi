@@ -25,36 +25,73 @@ Reference}.
 @section Agent Commands
 @cindex agent commands
 
-Agent commands are bound under the @kbd{a} prefix in list and show
-buffers, and the full menu is on @kbd{a} in the dispatch menu
+Agent commands are bound under the @kbd{a} prefix in list, show, and
+dashboard buffers, and the full menu is on @kbd{a} in the dispatch menu
 (@pxref{Transients}).
 
 @table @kbd
-@kindex a
-@kindex t
-@item @kbd{a} @kbd{t}
-Start a task agent.
-@kindex r
-@item @kbd{a} @kbd{r}
-Start a review agent.
-@kindex p
-@item @kbd{a} @kbd{p}
-Start a plan agent.
-@kindex q
-@item @kbd{a} @kbd{q}
-Start a QA agent.
-@kindex c
-@item @kbd{a} @kbd{c}
-Start a custom agent.
-@kindex x
-@item @kbd{a} @kbd{x}
-Stop the agent at point.
+@kindex s
+@item s
+Start an agent on the issue at point.  This opens the launch transient
+described below.
+@kindex w
+@item w
+Sling the issue to a worktree.
+@kindex S
+@item S
+Stop the agent session at point.
 @kindex j
-@item @kbd{a} @kbd{j}
+@item j
 Jump to the agent buffer.
-@item @kbd{a} @kbd{a}
-Start the generic agent at point.
+@kindex p
+@item p
+Send a prompt to the agent.
+@kindex l
+@item l
+List active sessions.
+@kindex c
+@item c
+Clean up stale sessions.
+@kindex B
+@item B
+Set the default backend.
+@kindex g
+@item g
+Refresh the session state.
 @end table
+
+The launch transient (@kbd{s}) chooses the role, target, backend, and
+prompt before it launches:
+
+@table @kbd
+@kindex t
+@kindex r
+@item @kbd{t} @kbd{r} @kbd{p}
+Role: Task (the default), Review (with a QA mode toggle), or Plan
+(@kbd{p}).
+@kindex T
+@item @kbd{w} @kbd{T}
+Target: a derived new worktree (@kbd{w}), or an existing worktree to
+choose (@kbd{T}).
+@kindex b
+@item b
+Backend, with the documented backends first and the rest in a collapsed
+group.
+@kindex e
+@kindex P
+@item @kbd{e} @kbd{P}
+Edit (@kbd{e}) or preview (@kbd{P}) the user prompt.
+@kindex x
+@kindex q
+@item @kbd{x} @kbd{q}
+@kbd{s} starts the agent with the selected role, target, backend, and
+prompt; @kbd{x} resets the launch parameters and @kbd{q} quits without
+starting.
+@end table
+
+There is no separate @samp{Editor} role: a custom prompt is the Task role
+with an edited prompt.  The type names used by the prompt protocol are still
+Task, Review, Plan, QA, and Custom (@pxref{Agent Types}).
 
 @anchor{fig-agents-dark}
 @shot{agents-dark, The agent session list (@code{beads-agent-list}).}

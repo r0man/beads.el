@@ -54,6 +54,21 @@ path:
 (require 'beads)
 @end lisp
 
+Build the checkout first (@pxref{Building and Installing with Autotools}),
+then load the generated autoloads before requiring the package.  A plain
+@code{require} defines the eager commands, but lazily autoloaded suffixes
+(for example @code{beads-formula-distill} in the epic menu) come from
+@file{lisp/beads-autoloads.el}:
+
+@lisp
+(add-to-list 'load-path "/path/to/beads.el/lisp")
+(load "/path/to/beads.el/lisp/beads-autoloads.el")
+(require 'beads)
+@end lisp
+
+Installing with @command{make install} or from MELPA loads the same autoloads
+through the package system, so no explicit @code{load} is needed there.
+
 @node Initial Setup
 @section Initial Setup
 @cindex initial setup

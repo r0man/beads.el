@@ -64,8 +64,10 @@ so it appears under the dispatch menu without editing beads.el.
 @cindex maintenance groups
 
 The maintenance menu is organized by intent.  Transient levels control
-which groups are visible; cycle them with @code{transient-set-level}
-(@kbd{C-x l} by default).  Level 1 holds the daily operations, level 3
+which groups are visible.  Press @kbd{C-x l} (@code{transient-set-level})
+to show each suffix's level; press it again to prompt for the level to
+display (type @kbd{3} and press @kbd{RET} to reveal the database,
+structure, and data groups).  Level 1 holds the daily operations, level 3
 the database, structure, and data groups, level 5 the integrations
 sub-dispatcher, and level 7 the setup and migration sub-dispatcher.
 

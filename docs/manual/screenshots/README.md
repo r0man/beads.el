@@ -93,6 +93,17 @@ those names into `docs/manual/images/`, so it never rewrites or deletes an
 out-of-scope image. `--scope <unknown>` exits non-zero (status 2) before
 anything runs.
 
+**Scope and view history.** The show and epic views render a `↩ Back to …`
+link to the beads view they were opened from, so that row is part of the
+image. A full run captures the manifest order (show after dashboard, epic
+after show), which is why the committed `show` image links back to the
+dashboard and the `epic` image links back to the show detail. A subset run
+that starts from a fresh session has no previous beads view and therefore
+renders the same view without that link. `--verify` still passes because it
+compares two runs of the same scope, but a subset capture is not
+byte-identical to its full-run counterpart. Regenerate canonical committed
+images with `--scope all` (or include the manifest neighbours in the subset).
+
 ### Shared fixture, lock, and dataset hash (REQ-001, REQ-002)
 
 The project path is fixed, not per-run, because it is a cross-repo contract
