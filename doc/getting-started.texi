@@ -38,12 +38,16 @@ Press @kbd{C-c C-c} to submit.  The new issue appears in refreshed lists.
 From the board, press @kbd{?} again and use:
 
 @table @kbd
+@kindex l
 @item l
 List all issues.
+@kindex r
 @item r
 List ready (unblocked) work.
+@kindex b
 @item b
 List blocked work.
+@kindex D
 @item D
 Open the full project dashboard.
 @end table
@@ -178,18 +182,25 @@ maps.  They detect the issue at point (falling back to
 Examples in @code{beads-list-mode} and @code{beads-show-mode}:
 
 @table @kbd
+@kindex C
 @item C
 Claim the issue at point.
+@kindex d
 @item d
 Close the issue at point (prompts for a reason).
+@kindex o
 @item o
 Reopen a closed issue.
+@kindex s
 @item s
 Set status.
+@kindex #
 @item #
 Set priority.
+@kindex E
 @item E
 Edit the description.
+@kindex N
 @item N
 Add a comment.
 @end table
@@ -205,10 +216,13 @@ is the title, everything after the first blank line is the Markdown
 description.
 
 @table @kbd
+@kindex C-c C-c
 @item C-c C-c
 Submit (create the issue, save the edit, post the comment).
+@kindex C-c C-k
 @item C-c C-k
 Cancel and restore the previous window configuration.
+@kindex C-c C-a
 @item C-c C-a
 Open the metadata sidebar (type, priority, labels, parent).
 @end table
@@ -222,13 +236,18 @@ In @code{beads-list-mode} you can mark several issues and act on them as
 a batch:
 
 @table @kbd
+@kindex m
 @item m
 Mark the issue at point.
+@kindex u
 @item u
 Unmark the issue at point.
+@kindex U
 @item U
 Unmark all issues.
-@item * !
+@kindex *
+@kindex !
+@item @kbd{*} @kbd{!}
 Mark all issues.
 @end table
 

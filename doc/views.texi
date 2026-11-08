@@ -134,12 +134,16 @@ adds navigation for large result sets.
 @end deffn
 
 @table @kbd
+@kindex ]
 @item ]
 Move to the next page.
+@kindex [
 @item [
 Move to the previous page.
+@kindex G
 @item G
 Jump to a page.
+@kindex g
 @item g
 Refresh the current view.
 @end table

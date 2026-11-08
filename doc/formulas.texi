@@ -31,10 +31,12 @@ Open the formula menu.  Press @kbd{F} from the dispatch menu
 @end deffn
 
 @table @kbd
+@kindex l
 @item l
 List available formulas.  Filter by type (@code{workflow}, @code{expansion},
 or @code{aspect}) in the browser, or pass a prefix argument to
 @code{beads-formula-browse}.
+@kindex s
 @item s
 Show a formula's details: phase, version, @code{extends}, aspects,
 expansion formulas, composition bond points, and each step's type,
@@ -43,11 +45,11 @@ pattern, default, and required flag.  Variables inherited from
 @code{extends} parents are included, so a child formula such as
 @code{build-basic} shows the @code{artifact_root} declared on
 @code{build-base}.
+@kindex c
 @item c
 Convert a formula from JSON to TOML.
 @end table
 
-@vindex beads-formula-scope
 The formula browser marks a formula whose name shadows a same-name formula
 lower on the @command{bd} search path with a @samp{⧉shad} badge; its
 help-echo names the shadowed path.  @code{beads-formula-scope} switches the
@@ -87,8 +89,10 @@ health-check molecules.
 @cindex wisping a molecule
 
 @table @kbd
+@kindex p
 @item p
 Pour --- create a persistent molecule from a proto.
+@kindex w
 @item w
 Wisp --- create an ephemeral molecule.
 @end table
@@ -132,8 +136,10 @@ Show --- list the molecule root and its stepped issues.
 @cindex distilling a molecule
 
 @table @kbd
+@kindex b
 @item b
 Bond --- merge molecules together.
+@kindex d
 @item d
 Distill --- extract a proto from existing issues.
 @end table
@@ -143,10 +149,13 @@ Distill --- extract a proto from existing issues.
 @cindex molecule progress
 
 @table @kbd
+@kindex s
 @item s
 Show molecule details.
+@kindex c
 @item c
 Show the current active molecule.
+@kindex P
 @item P
 Show molecule progress.
 @end table
@@ -157,8 +166,10 @@ Show molecule progress.
 @cindex burning a molecule
 
 @table @kbd
+@kindex S
 @item S
 Squash --- collapse molecule history.
+@kindex B
 @item B
 Burn --- destroy a molecule.
 @end table
@@ -169,12 +180,16 @@ Burn --- destroy a molecule.
 @cindex molecule seed
 
 @table @kbd
+@kindex r
 @item r
 Ready --- find molecules ready for work.
+@kindex t
 @item t
 Stale --- find stale molecules.
+@kindex e
 @item e
 Seed --- verify molecule seed data integrity.
+@kindex l
 @item l
 Last activity --- show when each molecule was last touched.
 @end table
@@ -190,10 +205,12 @@ bound to a key in the dispatch menu.
 @end deffn
 
 @table @kbd
+@kindex s
 @item s
 Status overview --- an interactive buffer listing every epic with progress
 bars, child counts, and closure eligibility.  @kbd{SPC} expands or collapses
 children; @kbd{RET} opens an epic (@pxref{Viewing Issues}).
+@kindex c
 @item c
 Close eligible --- close every epic whose children are all complete.  Pass
 @code{--dry-run} to preview first.
