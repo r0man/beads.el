@@ -172,7 +172,10 @@ rest of the manual: it snapshots the `sha256` digest and `mtime` of every
 `docs/manual/images/*.png`, runs the subset through the real capture and
 compress path, and fails, naming each offending image, if any **non-selected**
 image changed byte-for-byte or in mtime. It requires a prior `--scope all`
-run to have populated `docs/manual/images/`.
+run to have populated `docs/manual/images/`. The run compresses into
+scratch space under `BEADS_SHOT_STAGING`, so it does not rewrite the
+*selected* committed images either: a fresh single-view capture is not
+canonical (the `show`/`epic` back-link depends on view history).
 
 ```sh
 ./capture.sh --scope all            # populate images/

@@ -166,7 +166,7 @@ screenshot material the first pass left out.
 | Formula menu extras | `? F` | `l`/`s`/`c` plus `S` Schema index; epic menu also offers `D` Distill to formula | After fix 13: yes |
 | Fixture lifecycle | `fixture.sh verify`; `create` under a dedicated `TMPDIR` | `verify` builds and deletes its own copy; `create` refuses a path owned by the sibling fixture (marker guard) and succeeds under a private `TMPDIR` | After fixes 14–15: yes |
 | Status echoes | `#`, `s` in the demo-3 detail view | `Set priority to 1 for 1 issue(s)`; `Set status to ‘in_progress’ for 1 issue(s)` | After fix 16: yes |
-| Label list (defect) | `? L l` then `demo-4`, from the show view and from a list row | Signals `Wrong type argument: sequencep, 10` instead of listing labels; the other label commands (`a`, `r`, `L`) work | No — code defect, not an instruction gap; recorded below as discovered work |
+| Label list (defect) | `? L l` then `demo-4`, from the show view and from a list row | Signals `Wrong type argument: sequencep, 10` instead of listing labels; the other label commands (`a`, `r`, `L`) work | Yes (with documented defect) — the manual's Labels section now states the error and points at the show view's Labels section and `L`; the code fix is follow-up work, recorded below |
 | Screenshot/regen docs | `docs/manual/screenshots/README.md` run commands | The scoped capture, verify, and verify-scope commands behave as the README says; the maintenance image was refreshed in fix 12 | Yes |
 
 ## Verification
@@ -244,7 +244,10 @@ the TRAMP dashboard/list/show — all from the manual and `C-h` help.
   issue id at the `Issue ID:` prompt.  `? L a`, `? L r`, and `? L L` work, and
   the show view already renders the issue's labels, so the pass documents the
   defect instead of changing code: this is a discovered UI bug outside the
-  documentation-only scope of WS-7.
+  documentation-only scope of WS-7.  The manual's Labels section now records
+  the error and the workaround, so the row is manual-sufficient; fixing
+  `beads-label-list` itself is follow-up bug work (`be-s4x63`), not part of this
+  documentation pass.
 
 ## Requirements
 

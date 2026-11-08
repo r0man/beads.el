@@ -3869,8 +3869,8 @@ type’s icon resolves to nil (and renderers fall back to the letter)
 without consulting the slot.  Set the whole variable to nil to
 disable all overrides and use only class slots.
 
-Example:
-  (("task" . "🛠") ("review" . "🔍"))
+Example (a display string may be an emoji, a letter, or short text):
+  (("task" . "T") ("review" . "R"))
 Default: @code{nil}.
 @end defopt
 
@@ -3931,7 +3931,7 @@ Default: @code{30}.
 @defopt beads-agent-list-type-width
 Width of Type column in agent list.
 Holds the agent role icon (or single-letter fallback) plus the
-‘#N’ instance suffix (e.g. "🦅#1" or "T#1").  The default of 8
+‘#N’ instance suffix (e.g. the icon followed by "#1", or "T#1").  The default of 8
 leaves headroom for multi-digit instance numbers like ‘#10’ under
 GUI Emacs where the emoji occupies two display columns.
 Default: @code{8}.
@@ -4508,13 +4508,13 @@ Default: @code{300}.
 Width of Agents column in issue lists.
 Measured in display columns (as elsewhere in ‘tabulated-list-format’),
 not in characters.  Under GUI Emacs each agent emoji occupies two
-display columns; under TTY each letter occupies one.  Outcome glyphs
-(‘✓’/‘✗’) and the inter-agent separator each occupy one column.
+display columns; under TTY each letter occupies one.  Each outcome
+marker and the inter-agent separator occupies one column.
 
 Default width accommodates either:
   - two outcomed agents plus one running agent under GUI
-    (e.g. ‘✓🦅 ✗🦌 🦝’ = 3+1+3+1+2 = 10 cols, plus one column of
-    padding), or
+    (two 3-column entries and one 2-column entry = 10 cols, plus one
+    column of padding), or
   - three running agents (= 2+1+2+1+2 = 8 cols), or
   - five letter-only agents under TTY.
 
@@ -4639,7 +4639,7 @@ Default: @code{(2 5 15 60)}.
 
 @defopt beads-live-change-window
 Seconds a row stays marked as recently changed after a journal update.
-The ‘beads-event-changed’ face (the ‘◈’ marker) fades after this window
+The ‘beads-event-changed’ face on the change marker fades after this window
 so a burst of activity is visible without permanently recolouring rows.
 Default: @code{30}.
 @end defopt

@@ -212,6 +212,10 @@ remove_fixture_dir() {
 
 create_fixture() {
   [ -r "$FIXTURE_FILE" ] || die "fixture data not found: $FIXTURE_FILE"
+  # Check the tools before touching the shared path: a shell without `bd'
+  # must not destroy a working fixture and then fail (R3).
+  require_tool bd
+  require_tool git
   local project="$FIXTURE_PROJECT_DIR"
 
   # The path is shared and fixed, so a stale fixture is expected and is
@@ -222,9 +226,6 @@ create_fixture() {
       || die "refusing to remove $project: exists without $FIXTURE_MARKER (not a fixture project)"
     rm -rf -- "$project" || die "cannot remove the stale fixture: $project"
   fi
-
-  require_tool bd
-  require_tool git
 
   mkdir -p -- "$project" \
     || { remove_fixture_dir "$project"; die "mkdir failed: $project"; }

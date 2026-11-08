@@ -157,10 +157,11 @@ EOF
 # store.  fixture.sh holds the single editable list; read it back through
 # `print-isolation-vars' so capture.sh cannot silently drift from it
 # (plan-review P2).
-if [ -r "$FIXTURE_SH" ]; then
-  while IFS= read -r _var; do unset "$_var"; done \
-    < <("$FIXTURE_SH" print-isolation-vars)
-fi
+[ -r "$FIXTURE_SH" ] || fatal "fixture script not readable: $FIXTURE_SH"
+ISOLATION_VARS="$("$FIXTURE_SH" print-isolation-vars)" \
+  || fatal "fixture.sh print-isolation-vars failed; refusing to run unisolated"
+[ -n "$ISOLATION_VARS" ] || fatal "fixture.sh printed no isolation variables"
+for _var in $ISOLATION_VARS; do unset "$_var"; done
 
 # ---- Scope resolution --------------------------------------------------
 
@@ -365,8 +366,8 @@ capture_into() {
 
 # ---- Compress ---------------------------------------------------------
 compress() {
-  local srcdir="$1" total=0 raw name full thumb fs ts
-  mkdir -p "$IMAGES_DIR"
+  local srcdir="$1" outdir="${2:-$IMAGES_DIR}" total=0 raw name full thumb fs ts
+  mkdir -p "$outdir"
   shopt -s nullglob
   for raw in "$srcdir"/*.png; do
     name="$(basename "$raw" .png)"
@@ -376,7 +377,7 @@ compress() {
       case "$name" in "$v"-dark|"$v"-light) selected=1; break ;; esac
     done
     [ "$selected" = 1 ] || continue
-    full="$IMAGES_DIR/$name.png" thumb="$IMAGES_DIR/$name-thumb.png"
+    full="$outdir/$name.png" thumb="$outdir/$name-thumb.png"
     convert "$raw" -strip -resize "${FULL_W}x>" -dither None -colors "$FULL_COLORS" \
             -define png:compression-level=9 "$full"
     convert "$raw" -strip -resize "${THUMB_W}x>" -dither None -colors "$THUMB_COLORS" \
@@ -386,7 +387,7 @@ compress() {
     printf '  %-26s full=%6d  thumb=%6d\n' "$name" "$fs" "$ts" >&2
   done
   shopt -u nullglob
-  log "docs/manual/images total: $(awk "BEGIN{printf \"%.1f\", $total/1024}") KiB"
+  log "$outdir total: $(awk "BEGIN{printf \"%.1f\", $total/1024}") KiB"
 }
 
 # ---- Verify -----------------------------------------------------------
@@ -461,10 +462,13 @@ verify_scope_isolation() {
   fi
   log "verify-scope: snapshot of $(wc -l <"$snap/before") committed image(s) before scope $SCOPE"
 
-  rm -rf "$STAGING/scope-run"
+  rm -rf "$STAGING/scope-run" "$STAGING/scope-compress"
   mkdir -p "$STAGING/scope-run"
   capture_into "$STAGING/scope-run"
-  compress "$STAGING/scope-run"
+  # Compress into scratch space: this command only proves the *other*
+  # images are untouched, so it must not rewrite the selected committed
+  # images either (R1).
+  compress "$STAGING/scope-run" "$STAGING/scope-compress"
   snapshot_images "$snap/after"
 
   while read -r _ _ name; do

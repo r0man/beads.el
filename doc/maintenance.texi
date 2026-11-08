@@ -457,6 +457,13 @@ build repeats its cross-reference pass until none remain, so a successful
 run also proves that every @code{@@xref}-family target resolves in print.
 @end table
 
+The PDF gate checks Texinfo structure, not @TeX{} typography: a successful
+run reports no missing-node, undefined-reference, menu-entry, or undefined
+character diagnostics.  @TeX{}'s @samp{Underfull} and @samp{Overfull} box
+messages, which wide reference tables inevitably produce, are not warnings
+for this gate; the prose avoids characters that @command{texi2pdf} cannot
+map so no documented text is silently dropped from the PDF.
+
 @file{doc/beads.texi} is the only manual source; it @code{@@include}s one
 Texinfo chapter file per task area (@pxref{The Dispatch and Maintenance
 Menus} for where those chapters are).  @command{makeinfo} must report no

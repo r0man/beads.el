@@ -226,8 +226,15 @@ at a time; the closed section is on a later page."
       (catch 'found
         (dotimes (_ 20)
           (goto-char (point-min))
-          (when (re-search-forward (regexp-quote issue-id) nil t)
-            (throw 'found t))
+          ;; Anchor to the whole id: a created id like `demo-6ab' must not
+          ;; satisfy a search for `demo-6'.  The row's ID cell is the
+          ;; second check, so a column change cannot reintroduce the false
+          ;; match (RF-4 / AC-009).
+          (when (re-search-forward (concat "\\_<" (regexp-quote issue-id) "\\_>")
+                                   nil t)
+            (beginning-of-line)
+            (when (equal (tabulated-list-get-id) issue-id)
+              (throw 'found t)))
           (beads-pager-next-page))
         (ert-fail (format "list never showed %s in %s"
                           issue-id (buffer-name)))))))

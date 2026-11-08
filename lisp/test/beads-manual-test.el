@@ -458,6 +458,47 @@ path be recreated safely."
             (should (string-match-p "already gone" (cdr result)))))
       (ignore-errors (delete-directory tmp t)))))
 
+(ert-deftest beads-manual-fixture-checks-tools-before-deleting ()
+  "`create' checks bd/git before touching a marked fixture (R3).
+A shell whose PATH lacks `bd' must fail with an error that names `bd' and
+leave the existing marked fixture -- the one path both manuals promise to
+find -- intact."
+  :tags '(:unit)
+  (skip-unless (file-executable-p beads-manual-test--fixture))
+  (let* ((tmp (make-temp-file "beads-manual-fixture-tools-" t))
+         (project (expand-file-name "demo-project" tmp))
+         (marker (expand-file-name ".beads-fixture-project" project))
+         (sentinel (expand-file-name "sentinel.txt" project))
+         (stub (expand-file-name "bin" tmp))
+         (bash (executable-find "bash"))
+         (dirname (executable-find "dirname")))
+    (unwind-protect
+        (progn
+          (skip-unless bash)
+          (skip-unless dirname)
+          (make-directory project)
+          (write-region "" nil marker)
+          (write-region "keep\n" nil sentinel)
+          ;; A PATH with only the interpreter helpers the script needs at
+          ;; startup: it starts, but `command -v bd' fails.  The script
+          ;; computes its own directory with `dirname' before that, so both
+          ;; stay on the stub PATH.  FIXTURE_LOCK_HELD skips the flock
+          ;; dependency.
+          (make-directory stub)
+          (make-symbolic-link bash (expand-file-name "bash" stub))
+          (make-symbolic-link dirname (expand-file-name "dirname" stub))
+          (let ((result (beads-manual-test--run
+                         beads-manual-test--fixture '("create")
+                         (list (concat "TMPDIR=" tmp)
+                               (concat "PATH=" stub)
+                               "FIXTURE_LOCK_HELD=1"))))
+            (should (/= 0 (car result)))
+            (should (string-match-p "required tool not found on PATH: bd"
+                                    (cdr result)))
+            (should (file-exists-p marker))
+            (should (file-exists-p sentinel))))
+      (ignore-errors (delete-directory tmp t)))))
+
 (ert-deftest beads-manual-fixture-recreates-stale-marker-project ()
   "`create' replaces a stale marker project at the shared path (REQ-001).
 The fixed path is reused on every run, so a leftover fixture carrying the
@@ -911,16 +952,38 @@ requirement/load forms are matched."
             (should (string-match-p "verify FAILED" (cdr result)))))
       (ignore-errors (delete-directory dir t)))))
 
+(defun beads-manual-test--image-signature (file)
+  "Return (SHA256 . MTIME) for FILE, or nil when it is missing.
+Used to assert a command left a committed image byte- and mtime-identical."
+  (when (file-exists-p file)
+    (cons (with-temp-buffer
+            (set-buffer-multibyte nil)
+            (insert-file-contents-literally file)
+            (secure-hash 'sha256 (current-buffer)))
+          (file-attribute-modification-time (file-attributes file)))))
+
 (ert-deftest beads-manual-verify-scope-leaves-non-selected ()
-  "`--verify-scope' passes when only out-of-scope raws are produced."
+  "`--verify-scope' must not rewrite the selected committed images.
+A subset run is a proof about the *other* images; the selected images
+were captured by a canonical `--scope all' run, and a fresh single-view
+capture is not equivalent (the `show'/`epic' back-link depends on view
+history).  The fake engine emits both an out-of-scope raw and a selected
+one, and the committed `show-dark' pair must be untouched (R1)."
   :tags '(:integration)
   (skip-unless (file-executable-p beads-manual-test--capture))
   (let* ((source (expand-file-name "list-dark.png" beads-manual-test--images-dir))
+         (selected (expand-file-name "show-dark.png" beads-manual-test--images-dir))
+         (selected-thumb (expand-file-name "show-dark-thumb.png"
+                                           beads-manual-test--images-dir))
          (dir (make-temp-file "beads-manual-scope-" t))
          (engine (expand-file-name "engine.sh" dir))
          (project (expand-file-name "project" dir))
-         (staging (expand-file-name "staging" dir)))
+         (staging (expand-file-name "staging" dir))
+         (before (beads-manual-test--image-signature selected))
+         (before-thumb (beads-manual-test--image-signature selected-thumb)))
     (skip-unless (file-exists-p source))
+    (skip-unless before)
+    (skip-unless before-thumb)
     (unwind-protect
         (progn
           (make-directory project)
@@ -928,9 +991,13 @@ requirement/load forms are matched."
            engine
            (concat
             "mkdir -p \"$BEADS_SHOT_OUTDIR\"\n"
-            "# Deliberately write a raw for a view outside the selected scope.\n"
+            "# A raw for a view outside the selected scope, plus one for the\n"
+            "# selected view: only the image outside the scope may be ignored,\n"
+            "# and the selected committed image must not be replaced.\n"
             "cp \"$BEADS_SHOT_FIXTURE_IMAGE\""
-            " \"$BEADS_SHOT_OUTDIR/list$BEADS_SHOT_SUFFIX.png\"\n"))
+            " \"$BEADS_SHOT_OUTDIR/list$BEADS_SHOT_SUFFIX.png\"\n"
+            "cp \"$BEADS_SHOT_FIXTURE_IMAGE\""
+            " \"$BEADS_SHOT_OUTDIR/show$BEADS_SHOT_SUFFIX.png\"\n"))
           (let ((result (beads-manual-test--run
                          beads-manual-test--capture
                          (list "--verify-scope" "show")
@@ -939,8 +1006,58 @@ requirement/load forms are matched."
                                (concat "BEADS_SHOT_STAGING=" staging)
                                (concat "BEADS_SHOT_FIXTURE_IMAGE=" source)))))
             (should (equal 0 (car result)))
-            (should (string-match-p "verify-scope:" (cdr result)))))
+            (should (string-match-p "verify-scope:" (cdr result)))
+            (should (equal before
+                           (beads-manual-test--image-signature selected)))
+            (should (equal before-thumb
+                           (beads-manual-test--image-signature selected-thumb)))))
       (ignore-errors (delete-directory dir t)))))
+
+(ert-deftest beads-manual-capture-refuses-unisolated-run ()
+  "`capture.sh' aborts instead of running unisolated (R2).
+A failing `fixture.sh print-isolation-vars' and a missing script must both
+be fatal: a process substitution error is otherwise invisible to `set -e'.
+The fake engine dumps its environment, and must never run."
+  :tags '(:integration)
+  (skip-unless (file-executable-p beads-manual-test--capture))
+  (let* ((root (make-temp-file "beads-manual-isolation-" t))
+         ;; capture.sh resolves REPO as HERE/../../.. and FIXTURE_SH as
+         ;; HERE/fixture.sh, so nest it three levels down.
+         (here (expand-file-name "a/b/c" root))
+         (capture (expand-file-name "capture.sh" here))
+         (fixture (expand-file-name "fixture.sh" here))
+         (engine (expand-file-name "engine.sh" root))
+         (dump (expand-file-name "env.txt" root))
+         (env (list "BEADS_DIR=/tmp/hostile"
+                    (concat "BEADS_SHOT_ENGINE=" engine)
+                    (concat "BEADS_SHOT_ENV_DUMP=" dump)
+                    (concat "BEADS_SHOT_STAGING="
+                            (expand-file-name "staging" root)))))
+    (unwind-protect
+        (progn
+          (make-directory here t)
+          (copy-file beads-manual-test--capture capture)
+          (set-file-modes capture #o755)
+          (beads-manual-test--write-fake-engine
+           engine "env > \"$BEADS_SHOT_ENV_DUMP\"\n")
+          ;; A fixture script whose isolation query fails.
+          (write-region "#!/usr/bin/env bash\nexit 3\n" nil fixture)
+          (set-file-modes fixture #o755)
+          (let ((result (beads-manual-test--run
+                         capture (list "--scope" "list") env)))
+            (should (/= 0 (car result)))
+            (should (string-match-p "print-isolation-vars failed"
+                                    (cdr result)))
+            (should-not (file-exists-p dump)))
+          ;; A missing fixture script is fatal too, not a silent skip.
+          (delete-file fixture)
+          (let ((result (beads-manual-test--run
+                         capture (list "--scope" "list") env)))
+            (should (/= 0 (car result)))
+            (should (string-match-p "fixture script not readable"
+                                    (cdr result)))
+            (should-not (file-exists-p dump))))
+      (ignore-errors (delete-directory root t)))))
 
 (provide 'beads-manual-test)
 ;;; beads-manual-test.el ends here

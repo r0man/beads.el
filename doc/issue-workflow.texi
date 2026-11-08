@@ -377,6 +377,13 @@ List labels for a specific issue.
 List all labels in the store.
 @end table
 
+@quotation Note
+@kbd{l} (@code{beads-label-list}) currently signals @code{Wrong type
+argument: sequencep, 10} instead of listing the issue's labels.  Until
+that defect is fixed, the issue's labels are shown in the show view's
+@samp{Labels} section, and @kbd{L} lists every label in the store.
+@end quotation
+
 @node Bulk Actions
 @section Bulk Actions
 @cindex bulk actions

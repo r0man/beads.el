@@ -54,8 +54,8 @@ Show the schema index.
 @end table
 
 The formula browser marks a formula whose name shadows a same-name formula
-lower on the @command{bd} search path with a @samp{⧉shad} badge; its
-help-echo names the shadowed path.  @code{beads-formula-scope} switches the
+lower on the @command{bd} search path with a shadow badge labelled
+@samp{shad}; its help-echo names the shadowed path.  @code{beads-formula-scope} switches the
 scope filter between @code{project}, @code{user}, and @code{all}.
 
 @anchor{fig-formula-dark}
