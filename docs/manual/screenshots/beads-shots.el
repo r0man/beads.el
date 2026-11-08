@@ -294,6 +294,12 @@ resize is still in flight it sizes the menu for the previous shot's fitted
 frame and the menu is clipped once the frame grows (ME-1).  Wait for the
 baseline to land before laying the popup out."
   (beads-shots--await-frame-size (selected-frame))
+  ;; `frame-pixel-*' can report the requested size before the compositor has
+  ;; painted it, so give the configure event one bounded beat to land after
+  ;; the size check.  Without it a whole-frame transient can lay out for the
+  ;; previous (fitted) frame and clip its menu; that made `--verify all'
+  ;; intermittently drift on the large dispatch menu.
+  (accept-process-output nil 0.3)
   (transient-setup prefix)
   (redisplay t)
   nil)
@@ -359,7 +365,16 @@ ERT suite can load the pure helpers without mutating a live session."
   ;; size (ME-1).
   (advice-add 'x-export-frames :before
               (lambda (&optional frame &rest _)
-                (beads-shots--await-frame-size (and (framep frame) frame))))
+                (beads-shots--await-frame-size (and (framep frame) frame))
+                ;; `frame-pixel-*' can report a requested size before the
+                ;; headless compositor has painted it, so pump one bounded
+                ;; beat before the export reads the frame.  Without it a shot
+                ;; can export at the previous size: the dispatch menu is laid
+                ;; out for the tiny compose frame (and clipped), and an empty
+                ;; list/tabulated view keeps the 220x88 baseline instead of
+                ;; being fitted down.  That made `--verify all' intermittent.
+                (accept-process-output nil 0.2)
+                (redisplay t)))
   ;; Id normalization is a post-render hook (see the section above).
   (advice-add 'screenshot-export :before
               (lambda (buffer _name &optional _fixed-rows)

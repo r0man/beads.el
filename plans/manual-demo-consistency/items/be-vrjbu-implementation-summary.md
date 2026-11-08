@@ -23,7 +23,7 @@ trace:
     - path: docs/manual/screenshots/capture.sh
       hash: sha256:0d67bc9d45c9f6d3123cb7bf8d4df62e69096d0aa5d2a5fcdc4b4ba68b91d8c0
     - path: docs/manual/screenshots/beads-shots.el
-      hash: sha256:56a5cd55bd05c14f837ff04e025631d2a3176cd29aee0e4722a2fadee667e38c
+      hash: sha256:c00c50fa93feeae63f711ecad09758845fffd3c678e87944106ca465c975ab32
     - path: docs/manual/screenshots/README.md
       hash: sha256:b38c0aa9c7c205eb9e80fae7fdb5698652b2e534d4e53032e0efc09a74300615
     - path: lisp/test/beads-manual-test.el
@@ -57,6 +57,18 @@ The full manifest then captured cleanly: 18 full images and 18 thumbnails
 `FAILED` shot and no normalization rewrite. `--verify all` captured every scope
 twice and found all 18 raw PNGs byte-identical; `--verify-scope show` left all
 32 non-selected images byte- and mtime-identical.
+
+A later re-run of `--verify all` exposed a second, pre-existing timing defect:
+`beads-shots--await-frame-size` can return as soon as `frame-pixel-*` reports
+the requested size, before the headless compositor has painted it. The export
+then read the previous frame size, so `dispatch` laid its transient out for the
+tiny preceding compose frame (a clipped menu) and an empty list could keep the
+220x88 baseline instead of being fitted down. The capture-only
+`x-export-frames` advice now pumps the event loop for one bounded beat after
+the size check (and the transient thunk does the same before
+`transient-setup`), so every shot exports the frame it actually laid out.
+`dispatch` is now the complete menu in every run, `agents` is the compact
+fitted list in every run, and repeated `--verify` invocations are stable.
 
 The capture-time advice (frame-settle wait, id normalization, fixed dashboard
 relative time) is now installed by `beads-shots-install-capture-hooks` from
@@ -115,7 +127,7 @@ test, and the committed images.
 
 | File | sha256 | Change |
 | --- | --- | --- |
-| `docs/manual/screenshots/beads-shots.el` | `56a5cd55bd05c14f837ff04e025631d2a3176cd29aee0e4722a2fadee667e38c` | adds `beads-shots--fixture-non-ids` (the fixture project basename) and skips it plus read-only matches in `beads-shots--normalize-ids`; moves the three capture-only advice installations into `beads-shots-install-capture-hooks`, called from `beads-shots-run`; guards the entry point with `BEADS_SHOTS_NO_RUN` for ERT loads. |
+| `docs/manual/screenshots/beads-shots.el` | `c00c50fa93feeae63f711ecad09758845fffd3c678e87944106ca465c975ab32` | adds `beads-shots--fixture-non-ids` (the fixture project basename) and skips it plus read-only matches in `beads-shots--normalize-ids`; moves the three capture-only advice installations into `beads-shots-install-capture-hooks`, called from `beads-shots-run`; guards the entry point with `BEADS_SHOTS_NO_RUN` for ERT loads; adds a bounded event-loop pump after the frame-size check (and before `transient-setup`) so exports read the painted frame size instead of a stale one. |
 | `docs/manual/screenshots/README.md` | `b38c0aa9c7c205eb9e80fae7fdb5698652b2e534d4e53032e0efc09a74300615` | records the proven 18 full + 18 thumbnail inventory and the per-slot split; documents the normalizer's project-name and read-only exclusions. |
 | `lisp/test/beads-manual-test.el` | `deafa320f493f629e4c01730183dd70518cd4dd28c2eec7ea7c30d6016389bfe` | new `:unit` test `beads-manual-normalize-ids-keeps-fixture-project-name`: loads the shot list without capturing, keeps `demo-project` and `demo-10`, rewrites `demo-abc123` to `demo-role`, and leaves a read-only `demo-q9z2` alone. |
 | `docs/manual/images/*.png` (36 files) | regenerated; per-file hashes in the commit | every full image and thumbnail, including the four `-light` slots, re-captured from the shared fixture under default faces. `dashboard`/`list`/`show`/`epic` dark and light files are byte-identical within each pair. |
@@ -152,7 +164,7 @@ Bead proof commands (all from the worktree):
 | Proof | Command | Observed |
 | --- | --- | --- |
 | full capture regenerates every image | `docs/manual/screenshots/capture.sh --scope all` against `/tmp/demo-project` | **PASS** — exit 0; 18 raw PNGs, no `FAILED` line in `capture.log`, 18 full + 18 thumbnails written (773.7 KiB total) |
-| reproducibility (AC-4) | `docs/manual/screenshots/capture.sh --verify all` | **PASS** — exit 0, `verify: byte-identical for 18 image(s) (scope all)` |
+| reproducibility (AC-4) | `docs/manual/screenshots/capture.sh --verify all` | **PASS** — exit 0, `verify: byte-identical for 18 image(s) (scope all)`; re-run after the frame-paint fix and a second `--verify dispatch`/`--verify agents`, all byte-identical |
 | subset isolation (AC-4) | `docs/manual/screenshots/capture.sh --verify-scope show` | **PASS** — exit 0, `32 non-selected image(s) unchanged (digest + mtime) for scope show` |
 | canonical set restored after the subset proof | `docs/manual/screenshots/capture.sh --scope all` | **PASS** — exit 0; re-ran so the committed set is the full-run output (the isolated `show` run legitimately omits the dashboard breadcrumb row) |
 | image inventory and references | script over `docs/*.texi` + `docs/manual/images/*.png` | 36 committed files = 18 full + 18 thumbnails; 18 unique `@shot` names; **0 unreferenced images**; dark/light pairs `dashboard`/`list`/`show`/`epic` sha256-identical |
@@ -190,12 +202,12 @@ all)`. The README edit and the summary are non-executable documentation edits;
   `--verify-scope` only asserts the non-selected images, so both proofs pass,
   but the committed `show` images are the full-run output by design. Re-run
   `--scope all` after any `--verify-scope show` before committing.
-- **Whole-frame transient shots still show the previous buffer and an unfitted
-  frame.** `dispatch`, `maintenance`, `agent-menu`, and `formula` export the
-  baseline 220x88 frame, so the compose buffer from the preceding shot shows
-  behind the popup and the right half is empty. That is the pre-existing
-  rendering (the old `ef-themes` images have the same shape); tightening it
-  would need per-menu frame fitting and is out of scope for this item.
+- **Whole-frame transient shots still show the previous buffer.** `dispatch`,
+  `maintenance`, `agent-menu`, and `formula` export the whole baseline frame,
+  so the compose buffer from the preceding shot shows behind the popup (the
+  old `ef-themes` images have the same shape). The menu layout itself is now
+  deterministic and complete; tightening the frame would need per-menu frame
+  fitting and is out of scope for this item.
 - **`-dark` and `-light` images are byte-identical by design.** REQ-004
   prefers link stability, so each duplicated image costs a little repository
   size. Changing that requires changing the naming contract in both manuals
