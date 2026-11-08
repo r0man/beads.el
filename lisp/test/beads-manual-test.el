@@ -198,6 +198,26 @@ violation."
   (set-file-modes file #o755)
   file)
 
+(defun beads-manual-test--hold-lock (lockfile ready)
+  "Hold an exclusive flock on LOCKFILE, touching READY once acquired.
+Return the holder process; kill it in an `unwind-protect' cleanup.  The
+ready file makes acquisition observable so the concurrency assertions do
+not depend on a fixed sleep."
+  (let ((proc (make-process
+               :name "beads-manual-lock-holder"
+               :command (list "flock" "-x" lockfile
+                              "sh" "-c"
+                              (concat "touch "
+                                      (shell-quote-argument ready)
+                                      "; sleep 60"))
+               :connection-type 'pipe
+               :noquery t))
+        (deadline (+ (float-time) 10)))
+    (while (and (not (file-exists-p ready)) (< (float-time) deadline))
+      (sleep-for 0.05))
+    (should (file-exists-p ready))
+    proc))
+
 ;;; ============================================================
 ;;; Fixture (REQ-005, REQ-006)
 ;;; ============================================================
@@ -230,14 +250,153 @@ violation."
       (dolist (dependency (alist-get 'dependencies issue))
         (should (member (alist-get 'depends_on_id dependency) ids))))))
 
+(ert-deftest beads-manual-fixture-shared-path-contract ()
+  "The fixture uses the fixed shared project path and a next-to lock (REQ-001).
+The sibling gascity.el manual uses the same `${TMPDIR:-/tmp}/demo-project'
+path, so the run parent must no longer be a `mktemp -d' directory."
+  :tags '(:unit)
+  (let ((script (beads-manual-test--slurp beads-manual-test--fixture)))
+    (should (string-match-p "FIXTURE_PROJECT_DIR=\"\\${FIXTURE_TMPDIR}/demo-project\""
+                            script))
+    (should (string-match-p "FIXTURE_LOCK_FILE=\"\\${FIXTURE_TMPDIR}/demo-project\\.lock\""
+                            script))
+    (should (string-match-p "FIXTURE_DATA_SHA256=\"[0-9a-f]\\{64\\}\"" script))
+    (should (string-match-p "FIXTURE_LOCK_HELD" script))
+    (should-not (string-match-p "\\bmktemp\\b" script))))
+
+(ert-deftest beads-manual-fixture-dataset-hash-recorded ()
+  "The frozen dataset hash is pinned once and recorded in both docs (REQ-002)."
+  :tags '(:unit)
+  (let* ((script (beads-manual-test--slurp beads-manual-test--fixture))
+         (hash (and (string-match
+                     "FIXTURE_DATA_SHA256=\"\\([0-9a-f]+\\)\"" script)
+                    (match-string 1 script)))
+         (actual (with-temp-buffer
+                   (set-buffer-multibyte nil)
+                   (insert-file-contents-literally beads-manual-test--fixture-jsonl)
+                   (secure-hash 'sha256 (current-buffer))))
+         (readme (beads-manual-test--slurp
+                  (expand-file-name "README.md"
+                                    (file-name-directory beads-manual-test--fixture)))))
+    (should hash)
+    (should (equal hash actual))
+    (should (string-match-p (regexp-quote hash) readme))
+    (should (seq-some
+             (lambda (page) (string-match-p (regexp-quote hash) (cdr page)))
+             (beads-manual-test--manual-pages)))))
+
+(ert-deftest beads-manual-fixture-refuses-markerless-path ()
+  "`create' refuses a directory at the shared path without the marker (REQ-001).
+The refusal must not delete anything; it is the guard that lets the fixed
+path be recreated safely."
+  :tags '(:unit)
+  (skip-unless (file-executable-p beads-manual-test--fixture))
+  (skip-unless (executable-find "flock"))
+  (let* ((tmp (make-temp-file "beads-manual-fixture-path-" t))
+         (project (expand-file-name "demo-project" tmp))
+         (keep (expand-file-name "keep.txt" project)))
+    (unwind-protect
+        (progn
+          (make-directory project)
+          (write-region "not ours\n" nil keep)
+          (let ((result (beads-manual-test--run
+                         beads-manual-test--fixture '("create")
+                         (list (concat "TMPDIR=" tmp)))))
+            (should (/= 0 (car result)))
+            (should (string-match-p "refusing" (cdr result)))
+            (should (file-exists-p keep))))
+      (ignore-errors (delete-directory tmp t)))))
+
+(ert-deftest beads-manual-fixture-teardown-is-path-guarded ()
+  "`teardown' refuses a foreign path and is idempotent at the shared path."
+  :tags '(:unit)
+  (skip-unless (file-executable-p beads-manual-test--fixture))
+  (skip-unless (executable-find "flock"))
+  (let* ((tmp (make-temp-file "beads-manual-fixture-teardown-" t))
+         (project (expand-file-name "demo-project" tmp))
+         (other (expand-file-name "other" tmp)))
+    (unwind-protect
+        (progn
+          (make-directory other)
+          (let ((result (beads-manual-test--run
+                         beads-manual-test--fixture (list "teardown" other)
+                         (list (concat "TMPDIR=" tmp)))))
+            (should (/= 0 (car result)))
+            (should (string-match-p "refusing" (cdr result)))
+            (should (file-directory-p other)))
+          ;; The shared path is already gone: teardown is a no-op success.
+          (let ((result (beads-manual-test--run
+                         beads-manual-test--fixture (list "teardown" project)
+                         (list (concat "TMPDIR=" tmp)))))
+            (should (equal 0 (car result)))
+            (should (string-match-p "already gone" (cdr result)))))
+      (ignore-errors (delete-directory tmp t)))))
+
+(ert-deftest beads-manual-fixture-serializes-on-shared-lock ()
+  "Concurrent fixture runs serialize on the shared lock (REQ-001).
+A nested caller that sets `FIXTURE_LOCK_HELD=1' (as `capture.sh' does)
+must skip acquisition instead of deadlocking; an independent caller must
+wait and then fail rather than share the store."
+  :tags '(:integration)
+  (skip-unless (file-executable-p beads-manual-test--fixture))
+  (skip-unless (executable-find "flock"))
+  (let* ((tmp (make-temp-file "beads-manual-fixture-lock-" t))
+         (project (expand-file-name "demo-project" tmp))
+         (ready (expand-file-name "lock-ready" tmp))
+         (env (list (concat "TMPDIR=" tmp) "FIXTURE_LOCK_TIMEOUT=1"))
+         (proc (beads-manual-test--hold-lock (concat project ".lock") ready)))
+    (unwind-protect
+        (progn
+          (let ((result (beads-manual-test--run
+                         beads-manual-test--fixture (list "teardown" project)
+                         (cons "FIXTURE_LOCK_HELD=1" env))))
+            (should (equal 0 (car result)))
+            (should (string-match-p "already gone" (cdr result))))
+          (let ((result (beads-manual-test--run
+                         beads-manual-test--fixture (list "teardown" project)
+                         env)))
+            (should (/= 0 (car result)))
+            (should (string-match-p "timed out" (cdr result)))))
+      (ignore-errors (delete-process proc))
+      (ignore-errors (delete-directory tmp t)))))
+
+(ert-deftest beads-manual-capture-waits-on-shared-lock ()
+  "A second capture waits for the shared lock, then fails (REQ-001).
+It must never run concurrently against the one fixed store."
+  :tags '(:integration)
+  (skip-unless (file-executable-p beads-manual-test--capture))
+  (skip-unless (executable-find "flock"))
+  (let* ((tmp (make-temp-file "beads-manual-capture-lock-" t))
+         (project (expand-file-name "demo-project" tmp))
+         (ready (expand-file-name "lock-ready" tmp))
+         (proc (beads-manual-test--hold-lock (concat project ".lock") ready)))
+    (unwind-protect
+        (let ((result (beads-manual-test--run
+                       beads-manual-test--capture
+                       (list "--scope" "list")
+                       (list (concat "TMPDIR=" tmp)
+                             "BEADS_SHOT_LOCK_TIMEOUT=1"
+                             (concat "BEADS_SHOT_STAGING="
+                                     (expand-file-name "staging" tmp))))))
+          (should (/= 0 (car result)))
+          (should (string-match-p "timed out" (cdr result)))
+          (should-not (file-directory-p project)))
+      (ignore-errors (delete-process proc))
+      (ignore-errors (delete-directory tmp t)))))
+
 (ert-deftest beads-manual-fixture-export-has-no-generated-ids ()
   "A seeded fixture exports only the stable `demo-<n>' role ids (AC-6).
 This inspects a real seeded store, complementing the JSONL-only checks:
-bd must not stamp a run-generated hash onto any imported issue."
+bd must not stamp a run-generated hash onto any imported issue.  `TMPDIR'
+is scoped to a private directory: the default shared path may legitimately
+hold a live sibling fixture (the gascity.el manual uses the same path with
+its own marker), and `create' refuses rather than deletes a foreign one."
   :tags '(:integration)
   (skip-unless (file-executable-p beads-manual-test--fixture))
   (skip-unless (executable-find "bd"))
-  (let* ((result (beads-manual-test--run beads-manual-test--fixture '("create")))
+  (let* ((tmp (make-temp-file "beads-manual-fixture-export-" t))
+         (env (list (concat "TMPDIR=" tmp)))
+         (result (beads-manual-test--run beads-manual-test--fixture '("create") env))
          (code (car result))
          (project (seq-find
                    (lambda (line)
@@ -245,15 +404,19 @@ bd must not stamp a run-generated hash onto any imported issue."
                           (file-exists-p
                            (expand-file-name ".beads-fixture-project" line))))
                    (split-string (cdr result) "[\n\r]+" t))))
-    (should (equal code 0))
-    (should project)
     (unwind-protect
-        (let ((ids (beads-manual-test--export-ids project)))
-          (should (= (length ids) (length (beads-manual-test--fixture-issues))))
-          (dolist (id ids)
-            (should (string-match-p "\\`demo-[0-9]+\\'" id))))
-      (beads-manual-test--run
-       beads-manual-test--fixture (list "teardown" project)))))
+        (progn
+          (should (equal code 0))
+          (should (equal project (expand-file-name "demo-project" tmp)))
+          (when project
+            (let ((ids (beads-manual-test--export-ids project)))
+              (should (= (length ids)
+                         (length (beads-manual-test--fixture-issues))))
+              (dolist (id ids)
+                (should (string-match-p "\\`demo-[0-9]+\\'" id))))
+            (beads-manual-test--run
+             beads-manual-test--fixture (list "teardown" project) env)))
+      (ignore-errors (delete-directory tmp t)))))
 
 ;;; ============================================================
 ;;; Scope parser (REQ-004)

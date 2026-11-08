@@ -19,7 +19,11 @@
 #
 # Requirements: emacs (pgtk/GUI), sway (wlroots headless backend),
 # ImageMagick `convert`, the `bd` CLI, and ef-themes.  The views run
-# against a throwaway fixture project created by fixture.sh (REQ-005).
+# against the shared demo project at ${TMPDIR:-/tmp}/demo-project, created by
+# fixture.sh (REQ-001, REQ-005).  The fixed path is shared with the sibling
+# gascity.el manual, so this script takes an advisory flock on
+# ${TMPDIR:-/tmp}/demo-project.lock and holds it for the whole run; a second
+# capture waits instead of sharing the store.
 #
 # The engine is copied verbatim from the sibling gascity.el pipeline; see
 # README.md in this directory for provenance and the cross-repo contract.
@@ -42,6 +46,17 @@ STAGING="${BEADS_SHOT_STAGING:-/tmp/beads-shots}"
 SHOTS_EL="$HERE/beads-shots.el"
 FIXTURE_SH="$HERE/fixture.sh"
 WATCHDOG="${BEADS_SHOT_WATCHDOG:-400}"
+
+# The shared fixture contract: one project path and one lock path, computed
+# exactly as fixture.sh does so a nested create/teardown agrees with us.
+FIXTURE_TMPDIR="${TMPDIR:-/tmp}"
+while [ "${FIXTURE_TMPDIR%/}" != "$FIXTURE_TMPDIR" ]; do
+  FIXTURE_TMPDIR="${FIXTURE_TMPDIR%/}"
+done
+[ -n "$FIXTURE_TMPDIR" ] || FIXTURE_TMPDIR="/"
+FIXTURE_PROJECT_DIR="$FIXTURE_TMPDIR/demo-project"
+FIXTURE_LOCK_FILE="$FIXTURE_TMPDIR/demo-project.lock"
+FIXTURE_LOCK_TIMEOUT="${BEADS_SHOT_LOCK_TIMEOUT:-1800}"
 
 export BEADS_REPO="${BEADS_REPO:-$REPO}"
 
@@ -85,6 +100,11 @@ declare -A VIEW_SOURCES=(
 
 log() { printf '\033[1;36m[capture]\033[0m %s\n' "$*" >&2; }
 
+fatal() {
+  printf 'capture.sh: %s\n' "$*" >&2
+  exit 1
+}
+
 usage_error() {
   printf 'capture.sh: %s\n' "$*" >&2
   printf 'Try --help for usage.\n' >&2
@@ -112,7 +132,11 @@ Environment:
   BEADS_REPO            beads.el checkout to capture (default: this repo)
   BEADS_SHOT_STAGING    raw PNG staging dir (default: /tmp/beads-shots)
   BEADS_SHOT_PROJECT    existing fixture project; when unset, fixture.sh
-                        creates and tears down a throwaway one
+                        creates and tears down the shared
+                        ${TMPDIR:-/tmp}/demo-project
+  BEADS_SHOT_LOCK_TIMEOUT
+                        seconds to wait for another capture's fixture lock
+                        (1800); the shared project is never used concurrently
   BEADS_SHOT_BASE       git ref for `--scope changed`
   BEADS_SHOT_ENGINE     capture executable override (used by the shell
                         tests; skips the compositor)
@@ -204,15 +228,41 @@ view_selected() {
 PROJECT="${BEADS_SHOT_PROJECT:-}"
 CREATED_PROJECT=""
 
+# Serialize runs on the shared, fixed fixture path.  The lock is held for the
+# whole capture (fd 9 stays open), and FIXTURE_LOCK_HELD tells the nested
+# fixture.sh create/teardown calls not to lock the same file again and
+# deadlock against their own parent.  A caller-provided BEADS_SHOT_PROJECT is
+# the explicit reuse escape hatch: it is not the shared store, so it is
+# neither locked nor torn down.
+acquire_fixture_lock() {
+  [ -r "$FIXTURE_SH" ] || usage_error "fixture.sh not found: $FIXTURE_SH"
+  command -v flock >/dev/null 2>&1 \
+    || usage_error "flock (util-linux) is required to serialize the shared fixture"
+  log "waiting up to ${FIXTURE_LOCK_TIMEOUT}s for the fixture lock: $FIXTURE_LOCK_FILE"
+  mkdir -p -- "$FIXTURE_TMPDIR" \
+    || fatal "cannot create the fixture parent: $FIXTURE_TMPDIR"
+  exec 9>"$FIXTURE_LOCK_FILE" \
+    || fatal "cannot open the fixture lock: $FIXTURE_LOCK_FILE"
+  if ! flock -w "$FIXTURE_LOCK_TIMEOUT" 9; then
+    exec 9>&-
+    fatal "timed out after ${FIXTURE_LOCK_TIMEOUT}s waiting for another capture (lock: $FIXTURE_LOCK_FILE)"
+  fi
+  export FIXTURE_LOCK_HELD=1
+  log "holding the fixture lock: $FIXTURE_LOCK_FILE"
+}
+
 ensure_project() {
   if [ -n "$PROJECT" ]; then
     [ -d "$PROJECT" ] || usage_error "BEADS_SHOT_PROJECT is not a directory: $PROJECT"
     export BEADS_SHOT_DIR="$PROJECT"
+    log "reusing BEADS_SHOT_PROJECT=$PROJECT (no shared lock, never torn down)"
     return
   fi
   [ -r "$FIXTURE_SH" ] || usage_error "fixture.sh not found: $FIXTURE_SH"
   PROJECT="$("$FIXTURE_SH" create)"
   [ -n "$PROJECT" ] && [ -d "$PROJECT" ] || usage_error "fixture.sh create returned no project"
+  [ "$PROJECT" = "$FIXTURE_PROJECT_DIR" ] \
+    || usage_error "fixture.sh create returned $PROJECT, expected $FIXTURE_PROJECT_DIR"
   CREATED_PROJECT="$PROJECT"
   export BEADS_SHOT_DIR="$PROJECT"
   log "fixture project: $PROJECT"
@@ -495,6 +545,10 @@ if [ "$COMPRESS_ONLY" = 1 ]; then
   compress "$STAGING"
   log "done."
   exit 0
+fi
+
+if [ -z "$PROJECT" ]; then
+  acquire_fixture_lock
 fi
 
 ensure_project

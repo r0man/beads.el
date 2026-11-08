@@ -18,15 +18,15 @@ screenshots/
 
 ## What it does
 
-1. Creates (or reuses) a **deterministic, throwaway fixture project** — a
-   git repo at `${TMPDIR:-/tmp}/beads-fixture.run.<unique>/beads-fixture.project`
-   with its own `bd` store seeded from `fixtures/beads-fixture.jsonl`. Each run
-   gets a fresh `mktemp -d` parent so concurrent captures cannot share a store
-   path or its `.beads.gate.lock`; the fixed project basename keeps the project
-   name (and the mode line that displays it) identical across invocations. It
-   never reads or writes the repository's own `.beads` store or a live/agent
-   store (REQ-005). Pass `BEADS_SHOT_PROJECT=/path` to reuse an existing fixture
-   instead.
+1. Creates (or reuses) the **shared demo project** — a git repo at
+   `${TMPDIR:-/tmp}/demo-project` (default `/tmp/demo-project`) with its own
+   `bd` store seeded from `fixtures/beads-fixture.jsonl`. This is the same path
+   and the same fixed basename the sibling `gascity.el` manual promises, so
+   both manuals describe one demo project and the buffer/mode-line text is
+   identical across invocations. It never reads or writes the repository's own
+   `.beads` store or a live/agent store (REQ-005). Pass
+   `BEADS_SHOT_PROJECT=/path` to reuse an existing fixture instead (a reused
+   path is never torn down).
 2. Starts a **private, headless Wayland compositor** (`sway` with the
    wlroots headless backend) so capture frames never appear on the user's
    desktop. Windows are floated so Emacs's requested frame size is honored
@@ -50,6 +50,7 @@ never `--batch`.
 | `sway` (wlroots headless) | private capture display | 1.11 |
 | ImageMagick `convert` | compress + thumbnail | 6.9 |
 | `bd` + `git` | create the fixture project | 1.3.1 |
+| `flock` (util-linux) | serialize runs on the shared fixture | 2.42 |
 | `ef-themes` | the capture themes | 2.1.0 |
 | `python3` | only `fixture.sh verify` (the structural check) | — |
 
@@ -82,6 +83,41 @@ A subset run passes only the selected views to the engine and compresses only
 those names into `docs/manual/images/`, so it never rewrites or deletes an
 out-of-scope image. `--scope <unknown>` exits non-zero (status 2) before
 anything runs.
+
+### Shared fixture, lock, and dataset hash (REQ-001, REQ-002)
+
+The project path is fixed, not per-run, because it is a cross-repo contract
+with the `gascity.el` manual. Two consequences are part of the pipeline:
+
+- **Marker-guarded lifecycle.** `fixture.sh create` recreates a stale project
+  only when it carries the `.beads-fixture-project` marker; anything else at
+  that path is refused (non-zero, nothing deleted). `teardown` accepts only the
+  exact `${TMPDIR:-/tmp}/demo-project` path (a trailing slash is trimmed),
+  requires the marker, and succeeds idempotently when the directory is already
+  gone. `remove_fixture_dir` never removes a run parent, because there is none.
+- **Serialized runs.** `fixture.sh create|teardown|verify` hold an advisory
+  `flock` on `${TMPDIR:-/tmp}/demo-project.lock` briefly; `capture.sh` takes
+  the same lock and holds it for the whole capture run (bounded by
+  `BEADS_SHOT_LOCK_TIMEOUT`, default 1800 s). A second concurrent capture waits
+  at the log line instead of sharing the store and its `.beads.gate.lock`. The
+  lock file lives next to, never inside, the project. `capture.sh` exports
+  `FIXTURE_LOCK_HELD=1` after acquiring it, so the nested `fixture.sh` calls
+  it makes skip acquisition and cannot deadlock against their own parent; a
+  direct CLI invocation without the marker still locks itself.
+
+The dataset is frozen at `demo-1` … `demo-12` with `sha256`
+`6504c508bd25f3a2efc8a0e99bc940767b3306ae41352077fa446d2d6c319ca8`. That
+literal lives once, as `FIXTURE_DATA_SHA256` in `fixture.sh`; `fixture.sh
+verify` hashes `fixtures/beads-fixture.jsonl` against it, then checks that
+this README and the manual's shared demo-project section record the same
+value. A data edit without the documentation update therefore fails `verify`.
+
+Isolation is unchanged: `capture.sh` unsets the four variables that can
+reroute `bd` (`BEADS_DIR`, `BEADS_DOLT_PORT`, `BEADS_DOLT_SERVER_PORT`,
+`GC_DOLT_PORT`) before spawning Emacs, and `fixture.sh` unsets them before
+every `bd` call. `fixture.sh print-isolation-vars` prints the hardcoded list
+that `beads-manual-isolation-list-matches-fixture` compares against the
+integration tests' `beads-test-isolation-env-vars`.
 
 ### Reproducibility / verify (REQ-007)
 
@@ -127,7 +163,8 @@ run to have populated `docs/manual/images/`.
 |----------|---------|---------|
 | `BEADS_REPO` | this checkout | beads.el checkout (load path) |
 | `BEADS_SHOT_DIR` | created by `fixture.sh` | fixture project the views open against |
-| `BEADS_SHOT_PROJECT` | unset | reuse an existing fixture project instead of creating one |
+| `BEADS_SHOT_PROJECT` | unset | reuse an existing fixture project instead of creating one; a reused path is never torn down and does not take the shared lock |
+| `BEADS_SHOT_LOCK_TIMEOUT` | `1800` | seconds `capture.sh` waits for another run's fixture lock |
 | `BEADS_SHOT_STAGING` | `/tmp/beads-shots` | parent for per-run staging dirs |
 | `BEADS_SHOT_BASE` | origin default branch | git ref for `--scope changed` |
 | `BEADS_SHOT_WATCHDOG` | `400` | seconds before a capture Emacs kills itself |
@@ -137,6 +174,11 @@ Isolation: `capture.sh` unsets `BEADS_DIR`, `BEADS_DOLT_PORT`,
 `BEADS_DOLT_SERVER_PORT`, and `GC_DOLT_PORT` before spawning Emacs, so a
 value inherited from an agent shell cannot reroute the capture. The same four
 names are hardcoded in `fixture.sh`.
+
+`fixture.sh` also honours `TMPDIR` (the shared project moves to
+`$TMPDIR/demo-project`) and `FIXTURE_LOCK_TIMEOUT` (its own bounded lock wait,
+default 600 s). The `FIXTURE_LOCK_HELD=1` marker is set by `capture.sh` only
+after it owns the lock; do not set it by hand.
 
 The capture **manifest** — which views are shot in which theme — is a short
 here-doc near the top of `capture.sh`:

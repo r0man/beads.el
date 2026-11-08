@@ -11,6 +11,7 @@ it up.  Once it is installed, continue with @ref{Getting Started}.
 * Installing from MELPA::
 * Installing from Source::
 * Initial Setup::
+* The Shared Demo Project::
 @end menu
 
 @node Requirements
@@ -68,3 +69,64 @@ Then open the board in Emacs with @kbd{M-x beads}.  @code{beads.el}
 finds the store from the buffer's @code{default-directory}; act on a
 different project with the @code{:directory} argument
 (@pxref{Store Scoping}).
+
+@node The Shared Demo Project
+@section The Shared Demo Project
+@cindex demo project
+@cindex shared fixture
+@cindex fixture project
+@cindex isolation
+
+Every example in this manual runs against one canonical throwaway project at
+@file{$@{TMPDIR@:-/tmp@}/demo-project} (by default
+@file{/tmp/demo-project}).  The sibling @code{gascity.el} manual uses the same
+path, the same fixed basename, and the same issue ids, so the two manuals read
+as one documentation family.  The fixed basename is deliberate: @code{beads.el}
+derives the buffer and mode-line name from it, so the screenshots and the text
+you see in Emacs match.
+
+Create, check, and remove the project with @file{fixture.sh} from the
+repository:
+
+@example
+docs/manual/screenshots/fixture.sh create
+docs/manual/screenshots/fixture.sh verify
+docs/manual/screenshots/fixture.sh teardown /tmp/demo-project
+@end example
+
+@code{create} prints the project path and seeds it with
+@command{bd init --prefix demo} followed by an import of the frozen dataset
+@file{docs/manual/screenshots/fixtures/beads-fixture.jsonl}.  It is safe to
+re-run: a project already at that path is recreated only when it carries the
+@file{.beads-fixture-project} marker, and any other directory at that path is
+refused rather than deleted.  @code{teardown} accepts only the exact shared
+path, requires the marker, and succeeds when the directory is already gone.
+
+@cindex fixture dataset hash
+The dataset is frozen at twelve role-keyed issues, @code{demo-1} through
+@code{demo-12}, with pinned ids, dependencies, labels, comments, and
+timestamps.  Its @code{sha256} digest is
+@code{6504c508bd25f3a2efc8a0e99bc940767b3306ae41352077fa446d2d6c319ca8}.
+@code{fixture.sh verify} hashes the dataset against the single
+@code{FIXTURE_DATA_SHA256} literal in @code{fixture.sh}, then checks that this
+section and @file{docs/manual/screenshots/README.md} record the same value, so
+a data edit cannot land without updating both documents.
+
+@cindex fixture isolation
+The project is never the repository's own @file{.beads} store and never a live
+agent store.  Before every @command{bd} call, @code{fixture.sh} unsets the four
+variables that can reroute it: @code{BEADS_DIR}, @code{BEADS_DOLT_PORT},
+@code{BEADS_DOLT_SERVER_PORT}, and @code{GC_DOLT_PORT}.  Because the path is
+shared and fixed, concurrent runs are serialized by an advisory
+@command{flock} on @file{$@{TMPDIR@:-/tmp@}/demo-project.lock}.  @code{create},
+@code{teardown}, and @code{verify} hold the lock briefly, and
+@code{capture.sh} holds it for a whole capture run, so a second capture waits
+(instead of sharing the store) rather than failing on the first run's
+workspace lock.  The lock file lives next to, never inside, the project;
+@code{capture.sh} exports @code{FIXTURE_LOCK_HELD=1} after acquiring it so the
+nested @code{fixture.sh} calls it makes do not block against their own parent.
+
+To follow along, create the project, open Emacs in it, and continue with
+@ref{Getting Started}.  The @ref{Issue Workflow} chapter carries the
+walkthrough that triages @code{demo-3}, unblocks @code{demo-4}, closes
+@code{demo-6}, and inspects the @code{demo-10} epic.
