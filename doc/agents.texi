@@ -30,21 +30,29 @@ buffers, and the full menu is on @kbd{a} in the dispatch menu
 (@pxref{Transients}).
 
 @table @kbd
-@item a t
+@kindex a
+@kindex t
+@item @kbd{a} @kbd{t}
 Start a task agent.
-@item a r
+@kindex r
+@item @kbd{a} @kbd{r}
 Start a review agent.
-@item a p
+@kindex p
+@item @kbd{a} @kbd{p}
 Start a plan agent.
-@item a q
+@kindex q
+@item @kbd{a} @kbd{q}
 Start a QA agent.
-@item a c
+@kindex c
+@item @kbd{a} @kbd{c}
 Start a custom agent.
-@item a x
+@kindex x
+@item @kbd{a} @kbd{x}
 Stop the agent at point.
-@item a j
+@kindex j
+@item @kbd{a} @kbd{j}
 Jump to the agent buffer.
-@item a a
+@item @kbd{a} @kbd{a}
 Start the generic agent at point.
 @end table
 
@@ -131,9 +139,11 @@ modules.
 @emph{Swarm} runs many agents over the children of an epic in waves.
 
 @table @kbd
+@kindex S
 @item S
 From the dispatch menu, open the swarm fleet list
 (@code{beads-swarm-list-view}).
+@kindex w
 @item w
 From the maintenance menu, open the swarm sub-dispatch.
 @end table

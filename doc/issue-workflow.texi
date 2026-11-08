@@ -59,14 +59,19 @@ between /auth/callback and /login.
 Press @kbd{C-c C-a} for the metadata sidebar:
 
 @table @kbd
+@kindex t
 @item t
 Type (bug, feature, task, epic, chore, @dots{}).
+@kindex p
 @item p
 Priority (0--4).
+@kindex a
 @item a
 Assignee.
+@kindex l
 @item l
 Labels (comma-separated).
+@kindex P
 @item P
 Parent issue.
 @end table
@@ -110,10 +115,13 @@ converts the filter state into a @code{beads-issue-spec} and refreshes
 the list buffer.
 
 @table @kbd
+@kindex r
 @item r
 List ready (unblocked) issues.
+@kindex b
 @item b
 List blocked issues.
+@kindex /
 @item /
 In a list buffer, open the spec-based filter menu to refine the current
 view.
@@ -142,12 +150,16 @@ List blocked issues for the current store.
 @cindex pagination
 
 @table @kbd
+@kindex S
 @item S
 Sort by the column under point.
+@kindex ]
 @item ]
 Move to the next page.
+@kindex [
 @item [
 Move to the previous page.
+@kindex G
 @item G
 Jump to a page.
 @end table
@@ -186,22 +198,31 @@ the view to another store (@pxref{Store Scoping}).
 @end deftypefn
 
 @table @kbd
+@kindex n
 @item n
 Next section.
+@kindex p
 @item p
 Previous section.
+@kindex TAB
 @item TAB
 Next heading or reference (wraps).
+@kindex S-TAB
 @item S-TAB
 Previous heading or reference (wraps).
+@kindex SPC
 @item SPC
 Fold or unfold the section at point.
+@kindex RET
 @item RET
 Follow the reference at point.
+@kindex o
 @item o
 Follow the reference at point in another window.
+@kindex g
 @item g
 Refresh.
+@kindex q
 @item q
 Quit.
 @end table
@@ -216,10 +237,13 @@ Quit.
 @cindex editing issues
 
 @table @kbd
+@kindex E
 @item E
 Edit the description in a compose buffer.
+@kindex N
 @item N
 Add a comment in a compose buffer.
+@kindex e
 @item e
 Edit a field inline (a single-line title, or a temporary buffer for
 longer fields).
@@ -256,11 +280,14 @@ Reopen a closed issue, prompting for an optional reason.  In
 @cindex priority
 
 @table @kbd
+@kindex C
 @item C
 Claim the issue at point.  This runs immediately; the current actor is
 assigned.
+@kindex s
 @item s
 Set status (@code{open}, @code{in_progress}, @code{blocked}, @dots{}).
+@kindex #
 @item #
 Set priority, from @code{0 - Critical} through @code{4 - Backlog}.
 @end table
@@ -279,18 +306,25 @@ graph for an issue.
 Press @kbd{d} from the dispatch menu for the dependency menu.
 
 @table @kbd
+@kindex a
 @item a
 Add a dependency (source depends on target, plus type).
+@kindex r
 @item r
 Remove a dependency.
+@kindex l
 @item l
 List dependencies for an issue.
+@kindex t
 @item t
 Show the full dependency tree, walking transitively.
+@kindex c
 @item c
 Check the project for dependency cycles.
+@kindex R
 @item R
 Create a bidirectional @code{relates_to} link.
+@kindex U
 @item U
 Remove a @code{relates_to} link.
 @end table
@@ -306,14 +340,19 @@ Open the label menu: add, remove, propagate, and list labels.
 Press @kbd{L} from the dispatch menu for the label menu.
 
 @table @kbd
+@kindex a
 @item a
 Add a label to one or more issues.
+@kindex r
 @item r
 Remove a label from one or more issues.
+@kindex p
 @item p
 Propagate a label to all children of an issue.
+@kindex l
 @item l
 List labels for a specific issue.
+@kindex L
 @item L
 List all labels in the store.
 @end table
