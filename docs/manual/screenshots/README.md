@@ -31,10 +31,11 @@ screenshots/
    wlroots headless backend) so capture frames never appear on the user's
    desktop. Windows are floated so Emacs's requested frame size is honored
    (sway tiles by default, which would force every frame to fill the output).
-3. Runs a **graphical** Emacs once per theme. It loads beads.el, the engine,
-   and the shot list; renders each selected view against the fixture store;
-   waits for the view's asynchronous `bd` data to settle; fits the frame
-   tightly to the rendered content; and exports a raw PNG.
+3. Runs a **graphical** Emacs once per manifest slot (`-dark` / `-light`).
+   It loads beads.el, the engine, and the shot list; renders each selected
+   view against the fixture store; waits for the view's asynchronous `bd`
+   data to settle; fits the frame tightly to the rendered content; and
+   exports a raw PNG.
 4. **Compresses** each raw PNG to an 8-bit-palette full image plus a small
    thumbnail under `docs/manual/images/` (committed). The raw PNGs are
    throwaway.
@@ -51,8 +52,12 @@ never `--batch`.
 | ImageMagick `convert` | compress + thumbnail | 6.9 |
 | `bd` + `git` | create the fixture project | 1.3.1 |
 | `flock` (util-linux) | serialize runs on the shared fixture | 2.42 |
-| `ef-themes` | the capture themes | 2.1.0 |
 | `python3` | only `fixture.sh verify` (the structural check) | — |
+
+No third-party theme is a requirement: every image is captured from
+Emacs's built-in default faces (REQ-004). No `ef-`, `modus`, or other
+third-party theme may be loaded by the capture or manual-build path; the
+only exception tolerated below is the verbatim engine's docstring example.
 
 ## Running it
 
@@ -139,7 +144,7 @@ The target is **byte-identical output** for two runs of the same scope:
   `beads-dashboard--format-relative-time` to a fixed `0s ago`, so the
   settle duration cannot leak into the image.
 - The samplers are fixed: the same private compositor resolution, the same
-  frame geometry, the same themes, and the same font.
+  frame geometry, the same default faces (no theme loaded), and the same font.
 
 ### Subset isolation / verify-scope (AC-4)
 
@@ -169,6 +174,8 @@ run to have populated `docs/manual/images/`.
 | `BEADS_SHOT_BASE` | origin default branch | git ref for `--scope changed` |
 | `BEADS_SHOT_WATCHDOG` | `400` | seconds before a capture Emacs kills itself |
 | `BEADS_SHOT_ENGINE` | unset | capture-executable override used by the shell tests (skips the compositor) |
+| `BEADS_SHOT_THEME` | `default` | set by `capture.sh` per manifest slot; `default` means load no theme |
+| `BEADS_SHOT_THEME_LIBRARY` | unset | optional theme library for a non-default `BEADS_SHOT_THEME`; never set by the shipped manifest |
 
 Isolation: `capture.sh` unsets `BEADS_DIR`, `BEADS_DOLT_PORT`,
 `BEADS_DOLT_SERVER_PORT`, and `GC_DOLT_PORT` before spawning Emacs, so a
@@ -180,20 +187,30 @@ names are hardcoded in `fixture.sh`.
 default 600 s). The `FIXTURE_LOCK_HELD=1` marker is set by `capture.sh` only
 after it owns the lock; do not set it by hand.
 
-The capture **manifest** — which views are shot in which theme — is a short
+The capture **manifest** — which views are shot in which slot — is a short
 here-doc near the top of `capture.sh`:
 
 ```
-ef-deuteranopia-dark  -dark   dashboard list ready blocked show epic compose molecule swarm agents dispatch maintenance agent-menu formula
-ef-cyprus     -light  dashboard list show epic
+default       -dark   dashboard list ready blocked show epic compose molecule swarm agents dispatch maintenance agent-menu formula
+default       -light  dashboard list show epic
 ```
 
-`ef-deuteranopia-dark` is the standard screenshot theme (REQ-004); the
-`-dark` images are captured in it. `ef-cyprus` is kept only on the four
-views above as the deliberate light-theming demonstration.
+Each line is `THEME  SUFFIX  view view …`. `default` means "load no theme":
+those images are captured with Emacs's built-in default faces and its
+`defface` defaults, so no third-party theme colours or fonts can appear
+(REQ-004). The `THEME` field still selects the slot suffix; any other value
+would name a theme symbol for a future re-theming, and
+`BEADS_SHOT_THEME_LIBRARY` would point `custom-theme-load-path` at that
+theme's library.
 
-Each line is `THEME  SUFFIX  view view …`. A view named under two themes is
-captured twice (the dashboard, list, show, and epic are, to show theming).
+The `-dark` and `-light` suffixes are **link-stability slots, not theme
+claims**: both come from the same default faces, so the dashboard, list,
+show, and epic images are captured twice into two slots that are byte-identical
+by design. Keeping both preserves every `@shot` reference and the
+beads.el/gascity.el `<view>-<theme>.png` naming contract (plan resolution 1,
+REQ-004). Captions describe the view or the default faces, never an `ef-`
+variant.
+
 Image geometry (widths, palette sizes) is set just below the manifest. The
 view names must match the shots defined in `beads-shots.el`.
 
@@ -236,7 +253,11 @@ uses, so the engine's `screenshot-settle` waits for dashboard and eldoc data.
 
 Do not fork the engine's logic. To refresh the copy, replace the file with the
 upstream version and update the revision/hash above; the engine is
-package-agnostic and should need no beads.el knowledge.
+package-agnostic and should need no beads.el knowledge. Its docstring names
+`ef-themes` only as an example of an external theme library for
+`custom-theme-load-path`; that string is part of the verbatim upstream file,
+not a requirement, and nothing in this repository loads it (REQ-004,
+REQ-006).
 
 The engine API (see the docstrings in `screenshot.el`):
 
@@ -278,8 +299,8 @@ The contract fixes exactly these values:
   committed images.  beads.el keeps both under `docs/manual/` even though
   its manual source moved to `doc/`; gascity.el keeps them under `doc/`.
 - **Naming**: `<view>-<theme>.png` for the full image and
-  `<view>-<theme>-thumb.png` for the thumbnail, where `theme` is `dark` or
-  `light`.
+  `<view>-<theme>-thumb.png` for the thumbnail, where `theme` is the link-stability
+  slot `dark` or `light`; both slots show the default faces.
 - **Verify**: re-run a scope twice and fail, naming each drifting image,
   unless the output is byte-identical.
 
@@ -319,10 +340,14 @@ only change across long spans, not between two back-to-back runs.
 - **Frame size persists between shots.** The engine resets the frame to a
   large baseline before each shot so a paginated list opens at full size
   before being fitted down.
-- **ef-themes load path.** The theme `*-theme.el` files may live outside the
-  default `custom-theme-load-path` (e.g. a Guix profile);
-  `screenshot-theme-library` adds the library's directory so `load-theme`
-  finds them.
+- **Theme load path (docstring example only).** `screenshot.el`'s docstring
+  mentions `"ef-themes"` solely as an example of how to point
+  `custom-theme-load-path` at an externally installed theme library (for
+  example from a Guix profile). It is not a requirement and nothing in the
+  capture or manual-build path loads a third-party theme: the engine's
+  `screenshot-theme-library` is nil unless a future capture sets
+  `BEADS_SHOT_THEME_LIBRARY`. The engine stays a verbatim copy of the
+  gascity.el file, so the example string is deliberately not deleted.
 - **A failing view is skipped, not fatal.** `screenshot-run` logs a failed
   thunk and continues, so one broken view never aborts the run; check
   `$BEADS_SHOT_STAGING/run/capture.log`.

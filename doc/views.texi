@@ -43,7 +43,7 @@ store (@pxref{Store Scoping}).
 @anchor{fig:board-dark}
 @shot{dashboard-dark, The project board (@code{beads-dashboard}) with ready in-progress and blocked sections.}
 @anchor{fig:board-light}
-@shot{dashboard-light, The project board under the light theme.}
+@shot{dashboard-light, The same project board with Emacs's default faces and no theme loaded.}
 
 @menu
 * Board Sections and Folding::

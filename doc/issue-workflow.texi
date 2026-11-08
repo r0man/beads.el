@@ -172,7 +172,7 @@ the issue at point in another window (@pxref{One Movement Scheme}).
 @anchor{fig:list-dark}
 @shot{list-dark, The issue list as a sortable filterable table.}
 @anchor{fig:list-light}
-@shot{list-light, The issue list under the light theme.}
+@shot{list-light, The same issue list with Emacs's default faces and no theme loaded.}
 
 @node Viewing Issues
 @section Viewing Issues
@@ -209,7 +209,7 @@ Quit.
 @anchor{fig:show-dark}
 @shot{show-dark, The issue detail view with dependencies and comments.}
 @anchor{fig:show-light}
-@shot{show-light, The issue detail view under the light theme.}
+@shot{show-light, The same issue detail view with Emacs's default faces and no theme loaded.}
 
 @node Editing Issues
 @section Editing Issues

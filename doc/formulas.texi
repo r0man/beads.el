@@ -202,7 +202,7 @@ Close eligible --- close every epic whose children are all complete.  Pass
 @anchor{fig:epic-dark}
 @shot{epic-dark, An epic detail view with its children.}
 @anchor{fig:epic-light}
-@shot{epic-light, The epic detail view under the light theme.}
+@shot{epic-light, The epic detail view with Emacs's default faces and no theme loaded.}
 
 @node Cook Pour and Burn
 @section Cook, Pour, and Burn from One Place

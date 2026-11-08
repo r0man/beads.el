@@ -18,12 +18,13 @@
 # run never rewrites or deletes an image outside the selected scope.
 #
 # Requirements: emacs (pgtk/GUI), sway (wlroots headless backend),
-# ImageMagick `convert`, the `bd` CLI, and ef-themes.  The views run
-# against the shared demo project at ${TMPDIR:-/tmp}/demo-project, created by
-# fixture.sh (REQ-001, REQ-005).  The fixed path is shared with the sibling
-# gascity.el manual, so this script takes an advisory flock on
-# ${TMPDIR:-/tmp}/demo-project.lock and holds it for the whole run; a second
-# capture waits instead of sharing the store.
+# ImageMagick `convert`, and the `bd` CLI.  No third-party theme is loaded:
+# every image is captured from Emacs's built-in default faces (REQ-004).
+# The views run against the shared demo project at
+# ${TMPDIR:-/tmp}/demo-project, created by fixture.sh (REQ-001, REQ-005).
+# The fixed path is shared with the sibling gascity.el manual, so this script
+# takes an advisory flock on ${TMPDIR:-/tmp}/demo-project.lock and holds it for
+# the whole run; a second capture waits instead of sharing the store.
 #
 # The engine is copied verbatim from the sibling gascity.el pipeline; see
 # README.md in this directory for provenance and the cross-repo contract.
@@ -68,13 +69,19 @@ THUMB_W=520       # thumbnail max width (px)
 THUMB_COLORS=128  # a preview needs fewer colours
 
 # ---- Capture manifest --------------------------------------------------
-# One line per theme: "THEME  SUFFIX  view view view ...".  A view named
-# in two themes is captured twice (e.g. the dashboard, to show theming).
-# The suffix is the "-<theme>" half of the committed name, so the output is
-# exactly <view>-<theme>.png and <view>-<theme>-thumb.png.
+# One line per theme slot: "THEME  SUFFIX  view view view ...".  `default'
+# means "load no theme": the slot is captured with Emacs's built-in default
+# faces.  The suffix is the "-<theme>" half of the committed name, so the
+# output is exactly <view>-<theme>.png and <view>-<theme>-thumb.png.
+#
+# The `-dark' and `-light' suffixes are link-stability slots, not theme
+# claims: both are captured from the same default faces, on purpose, so
+# every @shot reference and the beads.el/gascity.el <view>-<theme>.png
+# naming contract stay valid (plan resolution 1, REQ-004).  A view named in
+# two slots is captured twice into the two slots.
 read -r -d '' MANIFEST <<'EOF' || true
-ef-deuteranopia-dark  -dark   dashboard list ready blocked show epic compose molecule swarm agents dispatch maintenance agent-menu formula
-ef-cyprus     -light  dashboard list show epic
+default       -dark   dashboard list ready blocked show epic compose molecule swarm agents dispatch maintenance agent-menu formula
+default       -light  dashboard list show epic
 EOF
 
 # Source files per view, for `--scope changed`.  A view is selected when

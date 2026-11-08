@@ -17,7 +17,12 @@
 ;; theme and selection:
 ;;
 ;;   BEADS_REPO          beads.el checkout (default: derived from this file)
-;;   BEADS_SHOT_THEME    theme symbol, e.g. ef-deuteranopia-dark
+;;   BEADS_SHOT_THEME    theme symbol, or "default"/unset for Emacs's
+;;                       built-in default faces (no theme loaded)
+;;   BEADS_SHOT_THEME_LIBRARY
+;;                       optional theme library whose directory holds the
+;;                       theme's `*-theme.el' files; only used with a
+;;                       non-default BEADS_SHOT_THEME
 ;;   BEADS_SHOT_OUTDIR   directory for the raw PNGs
 ;;   BEADS_SHOT_SUFFIX   appended to every shot name, e.g. -dark
 ;;   BEADS_SHOT_VIEWS    space-separated view names; empty = all
@@ -63,6 +68,22 @@
 
 ;;; Engine configuration
 
+(defun beads-shots-theme ()
+  "Return the theme symbol for this run, or nil for the default faces.
+`BEADS_SHOT_THEME' unset, empty, or `default' means load no theme, so the
+capture uses Emacs's built-in faces; any other value names the theme to
+load.  This is the only theme switch in the capture path (REQ-004)."
+  (let ((name (beads-shots-getenv "BEADS_SHOT_THEME" "default")))
+    (unless (string= name "default") (intern name))))
+
+(defun beads-shots-theme-library ()
+  "Return the optional theme library name, or nil.
+Only meaningful alongside a non-nil `beads-shots-theme': it lets a
+re-themed capture point `custom-theme-load-path' at an externally installed
+theme library.  Unset or empty means no library."
+  (let ((name (getenv "BEADS_SHOT_THEME_LIBRARY")))
+    (and name (not (string-empty-p name)) name)))
+
 (defun beads-shots--progress (fmt &rest args)
   "Append a progress line to BEADS_SHOT_OUTDIR/capture.log and stderr."
   (let* ((dir (beads-shots-getenv "BEADS_SHOT_OUTDIR" temporary-file-directory))
@@ -79,9 +100,8 @@
 ;; have landed before a frame is exported.
 (setq screenshot-output-dir
       (beads-shots-getenv "BEADS_SHOT_OUTDIR" temporary-file-directory)
-      screenshot-theme
-      (intern (beads-shots-getenv "BEADS_SHOT_THEME" "ef-deuteranopia-dark"))
-      screenshot-theme-library "ef-themes"
+      screenshot-theme (beads-shots-theme)
+      screenshot-theme-library (beads-shots-theme-library)
       screenshot-async-process-regexp "beads-async\\|beads-policy-probe"
       screenshot-log-function #'beads-shots--progress)
 
