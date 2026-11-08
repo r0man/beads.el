@@ -31,10 +31,12 @@ Open the formula menu.  Press @kbd{F} from the dispatch menu
 @end deffn
 
 @table @kbd
+@kindex l
 @item l
 List available formulas.  Filter by type (@code{workflow}, @code{expansion},
 or @code{aspect}) in the browser, or pass a prefix argument to
 @code{beads-formula-browse}.
+@kindex s
 @item s
 Show a formula's details: phase, version, @code{extends}, aspects,
 expansion formulas, composition bond points, and each step's type,
@@ -43,17 +45,20 @@ pattern, default, and required flag.  Variables inherited from
 @code{extends} parents are included, so a child formula such as
 @code{build-basic} shows the @code{artifact_root} declared on
 @code{build-base}.
+@kindex c
 @item c
 Convert a formula from JSON to TOML.
+@kindex S
+@item S
+Show the schema index.
 @end table
 
-@vindex beads-formula-scope
 The formula browser marks a formula whose name shadows a same-name formula
 lower on the @command{bd} search path with a @samp{⧉shad} badge; its
 help-echo names the shadowed path.  @code{beads-formula-scope} switches the
 scope filter between @code{project}, @code{user}, and @code{all}.
 
-@anchor{fig:formula-dark}
+@anchor{fig-formula-dark}
 @shot{formula-dark, The formula menu (@code{beads-formula-menu}).}
 
 @node Molecules
@@ -70,7 +75,7 @@ Open the molecule menu: instantiate, combine, inspect, clean up, and
 health-check molecules.
 @end deffn
 
-@anchor{fig:molecule-dark}
+@anchor{fig-molecule-dark}
 @shot{molecule-dark, The molecule view of the fixture epic showing poured steps.}
 
 @menu
@@ -87,8 +92,10 @@ health-check molecules.
 @cindex wisping a molecule
 
 @table @kbd
+@kindex p
 @item p
 Pour --- create a persistent molecule from a proto.
+@kindex w
 @item w
 Wisp --- create an ephemeral molecule.
 @end table
@@ -114,16 +121,24 @@ needs = ["test"]
 @end example
 
 Then cook the formula, pour the cooked proto into a molecule, and
-inspect the result:
+inspect the result.  Cooking creates a proto only when @strong{Persist}
+is set; without it the cook command just prints the compiled formula.
 
 @table @asis
 @item @kbd{?} @kbd{!} @kbd{K}
-Cook --- pick @samp{release} in the maintenance menu to create the proto
-bead.
+Open the Cook menu.  Set @strong{Persist} with @kbd{-p}, press @kbd{s},
+and pick @samp{release} at the @samp{Formula:} prompt.  The result buffer
+reports @samp{Cooked proto: release} and the proto id is the formula
+name.  The optional @kbd{-m} Mode, @kbd{-x} Proto prefix, and
+@kbd{-v} Variable fields are not needed here, and @kbd{P} previews the
+compiled formula without creating anything.
 @item @kbd{?} @kbd{m} @kbd{p}
-Pour --- pick the cooked proto to create the persistent molecule.
+Pour --- set the required @samp{Proto ID} field to @code{release} and
+press @kbd{x}.  The result names the new molecule root, for example
+@samp{Poured mol: created 3 issues} and @samp{Root issue: demo-mol-…}.
 @item @kbd{?} @kbd{m} @kbd{s}
-Show --- list the molecule root and its stepped issues.
+Show --- set the required @samp{Mol ID} field to that root id and press
+@kbd{x}.  The view lists the molecule root and its stepped issues.
 @end table
 
 @node Combine
@@ -132,8 +147,10 @@ Show --- list the molecule root and its stepped issues.
 @cindex distilling a molecule
 
 @table @kbd
+@kindex b
 @item b
 Bond --- merge molecules together.
+@kindex d
 @item d
 Distill --- extract a proto from existing issues.
 @end table
@@ -143,10 +160,13 @@ Distill --- extract a proto from existing issues.
 @cindex molecule progress
 
 @table @kbd
+@kindex s
 @item s
 Show molecule details.
+@kindex c
 @item c
 Show the current active molecule.
+@kindex P
 @item P
 Show molecule progress.
 @end table
@@ -157,8 +177,10 @@ Show molecule progress.
 @cindex burning a molecule
 
 @table @kbd
+@kindex S
 @item S
 Squash --- collapse molecule history.
+@kindex B
 @item B
 Burn --- destroy a molecule.
 @end table
@@ -169,12 +191,16 @@ Burn --- destroy a molecule.
 @cindex molecule seed
 
 @table @kbd
+@kindex r
 @item r
 Ready --- find molecules ready for work.
+@kindex t
 @item t
 Stale --- find stale molecules.
+@kindex e
 @item e
 Seed --- verify molecule seed data integrity.
+@kindex l
 @item l
 Last activity --- show when each molecule was last touched.
 @end table
@@ -190,19 +216,24 @@ bound to a key in the dispatch menu.
 @end deffn
 
 @table @kbd
+@kindex s
 @item s
 Status overview --- an interactive buffer listing every epic with progress
 bars, child counts, and closure eligibility.  @kbd{SPC} expands or collapses
 children; @kbd{RET} opens an epic (@pxref{Viewing Issues}).
+@kindex c
 @item c
 Close eligible --- close every epic whose children are all complete.  Pass
 @code{--dry-run} to preview first.
+@kindex D
+@item D
+Distill to formula --- extract a formula from the epic's issue graph.
 @end table
 
-@anchor{fig:epic-dark}
+@anchor{fig-epic-dark}
 @shot{epic-dark, An epic detail view with its children.}
-@anchor{fig:epic-light}
-@shot{epic-light, The epic detail view under the light theme.}
+@anchor{fig-epic-light}
+@shot{epic-light, The epic detail view with Emacs's default faces and no theme loaded.}
 
 @node Cook Pour and Burn
 @section Cook, Pour, and Burn from One Place

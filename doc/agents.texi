@@ -25,32 +25,77 @@ Reference}.
 @section Agent Commands
 @cindex agent commands
 
-Agent commands are bound under the @kbd{a} prefix in list and show
-buffers, and the full menu is on @kbd{a} in the dispatch menu
+Agent commands are bound under the @kbd{a} prefix in list, show, and
+dashboard buffers, and the full menu is on @kbd{a} in the dispatch menu
 (@pxref{Transients}).
 
 @table @kbd
-@item a t
-Start a task agent.
-@item a r
-Start a review agent.
-@item a p
-Start a plan agent.
-@item a q
-Start a QA agent.
-@item a c
-Start a custom agent.
-@item a x
-Stop the agent at point.
-@item a j
+@kindex s
+@item s
+Start an agent on the issue at point.  This opens the launch transient
+described below.
+@kindex w
+@item w
+Sling the issue to a worktree.
+@kindex S
+@item S
+Stop the agent session at point.
+@kindex j
+@item j
 Jump to the agent buffer.
-@item a a
-Start the generic agent at point.
+@kindex p
+@item p
+Send a prompt to the agent.
+@kindex l
+@item l
+List active sessions.
+@kindex c
+@item c
+Clean up stale sessions.
+@kindex B
+@item B
+Set the default backend.
+@kindex g
+@item g
+Refresh the session state.
 @end table
 
-@anchor{fig:agents-dark}
+The launch transient (@kbd{s}) chooses the role, target, backend, and
+prompt before it launches:
+
+@table @kbd
+@kindex t
+@kindex r
+@item @kbd{t} @kbd{r} @kbd{p}
+Role: Task (the default), Review (with a QA mode toggle), or Plan
+(@kbd{p}).
+@kindex T
+@item @kbd{w} @kbd{T}
+Target: a derived new worktree (@kbd{w}), or an existing worktree to
+choose (@kbd{T}).
+@kindex b
+@item b
+Backend, with the documented backends first and the rest in a collapsed
+group.
+@kindex e
+@kindex P
+@item @kbd{e} @kbd{P}
+Edit (@kbd{e}) or preview (@kbd{P}) the user prompt.
+@kindex x
+@kindex q
+@item @kbd{x} @kbd{q}
+@kbd{s} starts the agent with the selected role, target, backend, and
+prompt; @kbd{x} resets the launch parameters and @kbd{q} quits without
+starting.
+@end table
+
+There is no separate @samp{Editor} role: a custom prompt is the Task role
+with an edited prompt.  The type names used by the prompt protocol are still
+Task, Review, Plan, QA, and Custom (@pxref{Agent Types}).
+
+@anchor{fig-agents-dark}
 @shot{agents-dark, The agent session list (@code{beads-agent-list}).}
-@anchor{fig:agent-menu-dark}
+@anchor{fig-agent-menu-dark}
 @shot{agent-menu-dark, The agent menu (@code{beads-agent}).}
 
 @node Agent Types
@@ -131,14 +176,16 @@ modules.
 @emph{Swarm} runs many agents over the children of an epic in waves.
 
 @table @kbd
+@kindex S
 @item S
 From the dispatch menu, open the swarm fleet list
 (@code{beads-swarm-list-view}).
+@kindex w
 @item w
 From the maintenance menu, open the swarm sub-dispatch.
 @end table
 
-@anchor{fig:swarm-dark}
+@anchor{fig-swarm-dark}
 @shot{swarm-dark, The swarm fleet list showing wave progress.}
 
 Sling is preview-first.  Pressing @kbd{s} in the sling menu opens the

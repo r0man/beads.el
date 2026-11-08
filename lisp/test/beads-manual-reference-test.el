@@ -28,11 +28,30 @@
 ;;   3. USER OPTIONS.  Every symbol under `lisp/' for which
 ;;      `custom-variable-p' is non-nil gets exactly one `@defopt' entry.
 ;;
+;; The second half of the gate (WS-5, be-o597j) extends the contract to
+;; key sequences, keymaps, and the generated indexes (REQ-008, REQ-010):
+;;
+;;   4. KEYBINDINGS.  Every `(key path . command)' reachable from
+;;      `beads-dispatch' (recursing through sub-prefixes, quitting and
+;;      infix pseudo-commands included under their documented names) has
+;;      exactly one row in the Keybinding Reference, and every row there
+;;      names a key path the menus actually bind.  This is the
+;;      `scripts/dispatch-docs' drift discipline applied to the manual.
+;;   5. KEYMAPS.  The mode maps named in `docs/key-registry.md' are
+;;      documented as `@defvr {Keymap}' entries whose keys match the
+;;      live, effective bindings, and the registry's own key/command
+;;      contract is re-derived from the Markdown and checked the same way.
+;;   6. INDEX.  Every key the manual presents in an `@table @kbd' block
+;;      has a `@kindex' entry; every `@kindex' names a key something is
+;;      bound to; no key is indexed twice in one node; no name is defined
+;;      twice; and a documented hook or keymap has its definition.
+;;
 ;; The gate is hermetic (`:unit', no `bd'): it reads the `lisp/' sources
 ;; for their transient layouts and `defcustom' definitions, and parses
 ;; only the Texinfo sources.  It loads the sources itself so the result
-;; does not depend on test-file load order.  Removing one `@deffn' or
-;; `@defopt' entry makes it fail naming that command or option.
+;; does not depend on test-file load order.  Removing one `@deffn',
+;; `@defopt', keybinding row, or `@kindex' entry makes it fail naming
+;; that command, key, or option.
 
 ;;; Code:
 
@@ -244,6 +263,611 @@ left behind after a rename or removal must fail, mirroring the
                (string-join stale-options ", "))))
     (should (null stale-commands))
     (should (null stale-options))))
+
+
+;;; ==================================================================
+;;; Keybindings, keymaps, and the indexes (WS-5, be-o597j)
+;;; ==================================================================
+
+(defconst beads-manual-reference-test--kindex-regexp
+  "^@kindex\\s-+\\(.+\\)$"
+  "Regexp capturing the value of a Texinfo `@kindex' line.")
+
+(defconst beads-manual-reference-test--node-regexp
+  "^@node\\s-+\\(.+\\)$"
+  "Regexp capturing the name of a Texinfo node line.")
+
+(defconst beads-manual-reference-test--keymap-regexp
+  "^@defvr\\s-+{Keymap}\\s-+\\(\\S-+\\)"
+  "Regexp capturing the name of a Texinfo `@defvr {Keymap}' entry.")
+
+(defconst beads-manual-reference-test--definition-regexp
+  (concat "^@\\(?:deffn\\s-+{[^}]*}\\|defun\\|defopt\\|defvr\\s-+{[^}]*}\\)"
+          "\\s-+\\(\\S-+\\)")
+  "Regexp capturing the name of any Texinfo definition entry.")
+
+(defconst beads-manual-reference-test--explicit-index-regexp
+  "^@\\(findex\\|vindex\\)\\s-+\\(.+\\)$"
+  "Regexp capturing an explicit `@findex'/`@vindex' entry.")
+
+(defconst beads-manual-reference-test--reference-node
+  "Keybinding Reference"
+  "Node holding the row-by-row keybinding contract.")
+
+(defconst beads-manual-reference-test--registry-file
+  "docs/key-registry.md"
+  "Project-relative path of the shared key registry.")
+
+;;; Texinfo primitives
+
+(defun beads-manual-reference-test--unescape (string)
+  "Undo the Texinfo escapes used for literal characters in STRING.
+Keys such as `@kbd{@@}' or `@kbd{@{}' are written with a doubled
+character so Texinfo emits the literal; the index stores the real key."
+  (let ((case-fold-search nil))
+    (replace-regexp-in-string
+     "@\\([@{}]\\|,\\|:\\)" "\\1" string)))
+
+(defun beads-manual-reference-test--canonical-key (key)
+  "Return KEY as a canonical key description.
+KEY is a Texinfo key string such as `SPC', `S-TAB', or `C-c C-c'.  It
+is unescaped and round-tripped through `kbd' so `S-TAB' and `<backtab>'
+compare equal."
+  (let ((key (beads-manual-reference-test--unescape (string-trim key))))
+    (condition-case nil
+        (key-description (kbd key))
+      (error key))))
+
+(defun beads-manual-reference-test--line-at (pos)
+  "Return the line containing POS without text properties."
+  (save-excursion
+    (goto-char pos)
+    (buffer-substring-no-properties (line-beginning-position)
+                                    (line-end-position))))
+
+(defun beads-manual-reference-test--node-at (pos)
+  "Return the name of the nearest `@node' before POS, or nil."
+  (save-excursion
+    (goto-char pos)
+    (when (re-search-backward beads-manual-reference-test--node-regexp nil t)
+      (string-trim (match-string 1)))))
+
+(defun beads-manual-reference-test--item-keys (item)
+  "Return the canonical key sequence described by ITEM.
+ITEM is the text after `@item' in a `@table @kbd' block.  A row written
+with `@kbd{...}' markup may hold several keys (a key path); a bare row
+such as `@item C-c C-c' is itself the key sequence."
+  (let (keys)
+    (with-temp-buffer
+      (insert item)
+      (goto-char (point-min))
+      (while (re-search-forward "@kbd{\\(\\(?:[^@}]\\|@[{}@]\\)*\\)}" nil t)
+        (push (match-string 1) keys)))
+    (if keys
+        (mapcar #'beads-manual-reference-test--canonical-key (nreverse keys))
+      (list (beads-manual-reference-test--canonical-key item)))))
+
+(defun beads-manual-reference-test--row-command ()
+  "Return the command named by the row at point, or nil.
+A documented command row puts `@code{NAME} --- DESCRIPTION' on the
+first non-blank line after its `@item' line."
+  (save-excursion
+    (forward-line 1)
+    (while (and (not (eobp)) (looking-at "^\\s-*$"))
+      (forward-line 1))
+    (when (looking-at "^@code{\\([^}]*\\)}\\s-*---")
+      (match-string-no-properties 1))))
+
+(defun beads-manual-reference-test--key-table-rows (files)
+  "Return every row of every `@table @kbd' block in FILES.
+Each row is a plist with `:file', `:line', `:node', `:keys' (a list of
+canonical key descriptions forming the key path), `:path' (the keys
+joined by spaces), and `:name' (the documented command, or nil for a
+prose row)."
+  (let (rows)
+    (dolist (file files)
+      (with-temp-buffer
+        (insert-file-contents file)
+        (goto-char (point-min))
+        (let ((in-kbd nil))
+          (while (not (eobp))
+            (let ((line (buffer-substring-no-properties
+                         (line-beginning-position) (line-end-position))))
+              (cond
+               ((string-match-p "^@table\\s-+@kbd\\_>" line)
+                (setq in-kbd t))
+               ((and in-kbd (string-match-p "^@end\\s-+table\\_>" line))
+                (setq in-kbd nil))
+               ((and in-kbd (string-match "^@item\\(?:[ \t]+\\(.*\\)\\)?$" line))
+                (let* ((item (or (match-string 1 line) ""))
+                       (keys (beads-manual-reference-test--item-keys item)))
+                  (push (list :file (file-name-nondirectory file)
+                              :line (line-number-at-pos)
+                              :node (beads-manual-reference-test--node-at
+                                     (line-beginning-position))
+                              :keys keys
+                              :path (mapconcat #'identity keys " ")
+                              :name (beads-manual-reference-test--row-command))
+                        rows)))))
+            (forward-line 1)))))
+    (nreverse rows)))
+
+(defun beads-manual-reference-test--kindex-keys (files)
+  "Return an alist of (NODE . KEY) for every `@kindex' in FILES."
+  (let (entries)
+    (dolist (file files)
+      (with-temp-buffer
+        (insert-file-contents file)
+        (goto-char (point-min))
+        (while (re-search-forward beads-manual-reference-test--kindex-regexp nil t)
+          (let ((key (beads-manual-reference-test--canonical-key
+                      (match-string 1))))
+            (push (cons (beads-manual-reference-test--node-at
+                         (line-beginning-position))
+                        key)
+                  entries)))))
+    (nreverse entries)))
+
+(defun beads-manual-reference-test--definitions (files)
+  "Return an alist of (NAME . NODE) for every definition in FILES."
+  (let (entries)
+    (dolist (file files)
+      (with-temp-buffer
+        (insert-file-contents file)
+        (goto-char (point-min))
+        (while (re-search-forward beads-manual-reference-test--definition-regexp nil t)
+          (push (cons (match-string-no-properties 1)
+                      (beads-manual-reference-test--node-at (line-beginning-position)))
+                entries))))
+    (nreverse entries)))
+
+(defun beads-manual-reference-test--explicit-index-entries (files)
+  "Return an alist of (KIND VALUE NODE) for `@findex'/`@vindex' in FILES."
+  (let (entries)
+    (dolist (file files)
+      (with-temp-buffer
+        (insert-file-contents file)
+        (goto-char (point-min))
+        (while (re-search-forward beads-manual-reference-test--explicit-index-regexp nil t)
+          (push (list (match-string-no-properties 1)
+                      (string-trim (match-string-no-properties 2))
+                      (beads-manual-reference-test--node-at (line-beginning-position)))
+                entries))))
+    (nreverse entries)))
+
+;;; The derived keybinding surface
+
+(defun beads-manual-reference-test--infix-name (command)
+  "Return the documented argument name for infix pseudo-command COMMAND.
+`transient:beads-cook:--var=' documents as `--var='."
+  (car (last (split-string (symbol-name command) ":" t))))
+
+(defun beads-manual-reference-test--derived-key-entries ()
+  "Return `(PATH . NAME)' for every key reachable from `beads-dispatch'.
+PATH is the space-joined canonical key path from the dispatch menu; NAME
+is the command name, the infix argument name for generated infix
+pseudo-commands, or `:quit' for `transient-quit-one'.  The walk recurses
+into every suffix whose command is itself a transient prefix."
+  (beads-manual-reference-test--load-sources)
+  (let (entries)
+    (cl-labels
+        ((walk (prefix path)
+               (dolist (entry (beads-transient-doc-suffixes prefix))
+                 (let* ((key (beads-manual-reference-test--canonical-key
+                              (plist-get entry :key)))
+                        (command (plist-get entry :command))
+                        (full (append path (list key))))
+                   (push (cons (mapconcat #'identity full " ")
+                               (cond ((eq command 'transient-quit-one) :quit)
+                                     ((and (symbolp command)
+                                           (string-prefix-p "transient:"
+                                                            (symbol-name command)))
+                                      (beads-manual-reference-test--infix-name command))
+                                     (t (symbol-name command))))
+                         entries)
+                   (when (and (symbolp command) (get command 'transient--layout))
+                     (walk command full))))))
+      (walk 'beads-dispatch nil))
+    (nreverse entries)))
+
+;;; Live keymap surface
+
+(defun beads-manual-reference-test--keymap-keys (map &optional prefix)
+  "Return every key sequence in keymap MAP as a canonical description.
+PREFIX is the key sequence leading to MAP."
+  (let ((prefix (or prefix []))
+        keys)
+    (map-keymap
+     (lambda (event definition)
+       (let ((sequence (vconcat prefix (vector event))))
+         (if (and (keymapp definition)
+                  (not (symbolp definition)))
+             (setq keys (append (beads-manual-reference-test--keymap-keys
+                                 definition sequence)
+                                keys))
+           (push (key-description sequence) keys))))
+     map)
+    keys))
+
+(defun beads-manual-reference-test--bound-keys ()
+  "Return every key bound by a beads.el transient menu or keymap.
+Transient suffix keys are read from every `beads-*' prefix's parsed
+layout (not only the four dispatch roots, so stand-alone menus such as
+the compose metadata sidebar count); keymap keys are read from the
+effective map of every `beads-*' symbol whose value is a keymap."
+  (beads-manual-reference-test--load-sources)
+  (let (keys)
+    (mapatoms
+     (lambda (symbol)
+       (let ((name (symbol-name symbol)))
+         (when (string-prefix-p "beads-" name)
+           (when (get symbol 'transient--layout)
+             (dolist (entry (beads-transient-doc-suffixes symbol))
+               (push (beads-manual-reference-test--canonical-key
+                      (plist-get entry :key))
+                     keys)))
+           (when (and (boundp symbol) (keymapp (symbol-value symbol)))
+             (setq keys (append (beads-manual-reference-test--keymap-keys
+                                 (symbol-value symbol))
+                                keys)))))))
+    (delete-dups keys)))
+
+(defun beads-manual-reference-test--registry-declarations ()
+  "Return the (KEYMAP KEY . COMMAND) contract parsed from the key registry.
+The registry is `docs/key-registry.md'; its Markdown tables name a mode
+column (`list', `show', `dashboard', `section') per mode map.  A cell
+may hold several backticked commands and its key cell the same number of
+backticked keys, zipped left to right; `---' or an empty cell means the
+mode does not bind that key."
+  (let ((file (expand-file-name beads-manual-reference-test--registry-file
+                                beads-manual-reference-test--root))
+        (header nil)
+        declarations)
+    (with-temp-buffer
+      (insert-file-contents file)
+      (goto-char (point-min))
+      (while (not (eobp))
+        (let ((line (buffer-substring-no-properties
+                     (line-beginning-position) (line-end-position))))
+          (cond
+           ((string-match-p "^\\s-*|" line)
+            (let ((cells (mapcar #'string-trim
+                                 (butlast (cdr (split-string line "|"))))))
+              (cond
+               ((null header) (setq header cells))
+               ((cl-every (lambda (cell) (string-match-p "^[-: ]+$" cell)) cells)
+                nil)
+               (t
+                (let ((columns (cl-mapcar #'cons header cells)))
+                  (dolist (column columns)
+                    (let ((map (pcase (car column)
+                                 ("list" 'beads-list-mode-map)
+                                 ("show" 'beads-show-mode-map)
+                                 ("dashboard" 'beads-dashboard-mode-map)
+                                 ("section" 'beads-section-mode-map))))
+                      (when map
+                        (setq declarations
+                              (append (beads-manual-reference-test--registry-cell
+                                       map (cdr (assoc "Key" columns)) (cdr column))
+                                      declarations))))))))))
+           ((string-match-p "^#+\\s-+" line)
+            (setq header nil))))
+        (forward-line 1)))
+    (nreverse declarations)))
+
+(defun beads-manual-reference-test--backticked (string)
+  "Return the backticked items in STRING, in order."
+  (let (items)
+    (with-temp-buffer
+      (insert string)
+      (goto-char (point-min))
+      (while (re-search-forward "`\\([^`]+\\)`" nil t)
+        (push (match-string 1) items)))
+    (nreverse items)))
+
+(defun beads-manual-reference-test--registry-cell (map key-cell command-cell)
+  "Return (MAP KEY . COMMAND) declarations for one registry cell pair."
+  (let* ((keys (beads-manual-reference-test--backticked (or key-cell "")))
+         (commands (beads-manual-reference-test--backticked (or command-cell ""))))
+    (when (and keys commands (= (length keys) (length commands)))
+      (cl-mapcar (lambda (key command)
+                   (cons map (cons (beads-manual-reference-test--canonical-key key)
+                                   (intern command))))
+                 keys commands))))
+
+;;; Keymap definitions in the manual
+
+(defun beads-manual-reference-test--keymap-definitions (files)
+  "Return an alist of (NAME . ROWS) for `@defvr {Keymap}' entries in FILES.
+ROWS is a list of (KEY . COMMAND) pairs taken from the `@table @kbd'
+block inside the definition."
+  (let (definitions)
+    (dolist (file files)
+      (with-temp-buffer
+        (insert-file-contents file)
+        (goto-char (point-min))
+        (while (re-search-forward beads-manual-reference-test--keymap-regexp nil t)
+          (let ((name (match-string-no-properties 1))
+                (end (save-excursion
+                       (if (re-search-forward "^@end\\s-+defvr\\_>" nil t)
+                           (point)
+                         (point-max))))
+                rows)
+            (save-excursion
+              (while (re-search-forward "^@item\\s-+@kbd{\\(\\(?:[^@}]\\|@[{}@]\\)*\\)}" end t)
+                (let ((key (beads-manual-reference-test--canonical-key
+                            (match-string 1)))
+                      (command (save-excursion
+                                 (forward-line 1)
+                                 (while (and (not (eobp)) (looking-at "^\\s-*$"))
+                                   (forward-line 1))
+                                 (when (looking-at "^@code{\\([^}]*\\)}")
+                                   (match-string-no-properties 1)))))
+                  (when command
+                    (push (cons key command) rows)))))
+            (push (cons name (nreverse rows)) definitions)))))
+    (nreverse definitions)))
+
+;;; Helpers
+
+(defun beads-manual-reference-test--duplicates (list)
+  "Return the elements of LIST that appear more than once, in first-seen order."
+  (let (seen duplicates)
+    (dolist (item list)
+      (if (member item seen)
+          (unless (member item duplicates) (push item duplicates))
+        (push item seen)))
+    (nreverse duplicates)))
+
+(defun beads-manual-reference-test--missing (inventory documented)
+  "Return the elements of INVENTORY absent from DOCUMENTED."
+  (seq-remove (lambda (item) (member item documented)) inventory))
+
+(defun beads-manual-reference-test--fail (label items)
+  "Signal an `ert' failure naming LABEL and ITEMS."
+  (ert-fail (format "manual-reference-gate: %s: %s" label
+                    (mapconcat (lambda (item) (format "%s" item)) items ", "))))
+
+;;; The keybinding gate
+
+(ert-deftest beads-manual-reference-test-keybinding-reference-matches-menus ()
+  "The Keybinding Reference is exactly the dispatch-menu key surface (REQ-008).
+Both directions: every reachable `(path . command)' has a row, and every
+row names a key path the menus bind.  The derivation walks the menus, so
+a renamed key or a moved command fails here before the manual can ship a
+stale key sequence."
+  :tags '(:unit :no-coverage)
+  (let* ((reference (expand-file-name "reference.texi"
+                                      beads-manual-reference-test--manual-dir))
+         (rows (seq-filter (lambda (row)
+                             (equal (plist-get row :node)
+                                    beads-manual-reference-test--reference-node))
+                           (beads-manual-reference-test--key-table-rows
+                            (list reference))))
+         (documented (mapcar (lambda (row)
+                               (cons (plist-get row :path)
+                                     (or (plist-get row :name) "")))
+                             rows))
+         (derived (seq-remove (lambda (entry) (eq (cdr entry) :quit))
+                              (beads-manual-reference-test--derived-key-entries)))
+         (duplicates (beads-manual-reference-test--duplicates documented))
+         (stale (beads-manual-reference-test--missing documented derived))
+         (undocumented (beads-manual-reference-test--missing derived documented)))
+    (should derived)
+    (when duplicates
+      (beads-manual-reference-test--fail
+       "duplicate keybinding rows" (mapcar (lambda (entry) (car entry)) duplicates)))
+    (when stale
+      (beads-manual-reference-test--fail
+       "keybinding rows the menus do not bind"
+       (mapcar (lambda (entry) (format "%s -> %s" (car entry) (cdr entry))) stale)))
+    (when undocumented
+      (beads-manual-reference-test--fail
+       "bound keys missing from the Keybinding Reference"
+       (mapcar (lambda (entry) (format "%s -> %s" (car entry) (cdr entry)))
+               undocumented)))
+    (should (null stale))
+    (should (null undocumented))))
+
+(ert-deftest beads-manual-reference-test-key-tables-are-indexed ()
+  "Every key the manual presents in a `@table @kbd' has a `@kindex' (REQ-008)."
+  :tags '(:unit :no-coverage)
+  (let* ((files (beads-manual-reference-test--manual-files))
+         (keys (delete-dups
+                (apply #'append
+                       (mapcar (lambda (row) (plist-get row :keys))
+                               (beads-manual-reference-test--key-table-rows files)))))
+         (indexed (delete-dups (mapcar #'cdr
+                                       (beads-manual-reference-test--kindex-keys files))))
+         (missing (beads-manual-reference-test--missing keys indexed)))
+    (should keys)
+    (when missing
+      (beads-manual-reference-test--fail
+       "keys presented in a @table @kbd without a @kindex entry" missing))
+    (should (null missing))))
+
+(ert-deftest beads-manual-reference-test-key-index-has-no-orphans ()
+  "No `@kindex' names a key nothing is bound to, or repeats in one node (REQ-008)."
+  :tags '(:unit :no-coverage)
+  (let* ((files (beads-manual-reference-test--manual-files))
+         (entries (beads-manual-reference-test--kindex-keys files))
+         (bound (beads-manual-reference-test--bound-keys))
+         (orphans (beads-manual-reference-test--missing
+                   (delete-dups (mapcar #'cdr entries)) bound))
+         (duplicates (beads-manual-reference-test--duplicates entries)))
+    (should entries)
+    (when orphans
+      (beads-manual-reference-test--fail
+       "@kindex keys that no transient or keymap binds" orphans))
+    (when duplicates
+      (beads-manual-reference-test--fail
+       "keys indexed twice in one node"
+       (mapcar (lambda (entry) (format "%s (node %s)" (cdr entry) (car entry)))
+               duplicates)))
+    (should (null orphans))
+    (should (null duplicates))))
+
+;;; The keymap gate
+
+(ert-deftest beads-manual-reference-test-registry-declarations-are-live-bindings ()
+  "Every key the registry documents is the mode map's effective binding (REQ-010).
+This re-derives the documented keybinding surface from
+`docs/key-registry.md' rather than from the menus, so the manual's
+keymap entries below are checked against the same contract the
+registry test enforces from the code side."
+  :tags '(:unit :no-coverage)
+  (beads-manual-reference-test--load-sources)
+  (let ((declarations (beads-manual-reference-test--registry-declarations)))
+    (should declarations)
+    (dolist (declaration declarations)
+      (pcase-let ((`(,map ,key . ,command) declaration))
+        (let ((actual (lookup-key (symbol-value map) (kbd key))))
+          (unless (eq actual command)
+            (ert-fail
+             (format "manual-reference-gate: %s binds %s to %s, registry says %s"
+                     map key (or actual "nothing") command))))))))
+
+(ert-deftest beads-manual-reference-test-keymap-definitions-match-keymaps ()
+  "Documented keymaps exist, are accurate, and cover the registry (REQ-008, REQ-010)."
+  :tags '(:unit :no-coverage)
+  (beads-manual-reference-test--load-sources)
+  (let* ((files (beads-manual-reference-test--manual-files))
+         (definitions (beads-manual-reference-test--keymap-definitions files))
+         (declared-maps (delete-dups
+                         (mapcar (lambda (declaration)
+                                   (symbol-name (car declaration)))
+                                 (beads-manual-reference-test--registry-declarations))))
+         (documented-maps (mapcar #'car definitions)))
+    ;; 1. Every keymap the registry names is documented as a keymap.
+    (let ((undocumented (beads-manual-reference-test--missing
+                         declared-maps documented-maps)))
+      (when undocumented
+        (beads-manual-reference-test--fail
+         "keymaps named in the registry but not documented as @defvr {Keymap}"
+         undocumented)))
+    ;; 2. Every documented keymap is real and every row is the live binding.
+    (dolist (definition definitions)
+      (let ((map (intern (car definition))))
+        (unless (and (boundp map) (keymapp (symbol-value map)))
+          (ert-fail (format "manual-reference-gate: %s is not a keymap" map)))
+        (dolist (row (cdr definition))
+          (let ((actual (lookup-key (symbol-value map) (kbd (car row)))))
+            (unless (eq actual (intern (cdr row)))
+              (ert-fail
+               (format "manual-reference-gate: %s documents %s as %s, actually %s"
+                       map (car row) (cdr row) (or actual "nothing"))))))))
+    ;; 3. The documented keymap rows cover the registry's contract keys.
+    (dolist (declaration (beads-manual-reference-test--registry-declarations))
+      (pcase-let ((`(,map ,key . ,command) declaration))
+        (let ((rows (cdr (assoc (symbol-name map) definitions))))
+          (unless (equal (cdr (assoc key rows)) (symbol-name command))
+            (ert-fail
+             (format "manual-reference-gate: %s does not document %s -> %s"
+                     map key command))))))))
+
+;;; The index gate
+
+(ert-deftest beads-manual-reference-test-single-definition-per-name ()
+  "No name is defined twice in the manual (REQ-008).
+A second `@deffn'/`@defopt'/`@defvr' for the same name would print a
+duplicate index entry pointing at a second definition; task chapters
+cross-reference the reference chapter instead."
+  :tags '(:unit :no-coverage)
+  (let* ((definitions (beads-manual-reference-test--definitions
+                       (beads-manual-reference-test--manual-files)))
+         (names (mapcar #'car definitions))
+         (duplicates (beads-manual-reference-test--duplicates names)))
+    (when duplicates
+      (beads-manual-reference-test--fail
+       "names defined more than once"
+       (mapcar (lambda (name)
+                 (format "%s (%s)" name
+                         (mapconcat #'identity
+                                    (mapcar #'cdr (seq-filter
+                                                   (lambda (entry)
+                                                     (equal (car entry) name))
+                                                   definitions))
+                                    ", ")))
+               duplicates)))
+    (should (null duplicates))))
+
+(ert-deftest beads-manual-reference-test-index-entries-are-not-orphans ()
+  "Explicit `@findex'/`@vindex' entries name something defined (REQ-008).
+A prose index entry for a real option or command is fine; one that names
+a `beads-...' identifier that the manual never defines is an orphan.
+Indexing the subject of a `@defopt'/`@defvr' inside that same node is a
+duplicate, because Texinfo indexes the definition automatically."
+  :tags '(:unit :no-coverage)
+  (beads-manual-reference-test--load-sources)
+  (let* ((files (beads-manual-reference-test--manual-files))
+         (definitions (beads-manual-reference-test--definitions files))
+         (defined (mapcar #'car definitions))
+         (entries (beads-manual-reference-test--explicit-index-entries files))
+         (identifier-regexp "\\`beads-[a-z0-9-]+\\'")
+         problems)
+    (dolist (entry entries)
+      (pcase-let ((`(,kind ,value ,node) entry))
+        (let ((name (car (split-string value "[ \t,]+"))))
+          (cond
+           ;; A prose entry for a defined name is a legitimate second
+           ;; pointer; a prose entry for an undefined `beads-...' name is
+           ;; an orphan.
+           ((and (string-match-p identifier-regexp name)
+                 (not (member name defined)))
+            (push (format "%s %s" kind value) problems))
+           ;; Explicitly indexing the subject of a definition in the same
+           ;; node duplicates Texinfo's automatic entry.
+           ((member (cons name node) definitions)
+            (push (format "%s %s duplicates its %s definition (node %s)"
+                          kind value "@deffn/@defopt/@defvr" node)
+                  problems))))))
+    (when problems
+      (beads-manual-reference-test--fail
+       "orphan or duplicate explicit index entries" (nreverse problems)))
+    (should (null problems))))
+
+(ert-deftest beads-manual-reference-test-documented-hooks-and-keymaps-defined ()
+  "A hook or keymap the manual names has a definition and an index entry (REQ-008)."
+  :tags '(:unit :no-coverage)
+  (beads-manual-reference-test--load-sources)
+  (let* ((files (beads-manual-reference-test--manual-files))
+         (definitions (beads-manual-reference-test--definitions files))
+         (defined (mapcar #'car definitions))
+         (keymaps (mapcar #'car (beads-manual-reference-test--keymap-definitions
+                                 files)))
+         (text (mapconcat (lambda (file)
+                            (with-temp-buffer
+                              (insert-file-contents file)
+                              (buffer-string)))
+                          files "\n"))
+         (hooks (delete-dups
+                 (let (names)
+                   (with-temp-buffer
+                     (insert text)
+                     (goto-char (point-min))
+                     (while (re-search-forward
+                             "\\_<\\(beads-[a-z0-9-]+-hook\\)\\_>" nil t)
+                       (push (match-string 1) names)))
+                   names)))
+         (maps (delete-dups
+                (let (names)
+                  (with-temp-buffer
+                    (insert text)
+                    (goto-char (point-min))
+                    (while (re-search-forward
+                            "\\_<\\(beads-[a-z0-9-]+-map\\)\\_>" nil t)
+                      (push (match-string 1) names)))
+                  names)))
+         (missing-hooks (beads-manual-reference-test--missing hooks defined))
+         (missing-maps (beads-manual-reference-test--missing maps keymaps)))
+    (when missing-hooks
+      (beads-manual-reference-test--fail
+       "hooks named in the manual without a @defopt/@defvr entry" missing-hooks))
+    (when missing-maps
+      (beads-manual-reference-test--fail
+       "keymaps named in the manual without a @defvr {Keymap} entry" missing-maps))
+    (should (null missing-hooks))
+    (should (null missing-maps))))
 
 (provide 'beads-manual-reference-test)
 ;;; beads-manual-reference-test.el ends here

@@ -40,10 +40,10 @@ If you are unsure which Beads store a buffer acts on, the header names it,
 and buffer-local store scoping keeps every command pointed at the same
 store (@pxref{Store Scoping}).
 
-@anchor{fig:board-dark}
+@anchor{fig-board-dark}
 @shot{dashboard-dark, The project board (@code{beads-dashboard}) with ready in-progress and blocked sections.}
-@anchor{fig:board-light}
-@shot{dashboard-light, The project board under the light theme.}
+@anchor{fig-board-light}
+@shot{dashboard-light, The same project board with Emacs's default faces and no theme loaded.}
 
 @menu
 * Board Sections and Folding::
@@ -56,10 +56,12 @@ store (@pxref{Store Scoping}).
 @kindex SPC
 
 Each section heading is a thing carrying a toggle (@pxref{One Movement
-Scheme}).  @kbd{SPC} on a heading folds or unfolds that section; @kbd{+}
-and @kbd{-} expand and collapse, and @kbd{*} toggles everything.  Section
-state is remembered per store, so reopening the board restores your
-layout.
+Scheme}).  @kbd{SPC} on a heading folds or unfolds that section.  The
+row-count keys act on the section at point and do not fold it: @kbd{+}
+shows the next batch of rows, @kbd{-} hides a batch again (down to the
+default limit), and @kbd{*} loads every remaining row so the heading shows
+the true count.  Section state is remembered per store, so reopening the
+board restores your layout.
 
 @node Ready and Blocked Lists
 @subsection Ready and Blocked Lists
@@ -71,9 +73,9 @@ no unmet dependencies.  The @emph{blocked} list is its complement: issues
 waiting on dependencies or on a declared blocked status.  Open them from
 the dispatch menu with @kbd{r} and @kbd{b}, or from the board header.
 
-@anchor{fig:ready-dark}
+@anchor{fig-ready-dark}
 @shot{ready-dark, The ready-work list.}
-@anchor{fig:blocked-dark}
+@anchor{fig-blocked-dark}
 @shot{blocked-dark, The blocked-issues list.}
 
 @node List and Show Views
@@ -134,12 +136,16 @@ adds navigation for large result sets.
 @end deffn
 
 @table @kbd
+@kindex ]
 @item ]
 Move to the next page.
+@kindex [
 @item [
 Move to the previous page.
+@kindex G
 @item G
 Jump to a page.
+@kindex g
 @item g
 Refresh the current view.
 @end table
