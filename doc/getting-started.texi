@@ -146,14 +146,17 @@ reports @code{Refreshed demo-3}.
 @item
 Press @kbd{s} to set status.  At the @code{Status for demo-3:} prompt
 choose @code{in_progress}.  The echo area reports
-@code{Set status to 'in_progress' for 1 issue(s)} and the status renders
-in the warning face; the refresh then reports @code{Refreshed demo-3}.
+@code{Set status to ‘in_progress’ for 1 issue(s)} (Emacs renders the
+quotes around the value as curly quotes) and the status renders in the
+warning face; the refresh then reports @code{Refreshed demo-3}.
 @end enumerate
 
 The fixture already starts @code{demo-3} in progress; pressing the keys
 records your actor as owner and demonstrates the update path the rest of
 the manual uses.  Refresh the list with @kbd{g} to see the new priority
-and owner.
+and the changed @strong{Updated} time; the list has no owner column, so
+the @strong{Agents} column stays empty and the assignee is shown in the
+detail header instead.
 
 @node Unblock demo-4
 @subsection Unblock demo-4
@@ -176,7 +179,7 @@ buffer renders @code{demo-4} as @code{Blocked} with a dependency on
 @code{demo-3}.
 @item
 Press @kbd{s} and choose @code{open}.  The echo area reports
-@code{Set status to 'open' for 1 issue(s)}.
+@code{Set status to ‘open’ for 1 issue(s)}.
 @item
 Press @kbd{?} and then @kbd{r} to open the ready list
 @code{*beads-ready[demo-project]*}.  @code{demo-4} is now listed as ready

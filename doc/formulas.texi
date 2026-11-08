@@ -48,6 +48,9 @@ pattern, default, and required flag.  Variables inherited from
 @kindex c
 @item c
 Convert a formula from JSON to TOML.
+@kindex S
+@item S
+Show the schema index.
 @end table
 
 The formula browser marks a formula whose name shadows a same-name formula
@@ -118,16 +121,24 @@ needs = ["test"]
 @end example
 
 Then cook the formula, pour the cooked proto into a molecule, and
-inspect the result:
+inspect the result.  Cooking creates a proto only when @strong{Persist}
+is set; without it the cook command just prints the compiled formula.
 
 @table @asis
 @item @kbd{?} @kbd{!} @kbd{K}
-Cook --- pick @samp{release} in the maintenance menu to create the proto
-bead.
+Open the Cook menu.  Set @strong{Persist} with @kbd{-p}, press @kbd{s},
+and pick @samp{release} at the @samp{Formula:} prompt.  The result buffer
+reports @samp{Cooked proto: release} and the proto id is the formula
+name.  The optional @kbd{-m} Mode, @kbd{-x} Proto prefix, and
+@kbd{-v} Variable fields are not needed here, and @kbd{P} previews the
+compiled formula without creating anything.
 @item @kbd{?} @kbd{m} @kbd{p}
-Pour --- pick the cooked proto to create the persistent molecule.
+Pour --- set the required @samp{Proto ID} field to @code{release} and
+press @kbd{x}.  The result names the new molecule root, for example
+@samp{Poured mol: created 3 issues} and @samp{Root issue: demo-mol-…}.
 @item @kbd{?} @kbd{m} @kbd{s}
-Show --- list the molecule root and its stepped issues.
+Show --- set the required @samp{Mol ID} field to that root id and press
+@kbd{x}.  The view lists the molecule root and its stepped issues.
 @end table
 
 @node Combine
@@ -214,6 +225,9 @@ children; @kbd{RET} opens an epic (@pxref{Viewing Issues}).
 @item c
 Close eligible --- close every epic whose children are all complete.  Pass
 @code{--dry-run} to preview first.
+@kindex D
+@item D
+Distill to formula --- extract a formula from the epic's issue graph.
 @end table
 
 @anchor{fig-epic-dark}

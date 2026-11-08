@@ -127,6 +127,47 @@ command, option, keymap, or runtime behavior changed.
     README now records that the `↩ Back to …` row makes show/epic subset
     captures differ from the full-run image, so canonical images come from
     `--scope all`.
+13. **Cook needs `Persist` to make a proto.** `? ! K` then `s` and the
+    formula name prints the compiled formula JSON; it does not create the
+    proto that the pour step needs.  With `-p` Persist set, the result buffer
+    reports `Cooked proto: release` (the proto id is the formula name), and
+    `? m p` pours it once the required `Proto ID` field is set.  `? m s`
+    then takes the root id in its required `Mol ID` field.  `doc/formulas.texi`
+    now documents the Persist step, the field names, and the result text.
+14. **`fixture.sh verify` removes the project it checks.** The install
+    chapter's `create`, `verify`, `teardown` example read like a non-destructive
+    check, but `verify` creates a throwaway fixture at the shared path and
+    removes it on success.  The chapter now says to run `create` afterwards
+    when following the walkthrough.
+15. **Sibling fixture owns the shared path.** The default `/tmp/demo-project`
+    can already belong to the `gascity.el` fixture, whose marker is
+    `.gascity-fixture-project`; beads.el then refuses to replace it, as the
+    marker guard intends.  The chapter now names the two supported remedies:
+    let the sibling fixture tear the path down first, or run the pass under a
+    private `TMPDIR` (which is what this pass did).
+16. **Curly quotes in status echoes.** The status messages render the value as
+    `Set status to ‘in_progress’ for 1 issue(s)` (curly quotes), not the
+    straight quotes the walkthrough printed.  The walkthrough now quotes the
+    observed text and notes the glyph difference.
+17. **The list has no owner column.** "Refresh the list with `g` to see the new
+    priority and owner" was inaccurate: the `Agents` column is empty, the
+    assignee appears in the detail header, and the list shows the change in
+    its `Updated` time.  The walkthrough now says that.
+
+### Additional checks in the follow-up session
+
+A second fresh `emacs -nw -Q` session (dedicated `TMPDIR`, documented setup,
+`BEADS_ACTOR=demo`) re-ran the affected flows and covered the formula and
+screenshot material the first pass left out.
+
+| Section | Tried | Observed | Manual sufficient? |
+| --- | --- | --- | --- |
+| Formula instantiate | `? ! K`, `-p`, `s`, `release`; `? m p` with `Proto ID=release`; `? m s` with the root id | `Cooked proto: release` (3 issues); `Poured mol: created 3 issues`, root `demo-mol-…`; molecule view lists the root plus both steps | After fix 13: yes |
+| Formula menu extras | `? F` | `l`/`s`/`c` plus `S` Schema index; epic menu also offers `D` Distill to formula | After fix 13: yes |
+| Fixture lifecycle | `fixture.sh verify`; `create` under a dedicated `TMPDIR` | `verify` builds and deletes its own copy; `create` refuses a path owned by the sibling fixture (marker guard) and succeeds under a private `TMPDIR` | After fixes 14–15: yes |
+| Status echoes | `#`, `s` in the demo-3 detail view | `Set priority to 1 for 1 issue(s)`; `Set status to ‘in_progress’ for 1 issue(s)` | After fix 16: yes |
+| Label list (defect) | `? L l` then `demo-4`, from the show view and from a list row | Signals `Wrong type argument: sequencep, 10` instead of listing labels; the other label commands (`a`, `r`, `L`) work | No — code defect, not an instruction gap; recorded below as discovered work |
+| Screenshot/regen docs | `docs/manual/screenshots/README.md` run commands | The scoped capture, verify, and verify-scope commands behave as the README says; the maintenance image was refreshed in fix 12 | Yes |
 
 ## Verification
 
@@ -193,10 +234,17 @@ the TRAMP dashboard/list/show — all from the manual and `C-h` help.
   transient, and session list were opened, but no real backend process was
   started; the manual documents the surface, and launching a real agent would
   have touched the host terminal/worktree outside the fixture brief.
-- **Formula/molecule data.** The fixture has no project formulas, so
-  formula list reports `No formulas found`; the cook/pour flows were not
-  exercised against a formula because the manual-only fixture does not provide
-  one.  The menus and documented keys were verified.
+- **Formula/molecule data.** The committed fixture has no project formulas,
+  so formula list reports `No formulas found`.  The follow-up pass added the
+  manual's own `release.formula.toml` to its throwaway fixture and exercised
+  cook (with Persist), pour, and the molecule view; those flows now pass as
+  documented after fix 13.
+- **`? L l` label list signals `Wrong type argument: sequencep, 10`.**
+  Reproduced from both the issue detail view and a list row after entering an
+  issue id at the `Issue ID:` prompt.  `? L a`, `? L r`, and `? L L` work, and
+  the show view already renders the issue's labels, so the pass documents the
+  defect instead of changing code: this is a discovered UI bug outside the
+  documentation-only scope of WS-7.
 
 ## Requirements
 

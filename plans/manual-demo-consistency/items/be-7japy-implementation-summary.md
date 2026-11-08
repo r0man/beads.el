@@ -24,6 +24,8 @@ trace:
       hash: sha256:6504c508bd25f3a2efc8a0e99bc940767b3306ae41352077fa446d2d6c319ca8
     - path: doc/getting-started.texi
       hash: sha256:worktree-edit
+    - path: doc/formulas.texi
+      hash: sha256:worktree-edit
     - path: plans/manual-demo-consistency/qa-report.md
       hash: sha256:worktree-new
   coverage:
@@ -52,8 +54,8 @@ setup and the fixture at `${TMPDIR}/demo-project`, with
 running UI, never the implementation sources, to decide how to operate the UI.
 A second pass re-ran every changed or previously failing flow.
 
-Ten manual/screenshot defects were fixed (all documentation or image changes;
-no runtime behavior changed):
+Fifteen manual/screenshot defects were fixed (all documentation or image
+changes; no runtime behavior changed):
 
 - the source-install instructions now load the generated autoloads, which the
   lazily autoloaded epic-menu suffix needs;
@@ -73,7 +75,18 @@ no runtime behavior changed):
 - the context-action table now separates list-only (`o`) from show-only
   (`E`, `N`) actions;
 - the label menu command (`beads-label-menu`) and the epic child section label
-  (`BLOCKS`) are corrected.
+  (`BLOCKS`) are corrected;
+- Cook now documents that `Persist` (`-p`) is what creates the proto, that the
+  proto id is the formula name, and the required `Proto ID`/`Mol ID` fields of
+  the pour and show menus, plus the epic menu's `D` Distill action and the
+  formula menu's `S` schema index;
+- the fixture chapter notes that `fixture.sh verify` builds and removes its own
+  copy at the shared path (run `create` afterwards) and that a sibling
+  `gascity.el` fixture owning the path is handled by teardown or a private
+  `TMPDIR`;
+- the status echoes quote the observed curly-quote text, and the list refresh
+  note no longer claims an owner column (the assignee is in the detail header;
+  the list shows the changed `Updated` time).
 
 Two screenshot issues were handled: a fresh `--scope all` run reproduced every
 committed image except `maintenance-dark` (and its thumbnail), which was
@@ -104,6 +117,8 @@ from the full-run image.
 - `doc/views.texi` — board fold and row-count keys.
 - `doc/orchestration.texi` — maintenance level prompt.
 - `doc/agents.texi` — agent command and launch tables.
+- `doc/formulas.texi` — Cook/Persist recipe, pour/show fields, epic `D`
+  Distill, formula `S` schema index.
 - `docs/manual/screenshots/README.md` — subset/full-run view-history note.
 - `docs/manual/images/maintenance-dark.png`,
   `docs/manual/images/maintenance-dark-thumb.png` — regenerated from the
@@ -135,6 +150,16 @@ capture.sh --scope all                 # PASS, 18 full + 18 thumbnails
 capture.sh --verify all                # PASS, byte-identical 18/18
 ```
 
+The follow-up session re-ran the first verification command and the final
+proof command after the formulas, fixture, and echo fixes:
+
+```
+make info                              # PASS, zero warnings
+make html                              # PASS, self-contained manual
+make check-manual                      # PASS
+GC_BEAD_ID=be-9gvtf .gc/scripts/checks/build-artifact-valid.sh  # PASS (schema=gc.build.implementation-summary.v1)
+```
+
 The manual-only acceptance evidence (buffer names, echo messages, menus, and
 the TRAMP path) is in `qa-report.md`; the report records the two passes and
 the residual issues.
@@ -158,6 +183,11 @@ Coverage table:
 - **Subset screenshot history.** Show/epic subset captures differ from the
   full-run image in the `↩ Back to …` row; the README documents why and the
   canonical images come from `--scope all`.
+- **`? L l` label list is broken.** It signals `Wrong type argument:
+  sequencep, 10` after the `Issue ID:` prompt is answered, from the show view
+  and from a list row.  `? L a`, `? L r`, and `? L L` work, and the show view
+  renders labels, so this is recorded as a discovered UI defect for the review
+  stage; WS-7 is documentation-only and did not change command code.
 - **No real agent process was launched.** The menu/launch transient/session
   list were exercised; starting a real backend was outside the fixture brief.
 - **Plan artifacts are untracked in the rig root.** The summary references
