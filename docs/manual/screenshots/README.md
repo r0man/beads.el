@@ -72,7 +72,11 @@ only exception tolerated below is the verbatim engine's docstring example.
 ```
 
 The committed image footprint is small (palette PNGs, full + thumbnail).
-Capture is read-only with respect to the fixture store: it only opens views.
+The manifest produces 18 full images and 18 thumbnails in
+`docs/manual/images/`: fourteen `-dark` views plus four `-light`
+link-stability slots (dashboard, list, show, epic), and every committed
+image is embedded by at least one `@shot`.  Capture is read-only with
+respect to the fixture store: it only opens views.
 
 ### Scope (REQ-004)
 
@@ -138,7 +142,11 @@ The target is **byte-identical output** for two runs of the same scope:
 - A post-render normalization hook (`beads-shots--normalize-ids`, installed
   with `advice-add` on `screenshot-export` and `screenshot-export-frame`)
   replaces any `beads-issue-id-regexp` match that shares the fixture prefix
-  but is not already `demo-N` with `demo-role`, as a backstop.
+  but is not already `demo-N` with `demo-role`, as a backstop.  It never
+  rewrites the fixture project's own basename (`demo-project`), which is
+  syntactically an id but is a path shown in the dashboard header and the
+  show view, and it skips any match inside read-only render output rather
+  than aborting the shot.
 - The dashboard status line shows a wall-clock relative timestamp
   (`refreshed Ns ago`). For capture only, `beads-shots.el` overrides
   `beads-dashboard--format-relative-time` to a fixed `0s ago`, so the
@@ -206,10 +214,12 @@ theme's library.
 The `-dark` and `-light` suffixes are **link-stability slots, not theme
 claims**: both come from the same default faces, so the dashboard, list,
 show, and epic images are captured twice into two slots that are byte-identical
-by design. Keeping both preserves every `@shot` reference and the
-beads.el/gascity.el `<view>-<theme>.png` naming contract (plan resolution 1,
-REQ-004). Captions describe the view or the default faces, never an `ef-`
-variant.
+by design. Regeneration confirms it: the committed tree is 18 full images plus
+18 thumbnails (36 files), and every `-light` slot has the same `sha256` as its
+`-dark` counterpart, for both the full image and the thumbnail. Keeping both
+preserves every `@shot` reference and the beads.el/gascity.el
+`<view>-<theme>.png` naming contract (plan resolution 1, REQ-004). Captions
+describe the view or the default faces, never an `ef-` variant.
 
 Image geometry (widths, palette sizes) is set just below the manifest. The
 view names must match the shots defined in `beads-shots.el`.

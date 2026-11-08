@@ -21,6 +21,7 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'ert)
 (require 'seq)
 (require 'subr-x)
@@ -453,6 +454,40 @@ its own marker), and `create' refuses rather than deletes a foreign one."
                      views))))
       (with-temp-file source
         (insert original)))))
+
+;;; ============================================================
+;;; Shot-list id normalization
+;;; ============================================================
+
+(ert-deftest beads-manual-normalize-ids-keeps-fixture-project-name ()
+  "Normalization rewrites generated ids but never the fixture's name.
+The shared project basename (`demo-project') matches the id syntax, so
+without this the dashboard header and the show view's project row would
+be rewritten -- and both are read-only, which aborted the shot."
+  :tags '(:unit)
+  (let ((process-environment
+         (cons "BEADS_SHOTS_NO_RUN=1"
+               (cons "BEADS_SHOT_DIR=/tmp/demo-project"
+                     process-environment))))
+    ;; Load the shot list without starting a graphical capture.
+    (load beads-manual-test--shots t t)
+    (cl-letf (((symbol-function 'beads-shots--progress) #'ignore))
+      (with-temp-buffer
+        (insert "Beads-Dashboard - demo-project\n"
+                "role demo-10\n"
+                "generated demo-abc123\n"
+                "frozen demo-q9z2\n")
+        ;; A generated id inside read-only text is left alone rather than
+        ;; aborting the shot.
+        (goto-char (point-min))
+        (search-forward "frozen ")
+        (put-text-property (point) (line-end-position) 'read-only t)
+        (beads-shots--normalize-ids (current-buffer))
+        (should (equal (buffer-string)
+                       (concat "Beads-Dashboard - demo-project\n"
+                               "role demo-10\n"
+                               "generated demo-role\n"
+                               "frozen demo-q9z2\n")))))))
 
 ;;; ============================================================
 ;;; Manifest / shot list / manual page / image contract
