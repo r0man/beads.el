@@ -324,6 +324,20 @@ referenced; any other committed PNG is an orphan (AC-005)."
   (set-file-modes file #o755)
   file)
 
+(defun beads-manual-test--write-fake-convert (file)
+  "Write a hermetic stand-in for ImageMagick's `convert' to FILE.
+The subset-isolation check drives the real compress step, but CI installs
+neither ImageMagick nor its `convert' binary.  The shim copies its input to
+its output, so the scope, digest, and mtime assertions under test still run
+against the real capture+compress path without an external dependency."
+  (write-region (concat "#!/usr/bin/env bash\nset -euo pipefail\n"
+                        "src=\"$1\"; shift\n"
+                        "for out in \"$@\"; do :; done\n"
+                        "cp -- \"$src\" \"$out\"\n")
+                nil file)
+  (set-file-modes file #o755)
+  file)
+
 (defun beads-manual-test--hold-lock (lockfile ready)
   "Hold an exclusive flock on LOCKFILE, touching READY once acquired.
 Return the holder process; kill it in an `unwind-protect' cleanup.  The
@@ -976,6 +990,7 @@ one, and the committed `show-dark' pair must be untouched (R1)."
          (selected-thumb (expand-file-name "show-dark-thumb.png"
                                            beads-manual-test--images-dir))
          (dir (make-temp-file "beads-manual-scope-" t))
+         (bin (expand-file-name "bin" dir))
          (engine (expand-file-name "engine.sh" dir))
          (project (expand-file-name "project" dir))
          (staging (expand-file-name "staging" dir))
@@ -987,6 +1002,12 @@ one, and the committed `show-dark' pair must be untouched (R1)."
     (unwind-protect
         (progn
           (make-directory project)
+          (make-directory bin)
+          ;; `compress' calls ImageMagick's `convert'; CI does not install it.
+          ;; A copy-shim keeps the scope run hermetic and still exercises
+          ;; capture_into + compress.
+          (beads-manual-test--write-fake-convert
+           (expand-file-name "convert" bin))
           (beads-manual-test--write-fake-engine
            engine
            (concat
@@ -1004,7 +1025,9 @@ one, and the committed `show-dark' pair must be untouched (R1)."
                          (list (concat "BEADS_SHOT_PROJECT=" project)
                                (concat "BEADS_SHOT_ENGINE=" engine)
                                (concat "BEADS_SHOT_STAGING=" staging)
-                               (concat "BEADS_SHOT_FIXTURE_IMAGE=" source)))))
+                               (concat "BEADS_SHOT_FIXTURE_IMAGE=" source)
+                               (concat "PATH=" bin path-separator
+                                       (or (getenv "PATH") ""))))))
             (should (equal 0 (car result)))
             (should (string-match-p "verify-scope:" (cdr result)))
             (should (equal before
