@@ -50,9 +50,9 @@ Downstream packages (for example gascity.el) register their own group here
 so it appears under the dispatch menu without editing beads.el.
 @end defvr
 
-@anchor{fig:dispatch-dark}
+@anchor{fig-dispatch-dark}
 @shot{dispatch-dark, The dispatch menu (@code{beads-dispatch}).}
-@anchor{fig:maintenance-dark}
+@anchor{fig-maintenance-dark}
 @shot{maintenance-dark, The maintenance menu (@code{beads-maintenance}).}
 
 @menu
@@ -64,8 +64,10 @@ so it appears under the dispatch menu without editing beads.el.
 @cindex maintenance groups
 
 The maintenance menu is organized by intent.  Transient levels control
-which groups are visible; cycle them with @code{transient-set-level}
-(@kbd{C-x l} by default).  Level 1 holds the daily operations, level 3
+which groups are visible.  Press @kbd{C-x l} (@code{transient-set-level})
+to show each suffix's level; press it again to prompt for the level to
+display (type @kbd{3} and press @kbd{RET} to reveal the database,
+structure, and data groups).  Level 1 holds the daily operations, level 3
 the database, structure, and data groups, level 5 the integrations
 sub-dispatcher, and level 7 the setup and migration sub-dispatcher.
 
@@ -269,11 +271,9 @@ through the selected backend if the buffer is not live.
 Attach to the tmux SESSION, optionally on SOCKET and in DIR, for STORE.
 @end deftypefn
 
-@defopt beads-terminal-backend
-The preferred terminal backend, or nil to auto-detect.  When nil, the
-backends are tried in order: @code{vterm}, @code{ghostel},
-@code{eat}, @code{ansi-term}, @code{term}.
-@end defopt
+The preferred backend is ``beads-terminal-backend`` (@pxref{User Option
+Reference}); when it is nil the backends are tried in order: @code{vterm},
+@code{ghostel}, @code{eat}, @code{ansi-term}, @code{term}.
 
 Remote (TRAMP) stores are supported.  On a single-hop ssh-family store,
 asynchronous commands run as a local @command{ssh -T} pipe rather than a
@@ -333,22 +333,31 @@ namespaces include @code{jira.*}, @code{linear.*}, @code{github.*}, and
 @code{status.*}.
 
 @table @kbd
+@kindex g
 @item g
 Get a value.
+@kindex s
 @item s
 Set a value.
+@kindex S
 @item S
 Set many values at once.
+@kindex l
 @item l
 List all values.
+@kindex u
 @item u
 Unset a value.
+@kindex w
 @item w
 Show the effective configuration.
+@kindex a
 @item a
 Apply (reconcile) the configuration.
+@kindex d
 @item d
 Detect configuration drift.
+@kindex v
 @item v
 Validate the configuration.
 @end table

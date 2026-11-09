@@ -59,14 +59,19 @@ between /auth/callback and /login.
 Press @kbd{C-c C-a} for the metadata sidebar:
 
 @table @kbd
+@kindex t
 @item t
 Type (bug, feature, task, epic, chore, @dots{}).
+@kindex p
 @item p
 Priority (0--4).
+@kindex a
 @item a
 Assignee.
+@kindex l
 @item l
 Labels (comma-separated).
+@kindex P
 @item P
 Parent issue.
 @end table
@@ -84,44 +89,64 @@ optional.  On success the buffer is killed and open lists are refreshed.
 @kbd{C-c C-k} cancels; you are asked to confirm if there are unsaved
 changes.
 
-@anchor{fig:compose-dark}
+@anchor{fig-compose-dark}
 @shot{compose-dark, The compose buffer for a new issue.}
 
 @node Listing Issues
 @section Listing Issues
 @cindex listing issues
 
-@deffn Command beads-list-issues
-List issues in a @code{beads-list-mode} buffer.  From the dispatch menu
-press @kbd{l}.  The list menu uses switch-based infixes: toggle filters,
-then press a suffix to execute.
+@deffn Command beads-list-all
+List all issues in a @code{beads-list-mode} buffer, closed ones included,
+honouring @code{beads-list-default-limit}.  From the dispatch menu press
+@kbd{l}; the command runs immediately.  With a status filter already set
+by the filter transient it lists exactly that status.
 @end deffn
 
-@table @asis
-@item @strong{Filters}
-@kbd{-s} status, @kbd{-t} type, @kbd{-p} priority, @kbd{-a} assignee,
-@kbd{-l} label.
-@item @strong{Options}
-@kbd{-o} sort order, @kbd{-n} limit.
-@end table
+@deftypefn {Emacs Lisp Function} {} beads-list-issues (&key directory spec)
+Display issues matching SPEC in the list buffer, programmatically.  This is
+the entry point for consumer packages; it is a function, not an
+interactive command.
+@end deftypefn
 
-Press @kbd{l} again inside the menu to list all issues.  The suffix
-converts the filter state into a @code{beads-issue-spec} and refreshes
-the list buffer.
+@deffn Command beads-list-filter-menu
+Refine the current list.  In a list buffer press @kbd{/}.  Toggle
+@kbd{s} status, @kbd{t} type, @kbd{p} priority, @kbd{a} assignee, and
+@kbd{l} label; @kbd{r} limits to ready issues, @kbd{A} includes closed
+issues, @kbd{n} sets a limit, and @kbd{o} sets the order.  @kbd{RET}
+applies the resulting spec and refreshes the buffer; @kbd{R} resets the
+controls.
+@end deffn
+
+@deffn Command beads-list-filters
+Open the curated switch-based list transient (@kbd{M-x
+beads-list-filters}).  The dispatch menu's @kbd{l} lists all issues
+directly instead.  Its filters are @kbd{-s} status, @kbd{-t} type,
+@kbd{-p} priority, @kbd{-a} assignee, and @kbd{-l} label; its options are
+@kbd{-o} order, @kbd{-n} limit, and @kbd{-r} ready only.  Press @kbd{l}
+for all issues, @kbd{r} for ready, @kbd{b} for blocked, or @kbd{c} for
+closed to run the list and refresh the buffer.
+@end deffn
 
 @table @kbd
+@kindex r
 @item r
 List ready (unblocked) issues.
+@kindex b
 @item b
 List blocked issues.
+@kindex /
 @item /
 In a list buffer, open the spec-based filter menu to refine the current
-view.
+view (@pxref{Listing Issues}).
 @end table
 
 @deffn Command beads-list-advanced
-The advanced list transient exposes the remaining @command{bd list}
-flags.
+Open the full-featured list transient with every @command{bd list} flag.
+Its basic filters use @kbd{-s} status, @kbd{-P} priority, @kbd{-T} type,
+and @kbd{-a} assignee; @kbd{C-x l} reveals the text, date, and output
+groups.  Press @kbd{x} to list with the chosen filters, or @kbd{R} to reset
+them.
 @end deffn
 
 @deffn Command beads-ready
@@ -142,12 +167,19 @@ List blocked issues for the current store.
 @cindex pagination
 
 @table @kbd
+@kindex S
 @item S
-Sort by the column under point.
+Sort the list.  A grouped list prompts @code{Sort by:} for a column (ID,
+Type, Status, Priority, Agents, Title, Created, or Updated), defaults to the
+current sort column, and toggles the direction when you pick the same column
+again.  A flat list sorts by the column under point.
+@kindex ]
 @item ]
 Move to the next page.
+@kindex [
 @item [
 Move to the previous page.
+@kindex G
 @item G
 Jump to a page.
 @end table
@@ -169,10 +201,10 @@ fetches is dropped and @kbd{g} reloads from page 1.
 @kbd{TAB} and @kbd{S-TAB} move between rows and wrap; @kbd{SPC} previews
 the issue at point in another window (@pxref{One Movement Scheme}).
 
-@anchor{fig:list-dark}
+@anchor{fig-list-dark}
 @shot{list-dark, The issue list as a sortable filterable table.}
-@anchor{fig:list-light}
-@shot{list-light, The issue list under the light theme.}
+@anchor{fig-list-light}
+@shot{list-light, The same issue list with Emacs's default faces and no theme loaded.}
 
 @node Viewing Issues
 @section Viewing Issues
@@ -186,40 +218,52 @@ the view to another store (@pxref{Store Scoping}).
 @end deftypefn
 
 @table @kbd
+@kindex n
 @item n
 Next section.
+@kindex p
 @item p
 Previous section.
+@kindex TAB
 @item TAB
 Next heading or reference (wraps).
+@kindex S-TAB
 @item S-TAB
 Previous heading or reference (wraps).
+@kindex SPC
 @item SPC
 Fold or unfold the section at point.
+@kindex RET
 @item RET
 Follow the reference at point.
+@kindex o
 @item o
 Follow the reference at point in another window.
+@kindex g
 @item g
 Refresh.
+@kindex q
 @item q
 Quit.
 @end table
 
-@anchor{fig:show-dark}
+@anchor{fig-show-dark}
 @shot{show-dark, The issue detail view with dependencies and comments.}
-@anchor{fig:show-light}
-@shot{show-light, The issue detail view under the light theme.}
+@anchor{fig-show-light}
+@shot{show-light, The same issue detail view with Emacs's default faces and no theme loaded.}
 
 @node Editing Issues
 @section Editing Issues
 @cindex editing issues
 
 @table @kbd
+@kindex E
 @item E
 Edit the description in a compose buffer.
+@kindex N
 @item N
 Add a comment in a compose buffer.
+@kindex e
 @item e
 Edit a field inline (a single-line title, or a temporary buffer for
 longer fields).
@@ -256,11 +300,14 @@ Reopen a closed issue, prompting for an optional reason.  In
 @cindex priority
 
 @table @kbd
+@kindex C
 @item C
 Claim the issue at point.  This runs immediately; the current actor is
 assigned.
+@kindex s
 @item s
 Set status (@code{open}, @code{in_progress}, @code{blocked}, @dots{}).
+@kindex #
 @item #
 Set priority, from @code{0 - Critical} through @code{4 - Backlog}.
 @end table
@@ -279,18 +326,25 @@ graph for an issue.
 Press @kbd{d} from the dispatch menu for the dependency menu.
 
 @table @kbd
+@kindex a
 @item a
 Add a dependency (source depends on target, plus type).
+@kindex r
 @item r
 Remove a dependency.
+@kindex l
 @item l
 List dependencies for an issue.
+@kindex t
 @item t
 Show the full dependency tree, walking transitively.
+@kindex c
 @item c
 Check the project for dependency cycles.
+@kindex R
 @item R
 Create a bidirectional @code{relates_to} link.
+@kindex U
 @item U
 Remove a @code{relates_to} link.
 @end table
@@ -299,24 +353,36 @@ Remove a @code{relates_to} link.
 @section Labels
 @cindex labels
 
-@deffn Command beads-label
-Open the label menu: add, remove, propagate, and list labels.
+@deffn Command beads-label-menu
+Open the label menu: add, remove, propagate, and list labels.  Press
+@kbd{L} from the dispatch menu, or run @kbd{M-x beads-label-menu} (@code{beads-label}
+is the non-interactive function behind it).
 @end deffn
 
-Press @kbd{L} from the dispatch menu for the label menu.
-
 @table @kbd
+@kindex a
 @item a
 Add a label to one or more issues.
+@kindex r
 @item r
 Remove a label from one or more issues.
+@kindex p
 @item p
 Propagate a label to all children of an issue.
+@kindex l
 @item l
 List labels for a specific issue.
+@kindex L
 @item L
 List all labels in the store.
 @end table
+
+@quotation Note
+@kbd{l} (@code{beads-label-list}) currently signals @code{Wrong type
+argument: sequencep, 10} instead of listing the issue's labels.  Until
+that defect is fixed, the issue's labels are shown in the show view's
+@samp{Labels} section, and @kbd{L} lists every label in the store.
+@end quotation
 
 @node Bulk Actions
 @section Bulk Actions

@@ -2,7 +2,6 @@
 guix shell \
      beads \
      emacs \
-     emacs-ef-themes \
      emacs-transient \
      emacs-vertico \
      --pure \

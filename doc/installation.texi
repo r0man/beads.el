@@ -11,6 +11,8 @@ it up.  Once it is installed, continue with @ref{Getting Started}.
 * Installing from MELPA::
 * Installing from Source::
 * Initial Setup::
+* The Shared Demo Project::
+* Tested with::
 @end menu
 
 @node Requirements
@@ -52,6 +54,21 @@ path:
 (require 'beads)
 @end lisp
 
+Build the checkout first (@pxref{Building and Installing with Autotools}),
+then load the generated autoloads before requiring the package.  A plain
+@code{require} defines the eager commands, but lazily autoloaded suffixes
+(for example @code{beads-formula-distill} in the epic menu) come from
+@file{lisp/beads-autoloads.el}:
+
+@lisp
+(add-to-list 'load-path "/path/to/beads.el/lisp")
+(load "/path/to/beads.el/lisp/beads-autoloads.el")
+(require 'beads)
+@end lisp
+
+Installing with @command{make install} or from MELPA loads the same autoloads
+through the package system, so no explicit @code{load} is needed there.
+
 @node Initial Setup
 @section Initial Setup
 @cindex initial setup
@@ -68,3 +85,133 @@ Then open the board in Emacs with @kbd{M-x beads}.  @code{beads.el}
 finds the store from the buffer's @code{default-directory}; act on a
 different project with the @code{:directory} argument
 (@pxref{Store Scoping}).
+
+@node The Shared Demo Project
+@section The Shared Demo Project
+@cindex demo project
+@cindex shared fixture
+@cindex fixture project
+@cindex isolation
+
+Every example in this manual runs against one canonical throwaway project at
+@file{$@{TMPDIR@:-/tmp@}/demo-project} (by default
+@file{/tmp/demo-project}).  The sibling @code{gascity.el} manual uses the same
+path, the same fixed basename, and the same issue ids, so the two manuals read
+as one documentation family.  The fixed basename is deliberate: @code{beads.el}
+derives the buffer and mode-line name from it, so the screenshots and the text
+you see in Emacs match.
+
+Create, check, and remove the project with @file{fixture.sh} from the
+repository:
+
+@example
+docs/manual/screenshots/fixture.sh create
+docs/manual/screenshots/fixture.sh verify
+docs/manual/screenshots/fixture.sh teardown /tmp/demo-project
+@end example
+
+@code{create} prints the project path and seeds it with
+@command{bd init --prefix demo} followed by an import of the frozen dataset
+@file{docs/manual/screenshots/fixtures/beads-fixture.jsonl}.  It is safe to
+re-run: a project already at that path is recreated only when it carries the
+@file{.beads-fixture-project} marker, and any other directory at that path is
+refused rather than deleted.  @code{teardown} accepts only the exact shared
+path, requires the marker, and succeeds when the directory is already gone.
+
+@code{verify} is destructive to the shared path: it creates a throwaway
+project there, runs its structural checks, and removes it again.  Run
+@code{create} afterwards when you mean to follow the walkthrough.
+
+@cindex sibling fixture owns the shared path
+If the path already exists without the beads.el marker, the most common
+reason is that the sibling @code{gascity.el} fixture created it (its marker
+is @file{.gascity-fixture-project}).  beads.el refuses to delete another
+fixture's project.  Either tear the sibling project down with its own
+fixture first, or set @env{TMPDIR} to a private directory for this pass, so
+the fixture is @file{$TMPDIR/demo-project} and nothing collides.
+
+@cindex fixture dataset hash
+The dataset is frozen at twelve role-keyed issues with pinned ids,
+dependencies, labels, comments, and timestamps.  The twelve ids are
+@code{demo-1}, @code{demo-2}, @code{demo-3}, @code{demo-4},
+@code{demo-5}, @code{demo-6}, @code{demo-7}, @code{demo-8},
+@code{demo-9}, @code{demo-10}, @code{demo-11}, and @code{demo-12}.
+Its @code{sha256} digest is
+@code{6504c508bd25f3a2efc8a0e99bc940767b3306ae41352077fa446d2d6c319ca8}.
+@code{fixture.sh verify} hashes the dataset against the single
+@code{FIXTURE_DATA_SHA256} literal in @code{fixture.sh}, then checks that this
+section and @file{docs/manual/screenshots/README.md} record the same value, so
+a data edit cannot land without updating both documents.
+
+@cindex fixture isolation
+The project is never the repository's own @file{.beads} store and never a live
+agent store.  Before every @command{bd} call, @code{fixture.sh} unsets the four
+variables that can reroute it: @code{BEADS_DIR}, @code{BEADS_DOLT_PORT},
+@code{BEADS_DOLT_SERVER_PORT}, and @code{GC_DOLT_PORT}.  Because the path is
+shared and fixed, concurrent runs are serialized by an advisory
+@command{flock} on @file{$@{TMPDIR@:-/tmp@}/demo-project.lock}.  @code{create},
+@code{teardown}, and @code{verify} hold the lock briefly, and
+@code{capture.sh} holds it for a whole capture run, so a second capture waits
+(instead of sharing the store) rather than failing on the first run's
+workspace lock.  The lock file lives next to, never inside, the project;
+@code{capture.sh} exports @code{FIXTURE_LOCK_HELD=1} after acquiring it so the
+nested @code{fixture.sh} calls it makes do not block against their own parent.
+
+@cindex cross-repo contract
+@cindex demo-rig
+@cindex gascity-fixture
+The @code{gascity.el} manual uses the same checkout as the @code{demo-rig}
+rig inside the throwaway @file{/tmp/gascity-fixture} city.  The beads and
+their ids, titles, and statuses are identical; both manuals use the same
+vocabulary: @dfn{bead}, the status names @code{open}, @code{in_progress},
+@code{blocked}, and @code{closed}, and @dfn{epic}.  Only the surrounding
+city is specific to @code{gascity.el}.
+
+Every bead is held by the @code{demo} actor.  @command{bd} refuses to let
+another actor claim or close a held bead, so run the walkthrough with
+@env{BEADS_ACTOR=demo} in the environment:
+
+@example
+BEADS_ACTOR=demo emacs -Q
+@end example
+
+To follow along, create the project, open Emacs in it, and continue with
+@ref{Getting Started}.  @ref{The Shared Walkthrough} carries the walkthrough
+that triages @code{demo-3}, unblocks @code{demo-4}, closes @code{demo-6},
+and inspects the @code{demo-10} epic.
+
+@node Tested with
+@section Tested with
+@cindex tested with
+@cindex versions
+@cindex GNU Guix
+@cindex reproducible environment
+
+The screenshots and the manual-only black-box QA pass for this edition
+were produced with this environment:
+
+@table @asis
+@item Emacs
+GNU Emacs 31.1 (@code{emacs --version}).  The screenshots were captured
+from a graphical pgtk build; the QA pass followed the walkthrough in
+@code{emacs -nw -Q}.
+@item GNU Guix
+@command{guix describe} records the @code{guix} channel at commit
+@code{f546638fed68114b67e5bf1c681c5c62876a4018} (with the
+@code{asahi} channel at @code{b9132769b361431e999f7d166d715ef4c6e101d2}).
+The development environment is @code{guix shell -D -f guix.scm}.
+@item Beads CLI
+@command{bd} 1.3.2 (dev).
+@item Supporting tools
+Dolt 2.4.2, Graphviz 7.0.1, sway 1.12, and ImageMagick 6.9.13-5.
+@end table
+
+The demo dataset is
+@file{docs/manual/screenshots/fixtures/beads-fixture.jsonl}, SHA-256
+@code{sha256:6504c508bd25f3a2efc8a0e99bc940767b3306ae41352077fa446d2d6c319ca8}.
+@xref{The Shared Demo Project}, for how to recreate it.
+
+The automated CI matrix is cited separately and is not the capture
+environment: CI runs Emacs 29.4, 30.2, 31.1, and snapshot.  Emacs 29.4 is
+@code{continue-on-error} because of a known EIEIO byte-compilation bug,
+so a 29.4-only failure is not necessarily a regression.

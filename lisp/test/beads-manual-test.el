@@ -7,10 +7,12 @@
 
 ;;; Commentary:
 
-;; Guards for W7 (implementation plan WI-6; REQ-007, REQ-008, REQ-010;
-;; plan-review P2, P3): the deterministic fixture, the capture scope
-;; parser, the manifest/view/page/image contract, and the isolation list
-;; shared with `beads-test-isolation-env-vars'.
+;; Guards for W7 and W8 (implementation plan WS-8; REQ-014, REQ-015;
+;; AC-004, AC-005; plus the W7 fixture/scope/manifest guards): the
+;; deterministic fixture, the capture scope parser, the
+;; manifest/view/page/image contract, the isolation list shared with
+;; `beads-test-isolation-env-vars', the no-third-party-theme policy, and
+;; image-orphan coverage.
 ;;
 ;; The `:unit' tests read files and run the resolution-only paths of
 ;; `capture.sh --list-views' and `fixture.sh print-isolation-vars', none
@@ -21,6 +23,7 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'ert)
 (require 'seq)
 (require 'subr-x)
@@ -70,6 +73,36 @@
     "maintenance" "agent-menu" "formula")
   "The complete view set of the capture manifest, in manifest order.")
 
+(defconst beads-manual-test--theme-path-files
+  (mapcar (lambda (file) (expand-file-name file beads-manual-test--root))
+          '("docs/manual/screenshots/capture.sh"
+            "docs/manual/screenshots/fixture.sh"
+            "docs/manual/screenshots/formula-verify.sh"
+            "docs/manual/screenshots/beads-shots.el"
+            "docs/manual/screenshots/screenshot.el"
+            "scripts/emacs-minimal"
+            "share/emacs.d/init.el"
+            "Makefile.am"
+            "guix.scm"))
+  "The capture/test/build path scanned for third-party theme use (AC-004).
+Prose (the screenshot README) is excluded on purpose: it documents the
+removed requirement, it does not load a theme.")
+
+(defconst beads-manual-test--third-party-theme-patterns
+  '(("\\buse-package[ \t\n]+['\"]?[a-z0-9-]*themes?\\b"
+     . "use-package of a theme")
+    ("\\bemacs-[a-z0-9-]*themes?\\b"
+     . "theme package requirement")
+    ("\\(?:require\\|load\\|load-file\\)[ \t]+['\"]ef-"
+     . "require/load of an ef- theme")
+    ("screenshot-theme-library[ \t\n]+['\"]"
+     . "literal screenshot-theme-library")
+    ("\\bBEADS_SHOT_THEME_LIBRARY=['\"]?[^'\" \t$]"
+     . "literal BEADS_SHOT_THEME_LIBRARY"))
+  "Requirement/load forms that would introduce a third-party theme.
+Each entry is (REGEXP . DESCRIPTION).  A docstring that merely cites
+`ef-themes' as an example matches none of these.")
+
 ;;; ============================================================
 ;;; Helpers
 ;;; ============================================================
@@ -107,6 +140,64 @@ ENV is passed through to `beads-manual-test--run'."
          (output (cdr result)))
     (should (equal code 0))
     (split-string output "[\n\r]+" t)))
+
+(defun beads-manual-test--run-stdout (program args &optional env)
+  "Run PROGRAM with ARGS and return (EXIT-CODE . STDOUT).
+Standard error is discarded, so a caller can assert a command's reserved
+stdout contract (the pipeline sends all progress chatter to stderr)."
+  (let ((out (generate-new-buffer " *beads-manual-stdout-only*"))
+        (process-environment (append env process-environment)))
+    (unwind-protect
+        (cons (apply #'call-process program nil (list out nil) nil args)
+              (with-current-buffer out (buffer-string)))
+      (kill-buffer out))))
+
+(defun beads-manual-test--theme-violations (&optional files)
+  "Return \"FILE:LINE: DESCRIPTION\" for third-party theme use in FILES.
+FILES defaults to the capture/test/build path.  Only requirement/load
+forms are matched, so the verbatim engine docstring -- which merely cites
+`ef-themes' as an example of an external theme library -- cannot trip the
+gate.  A missing file is itself reported, because the gate must not pass
+vacuously after a rename."
+  (let (violations)
+    (dolist (file (or files beads-manual-test--theme-path-files))
+      (cond
+       ((not (file-readable-p file))
+        (push (format "%s: missing from the capture path"
+                      (file-relative-name file beads-manual-test--root))
+              violations))
+       (t
+        (let ((text (beads-manual-test--slurp file)))
+          (dolist (pattern beads-manual-test--third-party-theme-patterns)
+            (let ((pos 0))
+              (while (string-match (car pattern) text pos)
+                (with-temp-buffer
+                  (insert text)
+                  (push (format "%s:%d: %s"
+                                (file-relative-name file
+                                                   beads-manual-test--root)
+                                (line-number-at-pos (match-beginning 0))
+                                (cdr pattern))
+                        violations))
+                (setq pos (match-end 0)))))))))
+    (nreverse violations)))
+
+(defun beads-manual-test--manifest-themes ()
+  "Return the THEME field of every slot line in the capture manifest."
+  (let (themes)
+    (with-temp-buffer
+      (insert (beads-manual-test--slurp beads-manual-test--capture))
+      (goto-char (point-min))
+      (when (search-forward "read -r -d '' MANIFEST" nil t)
+        (forward-line 1)
+        (while (and (not (eobp)) (not (looking-at-p "EOF")))
+          (let ((line (string-trim
+                       (buffer-substring-no-properties
+                        (line-beginning-position) (line-end-position)))))
+            (unless (string-empty-p line)
+              (push (car (split-string line "[\t ]+")) themes)))
+          (forward-line 1))))
+    (nreverse themes)))
 
 (defun beads-manual-test--fixture-issues ()
   "Parse the fixture JSONL into a list of alists."
@@ -191,12 +282,81 @@ violation."
               (push (concat path ".png") refs))))))
     (nreverse refs)))
 
+(defun beads-manual-test--referenced-images (&optional pages)
+  "Return the set of `images/...' references PAGES make.
+Resolves the bounded `@shot{<name>, ...}' macro to `images/<name>.png'
+and its `images/<name>-thumb.png' preview, plus any literal
+`images/<file>.png'.  PAGES defaults to the handwritten chapters."
+  (let ((referenced (make-hash-table :test #'equal)))
+    (dolist (page (or pages (beads-manual-test--manual-pages)))
+      (dolist (line (split-string (cdr page) "\n" t))
+        (cond
+         ((string-prefix-p "@shot{" line)
+          (let ((name (string-trim
+                       (car (split-string (substring line 6) ",")))))
+            (puthash (concat "images/" name ".png") t referenced)
+            (puthash (concat "images/" name "-thumb.png") t referenced)))
+         (t
+          (let ((pos 0))
+            (while (string-match "images/[A-Za-z0-9._-]+[.]png" line pos)
+              (puthash (substring line (match-beginning 0) (match-end 0))
+                       t referenced)
+              (setq pos (match-end 0))))))))
+    referenced))
+
+(defun beads-manual-test--orphan-images (&optional images-dir pages)
+  "Return the `images/...' references no page embeds.
+IMAGES-DIR defaults to the manual's images directory and PAGES to the
+handwritten chapters.  Both the full image and its `-thumb' must be
+referenced; any other committed PNG is an orphan (AC-005)."
+  (let ((referenced (beads-manual-test--referenced-images pages))
+        (dir (or images-dir beads-manual-test--images-dir)))
+    (seq-remove
+     (lambda (reference) (gethash reference referenced))
+     (mapcar (lambda (file) (concat "images/" file))
+             (seq-filter (lambda (file) (string-suffix-p ".png" file))
+                         (directory-files dir nil nil t))))))
+
 (defun beads-manual-test--write-fake-engine (file body)
   "Write an executable fake capture engine to FILE with shell BODY."
   (write-region (concat "#!/usr/bin/env bash\nset -euo pipefail\n" body)
                 nil file)
   (set-file-modes file #o755)
   file)
+
+(defun beads-manual-test--write-fake-convert (file)
+  "Write a hermetic stand-in for ImageMagick's `convert' to FILE.
+The subset-isolation check drives the real compress step, but CI installs
+neither ImageMagick nor its `convert' binary.  The shim copies its input to
+its output, so the scope, digest, and mtime assertions under test still run
+against the real capture+compress path without an external dependency."
+  (write-region (concat "#!/usr/bin/env bash\nset -euo pipefail\n"
+                        "src=\"$1\"; shift\n"
+                        "for out in \"$@\"; do :; done\n"
+                        "cp -- \"$src\" \"$out\"\n")
+                nil file)
+  (set-file-modes file #o755)
+  file)
+
+(defun beads-manual-test--hold-lock (lockfile ready)
+  "Hold an exclusive flock on LOCKFILE, touching READY once acquired.
+Return the holder process; kill it in an `unwind-protect' cleanup.  The
+ready file makes acquisition observable so the concurrency assertions do
+not depend on a fixed sleep."
+  (let ((proc (make-process
+               :name "beads-manual-lock-holder"
+               :command (list "flock" "-x" lockfile
+                              "sh" "-c"
+                              (concat "touch "
+                                      (shell-quote-argument ready)
+                                      "; sleep 60"))
+               :connection-type 'pipe
+               :noquery t))
+        (deadline (+ (float-time) 10)))
+    (while (and (not (file-exists-p ready)) (< (float-time) deadline))
+      (sleep-for 0.05))
+    (should (file-exists-p ready))
+    proc))
 
 ;;; ============================================================
 ;;; Fixture (REQ-005, REQ-006)
@@ -230,14 +390,224 @@ violation."
       (dolist (dependency (alist-get 'dependencies issue))
         (should (member (alist-get 'depends_on_id dependency) ids))))))
 
-(ert-deftest beads-manual-fixture-export-has-no-generated-ids ()
-  "A seeded fixture exports only the stable `demo-<n>' role ids (AC-6).
-This inspects a real seeded store, complementing the JSONL-only checks:
-bd must not stamp a run-generated hash onto any imported issue."
+(ert-deftest beads-manual-fixture-shared-path-contract ()
+  "The fixture uses the fixed shared project path and a next-to lock (REQ-001).
+The sibling gascity.el manual uses the same `${TMPDIR:-/tmp}/demo-project'
+path, so the run parent must no longer be a `mktemp -d' directory."
+  :tags '(:unit)
+  (let ((script (beads-manual-test--slurp beads-manual-test--fixture)))
+    (should (string-match-p "FIXTURE_PROJECT_DIR=\"\\${FIXTURE_TMPDIR}/demo-project\""
+                            script))
+    (should (string-match-p "FIXTURE_LOCK_FILE=\"\\${FIXTURE_TMPDIR}/demo-project\\.lock\""
+                            script))
+    (should (string-match-p "FIXTURE_DATA_SHA256=\"[0-9a-f]\\{64\\}\"" script))
+    (should (string-match-p "FIXTURE_LOCK_HELD" script))
+    (should-not (string-match-p "\\bmktemp\\b" script))))
+
+(ert-deftest beads-manual-fixture-dataset-hash-recorded ()
+  "The frozen dataset hash is pinned once and recorded in both docs (REQ-002)."
+  :tags '(:unit)
+  (let* ((script (beads-manual-test--slurp beads-manual-test--fixture))
+         (hash (and (string-match
+                     "FIXTURE_DATA_SHA256=\"\\([0-9a-f]+\\)\"" script)
+                    (match-string 1 script)))
+         (actual (with-temp-buffer
+                   (set-buffer-multibyte nil)
+                   (insert-file-contents-literally beads-manual-test--fixture-jsonl)
+                   (secure-hash 'sha256 (current-buffer))))
+         (readme (beads-manual-test--slurp
+                  (expand-file-name "README.md"
+                                    (file-name-directory beads-manual-test--fixture)))))
+    (should hash)
+    (should (equal hash actual))
+    (should (string-match-p (regexp-quote hash) readme))
+    (should (seq-some
+             (lambda (page) (string-match-p (regexp-quote hash) (cdr page)))
+             (beads-manual-test--manual-pages)))))
+
+(ert-deftest beads-manual-fixture-refuses-markerless-path ()
+  "`create' refuses a directory at the shared path without the marker (REQ-001).
+The refusal must not delete anything; it is the guard that lets the fixed
+path be recreated safely."
+  :tags '(:unit)
+  (skip-unless (file-executable-p beads-manual-test--fixture))
+  (skip-unless (executable-find "flock"))
+  (let* ((tmp (make-temp-file "beads-manual-fixture-path-" t))
+         (project (expand-file-name "demo-project" tmp))
+         (keep (expand-file-name "keep.txt" project)))
+    (unwind-protect
+        (progn
+          (make-directory project)
+          (write-region "not ours\n" nil keep)
+          (let ((result (beads-manual-test--run
+                         beads-manual-test--fixture '("create")
+                         (list (concat "TMPDIR=" tmp)))))
+            (should (/= 0 (car result)))
+            (should (string-match-p "refusing" (cdr result)))
+            (should (file-exists-p keep))))
+      (ignore-errors (delete-directory tmp t)))))
+
+(ert-deftest beads-manual-fixture-teardown-is-path-guarded ()
+  "`teardown' refuses a foreign path and is idempotent at the shared path."
+  :tags '(:unit)
+  (skip-unless (file-executable-p beads-manual-test--fixture))
+  (skip-unless (executable-find "flock"))
+  (let* ((tmp (make-temp-file "beads-manual-fixture-teardown-" t))
+         (project (expand-file-name "demo-project" tmp))
+         (other (expand-file-name "other" tmp)))
+    (unwind-protect
+        (progn
+          (make-directory other)
+          (let ((result (beads-manual-test--run
+                         beads-manual-test--fixture (list "teardown" other)
+                         (list (concat "TMPDIR=" tmp)))))
+            (should (/= 0 (car result)))
+            (should (string-match-p "refusing" (cdr result)))
+            (should (file-directory-p other)))
+          ;; The shared path is already gone: teardown is a no-op success.
+          (let ((result (beads-manual-test--run
+                         beads-manual-test--fixture (list "teardown" project)
+                         (list (concat "TMPDIR=" tmp)))))
+            (should (equal 0 (car result)))
+            (should (string-match-p "already gone" (cdr result)))))
+      (ignore-errors (delete-directory tmp t)))))
+
+(ert-deftest beads-manual-fixture-checks-tools-before-deleting ()
+  "`create' checks bd/git before touching a marked fixture (R3).
+A shell whose PATH lacks `bd' must fail with an error that names `bd' and
+leave the existing marked fixture -- the one path both manuals promise to
+find -- intact."
+  :tags '(:unit)
+  (skip-unless (file-executable-p beads-manual-test--fixture))
+  (let* ((tmp (make-temp-file "beads-manual-fixture-tools-" t))
+         (project (expand-file-name "demo-project" tmp))
+         (marker (expand-file-name ".beads-fixture-project" project))
+         (sentinel (expand-file-name "sentinel.txt" project))
+         (stub (expand-file-name "bin" tmp))
+         (bash (executable-find "bash"))
+         (dirname (executable-find "dirname")))
+    (unwind-protect
+        (progn
+          (skip-unless bash)
+          (skip-unless dirname)
+          (make-directory project)
+          (write-region "" nil marker)
+          (write-region "keep\n" nil sentinel)
+          ;; A PATH with only the interpreter helpers the script needs at
+          ;; startup: it starts, but `command -v bd' fails.  The script
+          ;; computes its own directory with `dirname' before that, so both
+          ;; stay on the stub PATH.  FIXTURE_LOCK_HELD skips the flock
+          ;; dependency.
+          (make-directory stub)
+          (make-symbolic-link bash (expand-file-name "bash" stub))
+          (make-symbolic-link dirname (expand-file-name "dirname" stub))
+          (let ((result (beads-manual-test--run
+                         beads-manual-test--fixture '("create")
+                         (list (concat "TMPDIR=" tmp)
+                               (concat "PATH=" stub)
+                               "FIXTURE_LOCK_HELD=1"))))
+            (should (/= 0 (car result)))
+            (should (string-match-p "required tool not found on PATH: bd"
+                                    (cdr result)))
+            (should (file-exists-p marker))
+            (should (file-exists-p sentinel))))
+      (ignore-errors (delete-directory tmp t)))))
+
+(ert-deftest beads-manual-fixture-recreates-stale-marker-project ()
+  "`create' replaces a stale marker project at the shared path (REQ-001).
+The fixed path is reused on every run, so a leftover fixture carrying the
+marker must be recreated instead of refused -- and the command still
+prints exactly one stdout line, the project path."
   :tags '(:integration)
   (skip-unless (file-executable-p beads-manual-test--fixture))
   (skip-unless (executable-find "bd"))
-  (let* ((result (beads-manual-test--run beads-manual-test--fixture '("create")))
+  (skip-unless (executable-find "flock"))
+  (let* ((tmp (make-temp-file "beads-manual-fixture-stale-" t))
+         (project (expand-file-name "demo-project" tmp))
+         (env (list (concat "TMPDIR=" tmp)))
+         (first (beads-manual-test--run-stdout
+                 beads-manual-test--fixture '("create") env)))
+    (unwind-protect
+        (progn
+          (should (equal 0 (car first)))
+          (should (equal (string-trim (cdr first)) project))
+          (should (file-exists-p
+                   (expand-file-name ".beads-fixture-project" project)))
+          (let ((second (beads-manual-test--run-stdout
+                         beads-manual-test--fixture '("create") env)))
+            (should (equal 0 (car second)))
+            (should (equal (string-trim (cdr second)) project))
+            (should (file-exists-p
+                     (expand-file-name ".beads-fixture-project" project)))))
+      (beads-manual-test--run beads-manual-test--fixture
+                              (list "teardown" project) env)
+      (ignore-errors (delete-directory tmp t)))))
+
+(ert-deftest beads-manual-fixture-serializes-on-shared-lock ()
+  "Concurrent fixture runs serialize on the shared lock (REQ-001).
+A nested caller that sets `FIXTURE_LOCK_HELD=1' (as `capture.sh' does)
+must skip acquisition instead of deadlocking; an independent caller must
+wait and then fail rather than share the store."
+  :tags '(:integration)
+  (skip-unless (file-executable-p beads-manual-test--fixture))
+  (skip-unless (executable-find "flock"))
+  (let* ((tmp (make-temp-file "beads-manual-fixture-lock-" t))
+         (project (expand-file-name "demo-project" tmp))
+         (ready (expand-file-name "lock-ready" tmp))
+         (env (list (concat "TMPDIR=" tmp) "FIXTURE_LOCK_TIMEOUT=1"))
+         (proc (beads-manual-test--hold-lock (concat project ".lock") ready)))
+    (unwind-protect
+        (progn
+          (let ((result (beads-manual-test--run
+                         beads-manual-test--fixture (list "teardown" project)
+                         (cons "FIXTURE_LOCK_HELD=1" env))))
+            (should (equal 0 (car result)))
+            (should (string-match-p "already gone" (cdr result))))
+          (let ((result (beads-manual-test--run
+                         beads-manual-test--fixture (list "teardown" project)
+                         env)))
+            (should (/= 0 (car result)))
+            (should (string-match-p "timed out" (cdr result)))))
+      (ignore-errors (delete-process proc))
+      (ignore-errors (delete-directory tmp t)))))
+
+(ert-deftest beads-manual-capture-waits-on-shared-lock ()
+  "A second capture waits for the shared lock, then fails (REQ-001).
+It must never run concurrently against the one fixed store."
+  :tags '(:integration)
+  (skip-unless (file-executable-p beads-manual-test--capture))
+  (skip-unless (executable-find "flock"))
+  (let* ((tmp (make-temp-file "beads-manual-capture-lock-" t))
+         (project (expand-file-name "demo-project" tmp))
+         (ready (expand-file-name "lock-ready" tmp))
+         (proc (beads-manual-test--hold-lock (concat project ".lock") ready)))
+    (unwind-protect
+        (let ((result (beads-manual-test--run
+                       beads-manual-test--capture
+                       (list "--scope" "list")
+                       (list (concat "TMPDIR=" tmp)
+                             "BEADS_SHOT_LOCK_TIMEOUT=1"
+                             (concat "BEADS_SHOT_STAGING="
+                                     (expand-file-name "staging" tmp))))))
+          (should (/= 0 (car result)))
+          (should (string-match-p "timed out" (cdr result)))
+          (should-not (file-directory-p project)))
+      (ignore-errors (delete-process proc))
+      (ignore-errors (delete-directory tmp t)))))
+
+(ert-deftest beads-manual-fixture-export-has-no-generated-ids ()
+  "A seeded fixture exports only the stable `demo-<n>' role ids (AC-6).
+This inspects a real seeded store, complementing the JSONL-only checks:
+bd must not stamp a run-generated hash onto any imported issue.  `TMPDIR'
+is scoped to a private directory: the default shared path may legitimately
+hold a live sibling fixture (the gascity.el manual uses the same path with
+its own marker), and `create' refuses rather than deletes a foreign one."
+  :tags '(:integration)
+  (skip-unless (file-executable-p beads-manual-test--fixture))
+  (skip-unless (executable-find "bd"))
+  (let* ((tmp (make-temp-file "beads-manual-fixture-export-" t))
+         (env (list (concat "TMPDIR=" tmp)))
+         (result (beads-manual-test--run beads-manual-test--fixture '("create") env))
          (code (car result))
          (project (seq-find
                    (lambda (line)
@@ -245,15 +615,19 @@ bd must not stamp a run-generated hash onto any imported issue."
                           (file-exists-p
                            (expand-file-name ".beads-fixture-project" line))))
                    (split-string (cdr result) "[\n\r]+" t))))
-    (should (equal code 0))
-    (should project)
     (unwind-protect
-        (let ((ids (beads-manual-test--export-ids project)))
-          (should (= (length ids) (length (beads-manual-test--fixture-issues))))
-          (dolist (id ids)
-            (should (string-match-p "\\`demo-[0-9]+\\'" id))))
-      (beads-manual-test--run
-       beads-manual-test--fixture (list "teardown" project)))))
+        (progn
+          (should (equal code 0))
+          (should (equal project (expand-file-name "demo-project" tmp)))
+          (when project
+            (let ((ids (beads-manual-test--export-ids project)))
+              (should (= (length ids)
+                         (length (beads-manual-test--fixture-issues))))
+              (dolist (id ids)
+                (should (string-match-p "\\`demo-[0-9]+\\'" id))))
+            (beads-manual-test--run
+             beads-manual-test--fixture (list "teardown" project) env)))
+      (ignore-errors (delete-directory tmp t)))))
 
 ;;; ============================================================
 ;;; Scope parser (REQ-004)
@@ -290,6 +664,40 @@ bd must not stamp a run-generated hash onto any imported issue."
                      views))))
       (with-temp-file source
         (insert original)))))
+
+;;; ============================================================
+;;; Shot-list id normalization
+;;; ============================================================
+
+(ert-deftest beads-manual-normalize-ids-keeps-fixture-project-name ()
+  "Normalization rewrites generated ids but never the fixture's name.
+The shared project basename (`demo-project') matches the id syntax, so
+without this the dashboard header and the show view's project row would
+be rewritten -- and both are read-only, which aborted the shot."
+  :tags '(:unit)
+  (let ((process-environment
+         (cons "BEADS_SHOTS_NO_RUN=1"
+               (cons "BEADS_SHOT_DIR=/tmp/demo-project"
+                     process-environment))))
+    ;; Load the shot list without starting a graphical capture.
+    (load beads-manual-test--shots t t)
+    (cl-letf (((symbol-function 'beads-shots--progress) #'ignore))
+      (with-temp-buffer
+        (insert "Beads-Dashboard - demo-project\n"
+                "role demo-10\n"
+                "generated demo-abc123\n"
+                "frozen demo-q9z2\n")
+        ;; A generated id inside read-only text is left alone rather than
+        ;; aborting the shot.
+        (goto-char (point-min))
+        (search-forward "frozen ")
+        (put-text-property (point) (line-end-position) 'read-only t)
+        (beads-shots--normalize-ids (current-buffer))
+        (should (equal (buffer-string)
+                       (concat "Beads-Dashboard - demo-project\n"
+                               "role demo-10\n"
+                               "generated demo-role\n"
+                               "frozen demo-q9z2\n")))))))
 
 ;;; ============================================================
 ;;; Manifest / shot list / manual page / image contract
@@ -338,28 +746,93 @@ image-coverage gate: dropping a view's illustration must fail it."
   :tags '(:unit)
   (should-not (beads-manual-test--unbounded-image-references)))
 
-(ert-deftest beads-manual-manifest-theme-consistency ()
-  "The manifest dark theme and the shot engine default agree (REQ-004).
-The concrete theme is switched by the theme work item; this gate keeps
-`capture.sh' and `beads-shots.el' pinned to one standard dark theme."
+(ert-deftest beads-manual-image-orphans ()
+  "Every committed image, full size and thumbnail, is referenced (AC-005).
+This is the reverse of `beads-manual-image-references-exist': a committed
+PNG that no `@shot' or `@image' embeds is an orphan the manual no longer
+shows."
   :tags '(:unit)
-  (let* ((capture (beads-manual-test--slurp beads-manual-test--capture))
-         (shots (beads-manual-test--slurp beads-manual-test--shots))
-         (manifest-theme
-          (with-temp-buffer
-            (insert capture)
-            (goto-char (point-min))
-            (when (re-search-forward
-                   "^[ \t]*\\([A-Za-z0-9._-]+\\)[ \t]+-dark" nil t)
-              (match-string 1))))
-         (engine-theme
-          (and (string-match
-                "BEADS_SHOT_THEME\"[ \t]*\"\\([A-Za-z0-9._-]+\\)\""
-                shots)
-               (match-string 1 shots))))
-    (should manifest-theme)
-    (should engine-theme)
-    (should (equal manifest-theme engine-theme))))
+  (let ((committed
+         (mapcar (lambda (file) (concat "images/" file))
+                 (seq-filter (lambda (file) (string-suffix-p ".png" file))
+                             (directory-files beads-manual-test--images-dir
+                                              nil nil t)))))
+    (should committed)
+    (should-not (beads-manual-test--orphan-images))))
+
+(ert-deftest beads-manual-image-orphans-detects-injected ()
+  "The orphan gate reports an unreferenced full image or thumbnail."
+  :tags '(:unit)
+  (let* ((dir (make-temp-file "beads-manual-orphans-" t))
+         (page (expand-file-name "page.texi" dir))
+         (images (expand-file-name "images" dir)))
+    (unwind-protect
+        (progn
+          (make-directory images)
+          (write-region "@shot{list, A list view}\n" nil page)
+          (dolist (name '("list.png" "list-thumb.png" "stale.png"))
+            (write-region name nil (expand-file-name name images)))
+          (should (equal (beads-manual-test--orphan-images
+                          images
+                          (list (cons page (beads-manual-test--slurp page))))
+                         '("images/stale.png"))))
+      (ignore-errors (delete-directory dir t)))))
+
+(ert-deftest beads-manual-manifest-theme-consistency ()
+  "The manifest slots and the shot engine resolve to the same default (REQ-004).
+Both slots name the `default' sentinel, which `beads-shots-theme' resolves
+to nil (load no theme); the manifest must not claim a third-party theme
+that the capture path does not load."
+  :tags '(:unit)
+  (let ((themes (beads-manual-test--manifest-themes)))
+    (should themes)
+    (should (equal themes (make-list (length themes) "default")))
+    (let ((process-environment
+           (cons "BEADS_SHOTS_NO_RUN=1"
+                 (cons "BEADS_SHOT_THEME=default"
+                       (cons "BEADS_SHOT_THEME_LIBRARY="
+                             process-environment)))))
+      (load beads-manual-test--shots t t)
+      (should-not (beads-shots-theme))
+      (should-not (beads-shots-theme-library)))))
+
+(ert-deftest beads-manual-no-third-party-theme ()
+  "The capture, test, and build path loads no third-party theme (REQ-004).
+`beads-shots.el' is the only theme switch: the `default' sentinel means
+no theme, and a library is consulted only from an explicit
+`BEADS_SHOT_THEME_LIBRARY' value.  The verbatim engine docstring's
+`ef-themes' example is a citation, not a requirement or a load, so only
+requirement/load forms are matched."
+  :tags '(:unit)
+  (let ((violations (beads-manual-test--theme-violations)))
+    (should-not violations))
+  ;; The engine keeps a nil default, so a library can only reach it through
+  ;; the explicit environment value (an operator's opt-in).
+  (should (string-match-p
+           "screenshot-theme-library nil"
+           (beads-manual-test--slurp
+            (expand-file-name "docs/manual/screenshots/screenshot.el"
+                              beads-manual-test--root)))))
+
+(ert-deftest beads-manual-no-third-party-theme-detects-injected ()
+  "The theme gate reports a requirement/load but ignores a citation."
+  :tags '(:unit)
+  (let ((file (make-temp-file "beads-manual-theme-" nil ".el")))
+    (unwind-protect
+        (progn
+          (write-region (concat "(use-package ef-themes)\n"
+                                "(require 'ef-cyprus)\n"
+                                "(setq screenshot-theme-library \"ef-themes\")\n")
+                        nil file)
+          (should (= 3 (length (beads-manual-test--theme-violations
+                                (list file)))))
+          ;; The verbatim engine docstring cites an example only; a
+          ;; citation must not be flagged, nor must the nil default.
+          (write-region (concat "(defun x () \"(e.g. ef-themes from a Guix profile).\")\n"
+                                "(defvar screenshot-theme-library nil)\n")
+                        nil file)
+          (should-not (beads-manual-test--theme-violations (list file))))
+      (ignore-errors (delete-file file)))))
 
 ;;; ============================================================
 ;;; Forbidden host-name gate (REQ-015, REQ-016)
@@ -493,36 +966,121 @@ The concrete theme is switched by the theme work item; this gate keeps
             (should (string-match-p "verify FAILED" (cdr result)))))
       (ignore-errors (delete-directory dir t)))))
 
+(defun beads-manual-test--image-signature (file)
+  "Return (SHA256 . MTIME) for FILE, or nil when it is missing.
+Used to assert a command left a committed image byte- and mtime-identical."
+  (when (file-exists-p file)
+    (cons (with-temp-buffer
+            (set-buffer-multibyte nil)
+            (insert-file-contents-literally file)
+            (secure-hash 'sha256 (current-buffer)))
+          (file-attribute-modification-time (file-attributes file)))))
+
 (ert-deftest beads-manual-verify-scope-leaves-non-selected ()
-  "`--verify-scope' passes when only out-of-scope raws are produced."
+  "`--verify-scope' must not rewrite the selected committed images.
+A subset run is a proof about the *other* images; the selected images
+were captured by a canonical `--scope all' run, and a fresh single-view
+capture is not equivalent (the `show'/`epic' back-link depends on view
+history).  The fake engine emits both an out-of-scope raw and a selected
+one, and the committed `show-dark' pair must be untouched (R1)."
   :tags '(:integration)
   (skip-unless (file-executable-p beads-manual-test--capture))
   (let* ((source (expand-file-name "list-dark.png" beads-manual-test--images-dir))
+         (selected (expand-file-name "show-dark.png" beads-manual-test--images-dir))
+         (selected-thumb (expand-file-name "show-dark-thumb.png"
+                                           beads-manual-test--images-dir))
          (dir (make-temp-file "beads-manual-scope-" t))
+         (bin (expand-file-name "bin" dir))
          (engine (expand-file-name "engine.sh" dir))
          (project (expand-file-name "project" dir))
-         (staging (expand-file-name "staging" dir)))
+         (staging (expand-file-name "staging" dir))
+         (before (beads-manual-test--image-signature selected))
+         (before-thumb (beads-manual-test--image-signature selected-thumb)))
     (skip-unless (file-exists-p source))
+    (skip-unless before)
+    (skip-unless before-thumb)
     (unwind-protect
         (progn
           (make-directory project)
+          (make-directory bin)
+          ;; `compress' calls ImageMagick's `convert'; CI does not install it.
+          ;; A copy-shim keeps the scope run hermetic and still exercises
+          ;; capture_into + compress.
+          (beads-manual-test--write-fake-convert
+           (expand-file-name "convert" bin))
           (beads-manual-test--write-fake-engine
            engine
            (concat
             "mkdir -p \"$BEADS_SHOT_OUTDIR\"\n"
-            "# Deliberately write a raw for a view outside the selected scope.\n"
+            "# A raw for a view outside the selected scope, plus one for the\n"
+            "# selected view: only the image outside the scope may be ignored,\n"
+            "# and the selected committed image must not be replaced.\n"
             "cp \"$BEADS_SHOT_FIXTURE_IMAGE\""
-            " \"$BEADS_SHOT_OUTDIR/list$BEADS_SHOT_SUFFIX.png\"\n"))
+            " \"$BEADS_SHOT_OUTDIR/list$BEADS_SHOT_SUFFIX.png\"\n"
+            "cp \"$BEADS_SHOT_FIXTURE_IMAGE\""
+            " \"$BEADS_SHOT_OUTDIR/show$BEADS_SHOT_SUFFIX.png\"\n"))
           (let ((result (beads-manual-test--run
                          beads-manual-test--capture
                          (list "--verify-scope" "show")
                          (list (concat "BEADS_SHOT_PROJECT=" project)
                                (concat "BEADS_SHOT_ENGINE=" engine)
                                (concat "BEADS_SHOT_STAGING=" staging)
-                               (concat "BEADS_SHOT_FIXTURE_IMAGE=" source)))))
+                               (concat "BEADS_SHOT_FIXTURE_IMAGE=" source)
+                               (concat "PATH=" bin path-separator
+                                       (or (getenv "PATH") ""))))))
             (should (equal 0 (car result)))
-            (should (string-match-p "verify-scope:" (cdr result)))))
+            (should (string-match-p "verify-scope:" (cdr result)))
+            (should (equal before
+                           (beads-manual-test--image-signature selected)))
+            (should (equal before-thumb
+                           (beads-manual-test--image-signature selected-thumb)))))
       (ignore-errors (delete-directory dir t)))))
+
+(ert-deftest beads-manual-capture-refuses-unisolated-run ()
+  "`capture.sh' aborts instead of running unisolated (R2).
+A failing `fixture.sh print-isolation-vars' and a missing script must both
+be fatal: a process substitution error is otherwise invisible to `set -e'.
+The fake engine dumps its environment, and must never run."
+  :tags '(:integration)
+  (skip-unless (file-executable-p beads-manual-test--capture))
+  (let* ((root (make-temp-file "beads-manual-isolation-" t))
+         ;; capture.sh resolves REPO as HERE/../../.. and FIXTURE_SH as
+         ;; HERE/fixture.sh, so nest it three levels down.
+         (here (expand-file-name "a/b/c" root))
+         (capture (expand-file-name "capture.sh" here))
+         (fixture (expand-file-name "fixture.sh" here))
+         (engine (expand-file-name "engine.sh" root))
+         (dump (expand-file-name "env.txt" root))
+         (env (list "BEADS_DIR=/tmp/hostile"
+                    (concat "BEADS_SHOT_ENGINE=" engine)
+                    (concat "BEADS_SHOT_ENV_DUMP=" dump)
+                    (concat "BEADS_SHOT_STAGING="
+                            (expand-file-name "staging" root)))))
+    (unwind-protect
+        (progn
+          (make-directory here t)
+          (copy-file beads-manual-test--capture capture)
+          (set-file-modes capture #o755)
+          (beads-manual-test--write-fake-engine
+           engine "env > \"$BEADS_SHOT_ENV_DUMP\"\n")
+          ;; A fixture script whose isolation query fails.
+          (write-region "#!/usr/bin/env bash\nexit 3\n" nil fixture)
+          (set-file-modes fixture #o755)
+          (let ((result (beads-manual-test--run
+                         capture (list "--scope" "list") env)))
+            (should (/= 0 (car result)))
+            (should (string-match-p "print-isolation-vars failed"
+                                    (cdr result)))
+            (should-not (file-exists-p dump)))
+          ;; A missing fixture script is fatal too, not a silent skip.
+          (delete-file fixture)
+          (let ((result (beads-manual-test--run
+                         capture (list "--scope" "list") env)))
+            (should (/= 0 (car result)))
+            (should (string-match-p "fixture script not readable"
+                                    (cdr result)))
+            (should-not (file-exists-p dump))))
+      (ignore-errors (delete-directory root t)))))
 
 (provide 'beads-manual-test)
 ;;; beads-manual-test.el ends here

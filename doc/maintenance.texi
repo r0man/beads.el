@@ -38,68 +38,15 @@ Reference}.
 @subsection User Options
 @cindex user options
 
-@defopt beads-executable
-Path to the @command{bd} executable.  Defaults to @code{"bd"}, found on
-@env{PATH}.
-@end defopt
-
-@defopt beads-actor
-The actor name recorded in the audit trail.  Defaults to the git
-@code{user.name} or @env{USER}.
-@end defopt
-
-@defopt beads-remote-search-path
-Directories probed for programs on a remote host when
-@code{tramp-remote-path} misses (Guix, Nix, @file{~/.local/bin}, and
-@file{~/bin} by default).  Also prepended to the @env{PATH} of remote
-commands.
-@end defopt
-
-@defopt beads-remote-transport
-@code{ssh} (the default): asynchronous @command{bd} on an ssh-family
-store runs as a local @command{ssh -T} pipe.  @code{tramp}: use TRAMP's
-@code{make-process}.
-@end defopt
-
-@defopt beads-remote-ssh-options
-The ssh options (ControlMaster, ControlPersist) of the pipe processes.
-@end defopt
-
-@defopt beads-remote-ssh-control-path
-The ControlPath of those pipe processes.
-@end defopt
-
-@defopt beads-show-async
-When show buffers fetch asynchronously: @code{remote} (the default),
-@code{t}, or @code{nil}.
-@end defopt
-
-@defopt beads-show-async-timeout
-The number of seconds an asynchronous show fetch may take before it is
-abandoned.
-@end defopt
-
-@defopt beads-dashboard-section-limit
-The number of rows shown per dashboard section; @code{nil} disables the
-cap.
-@end defopt
-
-@defopt beads-command-async-max-concurrent
-The global concurrency cap for asynchronous commands, or @code{auto} to
-size it to the machine.
-@end defopt
-
-@defopt beads-issue-id-prefixes
-Extra issue-id prefixes matched by the shared issue-id regular
-expression.  @code{nil} uses the defaults.
-@end defopt
+Every user option is defined with @code{defcustom} and documented in
+full, with its default, in @ref{User Option Reference}.  Use
+@kbd{M-x customize-group @key{RET} beads} for the interactive browser.
 
 @defvr {Variable} beads-issue-id-regexp
 The regular expression that matches an issue id anywhere in a buffer.
 @end defvr
 
-Use @kbd{M-x customize-group @key{RET} beads} for the full option
-browser.  The per-project configuration that is not a user option is in
+The per-project configuration that is not a user option is in
 @ref{Configuration}.
 
 @node Faces
@@ -500,8 +447,22 @@ Build @file{doc/beads.info} from @file{doc/beads.texi}.
 @item make html
 Build the self-contained HTML manual under @file{doc/}.
 @item make pdf
-Build the PDF manual with @command{texi2pdf}.
+Build the PDF manual with @command{texi2pdf}.  This is optional and needs
+a working @TeX{} installation that provides @file{epsf.tex}: the
+@file{build-aux/texinfo.tex} shipped with the package refuses to typeset
+any @code{@@image} without it, and every screenshot is one.  A minimal
+@code{texlive-scheme-basic} install does not include it; add the
+@code{texlive-epsf} package, or install a full @TeX{} Live scheme.  The
+build repeats its cross-reference pass until none remain, so a successful
+run also proves that every @code{@@xref}-family target resolves in print.
 @end table
+
+The PDF gate checks Texinfo structure, not @TeX{} typography: a successful
+run reports no missing-node, undefined-reference, menu-entry, or undefined
+character diagnostics.  @TeX{}'s @samp{Underfull} and @samp{Overfull} box
+messages, which wide reference tables inevitably produce, are not warnings
+for this gate; the prose avoids characters that @command{texi2pdf} cannot
+map so no documented text is silently dropped from the PDF.
 
 @file{doc/beads.texi} is the only manual source; it @code{@@include}s one
 Texinfo chapter file per task area (@pxref{The Dispatch and Maintenance

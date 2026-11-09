@@ -92,7 +92,7 @@ vocabulary; the two indexes close the manual.
 @menu
 * Introduction::                What beads.el is and how to read this manual.
 * Installation and Requirements::  What you need and how to install it.
-* Getting Started::             Your first issue and the interaction model.
+* Getting Started::             Shared demo, walkthrough, interaction model.
 * Issue Workflow::              Create, list, view, edit, close, and label.
 * Dashboards and Views::        The board, lists, show, and eldoc.
 * Formulas Molecules and Epics:: Formulas, molecules, and epics.

@@ -18,23 +18,24 @@ screenshots/
 
 ## What it does
 
-1. Creates (or reuses) a **deterministic, throwaway fixture project** — a
-   git repo at `${TMPDIR:-/tmp}/beads-fixture.run.<unique>/beads-fixture.project`
-   with its own `bd` store seeded from `fixtures/beads-fixture.jsonl`. Each run
-   gets a fresh `mktemp -d` parent so concurrent captures cannot share a store
-   path or its `.beads.gate.lock`; the fixed project basename keeps the project
-   name (and the mode line that displays it) identical across invocations. It
-   never reads or writes the repository's own `.beads` store or a live/agent
-   store (REQ-005). Pass `BEADS_SHOT_PROJECT=/path` to reuse an existing fixture
-   instead.
+1. Creates (or reuses) the **shared demo project** — a git repo at
+   `${TMPDIR:-/tmp}/demo-project` (default `/tmp/demo-project`) with its own
+   `bd` store seeded from `fixtures/beads-fixture.jsonl`. This is the same path
+   and the same fixed basename the sibling `gascity.el` manual promises, so
+   both manuals describe one demo project and the buffer/mode-line text is
+   identical across invocations. It never reads or writes the repository's own
+   `.beads` store or a live/agent store (REQ-005). Pass
+   `BEADS_SHOT_PROJECT=/path` to reuse an existing fixture instead (a reused
+   path is never torn down).
 2. Starts a **private, headless Wayland compositor** (`sway` with the
    wlroots headless backend) so capture frames never appear on the user's
    desktop. Windows are floated so Emacs's requested frame size is honored
    (sway tiles by default, which would force every frame to fill the output).
-3. Runs a **graphical** Emacs once per theme. It loads beads.el, the engine,
-   and the shot list; renders each selected view against the fixture store;
-   waits for the view's asynchronous `bd` data to settle; fits the frame
-   tightly to the rendered content; and exports a raw PNG.
+3. Runs a **graphical** Emacs once per manifest slot (`-dark` / `-light`).
+   It loads beads.el, the engine, and the shot list; renders each selected
+   view against the fixture store; waits for the view's asynchronous `bd`
+   data to settle; fits the frame tightly to the rendered content; and
+   exports a raw PNG.
 4. **Compresses** each raw PNG to an 8-bit-palette full image plus a small
    thumbnail under `docs/manual/images/` (committed). The raw PNGs are
    throwaway.
@@ -50,8 +51,13 @@ never `--batch`.
 | `sway` (wlroots headless) | private capture display | 1.11 |
 | ImageMagick `convert` | compress + thumbnail | 6.9 |
 | `bd` + `git` | create the fixture project | 1.3.1 |
-| `ef-themes` | the capture themes | 2.1.0 |
+| `flock` (util-linux) | serialize runs on the shared fixture | 2.42 |
 | `python3` | only `fixture.sh verify` (the structural check) | — |
+
+No third-party theme is a requirement: every image is captured from
+Emacs's built-in default faces (REQ-004). No `ef-`, `modus`, or other
+third-party theme may be loaded by the capture or manual-build path; the
+only exception tolerated below is the verbatim engine's docstring example.
 
 ## Running it
 
@@ -66,7 +72,11 @@ never `--batch`.
 ```
 
 The committed image footprint is small (palette PNGs, full + thumbnail).
-Capture is read-only with respect to the fixture store: it only opens views.
+The manifest produces 18 full images and 18 thumbnails in
+`docs/manual/images/`: fourteen `-dark` views plus four `-light`
+link-stability slots (dashboard, list, show, epic), and every committed
+image is embedded by at least one `@shot`.  Capture is read-only with
+respect to the fixture store: it only opens views.
 
 ### Scope (REQ-004)
 
@@ -83,6 +93,52 @@ those names into `docs/manual/images/`, so it never rewrites or deletes an
 out-of-scope image. `--scope <unknown>` exits non-zero (status 2) before
 anything runs.
 
+**Scope and view history.** The show and epic views render a `↩ Back to …`
+link to the beads view they were opened from, so that row is part of the
+image. A full run captures the manifest order (show after dashboard, epic
+after show), which is why the committed `show` image links back to the
+dashboard and the `epic` image links back to the show detail. A subset run
+that starts from a fresh session has no previous beads view and therefore
+renders the same view without that link. `--verify` still passes because it
+compares two runs of the same scope, but a subset capture is not
+byte-identical to its full-run counterpart. Regenerate canonical committed
+images with `--scope all` (or include the manifest neighbours in the subset).
+
+### Shared fixture, lock, and dataset hash (REQ-001, REQ-002)
+
+The project path is fixed, not per-run, because it is a cross-repo contract
+with the `gascity.el` manual. Two consequences are part of the pipeline:
+
+- **Marker-guarded lifecycle.** `fixture.sh create` recreates a stale project
+  only when it carries the `.beads-fixture-project` marker; anything else at
+  that path is refused (non-zero, nothing deleted). `teardown` accepts only the
+  exact `${TMPDIR:-/tmp}/demo-project` path (a trailing slash is trimmed),
+  requires the marker, and succeeds idempotently when the directory is already
+  gone. `remove_fixture_dir` never removes a run parent, because there is none.
+- **Serialized runs.** `fixture.sh create|teardown|verify` hold an advisory
+  `flock` on `${TMPDIR:-/tmp}/demo-project.lock` briefly; `capture.sh` takes
+  the same lock and holds it for the whole capture run (bounded by
+  `BEADS_SHOT_LOCK_TIMEOUT`, default 1800 s). A second concurrent capture waits
+  at the log line instead of sharing the store and its `.beads.gate.lock`. The
+  lock file lives next to, never inside, the project. `capture.sh` exports
+  `FIXTURE_LOCK_HELD=1` after acquiring it, so the nested `fixture.sh` calls
+  it makes skip acquisition and cannot deadlock against their own parent; a
+  direct CLI invocation without the marker still locks itself.
+
+The dataset is frozen at `demo-1` … `demo-12` with `sha256`
+`6504c508bd25f3a2efc8a0e99bc940767b3306ae41352077fa446d2d6c319ca8`. That
+literal lives once, as `FIXTURE_DATA_SHA256` in `fixture.sh`; `fixture.sh
+verify` hashes `fixtures/beads-fixture.jsonl` against it, then checks that
+this README and the manual's shared demo-project section record the same
+value. A data edit without the documentation update therefore fails `verify`.
+
+Isolation is unchanged: `capture.sh` unsets the four variables that can
+reroute `bd` (`BEADS_DIR`, `BEADS_DOLT_PORT`, `BEADS_DOLT_SERVER_PORT`,
+`GC_DOLT_PORT`) before spawning Emacs, and `fixture.sh` unsets them before
+every `bd` call. `fixture.sh print-isolation-vars` prints the hardcoded list
+that `beads-manual-isolation-list-matches-fixture` compares against the
+integration tests' `beads-test-isolation-env-vars`.
+
 ### Reproducibility / verify (REQ-007)
 
 `capture.sh --verify <scope>` captures the scope twice into throwaway staging
@@ -97,13 +153,17 @@ The target is **byte-identical output** for two runs of the same scope:
 - A post-render normalization hook (`beads-shots--normalize-ids`, installed
   with `advice-add` on `screenshot-export` and `screenshot-export-frame`)
   replaces any `beads-issue-id-regexp` match that shares the fixture prefix
-  but is not already `demo-N` with `demo-role`, as a backstop.
+  but is not already `demo-N` with `demo-role`, as a backstop.  It never
+  rewrites the fixture project's own basename (`demo-project`), which is
+  syntactically an id but is a path shown in the dashboard header and the
+  show view, and it skips any match inside read-only render output rather
+  than aborting the shot.
 - The dashboard status line shows a wall-clock relative timestamp
   (`refreshed Ns ago`). For capture only, `beads-shots.el` overrides
   `beads-dashboard--format-relative-time` to a fixed `0s ago`, so the
   settle duration cannot leak into the image.
 - The samplers are fixed: the same private compositor resolution, the same
-  frame geometry, the same themes, and the same font.
+  frame geometry, the same default faces (no theme loaded), and the same font.
 
 ### Subset isolation / verify-scope (AC-4)
 
@@ -112,7 +172,10 @@ rest of the manual: it snapshots the `sha256` digest and `mtime` of every
 `docs/manual/images/*.png`, runs the subset through the real capture and
 compress path, and fails, naming each offending image, if any **non-selected**
 image changed byte-for-byte or in mtime. It requires a prior `--scope all`
-run to have populated `docs/manual/images/`.
+run to have populated `docs/manual/images/`. The run compresses into
+scratch space under `BEADS_SHOT_STAGING`, so it does not rewrite the
+*selected* committed images either: a fresh single-view capture is not
+canonical (the `show`/`epic` back-link depends on view history).
 
 ```sh
 ./capture.sh --scope all            # populate images/
@@ -127,31 +190,51 @@ run to have populated `docs/manual/images/`.
 |----------|---------|---------|
 | `BEADS_REPO` | this checkout | beads.el checkout (load path) |
 | `BEADS_SHOT_DIR` | created by `fixture.sh` | fixture project the views open against |
-| `BEADS_SHOT_PROJECT` | unset | reuse an existing fixture project instead of creating one |
+| `BEADS_SHOT_PROJECT` | unset | reuse an existing fixture project instead of creating one; a reused path is never torn down and does not take the shared lock |
+| `BEADS_SHOT_LOCK_TIMEOUT` | `1800` | seconds `capture.sh` waits for another run's fixture lock |
 | `BEADS_SHOT_STAGING` | `/tmp/beads-shots` | parent for per-run staging dirs |
 | `BEADS_SHOT_BASE` | origin default branch | git ref for `--scope changed` |
 | `BEADS_SHOT_WATCHDOG` | `400` | seconds before a capture Emacs kills itself |
 | `BEADS_SHOT_ENGINE` | unset | capture-executable override used by the shell tests (skips the compositor) |
+| `BEADS_SHOT_THEME` | `default` | set by `capture.sh` per manifest slot; `default` means load no theme |
+| `BEADS_SHOT_THEME_LIBRARY` | unset | optional theme library for a non-default `BEADS_SHOT_THEME`; never set by the shipped manifest |
 
 Isolation: `capture.sh` unsets `BEADS_DIR`, `BEADS_DOLT_PORT`,
 `BEADS_DOLT_SERVER_PORT`, and `GC_DOLT_PORT` before spawning Emacs, so a
 value inherited from an agent shell cannot reroute the capture. The same four
 names are hardcoded in `fixture.sh`.
 
-The capture **manifest** — which views are shot in which theme — is a short
+`fixture.sh` also honours `TMPDIR` (the shared project moves to
+`$TMPDIR/demo-project`) and `FIXTURE_LOCK_TIMEOUT` (its own bounded lock wait,
+default 600 s). The `FIXTURE_LOCK_HELD=1` marker is set by `capture.sh` only
+after it owns the lock; do not set it by hand.
+
+The capture **manifest** — which views are shot in which slot — is a short
 here-doc near the top of `capture.sh`:
 
 ```
-ef-deuteranopia-dark  -dark   dashboard list ready blocked show epic compose molecule swarm agents dispatch maintenance agent-menu formula
-ef-cyprus     -light  dashboard list show epic
+default       -dark   dashboard list ready blocked show epic compose molecule swarm agents dispatch maintenance agent-menu formula
+default       -light  dashboard list show epic
 ```
 
-`ef-deuteranopia-dark` is the standard screenshot theme (REQ-004); the
-`-dark` images are captured in it. `ef-cyprus` is kept only on the four
-views above as the deliberate light-theming demonstration.
+Each line is `THEME  SUFFIX  view view …`. `default` means "load no theme":
+those images are captured with Emacs's built-in default faces and its
+`defface` defaults, so no third-party theme colours or fonts can appear
+(REQ-004). The `THEME` field still selects the slot suffix; any other value
+would name a theme symbol for a future re-theming, and
+`BEADS_SHOT_THEME_LIBRARY` would point `custom-theme-load-path` at that
+theme's library.
 
-Each line is `THEME  SUFFIX  view view …`. A view named under two themes is
-captured twice (the dashboard, list, show, and epic are, to show theming).
+The `-dark` and `-light` suffixes are **link-stability slots, not theme
+claims**: both come from the same default faces, so the dashboard, list,
+show, and epic images are captured twice into two slots that are byte-identical
+by design. Regeneration confirms it: the committed tree is 18 full images plus
+18 thumbnails (36 files), and every `-light` slot has the same `sha256` as its
+`-dark` counterpart, for both the full image and the thumbnail. Keeping both
+preserves every `@shot` reference and the beads.el/gascity.el
+`<view>-<theme>.png` naming contract (plan resolution 1, REQ-004). Captions
+describe the view or the default faces, never an `ef-` variant.
+
 Image geometry (widths, palette sizes) is set just below the manifest. The
 view names must match the shots defined in `beads-shots.el`.
 
@@ -194,7 +277,11 @@ uses, so the engine's `screenshot-settle` waits for dashboard and eldoc data.
 
 Do not fork the engine's logic. To refresh the copy, replace the file with the
 upstream version and update the revision/hash above; the engine is
-package-agnostic and should need no beads.el knowledge.
+package-agnostic and should need no beads.el knowledge. Its docstring names
+`ef-themes` only as an example of an external theme library for
+`custom-theme-load-path`; that string is part of the verbatim upstream file,
+not a requirement, and nothing in this repository loads it (REQ-004,
+REQ-006).
 
 The engine API (see the docstrings in `screenshot.el`):
 
@@ -229,15 +316,20 @@ The contract fixes exactly these values:
   `changed` selects the views touched by the working diff, and a
   comma-separated list selects that exact subset. A subset run must not
   rewrite or delete any out-of-scope image.
-- **Fixture**: referenced by role, never by a stored id; the generated ids
-  have the form `demo-<role>`. It is a deterministic, isolated temporary
-  project, never the repository or a live store.
+- **Fixture**: the one shared project is `${TMPDIR:-/tmp}/demo-project`
+  (default `/tmp/demo-project`), marker `.beads-fixture-project`, seeded with
+  the frozen `demo-1` … `demo-12` role ids; it is never the repository or a
+  live store. The sibling `gascity.el` manual points the same checkout at the
+  `demo-rig` rig inside its throwaway `/tmp/gascity-fixture` city (marker
+  `.gascity-fixture-project`). The ids, titles, statuses, and vocabulary are
+  identical, and `fixture.sh` refuses to delete a sibling's project rather
+  than replacing it.
 - **Layout**: `screenshots/` holds the pipeline and `images/` holds the
   committed images.  beads.el keeps both under `docs/manual/` even though
   its manual source moved to `doc/`; gascity.el keeps them under `doc/`.
 - **Naming**: `<view>-<theme>.png` for the full image and
-  `<view>-<theme>-thumb.png` for the thumbnail, where `theme` is `dark` or
-  `light`.
+  `<view>-<theme>-thumb.png` for the thumbnail, where `theme` is the link-stability
+  slot `dark` or `light`; both slots show the default faces.
 - **Verify**: re-run a scope twice and fail, naming each drifting image,
   unless the output is byte-identical.
 
@@ -277,10 +369,14 @@ only change across long spans, not between two back-to-back runs.
 - **Frame size persists between shots.** The engine resets the frame to a
   large baseline before each shot so a paginated list opens at full size
   before being fitted down.
-- **ef-themes load path.** The theme `*-theme.el` files may live outside the
-  default `custom-theme-load-path` (e.g. a Guix profile);
-  `screenshot-theme-library` adds the library's directory so `load-theme`
-  finds them.
+- **Theme load path (docstring example only).** `screenshot.el`'s docstring
+  mentions `"ef-themes"` solely as an example of how to point
+  `custom-theme-load-path` at an externally installed theme library (for
+  example from a Guix profile). It is not a requirement and nothing in the
+  capture or manual-build path loads a third-party theme: the engine's
+  `screenshot-theme-library` is nil unless a future capture sets
+  `BEADS_SHOT_THEME_LIBRARY`. The engine stays a verbatim copy of the
+  gascity.el file, so the example string is deliberately not deleted.
 - **A failing view is skipped, not fatal.** `screenshot-run` logs a failed
   thunk and continues, so one broken view never aborts the run; check
   `$BEADS_SHOT_STAGING/run/capture.log`.

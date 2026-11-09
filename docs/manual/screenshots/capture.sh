@@ -18,8 +18,13 @@
 # run never rewrites or deletes an image outside the selected scope.
 #
 # Requirements: emacs (pgtk/GUI), sway (wlroots headless backend),
-# ImageMagick `convert`, the `bd` CLI, and ef-themes.  The views run
-# against a throwaway fixture project created by fixture.sh (REQ-005).
+# ImageMagick `convert`, and the `bd` CLI.  No third-party theme is loaded:
+# every image is captured from Emacs's built-in default faces (REQ-004).
+# The views run against the shared demo project at
+# ${TMPDIR:-/tmp}/demo-project, created by fixture.sh (REQ-001, REQ-005).
+# The fixed path is shared with the sibling gascity.el manual, so this script
+# takes an advisory flock on ${TMPDIR:-/tmp}/demo-project.lock and holds it for
+# the whole run; a second capture waits instead of sharing the store.
 #
 # The engine is copied verbatim from the sibling gascity.el pipeline; see
 # README.md in this directory for provenance and the cross-repo contract.
@@ -43,6 +48,17 @@ SHOTS_EL="$HERE/beads-shots.el"
 FIXTURE_SH="$HERE/fixture.sh"
 WATCHDOG="${BEADS_SHOT_WATCHDOG:-400}"
 
+# The shared fixture contract: one project path and one lock path, computed
+# exactly as fixture.sh does so a nested create/teardown agrees with us.
+FIXTURE_TMPDIR="${TMPDIR:-/tmp}"
+while [ "${FIXTURE_TMPDIR%/}" != "$FIXTURE_TMPDIR" ]; do
+  FIXTURE_TMPDIR="${FIXTURE_TMPDIR%/}"
+done
+[ -n "$FIXTURE_TMPDIR" ] || FIXTURE_TMPDIR="/"
+FIXTURE_PROJECT_DIR="$FIXTURE_TMPDIR/demo-project"
+FIXTURE_LOCK_FILE="$FIXTURE_TMPDIR/demo-project.lock"
+FIXTURE_LOCK_TIMEOUT="${BEADS_SHOT_LOCK_TIMEOUT:-1800}"
+
 export BEADS_REPO="${BEADS_REPO:-$REPO}"
 
 # Output image geometry.  UI screenshots are flat-colour, so 8-bit palette
@@ -53,13 +69,19 @@ THUMB_W=520       # thumbnail max width (px)
 THUMB_COLORS=128  # a preview needs fewer colours
 
 # ---- Capture manifest --------------------------------------------------
-# One line per theme: "THEME  SUFFIX  view view view ...".  A view named
-# in two themes is captured twice (e.g. the dashboard, to show theming).
-# The suffix is the "-<theme>" half of the committed name, so the output is
-# exactly <view>-<theme>.png and <view>-<theme>-thumb.png.
+# One line per theme slot: "THEME  SUFFIX  view view view ...".  `default'
+# means "load no theme": the slot is captured with Emacs's built-in default
+# faces.  The suffix is the "-<theme>" half of the committed name, so the
+# output is exactly <view>-<theme>.png and <view>-<theme>-thumb.png.
+#
+# The `-dark' and `-light' suffixes are link-stability slots, not theme
+# claims: both are captured from the same default faces, on purpose, so
+# every @shot reference and the beads.el/gascity.el <view>-<theme>.png
+# naming contract stay valid (plan resolution 1, REQ-004).  A view named in
+# two slots is captured twice into the two slots.
 read -r -d '' MANIFEST <<'EOF' || true
-ef-deuteranopia-dark  -dark   dashboard list ready blocked show epic compose molecule swarm agents dispatch maintenance agent-menu formula
-ef-cyprus     -light  dashboard list show epic
+default       -dark   dashboard list ready blocked show epic compose molecule swarm agents dispatch maintenance agent-menu formula
+default       -light  dashboard list show epic
 EOF
 
 # Source files per view, for `--scope changed`.  A view is selected when
@@ -84,6 +106,11 @@ declare -A VIEW_SOURCES=(
 )
 
 log() { printf '\033[1;36m[capture]\033[0m %s\n' "$*" >&2; }
+
+fatal() {
+  printf 'capture.sh: %s\n' "$*" >&2
+  exit 1
+}
 
 usage_error() {
   printf 'capture.sh: %s\n' "$*" >&2
@@ -112,7 +139,11 @@ Environment:
   BEADS_REPO            beads.el checkout to capture (default: this repo)
   BEADS_SHOT_STAGING    raw PNG staging dir (default: /tmp/beads-shots)
   BEADS_SHOT_PROJECT    existing fixture project; when unset, fixture.sh
-                        creates and tears down a throwaway one
+                        creates and tears down the shared
+                        ${TMPDIR:-/tmp}/demo-project
+  BEADS_SHOT_LOCK_TIMEOUT
+                        seconds to wait for another capture's fixture lock
+                        (1800); the shared project is never used concurrently
   BEADS_SHOT_BASE       git ref for `--scope changed`
   BEADS_SHOT_ENGINE     capture executable override (used by the shell
                         tests; skips the compositor)
@@ -126,10 +157,11 @@ EOF
 # store.  fixture.sh holds the single editable list; read it back through
 # `print-isolation-vars' so capture.sh cannot silently drift from it
 # (plan-review P2).
-if [ -r "$FIXTURE_SH" ]; then
-  while IFS= read -r _var; do unset "$_var"; done \
-    < <("$FIXTURE_SH" print-isolation-vars)
-fi
+[ -r "$FIXTURE_SH" ] || fatal "fixture script not readable: $FIXTURE_SH"
+ISOLATION_VARS="$("$FIXTURE_SH" print-isolation-vars)" \
+  || fatal "fixture.sh print-isolation-vars failed; refusing to run unisolated"
+[ -n "$ISOLATION_VARS" ] || fatal "fixture.sh printed no isolation variables"
+for _var in $ISOLATION_VARS; do unset "$_var"; done
 
 # ---- Scope resolution --------------------------------------------------
 
@@ -204,15 +236,41 @@ view_selected() {
 PROJECT="${BEADS_SHOT_PROJECT:-}"
 CREATED_PROJECT=""
 
+# Serialize runs on the shared, fixed fixture path.  The lock is held for the
+# whole capture (fd 9 stays open), and FIXTURE_LOCK_HELD tells the nested
+# fixture.sh create/teardown calls not to lock the same file again and
+# deadlock against their own parent.  A caller-provided BEADS_SHOT_PROJECT is
+# the explicit reuse escape hatch: it is not the shared store, so it is
+# neither locked nor torn down.
+acquire_fixture_lock() {
+  [ -r "$FIXTURE_SH" ] || usage_error "fixture.sh not found: $FIXTURE_SH"
+  command -v flock >/dev/null 2>&1 \
+    || usage_error "flock (util-linux) is required to serialize the shared fixture"
+  log "waiting up to ${FIXTURE_LOCK_TIMEOUT}s for the fixture lock: $FIXTURE_LOCK_FILE"
+  mkdir -p -- "$FIXTURE_TMPDIR" \
+    || fatal "cannot create the fixture parent: $FIXTURE_TMPDIR"
+  exec 9>"$FIXTURE_LOCK_FILE" \
+    || fatal "cannot open the fixture lock: $FIXTURE_LOCK_FILE"
+  if ! flock -w "$FIXTURE_LOCK_TIMEOUT" 9; then
+    exec 9>&-
+    fatal "timed out after ${FIXTURE_LOCK_TIMEOUT}s waiting for another capture (lock: $FIXTURE_LOCK_FILE)"
+  fi
+  export FIXTURE_LOCK_HELD=1
+  log "holding the fixture lock: $FIXTURE_LOCK_FILE"
+}
+
 ensure_project() {
   if [ -n "$PROJECT" ]; then
     [ -d "$PROJECT" ] || usage_error "BEADS_SHOT_PROJECT is not a directory: $PROJECT"
     export BEADS_SHOT_DIR="$PROJECT"
+    log "reusing BEADS_SHOT_PROJECT=$PROJECT (no shared lock, never torn down)"
     return
   fi
   [ -r "$FIXTURE_SH" ] || usage_error "fixture.sh not found: $FIXTURE_SH"
   PROJECT="$("$FIXTURE_SH" create)"
   [ -n "$PROJECT" ] && [ -d "$PROJECT" ] || usage_error "fixture.sh create returned no project"
+  [ "$PROJECT" = "$FIXTURE_PROJECT_DIR" ] \
+    || usage_error "fixture.sh create returned $PROJECT, expected $FIXTURE_PROJECT_DIR"
   CREATED_PROJECT="$PROJECT"
   export BEADS_SHOT_DIR="$PROJECT"
   log "fixture project: $PROJECT"
@@ -308,8 +366,8 @@ capture_into() {
 
 # ---- Compress ---------------------------------------------------------
 compress() {
-  local srcdir="$1" total=0 raw name full thumb fs ts
-  mkdir -p "$IMAGES_DIR"
+  local srcdir="$1" outdir="${2:-$IMAGES_DIR}" total=0 raw name full thumb fs ts
+  mkdir -p "$outdir"
   shopt -s nullglob
   for raw in "$srcdir"/*.png; do
     name="$(basename "$raw" .png)"
@@ -319,7 +377,7 @@ compress() {
       case "$name" in "$v"-dark|"$v"-light) selected=1; break ;; esac
     done
     [ "$selected" = 1 ] || continue
-    full="$IMAGES_DIR/$name.png" thumb="$IMAGES_DIR/$name-thumb.png"
+    full="$outdir/$name.png" thumb="$outdir/$name-thumb.png"
     convert "$raw" -strip -resize "${FULL_W}x>" -dither None -colors "$FULL_COLORS" \
             -define png:compression-level=9 "$full"
     convert "$raw" -strip -resize "${THUMB_W}x>" -dither None -colors "$THUMB_COLORS" \
@@ -329,7 +387,7 @@ compress() {
     printf '  %-26s full=%6d  thumb=%6d\n' "$name" "$fs" "$ts" >&2
   done
   shopt -u nullglob
-  log "docs/manual/images total: $(awk "BEGIN{printf \"%.1f\", $total/1024}") KiB"
+  log "$outdir total: $(awk "BEGIN{printf \"%.1f\", $total/1024}") KiB"
 }
 
 # ---- Verify -----------------------------------------------------------
@@ -404,10 +462,13 @@ verify_scope_isolation() {
   fi
   log "verify-scope: snapshot of $(wc -l <"$snap/before") committed image(s) before scope $SCOPE"
 
-  rm -rf "$STAGING/scope-run"
+  rm -rf "$STAGING/scope-run" "$STAGING/scope-compress"
   mkdir -p "$STAGING/scope-run"
   capture_into "$STAGING/scope-run"
-  compress "$STAGING/scope-run"
+  # Compress into scratch space: this command only proves the *other*
+  # images are untouched, so it must not rewrite the selected committed
+  # images either (R1).
+  compress "$STAGING/scope-run" "$STAGING/scope-compress"
   snapshot_images "$snap/after"
 
   while read -r _ _ name; do
@@ -495,6 +556,10 @@ if [ "$COMPRESS_ONLY" = 1 ]; then
   compress "$STAGING"
   log "done."
   exit 0
+fi
+
+if [ -z "$PROJECT" ]; then
+  acquire_fixture_lock
 fi
 
 ensure_project
