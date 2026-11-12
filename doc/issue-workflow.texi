@@ -371,18 +371,13 @@ Remove a label from one or more issues.
 Propagate a label to all children of an issue.
 @kindex l
 @item l
-List labels for a specific issue.
+List labels for a specific issue (@code{beads-label-list-interactive}).
+The labels are echoed in the echo area, comma-separated, so they can be
+read without leaving the menu; an issue with no labels says so.
 @kindex L
 @item L
 List all labels in the store.
 @end table
-
-@quotation Note
-@kbd{l} (@code{beads-label-list}) currently signals @code{Wrong type
-argument: sequencep, 10} instead of listing the issue's labels.  Until
-that defect is fixed, the issue's labels are shown in the show view's
-@samp{Labels} section, and @kbd{L} lists every label in the store.
-@end quotation
 
 @node Bulk Actions
 @section Bulk Actions

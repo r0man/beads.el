@@ -700,6 +700,46 @@ EIEIO enforces (list-of string) at construction time."
     (should (member "--json" args))
     (should (member "bd-1" args))))
 
+(ert-deftest beads-label-test-list-result-type ()
+  "Test label-list declares a list-of-string result.
+`bd label list --json' prints a plain JSON array of label names,
+so the class must declare `(list-of string)' to parse it."
+  :tags '(:unit)
+  (should (equal (get 'beads-command-label-list 'beads-result)
+                 '(list-of string))))
+
+(ert-deftest beads-label-test-list-parse-json-array ()
+  "Test label-list parses the bd JSON array into label strings."
+  :tags '(:unit)
+  (let ((cmd (beads-command-label-list :issue-id "bd-1" :json t)))
+    (should (equal (beads-command-parse cmd "[\"alpha\",\"beta\"]")
+                   '("alpha" "beta")))
+    (should (equal (beads-command-parse cmd "[]") nil))))
+
+(ert-deftest beads-label-test-label-list-returns-strings ()
+  "Test `beads-label-list' returns a list usable by `mapconcat'.
+Regression: the command ran without `:json t', so it returned the raw
+human-readable stdout string and `beads-label-list-interactive'
+signalled `(wrong-type-argument sequencep 10)'."
+  :tags '(:unit)
+  (beads-test-with-temp-config
+   (cl-letf (((symbol-function 'process-file)
+              (beads-test--mock-call-process 0 "[\"alpha\",\"beta\"]")))
+     (let ((labels (beads-label-list "bd-1")))
+       (should (equal labels '("alpha" "beta")))
+       (should (stringp (mapconcat #'identity labels ", ")))))))
+
+(ert-deftest beads-label-test-label-list-requests-json ()
+  "Test `beads-label-list' asks bd for JSON output."
+  :tags '(:unit)
+  (let ((exec-cmd nil))
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (cmd)
+                 (setq exec-cmd cmd)
+                 '("alpha"))))
+      (beads-label-list "bd-42")
+      (should (oref exec-cmd json)))))
+
 ;;; Tests for beads-command-label-list validate (lines 251-254)
 
 (ert-deftest beads-label-test-list-validate-no-issue-id ()

@@ -194,6 +194,9 @@ that all issue IDs are strings."
     :required t))
   :documentation "Represents bd label list command.
 Lists labels for a specific issue."
+  ;; `bd label list --json' prints a plain JSON array of label names,
+  ;; not objects, so the result is a list of strings.
+  :result (list-of string)
   :transient :manual)
 
 
@@ -512,9 +515,13 @@ Returns list of arguments for bd label remove command."
 
 (defun beads-label-list (issue-id)
   "List all labels for ISSUE-ID.
-Returns list of label strings."
-  (let ((cmd (beads-command-label-list :issue-id issue-id)))
-    (beads-command-execute cmd)))
+Returns list of label strings.  Runs `bd label list --json', whose
+payload is a plain JSON array of label names, and normalizes it to a
+list (the parser returns a vector-derived list, but callers such as
+`beads-label-list-interactive' map over the result and must not
+receive a string)."
+  (let ((cmd (beads-command-label-list :issue-id issue-id :json t)))
+    (append (beads-command-execute cmd) nil)))
 
 ;;;###autoload
 (defun beads-label-list-interactive (issue-id)

@@ -4,6 +4,19 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### `l` in the label menu lists an issue's labels again
+
+* **`? L l` (`beads-label-list`) now prints the labels instead of
+  signalling `Wrong type argument: sequencep, 10`.**
+  `beads-command-label-list` declared no `:result` and
+  `beads-label-list` ran it without `:json t`, so the function returned
+  bd's human-readable stdout string and `mapconcat` walked its
+  characters.  The command now declares `(list-of string)` — bd's
+  `label list --json` payload is a plain array of label names — and
+  `beads-label-list` always asks for JSON and returns a list of label
+  strings.  The manual's Labels section no longer carries the defect
+  note.
+
 ### A failed context action no longer reports success
 
 * **The context actions (`d`, `C`, `o`, `s`, `#`) only report success
