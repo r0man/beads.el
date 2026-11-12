@@ -1,7 +1,7 @@
 # beads-standalone-formulas — live acceptance (Emacs-in-tmux, bright-lights)
 
 - Date: 2026-10-08
-- Plan: `plans/beads-standalone-formulas/` (WI-SF-01..19), branch
+- Plan: standalone-formulas (WI-SF-01..19), branch
   `standalone-formulas-integration` @ `7422bbc` (draft PR #68)
 - Build under test: integration worktree `beads-sf`, Emacs 31.1, loaded from
   the worktree `lisp/` + the eldev `vui-1.4.0` / `sesman-0.3.2` package dirs.

@@ -1,7 +1,7 @@
 # beads.el UI redesign — WI-20 live acceptance (Emacs-in-tmux, bright-lights)
 
 - Date: 2026-10-04
-- Bead: `be-1iu7` (build-from-plan) / plan `plans/beads-ui-redesign/` (WI-20)
+- Bead: `be-1iu7` (build-from-plan) / UI-redesign plan (WI-20)
 - PR: #67 (`feat(ui): beads.el UI redesign`)
 - Build under test: `wi18-integration` @ `5fd1aa9` (worktree
   `worktrees/be-73vg`), Emacs 31.1, transient 0.13.8, `emacs -nw -Q` in tmux

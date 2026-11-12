@@ -6,9 +6,8 @@
 
 ;;; Commentary:
 
-;; The stream supervisor behind the `beads-live' feature set (design of
-;; record: `plans/beads-events-live/design.md' §3.1).  One supervised
-;; `bd events tail --follow' process per canonical store feeds the
+;; The stream supervisor behind the `beads-live' feature set.  One
+;; supervised `bd events tail --follow' process per canonical store feeds the
 ;; in-memory model that the dashboard, list, show and events views
 ;; render from, instead of every view polling `bd' on a timer.
 ;;

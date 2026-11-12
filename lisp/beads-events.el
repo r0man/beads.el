@@ -9,8 +9,7 @@
 
 ;;; Commentary:
 
-;; The Events views over the durable `bd events' journal (design of
-;; record: `plans/beads-events-live/design.md' §3.3; WI-LIVE-15).  A
+;; The Events views over the durable `bd events' journal (WI-LIVE-15).  A
 ;; `tabulated-list-mode' over `beads-pager', newest-first, with live
 ;; append, churn folding, op/actor/issue filters, and org export.  It
 ;; mirrors the `gascity-events' conventions for `gc events'.

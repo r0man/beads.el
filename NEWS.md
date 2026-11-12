@@ -59,8 +59,7 @@ User-visible and API-breaking changes, newest first.
   theme claims.
 * **The manual is complete and exercised.**  The walkthrough, reference, and
   index are covered by the test suite, and the manual-only black-box pass with
-  its durable report is committed at
-  `plans/manual-demo-consistency/qa-report.md`.  These are documentation
+  its durable QA report is committed.  These are documentation
   changes only; no runtime behavior is claimed.
 
 ### Eldoc previews work on ssh-pipe remotes without a prior connection
@@ -211,7 +210,7 @@ User-visible and API-breaking changes, newest first.
   (`lisp/test/beads-manual-walkthrough-test.el`) drives the documented
   path -- load, board, create/list/show/close, dependency, formula and
   molecule, dispatch and maintenance menus -- in a throwaway store, and
-  `plans/manual-standard/walkthrough.md` records the interactive
+  The manual-standard walkthrough records the interactive
   fresh-`emacs -Q` evidence.
 * **Manual corrections the walkthrough surfaced.** The board brackets its
   project with angle brackets (`*beads-dashboard<PROJECT>*`), not square
@@ -402,8 +401,7 @@ confirmation prompt (F10).
 (F7).
 * **Docs truth.** README dispatch tables and `MAGIT_PATTERNS.md` buffer
 names corrected; `docs/ui-redesign.md` retired in favour of
-`AGENTS.md`, `docs/key-registry.md`, and
-`plans/beads-ui-redesign/design.md` (F2/F9).
+`AGENTS.md` and `docs/key-registry.md` (F2/F9).
 * **API:** the static "Preview command" suffixes are gone: the generated
 transients, `beads-command-preview`, and the per-command `--preview`
 suffixes (`beads-create--preview`, `beads-update--preview`,
@@ -523,23 +521,17 @@ helper classes) instead of raw JSON strings. `bd swarm create`/`validate`
 exit 0 on domain states, so the new `beads-swarm-domain-error-p` is the
 single detector for those `{error: ...}` payloads and the `swarmable=false`
 state. No command slots changed.
-### Standalone-first formula → molecule workflow plan published
+### Standalone-first formula → molecule workflow landed
 
-`plans/beads-standalone-formulas/` now holds the complete design for making
-the whole `bd` lifecycle — `formula → proto → molecule → swarm` —
-first-class in Emacs with `bd` alone and no gascity.  The plan **extends**
-the PR #67 redesign rather than forking it: every new surface composes the
-seams published there — `beads-formula-launch`,
-`beads-formula-var-reader`, `beads-sling-*`, `beads-thing`, the faces
-palette and `beads-command-execute-async` — and the swarm views reuse the
-existing `beads-command-swarm.el` classes and `beads-swarm` transient
-(REQ-SF-081).  The package ships `requirements.md`, `design.md`,
-`menu-mockups.md`, `decomposition.md`, `implementation-plan.md` and
-`plan-review.md` under `plans/beads-standalone-formulas/`, cross-referencing
-`plans/beads-ui-redesign/` (PR #67, `docs/ui-redesign.md`) instead of
-duplicating it.  44 `REQ-SF-*` requirements across nine gaps trace to the
-`WI-SF-01…19` work items.  The plan package is planning-only and changes no
-`.el` source file (REQ-SF-083).
+The standalone-first design makes the whole `bd` lifecycle — `formula →
+proto → molecule → swarm` — first-class in Emacs with `bd` alone and no
+gascity.  The work **extends** the PR #67 redesign rather than forking it:
+every new surface composes the seams published there —
+`beads-formula-launch`, `beads-formula-var-reader`, `beads-sling-*`,
+`beads-thing`, the faces palette and `beads-command-execute-async` — and
+the swarm views reuse the existing `beads-command-swarm.el` classes and
+`beads-swarm` transient (REQ-SF-081).  44 `REQ-SF-*` requirements across
+nine gaps trace to the `WI-SF-01…19` work items.
 ### Formula var choices/validation seams for downstream packages (REQ-SF-100)
 
 beads.el now owns the generic formula-variable seams downstream

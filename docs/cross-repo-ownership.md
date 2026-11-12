@@ -70,7 +70,7 @@ drift silently.
 
 The generic seams 1–4 are the ones the gascity.el dedup bead consumes;
 the rest are the stable porcelain and terminal seams the package already
-exposes (`plans/beads-ui-redesign/design.md` §4).
+exposes (§4 of the UI-redesign design).
 
 ### The sling dispatch seam
 
@@ -136,6 +136,6 @@ remains.
 
 ## Further reading
 
-- `plans/beads-standalone-formulas/requirements.md` — REQ-SF-100.
-- `plans/beads-standalone-formulas/decomposition.md` — WI-SF-19.
-- `plans/beads-ui-redesign/design.md` §4/§6 — the foundation seam list.
+- The standalone-formulas requirements (REQ-SF-100) and decomposition
+  (WI-SF-19).
+- The UI-redesign design §4/§6 — the foundation seam list.

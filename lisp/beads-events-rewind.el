@@ -10,9 +10,8 @@
 ;;; Commentary:
 
 ;; Rewind the beads model to an earlier journal sequence number
-;; (design of record: `plans/beads-events-live/design.md' sections 3.3,
-;; 4.6, 7.8; WI-LIVE-16).  Split out of `beads-events.el' past the size
-;; threshold the design set.
+;; (WI-LIVE-16).  Split out of `beads-events.el' past the size threshold
+;; set for the split.
 ;;
 ;; `beads-events-rewind' prompts for a seq, or a relative `-N'/`+N',
 ;; and renders the sparse-merged issue state as of that seq in a

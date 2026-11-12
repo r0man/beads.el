@@ -11,7 +11,7 @@
 
 ;; What every view that shows `bd events' agrees on, as pure functions
 ;; over `beads-event-record' and `beads-issue' with no buffers and no
-;; processes (plan `plans/beads-events-live/', WI-LIVE-01).  It is safe
+;; processes (WI-LIVE-01).  It is safe
 ;; to require from the views and the mode-line pulse without pulling in
 ;; the stream.
 ;;

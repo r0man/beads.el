@@ -9,10 +9,9 @@
 
 ;;; Commentary:
 
-;; The per-issue history view over the `bd events' journal (design of
-;; record: `plans/beads-events-live/design.md' sections 3.2, 3.3, 7.6;
-;; WI-LIVE-16).  It is split out of `beads-events.el' because that file
-;; grew past the size threshold the design set for the split.
+;; The per-issue history view over the `bd events' journal (WI-LIVE-16).
+;; It is split out of `beads-events.el' because that file grew past the
+;; size threshold set for the split.
 ;;
 ;; `beads-events-history' shows one issue's lifecycle oldest-to-newest
 ;; but renders it newest-first, `git log' style.  Each mutation carries

@@ -8,7 +8,7 @@
 ;;; Commentary:
 
 ;; ERT unit tests for the pure journal event model (`beads-event.el',
-;; plan `plans/beads-events-live/', WI-LIVE-01).  Everything here is
+;; WI-LIVE-01).  Everything here is
 ;; `:unit': no `bd', no subprocess, no buffer.  Covers level/glyph,
 ;; subject, actor description, time and `--since' resolution, the
 ;; sparse-partial field diff (including an absent `is_blocked' clearing
