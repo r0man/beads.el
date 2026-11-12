@@ -49,8 +49,5 @@ Magit (interaction model): @uref{https://magit.vc}
 @item
 Forge (sections and references): @uref{https://magit.vc/manual/forge}
 @item
-Design record for the board and menus:
-@file{plans/beads-ui-redesign/design.md}
-@item
 Enforced key contract: @file{docs/key-registry.md}
 @end itemize
