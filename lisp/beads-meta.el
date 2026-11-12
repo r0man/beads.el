@@ -89,6 +89,8 @@
 (require 'eieio-core)
 (require 'cl-lib)
 (require 'beads-prefix)
+(require 'beads-custom) ; `beads-actor'
+(require 'beads-state)  ; `beads-global-*'
 
 ;; Forward declarations for generic methods from beads-command.el
 ;; These are used in the generated suffix code
@@ -1183,21 +1185,37 @@ This does NOT include global flags or executable - those are handled
 by the base class's command-line method."
   (cons subcommand (beads-meta-build-command-line command)))
 
+(defun beads-meta--global-option-default (slot-name)
+  "Return the ambient default value for global option SLOT-NAME.
+The command's own slot wins when set; this fills in `beads-actor'
+(or its transient override `beads-global-actor') for commands that
+leave the actor slot unset, and the buffer's store for `directory'."
+  (pcase slot-name
+    ('actor (or beads-global-actor beads-actor))
+    ;; The buffer's store scopes unscoped commands.
+    ('directory beads-store-directory)))
+
 (defun beads-meta-build-global-options (command)
   "Build command-line arguments for global options in COMMAND.
 COMMAND is an EIEIO object that inherits from `beads-command-global-options'.
 
 Returns a list of strings representing global CLI flags.
-Uses slot metadata (:long-option, :short-option, :option-type) to build args."
+Uses slot metadata (:long-option, :short-option, :option-type) to build args.
+An unset slot falls back to `beads-meta--global-option-default', so
+`beads-actor' (or `beads-global-actor') applies to every command, not
+just the legacy `beads--build-command' path."
   (let ((result nil)
         (class-name (eieio-object-class command)))
     (dolist (slot-name beads-meta--global-option-slots)
       (when (and (slot-exists-p command slot-name)
                  (slot-boundp command slot-name))
         (let* ((value (or (eieio-oref command slot-name)
-                          ;; The buffer's store scopes unscoped commands.
-                          (and (eq slot-name 'directory)
-                               beads-store-directory)))
+                          (beads-meta--global-option-default slot-name)))
+               ;; A blank string means "unset" for every global option.
+               (value (if (and (stringp value)
+                               (string-empty-p (string-trim value)))
+                          nil
+                        value))
                (long-opt (beads-meta-slot-property class-name slot-name
                                                    :long-option))
                (option-type (or (beads-meta-slot-property class-name slot-name

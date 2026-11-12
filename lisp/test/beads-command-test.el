@@ -952,6 +952,48 @@ Integration test that retrieves issue database stats."
     (should (member "--priority" args))
     (should (member "2" args))))
 
+(ert-deftest beads-command-test-unit-actor-from-user-option ()
+  "Unit test: `beads-actor' is serialized as --actor by default."
+  :tags '(:unit)
+  (let ((beads-actor "demo")
+        (beads-global-actor nil))
+    (let ((args (beads-command-line
+                 (beads-command-update :issue-ids '("demo-3") :claim t))))
+      (should (member "--actor" args))
+      (should (member "demo" args)))))
+
+(ert-deftest beads-command-test-unit-global-actor-precedence ()
+  "Unit test: `beads-global-actor' wins over `beads-actor'."
+  :tags '(:unit)
+  (let ((beads-actor "default-actor")
+        (beads-global-actor "transient-actor"))
+    (let ((args (beads-command-line
+                 (beads-command-update :issue-ids '("demo-3")))))
+      (should (member "--actor" args))
+      (should (member "transient-actor" args))
+      (should-not (member "default-actor" args)))))
+
+(ert-deftest beads-command-test-unit-explicit-actor-wins ()
+  "Unit test: a command's own actor slot wins over the global defaults."
+  :tags '(:unit)
+  (let ((beads-actor "default-actor")
+        (beads-global-actor "transient-actor"))
+    (let ((args (beads-command-line
+                 (beads-command-update :issue-ids '("demo-3")
+                                        :actor "explicit-actor"))))
+      (should (member "explicit-actor" args))
+      (should-not (member "default-actor" args))
+      (should-not (member "transient-actor" args)))))
+
+(ert-deftest beads-command-test-unit-blank-actor-ignored ()
+  "Unit test: a blank `beads-actor' does not add --actor."
+  :tags '(:unit)
+  (let ((beads-actor "   ")
+        (beads-global-actor nil))
+    (let ((args (beads-command-line
+                 (beads-command-update :issue-ids '("demo-3")))))
+      (should-not (member "--actor" args)))))
+
 (ert-deftest beads-command-test-unit-close-command-line-basic ()
   "Unit test: beads-command-close builds correct arguments."
   :tags '(:unit)

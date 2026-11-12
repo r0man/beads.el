@@ -4,6 +4,19 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### `beads-actor` now applies to every command
+
+* **The `beads-actor` user option and the global actor infix (`=a`)
+  are serialized as `--actor` by synchronous commands again.**
+  `beads-command-line` builds global flags from the command object's
+  slots via `beads-meta-build-global-options`, which only read the
+  `actor` slot; `beads-actor` and `beads-global-actor` were only
+  consulted by the legacy `beads--build-command` path.
+  `beads-meta-build-global-options` now defaults an unset actor slot
+  from `beads-global-actor` then `beads-actor`, so context actions
+  such as claim and close record the configured actor without needing
+  `BEADS_ACTOR` in the environment.  A blank actor still means "unset".
+
 ### `l` in the label menu lists an issue's labels again
 
 * **`? L l` (`beads-label-list`) now prints the labels instead of
