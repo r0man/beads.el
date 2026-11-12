@@ -188,6 +188,127 @@
         (should reopen-cmd)
         (should (equal '("bd-42") (oref reopen-cmd issue-ids)))))))
 
+;;; Failure reporting
+
+(defun beads-actions-test--messages (fn)
+  "Call FN collecting its `message' output; return the strings emitted."
+  (let (messages)
+    (cl-letf (((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (push (apply #'format-message fmt args) messages))))
+      (funcall fn))
+    (nreverse messages)))
+
+(defun beads-actions-test--any-message-p (regexp messages)
+  "Return non-nil when any string in MESSAGES matches REGEXP."
+  (seq-some (lambda (m) (string-match-p regexp m)) messages))
+
+(ert-deftest beads-actions-test-close-failure-does-not-report-success ()
+  "A close that signals must not claim success or refresh the buffer."
+  :tags '(:unit)
+  (with-temp-buffer
+    (setq-local beads-list--marked-issues nil)
+    (let (refreshed)
+      (cl-letf (((symbol-function 'beads-issue-at-point)
+                 (lambda () "demo-1"))
+                ((symbol-function 'beads-execute)
+                 (lambda (&rest _)
+                   (error "cannot close demo-1: assignee is \"demo\"")))
+                ((symbol-function 'read-string)
+                 (lambda (&rest _) "done"))
+                ((symbol-function 'beads-actions--after-mutation)
+                 (lambda () (setq refreshed t))))
+        (let ((messages (beads-actions-test--messages #'beads-actions-close)))
+          (should-not (beads-actions-test--any-message-p
+                       "\\`Closed" messages))
+          (should (beads-actions-test--any-message-p
+                   "cannot close demo-1" messages))
+          (should-not refreshed))))))
+
+(ert-deftest beads-actions-test-claim-failure-does-not-report-success ()
+  "A claim that signals must not claim success."
+  :tags '(:unit)
+  (with-temp-buffer
+    (setq-local beads-list--marked-issues nil)
+    (let (refreshed)
+      (cl-letf (((symbol-function 'beads-issue-at-point)
+                 (lambda () "demo-1"))
+                ((symbol-function 'beads-execute)
+                 (lambda (&rest _)
+                   (error "demo-1 already claimed")))
+                ((symbol-function 'beads-actions--after-mutation)
+                 (lambda () (setq refreshed t))))
+        (let ((messages (beads-actions-test--messages #'beads-actions-claim)))
+          (should-not (beads-actions-test--any-message-p
+                       "\\`Claimed" messages))
+          (should (beads-actions-test--any-message-p
+                   "already claimed" messages))
+          (should-not refreshed))))))
+
+(ert-deftest beads-actions-test-reopen-failure-does-not-report-success ()
+  "A reopen that signals must not claim success."
+  :tags '(:unit)
+  (with-temp-buffer
+    (setq-local beads-list--marked-issues nil)
+    (cl-letf (((symbol-function 'beads-issue-at-point)
+               (lambda () "demo-1"))
+              ((symbol-function 'beads-execute)
+               (lambda (&rest _) (error "cannot reopen demo-1")))
+              ((symbol-function 'read-string)
+               (lambda (&rest _) ""))
+              ((symbol-function 'beads-actions--after-mutation)
+               (lambda () nil)))
+      (let ((messages (beads-actions-test--messages #'beads-actions-reopen)))
+        (should-not (beads-actions-test--any-message-p
+                     "\\`Reopened" messages))
+        (should (beads-actions-test--any-message-p
+                 "cannot reopen demo-1" messages))))))
+
+(ert-deftest beads-actions-test-set-status-failure-does-not-report-success ()
+  "A status update that signals must not claim success."
+  :tags '(:unit)
+  (with-temp-buffer
+    (setq-local beads-list--marked-issues nil)
+    (cl-letf (((symbol-function 'beads-issue-at-point)
+               (lambda () "demo-1"))
+              ((symbol-function 'beads-execute)
+               (lambda (&rest _) (error "cannot update demo-1")))
+              ((symbol-function 'completing-read)
+               (lambda (&rest _) "blocked"))
+              ((symbol-function 'beads-actions--after-mutation)
+               (lambda () nil)))
+      (let ((messages (beads-actions-test--messages
+                       #'beads-actions-set-status)))
+        (should-not (beads-actions-test--any-message-p
+                     "Set status" messages))
+        (should (beads-actions-test--any-message-p
+                 "cannot update demo-1" messages))))))
+
+(ert-deftest beads-actions-test-close-partial-failure-reports-of-count ()
+  "With some targets failing, report succeeded-of-total and the error."
+  :tags '(:unit)
+  (with-temp-buffer
+    (setq-local beads-list--marked-issues '("demo-1" "demo-2"))
+    (let (refreshed)
+      (cl-letf (((symbol-function 'beads-execute)
+                 (lambda (&rest args)
+                   (when (equal '("demo-2")
+                                (plist-get (cdr args) :issue-ids))
+                     (error "demo-2 is locked"))
+                   nil))
+                ((symbol-function 'read-string)
+                 (lambda (&rest _) "done"))
+                ((symbol-function 'beads-actions--after-mutation)
+                 (lambda () (setq refreshed t))))
+        (let ((messages (beads-actions-test--messages #'beads-actions-close)))
+          (should (beads-actions-test--any-message-p
+                   "Closed 1 of 2 issue(s)" messages))
+          (should (beads-actions-test--any-message-p
+                   "demo-2 is locked" messages))
+          (should-not (beads-actions-test--any-message-p
+                       "Closed 2 issue(s)" messages))
+          (should refreshed))))))
+
 ;;; beads-actions--refresh
 
 (ert-deftest beads-actions-test-refresh-calls-list-refresh ()

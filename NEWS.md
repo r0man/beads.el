@@ -4,6 +4,19 @@ User-visible and API-breaking changes, newest first.
 
 ## Unreleased
 
+### A failed context action no longer reports success
+
+* **The context actions (`d`, `C`, `o`, `s`, `#`) only report success
+  when every target changed.**  `beads-actions-close`, `-claim`,
+  `-reopen`, `-set-status`, and `-set-priority` used to log each
+  per-issue error in `*Messages*` and then overwrite it with a success
+  count such as "Closed 1 issue(s)" even though the store was
+  unchanged.  The echo-area summary is now emitted last: an all-failed
+  action reports the underlying error, and a partial failure says
+  "Closed 1 of 2 issue(s); failed: ...".  The after-action hook and
+  buffer refresh run only when at least one issue changed, so a no-op
+  mutation leaves marks and the view untouched.
+
 ### User manual: one shared demo fixture and default-face screenshots
 
 * **The user manual's screenshots now come from one shared

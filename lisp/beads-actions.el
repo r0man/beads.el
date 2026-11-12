@@ -21,6 +21,7 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-error)
 (require 'beads-command-close)
 (require 'beads-command-update)
 (require 'beads-command-reopen)
@@ -117,6 +118,53 @@ Does nothing when the hook is empty (the standalone default)."
     (beads-list-unmark-all))
   (beads-actions--refresh))
 
+;;; Outcome Reporting
+
+(defun beads-actions--run-each (ids fn)
+  "Call FN with each id in IDS, catching per-id errors.
+Return (SUCCEEDED . FAILURES), where SUCCEEDED is the list of ids FN
+accepted and FAILURES is an alist of (ID . MESSAGE) for the ids whose
+call signalled."
+  (let (succeeded failures)
+    (dolist (id ids)
+      (condition-case err
+          (progn
+            (funcall fn id)
+            (push id succeeded))
+        (error
+         (push (cons id (beads-error-extract-message err)) failures))))
+    (cons (nreverse succeeded) (nreverse failures))))
+
+(defun beads-actions--finish (action verb failure-verb ids result)
+  "Report the outcome of applying ACTION to IDS and refresh.
+VERB is the past-tense summary word (e.g. Closed) and FAILURE-VERB
+the word used in failure messages (e.g. close).  RESULT is the
+\(SUCCEEDED . FAILURES) pair returned by `beads-actions--run-each'.
+
+The success hook and buffer refresh run only when at least one id
+changed.  The summary is emitted last, and a failed mutation never
+reports success: the failing ids and their errors stay visible in the
+echo area."
+  (pcase-let ((`(,succeeded . ,failures) result))
+    (when succeeded
+      (beads-actions--after-action action succeeded)
+      (beads-actions--after-mutation))
+    (let ((failures-text
+           (mapconcat (lambda (failure)
+                        (format "%s (%s)" (car failure) (cdr failure)))
+                      failures "; ")))
+      (cond
+       ((null failures)
+        (message "%s %d issue(s)" verb (length ids)))
+       ((null succeeded)
+        (if (= 1 (length failures))
+            (message "%s" (cdr (car failures)))
+          (message "Failed to %s %d issue(s): %s"
+                   failure-verb (length failures) failures-text)))
+       (t
+        (message "%s %d of %d issue(s); failed: %s"
+                 verb (length succeeded) (length ids) failures-text))))))
+
 ;;; Action Commands
 
 ;;;###autoload
@@ -130,30 +178,27 @@ Prompts for a close reason, then executes immediately."
                   (if (= count 1)
                       (format "Close %s reason: " (car ids))
                     (format "Close %d issue(s) reason: " count)))))
-    (dolist (id ids)
-      (condition-case err
-          (beads-execute 'beads-command-close :issue-ids (list id) :reason reason)
-        (error (message "Failed to close %s: %s" id
-                        (error-message-string err)))))
-    (beads-actions--after-action 'close ids)
-    (beads-actions--after-mutation)
-    (message "Closed %d issue(s)" count)))
+    (beads-actions--finish
+     'close "Closed" "close" ids
+     (beads-actions--run-each
+      ids
+      (lambda (id)
+        (beads-execute 'beads-command-close
+                       :issue-ids (list id) :reason reason))))))
 
 ;;;###autoload
 (defun beads-actions-claim ()
   "Claim the issue(s) at point or marked issues.
 Executes immediately without prompting."
   (interactive)
-  (let* ((ids (beads-actions--target-ids))
-         (count (length ids)))
-    (dolist (id ids)
-      (condition-case err
-          (beads-execute 'beads-command-update :issue-ids (list id) :claim t)
-        (error (message "Failed to claim %s: %s" id
-                        (error-message-string err)))))
-    (beads-actions--after-action 'claim ids)
-    (beads-actions--after-mutation)
-    (message "Claimed %d issue(s)" count)))
+  (let ((ids (beads-actions--target-ids)))
+    (beads-actions--finish
+     'claim "Claimed" "claim" ids
+     (beads-actions--run-each
+      ids
+      (lambda (id)
+        (beads-execute 'beads-command-update
+                       :issue-ids (list id) :claim t))))))
 
 ;;;###autoload
 (defun beads-actions-reopen ()
@@ -166,16 +211,15 @@ Prompts for an optional reason."
                   (if (= count 1)
                       (format "Reopen %s reason: " (car ids))
                     (format "Reopen %d issue(s) reason: " count)))))
-    (dolist (id ids)
-      (condition-case err
-          (if (string-empty-p (string-trim reason))
-              (beads-execute 'beads-command-reopen :issue-ids (list id))
-            (beads-execute 'beads-command-reopen :issue-ids (list id) :reason reason))
-        (error (message "Failed to reopen %s: %s" id
-                        (error-message-string err)))))
-    (beads-actions--after-action 'reopen ids)
-    (beads-actions--after-mutation)
-    (message "Reopened %d issue(s)" count)))
+    (beads-actions--finish
+     'reopen "Reopened" "reopen" ids
+     (beads-actions--run-each
+      ids
+      (lambda (id)
+        (if (string-empty-p (string-trim reason))
+            (beads-execute 'beads-command-reopen :issue-ids (list id))
+          (beads-execute 'beads-command-reopen
+                         :issue-ids (list id) :reason reason)))))))
 
 ;;;###autoload
 (defun beads-actions-set-status ()
@@ -190,14 +234,13 @@ Prompts with `completing-read' for a valid status value."
                     (format "Status for %d issue(s): " count))
                   '("open" "in_progress" "blocked")
                   nil t)))
-    (dolist (id ids)
-      (condition-case err
-          (beads-execute 'beads-command-update :issue-ids (list id) :status status)
-        (error (message "Failed to update %s: %s" id
-                        (error-message-string err)))))
-    (beads-actions--after-action 'set-status ids)
-    (beads-actions--after-mutation)
-    (message "Set status to '%s' for %d issue(s)" status count)))
+    (beads-actions--finish
+     'set-status (format "Set status to '%s' for" status) "update" ids
+     (beads-actions--run-each
+      ids
+      (lambda (id)
+        (beads-execute 'beads-command-update
+                       :issue-ids (list id) :status status))))))
 
 ;;;###autoload
 (defun beads-actions-set-priority ()
@@ -217,14 +260,13 @@ Prompts with `completing-read' for a priority value (0-4)."
                        (format "Priority for %d issue(s): " count))
                      choices nil t))
          (priority (cdr (assoc selection choices))))
-    (dolist (id ids)
-      (condition-case err
-          (beads-execute 'beads-command-update :issue-ids (list id) :priority priority)
-        (error (message "Failed to update %s: %s" id
-                        (error-message-string err)))))
-    (beads-actions--after-action 'set-priority ids)
-    (beads-actions--after-mutation)
-    (message "Set priority to %d for %d issue(s)" priority count)))
+    (beads-actions--finish
+     'set-priority (format "Set priority to %d for" priority) "update" ids
+     (beads-actions--run-each
+      ids
+      (lambda (id)
+        (beads-execute 'beads-command-update
+                       :issue-ids (list id) :priority priority))))))
 
 (provide 'beads-actions)
 
